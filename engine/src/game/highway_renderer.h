@@ -421,6 +421,8 @@ class HighwayRenderer {
   RuntimeMesh bonus_smasher_ring_add_mesh_;
   RuntimeMesh bonus_smasher_add_mesh_;
   RuntimeMesh smasher_shadow_mesh_;
+  MeshTransformAnim smasher_press_anim_;
+  float smasher_press_anim_duration_frames_ = 0.0f;
   RuntimeMesh hit_flame_mesh_;
   RuntimeMesh star_collect_flame_mesh_;
   RuntimeMesh bonus_hit_flame_mesh_;

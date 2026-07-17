@@ -244,8 +244,6 @@ constexpr uint8_t kActiveStarTailAlpha = 245u;
 constexpr float kSmasherClipZ = kBoardZ + 0.02f;
 constexpr float kSmasherBodyTopZ = kBoardZ + 0.20f;
 constexpr float kSmasherFixedRingTopZ = kBoardZ + 0.22f;
-constexpr float kNormalActiveSustainSmasherCapYOffset = 6.26f;
-constexpr float kNormalActiveSustainSmasherCapScale = 1.456f;
 constexpr DWORD kNoteCardAlphaRef = 8;
 constexpr float kHighwayMaxAuthoredLightColor = 64.0f;
 constexpr float kHighwayApproxFillScale = 0.45f;
@@ -2851,6 +2849,8 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
   bonus_smasher_ring_add_mesh_ = RuntimeMesh{};
   bonus_smasher_add_mesh_ = RuntimeMesh{};
   smasher_shadow_mesh_ = RuntimeMesh{};
+  smasher_press_anim_ = MeshTransformAnim{};
+  smasher_press_anim_duration_frames_ = 0.0f;
   hit_flame_mesh_ = RuntimeMesh{};
   star_collect_flame_mesh_ = RuntimeMesh{};
   bonus_hit_flame_mesh_ = RuntimeMesh{};
@@ -3202,6 +3202,13 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
       smasher_add_alpha_key_sources.insert(mesh.texture_name);
       mesh.texture_name = smasher_add_alpha_key_alias(mesh.texture_name);
     };
+    auto invert_mesh_normals = [](RuntimeMesh& mesh) {
+      for (auto& v : mesh.verts) {
+        v.nx = -v.nx;
+        v.ny = -v.ny;
+        v.nz = -v.nz;
+      }
+    };
     auto convert_line_material = [&](const std::string& mat_name) {
       RuntimeLineMaterial out;
       const auto* mat = track_scene.find_mat(mat_name);
@@ -3306,6 +3313,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                               smasher_add_blends_[lane]);
       smasher_add_meshes_[lane] =
           convert_mesh("gem_smasher.mesh", "gem_smasher_" + name + "_1.mat");
+      invert_mesh_normals(smasher_add_meshes_[lane]);
       alpha_key_source_alpha_smasher_add(smasher_add_meshes_[lane]);
       smasher_ring_texture_names_[lane] =
           material_texture("now_ring_" + name + ".mat");
@@ -3456,6 +3464,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
     half_beat_line_mesh_ = convert_mesh("half_beat_line5.mesh");
     quarter_beat_line_mesh_ = convert_mesh("quarter_beat_line5.mesh");
     gem_smasher_mesh_ = convert_mesh("gem_smasher.mesh");
+    invert_mesh_normals(gem_smasher_mesh_);
     smasher_rim_mesh_ = convert_mesh("smasher_rim.mesh");
     bonus_smasher_rim_mesh_ =
         convert_mesh_with_material_fallback("smasher_rim.mesh",
@@ -3464,6 +3473,23 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
         convert_mesh("smasher_rim.mesh", "now_ring_bonus_1.mat");
     alpha_key_source_alpha_ring_add(bonus_smasher_ring_add_mesh_);
     smasher_shadow_mesh_ = convert_mesh("smasher shadow.mesh");
+    smasher_press_anim_ = load_track_transanim_transform_anim(
+        hdr_path, ark_path, "gem_smasher.tnm");
+    if (mesh_transform_anim_empty(smasher_press_anim_)) {
+      smasher_press_anim_ = load_track_transanim_transform_anim(
+          hdr_path, ark_path, "gem_smasher_hit.tnm");
+    }
+    smasher_press_anim_duration_frames_ =
+        mesh_transform_anim_duration_frames(smasher_press_anim_);
+    if (!mesh_transform_anim_empty(smasher_press_anim_)) {
+      std::fprintf(stderr,
+                   "[highway] gem_smasher.tnm transform pos=%zu rot=%zu "
+                   "scale=%zu duration=%.1f\n",
+                   smasher_press_anim_.translation_keys.size(),
+                   smasher_press_anim_.rotation_keys.size(),
+                   smasher_press_anim_.scale_keys.size(),
+                   smasher_press_anim_duration_frames_);
+    }
     hit_flame_mesh_ = convert_mesh("smash_flamelight.mesh");
     star_collect_flame_mesh_ = convert_mesh("smash_flamelight_starcollect.mesh");
     bonus_hit_flame_mesh_ = convert_mesh("smash_flamelight_bonus.mesh");
@@ -3497,6 +3523,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                             bonus_smasher_add_blend_);
     bonus_smasher_add_mesh_ =
         convert_mesh("gem_smasher.mesh", "gem_smasher_bonus_1.mat");
+    invert_mesh_normals(bonus_smasher_add_mesh_);
     alpha_key_source_alpha_smasher_add(bonus_smasher_add_mesh_);
     bonus_smasher_ring_texture_name_ = material_texture("now_ring_bonus.mat");
     for (int i = 0; i < 3; ++i) {
@@ -5719,7 +5746,18 @@ void HighwayRenderer::draw_impl(double song_time,
         const float press_flash =
             hit_flash ? std::clamp(hit_flash[lane], 0.0f, 1.0f) : 0.0f;
         const float press = std::max(held ? 1.0f : 0.0f, press_flash);
-        const float smasher_top_z = kSmasherBodyTopZ;
+        const bool smasher_pressed = press > 0.01f;
+        float smasher_lift_z = 0.0f;
+        if (smasher_pressed && !mesh_transform_anim_empty(smasher_press_anim_)) {
+          const MeshTransformSample hit_transform = sample_transform_anim_delta(
+              smasher_press_anim_, smasher_press_anim_duration_frames_,
+              std::clamp(press, 0.0f, 1.0f));
+          if (hit_transform.has_translation &&
+              std::isfinite(hit_transform.translation[2])) {
+            smasher_lift_z = std::max(0.0f, hit_transform.translation[2]);
+          }
+        }
+        const float smasher_top_z = kSmasherBodyTopZ + smasher_lift_z;
         const float smasher_z_offset =
             smasher_top_z - gem_smasher_mesh_.max_z;
         const float rim_z_offset =
@@ -5727,7 +5765,6 @@ void HighwayRenderer::draw_impl(double song_time,
         const float shadow_z_offset =
             (kBoardZ + 0.03f) - smasher_shadow_mesh_.max_z;
         const float x = lane_x(lane);
-        const bool smasher_pressed = press > 0.01f;
         const D3DCOLOR base = smasher_pressed
                                   ? D3DCOLOR_ARGB(255, 255, 255, 255)
                                   : D3DCOLOR_ARGB(240, 255, 255, 255);
@@ -5799,14 +5836,15 @@ void HighwayRenderer::draw_impl(double song_time,
           std::fprintf(
               stderr,
               "[highway-smasher] lane=%d held=%d flash=%.3f press=%.3f "
-              "body_top=%.3f "
+              "body_top=%.3f lift_z=%.3f "
               "ring_top=%.3f body_mesh=%d ring_mesh=%d ring_add=%d "
               "ring_add_blend=%u ring_add_draw=%d shadow=%d "
               "body_tex=%s add_mesh=%d add_tex=%s add_blend=%u "
               "add_zmode=%u add_rgbmask=%d "
               "ring_tex=%s ring_add_tex=%s bonus=%d\n",
               lane, held ? 1 : 0, press_flash, press, smasher_top_z,
-              kSmasherFixedRingTopZ, gem_smasher_mesh_.ok ? 1 : 0,
+              smasher_lift_z, kSmasherFixedRingTopZ,
+              gem_smasher_mesh_.ok ? 1 : 0,
               ring_mesh->ok ? 1 : 0,
               ring_add_mesh && ring_add_mesh->ok ? 1 : 0,
               ring_add_mesh && ring_add_mesh->ok
@@ -6038,24 +6076,6 @@ void HighwayRenderer::draw_impl(double song_time,
                     root_transform(transform), true, 0.0f, use_vertex_color);
               });
         };
-    auto draw_active_sustain_smasher_cap_layer =
-        [&](const RuntimeMesh& mesh, const std::string& texture_name,
-            float center_x, float center_y, float scale, float z_offset,
-            bool clip_to_z_min) {
-          draw_active_sustain_cap_layer_with_state(
-              mesh, [&]() {
-                if (!texture_name.empty()) {
-                  draw_centered_root_mesh_with_texture(
-                      mesh, texture_name, center_x, center_y,
-                      active_cap_tint, scale, true, z_offset,
-                      clip_to_z_min, kSmasherClipZ);
-                } else {
-                  draw_centered_root_mesh(
-                      mesh, center_x, center_y, active_cap_tint, scale,
-                      true, z_offset, clip_to_z_min, kSmasherClipZ);
-                }
-              });
-        };
     auto active_star_top_for_lane = [&](int lane) -> const RuntimeMesh* {
       if (moving_note_star_prefers_black_top_ && star_black_top_mesh_.ok) {
         return &star_black_top_mesh_;
@@ -6177,66 +6197,6 @@ void HighwayRenderer::draw_impl(double song_time,
               !env_enabled("GHOGX_DISABLE_HIGHWAY_STAR_TOP")) {
             draw_active_sustain_cap_layer(*star_top, lane,
                                           active_sustain_cap_y);
-          }
-          continue;
-        }
-
-        const bool draw_smasher_cap =
-            gem_smasher_mesh_.ok &&
-            !smasher_texture_names_[lane].empty() &&
-            !env_enabled("GHOGX_DISABLE_HIGHWAY_ACTIVE_SUSTAIN_SMASHER_CAP");
-        if (draw_smasher_cap) {
-          const bool experiment_smasher_rim =
-              env_enabled("GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_SMASHER_RIM");
-          const RuntimeMesh* cap_ring_mesh = nullptr;
-          std::string cap_ring_texture;
-          if (experiment_smasher_rim) {
-            cap_ring_mesh = smasher_rim_meshes_[lane].ok
-                                ? &smasher_rim_meshes_[lane]
-                                : (smasher_rim_mesh_.ok ? &smasher_rim_mesh_
-                                                        : nullptr);
-            cap_ring_texture = smasher_ring_texture_names_[lane];
-            if (cap_ring_texture.empty() && cap_ring_mesh) {
-              cap_ring_texture = cap_ring_mesh->texture_name;
-            }
-          }
-          float cap_min_local_y = gem_smasher_mesh_.min_y;
-          const float cap_scale = kNormalActiveSustainSmasherCapScale;
-          const float active_sustain_cap_lower_y =
-              kStrikeY + nowbar_tail_clip_ +
-              kNormalActiveSustainSmasherCapYOffset;
-          const float active_sustain_cap_center_y =
-              active_sustain_cap_lower_y +
-              (gem_smasher_mesh_.center_y - cap_min_local_y) * cap_scale;
-          const float body_z_offset =
-              kSmasherFixedRingTopZ - gem_smasher_mesh_.max_z * cap_scale;
-          if (debug_active_sustain_caps &&
-              active_sustain_cap_debug_budget <
-                  kActiveSustainCapDebugBudget) {
-            std::fprintf(
-                stderr,
-                "[highway-active-sustain-cap] lane=%d tick=%u "
-                "smasher=1 body=%d add=0 center_y=%.3f lower_y=%.3f "
-                "scale=%.3f min_y=%.3f body_tex=%s "
-                "rim=%d rim_tex=%s start=%.3f end=%.3f\n",
-                lane, sustain.source_tick, gem_smasher_mesh_.ok ? 1 : 0,
-                active_sustain_cap_center_y, active_sustain_cap_lower_y,
-                cap_scale, cap_min_local_y,
-                smasher_texture_names_[lane].c_str(),
-                cap_ring_mesh && cap_ring_mesh->ok ? 1 : 0,
-                cap_ring_texture.empty() ? "<none>" : cap_ring_texture.c_str(),
-                sustain.start_time, sustain.end_time);
-            ++active_sustain_cap_debug_budget;
-          }
-          draw_active_sustain_smasher_cap_layer(
-              gem_smasher_mesh_, smasher_texture_names_[lane], lane_x(lane),
-              active_sustain_cap_center_y, cap_scale, body_z_offset, true);
-          if (cap_ring_mesh && cap_ring_mesh->ok) {
-            const float ring_z_offset =
-                kSmasherFixedRingTopZ - cap_ring_mesh->max_z * cap_scale;
-            draw_active_sustain_smasher_cap_layer(
-                *cap_ring_mesh, cap_ring_texture, lane_x(lane),
-                active_sustain_cap_center_y, cap_scale, ring_z_offset, false);
           }
           continue;
         }

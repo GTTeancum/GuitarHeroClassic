@@ -3283,6 +3283,12 @@ int main() {
   ok &= contains(highway_renderer_h_c,
                  "RuntimeMeshbonus_smasher_add_mesh_;",
                  "active star power retains the decoded bonus smasher body add material state");
+  ok &= contains(highway_renderer_h_c,
+                 "MeshTransformAnimsmasher_press_anim_;",
+                 "fret-target smashers store the authored source press translation");
+  ok &= contains(highway_renderer_h_c,
+                 "floatsmasher_press_anim_duration_frames_=0.0f;",
+                 "fret-target smasher press animation stores its source duration");
   ok &= contains(highway_renderer_c,
                  "smasher_add_texture(\"gem_smasher_\"+name+\"_1.mat\","
                  "smasher_add_blends_[lane]);",
@@ -3292,9 +3298,28 @@ int main() {
                  "\"gem_smasher.mesh\",\"gem_smasher_\"+name+\"_1.mat\");",
                  "pressed smasher body add layers draw through source-bound meshes");
   ok &= contains(highway_renderer_c,
+                 "invert_mesh_normals(smasher_add_meshes_[lane]);",
+                 "pressed smasher body add layers use corrected source-facing normals");
+  ok &= contains(highway_renderer_c,
+                 "gem_smasher_mesh_=convert_mesh(\"gem_smasher.mesh\");"
+                 "invert_mesh_normals(gem_smasher_mesh_);",
+                 "fret-target smasher body uses corrected source-facing normals");
+  ok &= contains(highway_renderer_c,
+                 "smasher_press_anim_=load_track_transanim_transform_anim("
+                 "hdr_path,ark_path,\"gem_smasher.tnm\");",
+                 "fret-target smasher lift comes from the authored press TransAnim");
+  ok &= contains(highway_renderer_c,
+                 "if(mesh_transform_anim_empty(smasher_press_anim_)){"
+                 "smasher_press_anim_=load_track_transanim_transform_anim("
+                 "hdr_path,ark_path,\"gem_smasher_hit.tnm\");}",
+                 "fret-target smasher lift falls back only to the authored hit TransAnim");
+  ok &= contains(highway_renderer_c,
                  "bonus_smasher_add_mesh_=convert_mesh("
                  "\"gem_smasher.mesh\",\"gem_smasher_bonus_1.mat\");",
                  "active star power draws the bonus smasher body add through its source-bound mesh");
+  ok &= contains(highway_renderer_c,
+                 "invert_mesh_normals(bonus_smasher_add_mesh_);",
+                 "bonus smasher body add uses corrected source-facing normals");
   ok &= contains(highway_renderer_c,
                  "smasher_add_alpha_key_sources.insert(mat->diffuse_tex);"
                  "returnsmasher_add_alpha_key_alias(mat->diffuse_tex);",
@@ -3336,11 +3361,23 @@ int main() {
                "D3DCOLOR_ARGB(180,255,255,255)",
                "pressed smasher body add layer must not use guessed 180 alpha");
   ok &= contains(highway_renderer_c,
-                 "constfloatsmasher_top_z=kSmasherBodyTopZ;",
-                 "native fret-target bodies stay grounded when pressed");
+                 "constMeshTransformSamplehit_transform="
+                 "sample_transform_anim_delta(smasher_press_anim_,"
+                 "smasher_press_anim_duration_frames_,"
+                 "std::clamp(press,0.0f,1.0f));",
+                 "pressed fret-target bodies sample the authored smasher press animation");
+  ok &= contains(highway_renderer_c,
+                 "smasher_lift_z=std::max(0.0f,hit_transform.translation[2]);",
+                 "pressed fret-target bodies apply only source Z lift");
+  ok &= contains(highway_renderer_c,
+                 "constfloatsmasher_top_z=kSmasherBodyTopZ+smasher_lift_z;",
+                 "pressed fret-target bodies rise vertically from the grounded source base");
   ok &= absent(highway_renderer_c,
                "kSmasherHeldTopZ",
-               "pressed fret targets must not lift the button body away from the fixed ring");
+               "pressed fret targets must not use a guessed held height");
+  ok &= absent(highway_renderer_c,
+               "GHOGX_HIGHWAY_SMASHER_LAYER_ONLY",
+               "fret-target smasher proof hooks must not introduce layer-only placement paths");
   ok &= contains(highway_renderer_c,
                  "constexprfloatkSmasherBodyTopZ=kBoardZ+0.20f;",
                  "native fret-target bodies keep their dark tops visible above the highway");
@@ -3354,8 +3391,11 @@ int main() {
                  "\"[highway-smasher]lane=%dheld=%dflash=%.3fpress=%.3f\"",
                  "smasher diagnostics split held input from hit-flash feedback");
   ok &= contains(highway_renderer_c,
+                 "\"body_top=%.3flift_z=%.3f\"",
+                 "smasher diagnostics expose source Z lift beside body top");
+  ok &= contains(highway_renderer_c,
                  "\"ring_top=%.3fbody_mesh=%dring_mesh=%dring_add=%d\"",
-                 "smasher diagnostics prove base and pressed-add rings stay fixed from native mesh state");
+                 "smasher diagnostics prove rings stay fixed from native mesh state");
   ok &= contains(highway_renderer_c,
                  "\"ring_add_blend=%uring_add_draw=%dshadow=%d\"",
                  "smasher diagnostics expose source ring-add blend and draw gating");
@@ -3652,48 +3692,31 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_ACTIVE_SUSTAIN_CAPS\")",
                  "active sustain held caps keep an A/B disable switch");
-  ok &= contains(highway_renderer_c,
-                 "draw_active_sustain_smasher_cap_layer(",
-                 "normal active held sustain caps have a source smasher-stack draw helper");
+  ok &= absent(highway_renderer_c,
+               "draw_active_sustain_smasher_cap_layer(",
+               "normal active held sustain caps must not draw a separate smasher overlay");
   ok &= contains(highway_renderer_c,
                  "constbooldraw_unproven_note_top_cap="
                  "env_enabled(\"GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_CAPS\")||"
                  "env_enabled(\"GHOGX_EXPERIMENT_HIGHWAY_NORMAL_ACTIVE_SUSTAIN_CAPS\");"
                  "if(!draw_unproven_note_top_cap){continue;}",
                  "larger moving-note/top fallback cap stays diagnostic-only");
-  ok &= contains(highway_renderer_c,
-                 "gem_smasher_mesh_.ok&&!smasher_texture_names_[lane].empty()"
-                 "&&!env_enabled(\"GHOGX_DISABLE_HIGHWAY_ACTIVE_SUSTAIN_SMASHER_CAP\")",
-                 "normal active held sustain inner cap uses the authored gem_smasher source stack over the round moving-gem fallback");
-  ok &= contains(highway_renderer_c,
-                 "constboolexperiment_smasher_rim="
-                 "env_enabled(\"GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_SMASHER_RIM\");",
-                 "normal active held sustain smasher rims stay behind the rejected owner-trace experiment flag");
-  ok &= contains(highway_renderer_c,
-                 "constRuntimeMesh*cap_ring_mesh=nullptr;",
-                 "normal active held sustain caps do not draw the smasher rim by default");
-  ok &= contains(highway_renderer_c,
-                 "if(experiment_smasher_rim){cap_ring_mesh="
-                 "smasher_rim_meshes_[lane].ok?&smasher_rim_meshes_[lane]:"
-                 "(smasher_rim_mesh_.ok?&smasher_rim_mesh_:nullptr);",
-                 "normal active held sustain rim experiment is opt-in instead of default cap geometry");
-  ok &= contains(highway_renderer_c,
-                 "constexprfloatkNormalActiveSustainSmasherCapYOffset=6.26f;",
-                 "opt-in normal active held sustain smasher cap vertical offset is preserved only for trace comparison");
-  ok &= contains(highway_renderer_c,
-                 "constexprfloatkNormalActiveSustainSmasherCapScale=1.456f;",
-                 "opt-in normal active held sustain smasher cap scale is preserved only for trace comparison");
-  ok &= contains(highway_renderer_c,
-                 "smasher=1body=%dadd=0center_y=%.3flower_y=%.3f"
-                 "\"\"scale=%.3fmin_y=%.3f",
-                 "normal active held sustain caps do not use the pressed-button smasher add flash");
-  ok &= contains(highway_renderer_c,
-                 "active_sustain_cap_lower_y+(gem_smasher_mesh_.center_y-"
-                 "cap_min_local_y)*cap_scale",
-                 "normal active held sustain smasher caps anchor the scaled lower source edge to the measured cap fit");
-  ok &= contains(highway_renderer_c,
-                 "kSmasherFixedRingTopZ-gem_smasher_mesh_.max_z*cap_scale",
-                 "normal active held sustain smasher caps use the flatter source now-ring height instead of the raised pressed-button height");
+  ok &= absent(highway_renderer_c,
+               "GHOGX_DISABLE_HIGHWAY_ACTIVE_SUSTAIN_SMASHER_CAP",
+               "normal active held sustains must not keep the separate smasher-cap switch");
+  ok &= absent(highway_renderer_c,
+               "GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_SMASHER_RIM",
+               "normal active held sustains must not keep the rejected smasher-rim overlay hook");
+  ok &= absent(highway_renderer_c,
+               "kNormalActiveSustainSmasherCapYOffset",
+               "normal active held sustain caps must not use the guessed highway-depth offset");
+  ok &= absent(highway_renderer_c,
+               "kNormalActiveSustainSmasherCapScale",
+               "normal active held sustain caps must not use the guessed scale fit");
+  ok &= absent(highway_renderer_c,
+               "active_sustain_cap_lower_y+(gem_smasher_mesh_.center_y-"
+               "cap_min_local_y)*cap_scale",
+               "normal active held sustains must not move smashers along the highway");
   ok &= contains(highway_renderer_c,
                  "if(sustain.star_power_tail){",
                  "active sustain note-head caps branch star sustains to the traced authored star stack");
