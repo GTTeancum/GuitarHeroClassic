@@ -2,6 +2,20 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager category scan status:
+  ihatecompvir `CameraManager::FindCameraShot(...)` calls `FirstShotOk(s)`,
+  retrieves the category bucket with `FindOrAddCategory(s)`, then scans that
+  bucket in source order before applying `Disabled`, `ShotMatches`,
+  `ShotOk(mCurrentShot)`, and `MoveItem`. `NumCameraShots(...)` uses the same
+  category-bucket scan shape for its prescan count. Native already routes
+  regular gameplay through the source-discovered category buckets; the compact
+  normal gameplay camera status now counts this as
+  `camera_manager_findshot_category_scan` between
+  `camera_manager_first_shot_ok_hook` and the disabled/filter gates. This is
+  selector provenance parity only: no fallback shot, no hidden `cam_shot_ok` /
+  `cam_check_shot` invention, no pose math, no FreeCam priority change, no
+  dependency, no under-venue masking, and no OG Xbox portability surface
+  changed.
 - 2026-07-17 gameplay PickCameraShot no-acceptable warning status:
   ihatecompvir `CameraManager::PickCameraShot(...)` calls
   `FindCameraShot(...)`, formats `No acceptable camera shot:` plus the source
