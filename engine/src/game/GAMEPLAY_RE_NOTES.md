@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager RandomizeCategory no-op status:
+  ihatecompvir `CameraManager::SyncObjects()` builds category buckets from
+  `ObjDirItr<CamShot>` and then calls `CameraManager::Randomize()`, but the
+  visible `RandomizeCategory(...)` body is empty. Native already preserves
+  decoded source object/category order at that call boundary and logs
+  `source_body=empty_noop`; the compact status now counts
+  `camera_manager_randomize_category_noop` beside regular camera selection.
+  This is normal gameplay camera picker parity only: no pose math,
+  `BuildTransform` synthesis, under-venue masking, FreeCam priority change,
+  dependency change, or OG Xbox portability change.
 - 2026-07-17 gameplay CamShot OnHasTargets boundary status:
   ihatecompvir `CamShot::OnHasTargets()` returns
   `mKeyFrames[idx].HasTargets()`, and `CamShotFrame::HasTargets()` checks the
