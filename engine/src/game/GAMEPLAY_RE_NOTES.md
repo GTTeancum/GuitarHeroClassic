@@ -2,6 +2,19 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot ShotOk previous argument status:
+  ihatecompvir `CamShot::ShotOk(prevShot)` writes the previous/current manager
+  shot into the `shot_ok` message before applying the visible return-type
+  switch. GH2's `world/camshot.dta::shot_ok` still calls native
+  `cam_shot_ok($this)`, so native keeps the hidden predicate current-shot
+  scoped and does not feed that previous pointer into the unrecovered native
+  body. The compact normal gameplay camera status now counts
+  `camera_camshot_shotok_prev_arg_bridge` between the visible
+  `CamShot::ShotOk` type switch and the current-walkspot / bad-waypoints
+  selector context. This is selector argument parity only: no hidden
+  `cam_shot_ok` result invention, no pose math, no FreeCam priority change, no
+  dependency, no under-venue masking, and no OG Xbox portability surface
+  changed.
 - 2026-07-17 gameplay PickCameraShot same-shot restart status:
   ihatecompvir `CameraManager::PickCameraShot` writes the accepted
   `FindCameraShot` result to `mNextShot` without a same-current / unstarted

@@ -15001,6 +15001,7 @@ int main() {
                  "camera_manager_startshot_side_effects,"
                  "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shotok_typeswitch,"
+                 "camera_camshot_shotok_prev_arg_bridge,"
                  "camera_current_walkspot_waypoint_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"
@@ -15025,7 +15026,7 @@ int main() {
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, StartAnim no-op handlers, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
+                 "camera implementation status counts source-visible postprocess, force LOD handoff, crowd payload, StartAnim reset, StartAnim no-op handlers, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, CamShotFrame::Interp pieces, the source shot_started post-switch bridge, shot_over next_shot handoff, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
   ok &= contains(gameplay_c,
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
@@ -15047,9 +15048,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shotok_typeswitch,"
+                 "camera_camshot_shotok_prev_arg_bridge,"
                  "camera_current_walkspot_waypoint_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints",
-                 "camera implementation status keeps the decoded CamShot glow_spot bridge separate from the visible ShotOk type switch, current-walkspot lookup, and recovered bad_waypoints work");
+                 "camera implementation status keeps the decoded CamShot glow_spot bridge separate from the visible ShotOk type switch, previous-shot argument bridge, current-walkspot lookup, and recovered bad_waypoints work");
   ok &= contains(gameplay_c,
                  "source_visible_pose_units=%s",
                  "camera debug rows expose visible CamShotFrame::Interp pose units");
@@ -15066,12 +15068,13 @@ int main() {
                  "camera_manager_startshot_side_effects,"
                  "camera_camshot_glow_spot_bridge,"
                  "camera_camshot_shotok_typeswitch,"
+                 "camera_camshot_shotok_prev_arg_bridge,"
                  "camera_current_walkspot_waypoint_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints,"
                  "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_milocamera_poll_gate,"
                  "camera_manager_prepoll_poll_order",
-                 "camera implementation status counts the current-walkspot lookup, recovered CamShot ShotOk bad_waypoints rejection, check_shot probe boundary, source MiloCamera gate, manager poll order, and CalcFrame timing before frame sampling");
+                 "camera implementation status counts the CamShot ShotOk previous-shot argument, current-walkspot lookup, recovered bad_waypoints rejection, check_shot probe boundary, source MiloCamera gate, manager poll order, and CalcFrame timing before frame sampling");
   ok &= contains(gameplay_c,
                  "camera_camshot_setlocalxfm_tail,"
                  "camera_rndcam_updatelocal_public_stub,"
@@ -15087,9 +15090,10 @@ int main() {
                  "regular camera shot_ok diagnostics expose the visible CamShot::ShotOk type-switch effect");
   ok &= contains(gameplay_c,
                  "camera_camshot_shotok_typeswitch,"
+                 "camera_camshot_shotok_prev_arg_bridge,"
                  "camera_current_walkspot_waypoint_bridge,"
                  "camera_camshot_shot_ok_bad_waypoints,",
-                 "camera implementation status counts the visible CamShot::ShotOk type-switch and current-walkspot lookup before the recovered bad_waypoints rule");
+                 "camera implementation status counts the visible CamShot::ShotOk type-switch and previous-shot argument before the current-walkspot lookup and recovered bad_waypoints rule");
   ok &= contains(gameplay_c,
                  "camera_visibility,"
                  "camera_shot_started_postswitch,"
