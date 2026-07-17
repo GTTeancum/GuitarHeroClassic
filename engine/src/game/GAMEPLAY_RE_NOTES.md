@@ -152,6 +152,15 @@
   `camera_manager_current_next_state`. This is source manager scheduling parity
   only: no camera pose math, FreeCam priority, dependency, under-venue masking,
   or OG Xbox portability surface changed.
+- 2026-07-17 gameplay CameraManager cycle_shot return status:
+  ihatecompvir `CameraManager::OnCycleShot(...)` always returns `DataNode(0)`
+  after the optional `ShotAfter(...)` / `ForceCameraShot(...)` handoff. Native
+  cycle-shot proof now stamps `source_return=DataNode(0)` on both the no-shot
+  and pending branches, and the compact status counts
+  `camera_manager_cycle_shot_return_bridge` immediately after
+  `camera_manager_cycle_shot_pending_bridge`. This is return/proof parity only:
+  no camera pose math, FreeCam priority, dependency, under-venue masking, or OG
+  Xbox portability surface changed.
 - 2026-07-17 gameplay CameraManager ShotAfter order status:
   ihatecompvir `CameraManager::ShotAfter(CamShot*)` walks
   `ObjDirItr<CamShot>` in source object order, keeps the first CamShot as the
