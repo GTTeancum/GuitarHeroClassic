@@ -626,6 +626,17 @@
   accounting only: no native renderer tri-frame effect, hidden pose body,
   FreeCam priority, under-venue masking, dependency, or OG Xbox portability
   surface changed.
+- 2026-07-17 gameplay CameraManager Enter reset status:
+  ihatecompvir `CameraManager::Enter()` calls `StartShot_(0)` and then
+  `DeleteFreeCam()`, while the visible source leaves `mNextShot` for
+  `PrePoll()` to consume later. Native already routes diagnostic seek and
+  venue reset through `reset_camera_manager_like_source_enter(...)`, runs old
+  shot shutdown and StartShot_ side-effect state, preserves the pending
+  normal gameplay camera bridge, and keeps FreeCam priority deferred. The
+  compact status now counts `camera_manager_enter_reset_bridge` between
+  `camera_lifecycle` and `camera_camshot_endanim_bridge`. This is source
+  manager reset accounting only: no pose math, FreeCam promotion, dependency,
+  under-venue masking, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot StartAnim reset status:
   ihatecompvir `CamShot::StartAnim()` sends `start_shot`, calls
   `WorldDir::SetCrowds(mCrowds)`, clears `unk10c` / `unk110` and the six

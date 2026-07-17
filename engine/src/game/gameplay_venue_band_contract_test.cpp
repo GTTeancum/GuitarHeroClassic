@@ -14968,8 +14968,9 @@ int main() {
                  "camera_manager_iterate_shot_bridge,"
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
-                 "camera_lifecycle",
-                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ShotAfter object-order bridge, cycle_shot pending handoff, current/next shot state, iterate_shot bridge, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+                 "camera_lifecycle,"
+                 "camera_manager_enter_reset_bridge",
+                 "camera implementation status counts source intro previous context, CamShot PlatformOk gating, SyncObjects category buckets, CameraManager random seed, one_bar_to seek-latch replay, worldbase beat check_shot bridge, worldbase downbeat duration gate, worldbase script filters, CameraManager Handle routes, CameraManager MakeCategoryAndFilters, BandDirector FindNextShot filters, NumCameraShots prescan, FirstShotOk, FindCameraShot category scan, CamShot Disable bitmask mutation, FindCameraShot Disabled gate, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot no-acceptable warning, PickCameraShot pending handoff, same-shot restart bridge, ForceCameraShot pending handoff, ShotAfter object-order bridge, cycle_shot pending handoff, current/next shot state, iterate_shot bridge, RandomizeCategory no-op, WorldDir SyncCamShots disabled overrides, and CameraManager Enter reset between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_selection,"
                  "camera_intro_previous_context_bridge,"
@@ -15050,7 +15051,8 @@ int main() {
                  "camera_manager_findshot_moveitem,",
                  "camera implementation status keeps CamShot::OnRadio flags between ShotMatches and FindCameraShot");
   ok &= contains(gameplay_c,
-                 "camera_lifecycle,camera_camshot_endanim_bridge,"
+                 "camera_lifecycle,camera_manager_enter_reset_bridge,"
+                 "camera_camshot_endanim_bridge,"
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_crowd_payload_bridge,"
@@ -15092,11 +15094,12 @@ int main() {
                  "camera_camshot_onsetpos_boundary,"
                  "camera_camshot_hastargets_boundary,"
                  "camera_path_transanim_timing",
-                 "camera implementation status counts source-visible EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source CheckShotStarted runtime bit, the source shot_started post-switch bridge, SetShotOver dispatch/latch bridge, shot_over next_shot handoff, CacheFrames mDuration, EndFrame mDuration, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
+                 "camera implementation status counts source-visible CameraManager Enter reset, EndAnim, postprocess, force LOD handoff, crowd payload, crowd message handlers, StartAnim reset, StartAnim no-op handlers, AnimTarget/ListAnimChildren, mAnims, CameraManager StartShot_ side effects, glow_spot bridges, the CamShot::ShotOk previous-shot argument bridge, the MiloCamera poll gate, CameraManager PrePoll/Poll order, base SetPreFrame no-op, CamShotFrame::Interp pieces, DoHide/UnHide visibility, the source CheckShotStarted runtime bit, the source shot_started post-switch bridge, SetShotOver dispatch/latch bridge, shot_over next_shot handoff, CacheFrames mDuration, EndFrame mDuration, duration_seconds timing helper, CamShot GetKey looping, and the source OnSetPos/OnHasTargets boundaries");
   ok &= contains(gameplay_c,
-                 "camera_lifecycle,camera_camshot_endanim_bridge,"
+                 "camera_lifecycle,camera_manager_enter_reset_bridge,"
+                 "camera_camshot_endanim_bridge,"
                  "camera_camshot_postprocess_select_reset,",
-                 "camera implementation status keeps source CamShot EndAnim before the next start_shot postprocess reset/select");
+                 "camera implementation status keeps the source CameraManager Enter reset bridge before CamShot EndAnim and the next start_shot postprocess reset/select");
   ok &= contains(gameplay_c,
                  "camera_camshot_endanim_bridge,"
                  "camera_camshot_postprocess_select_reset,"
@@ -15145,7 +15148,8 @@ int main() {
                  "SetFrustum,DOF,Shake_tail,SetLocalXfm_tail",
                  "camera visible pose-unit status counts the source SetLocalXfm tail without claiming hidden BuildTransform math");
   ok &= contains(gameplay_c,
-                 "camera_lifecycle,camera_camshot_endanim_bridge,"
+                 "camera_lifecycle,camera_manager_enter_reset_bridge,"
+                 "camera_camshot_endanim_bridge,"
                  "camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"
                  "camera_camshot_crowd_payload_bridge,"
@@ -15666,6 +15670,9 @@ int main() {
       gameplay_c,
       "voidGameplay::reset_camera_manager_like_source_enter(constchar*context)",
       "camera lifecycle exposes a source-shaped CameraManager::Enter reset helper");
+  ok &= contains(gameplay_c,
+                 "camera_manager_enter_reset_bridge,",
+                 "camera implementation status counts the source CameraManager::Enter reset bridge");
   ok &= contains(gameplay_c,
                  "end_camera_shot_runtime();"
                  "camera_manager_startshot_side_effects_like_source();"
