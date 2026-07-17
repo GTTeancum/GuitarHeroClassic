@@ -1725,6 +1725,7 @@ constexpr float kCamShotAngleByteInv = 0.012319971f;
 constexpr float kCamShotBlurByteScale = 255.0f;
 constexpr float kCamShotBlurByteInv = 0.0039215689f;
 constexpr float kCamShotFrameSourceDefaultFov = 1.2217305f;
+constexpr float kCamShotSourceDefaultFilter = 0.9f;
 constexpr float kCamShotSourceDefaultNearPlane = 1.0f;
 constexpr float kCamShotSourceDefaultFarPlane = 1000.0f;
 constexpr const char* kSourceCamShotAnimTarget = "CamShot::sAnimTarget";
@@ -16673,7 +16674,8 @@ std::optional<float> camera_filter_float_property(
     const Gameplay::CameraKey& key,
     std::string_view prop) {
     if (prop == "filter")
-        return key.has_shot_filter ? key.shot_filter : 0.9f;
+        return key.has_shot_filter ? key.shot_filter
+                                   : kCamShotSourceDefaultFilter;
     if (prop == "clamp_height")
         return key.has_clamp_height ? key.clamp_height : -1.0f;
     if (prop == "near_plane")
@@ -21235,8 +21237,9 @@ float camera_result_builder_shot_filter_step(
     const std::array<float, 3>& target,
     float* out_projected_delta = nullptr) {
     if (out_projected_delta) *out_projected_delta = 1.0f;
-    if (!key.has_shot_filter || !std::isfinite(key.shot_filter) ||
-        key.shot_filter <= 0.0f) {
+    const float shot_filter =
+        key.has_shot_filter ? key.shot_filter : kCamShotSourceDefaultFilter;
+    if (!std::isfinite(shot_filter) || shot_filter <= 0.0f) {
         return 1.0f;
     }
     float projected_delta = 1.0f;
@@ -21249,7 +21252,13 @@ float camera_result_builder_shot_filter_step(
         if (std::isfinite(len)) projected_delta = std::min(len, 1.0f);
     }
     if (out_projected_delta) *out_projected_delta = projected_delta;
-    return std::clamp(key.shot_filter * projected_delta, 0.0f, 1.0f);
+    return std::clamp(shot_filter * projected_delta, 0.0f, 1.0f);
+}
+
+bool camera_shot_filter_applies(const Gameplay::CameraKey& key) {
+    const float shot_filter =
+        key.has_shot_filter ? key.shot_filter : kCamShotSourceDefaultFilter;
+    return std::isfinite(shot_filter) && shot_filter > 0.0f;
 }
 
 std::array<float, 3> camera_result_builder_filtered_target(
@@ -21493,8 +21502,7 @@ std::optional<CameraResultRows> camera_target_list_result_rows_from_seed(
     bool apply_screen_offset) {
     rows.source += "+target_list";
     const bool applies_filter =
-        state && key.has_shot_filter && std::isfinite(key.shot_filter) &&
-        key.shot_filter > 0.0f;
+        state && camera_shot_filter_applies(key);
     const auto aim_target = camera_result_builder_filtered_target(
         rows, key, target, state, out_filter_step, out_projected_delta);
     if (applies_filter) rows.source += "+shot_filter";
@@ -22878,18 +22886,14 @@ void apply_camera_keys(
         result_key.has_shot_filter =
             a->has_shot_filter || b->has_shot_filter;
         const float filter_a =
-            a->has_shot_filter
-                ? a->shot_filter
-                : (b->has_shot_filter ? b->shot_filter : 0.0f);
+            a->has_shot_filter ? a->shot_filter : kCamShotSourceDefaultFilter;
         const float filter_b =
-            b->has_shot_filter ? b->shot_filter : filter_a;
+            b->has_shot_filter ? b->shot_filter : kCamShotSourceDefaultFilter;
         result_key.shot_filter =
             filter_a + (filter_b - filter_a) * interp_t;
         result_filter_state_seeded =
             result_builder_state && !result_builder_state->has_filtered_target;
-        result_filter_branch =
-            result_key.has_shot_filter && std::isfinite(result_key.shot_filter) &&
-            result_key.shot_filter > 0.0f;
+        result_filter_branch = camera_shot_filter_applies(result_key);
         if (!same_targets_like_camshot) {
             CameraResultBuilderState source_order_state =
                 result_builder_state ? *result_builder_state

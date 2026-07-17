@@ -9706,7 +9706,11 @@ int main() {
                  "floatcamera_result_builder_shot_filter_step(",
                  "camera result rows consume the traced s3+52 shot filter branch");
   ok &= contains(gameplay_c,
-                 "returnstd::clamp(key.shot_filter*projected_delta,0.0f,1.0f);",
+                 "constfloatshot_filter=key.has_shot_filter?"
+                 "key.shot_filter:kCamShotSourceDefaultFilter;",
+                 "camera result builder uses ihatecompvir mFilter default when decoded shot filter is absent");
+  ok &= contains(gameplay_c,
+                 "returnstd::clamp(shot_filter*projected_delta,0.0f,1.0f);",
                  "camera shot_filter is scaled by the clamped projected target delta");
   ok &= contains(gameplay_c,
                  "state->filtered_target[axis]=state->filtered_target[axis]*old_weight+"
@@ -13617,8 +13621,8 @@ int main() {
                  "std::optional<float>camera_filter_float_property(",
                  "regular camera filters can evaluate float CamShot properties");
   ok &= contains(gameplay_c,
-                 "if(prop==\"filter\")returnkey.has_shot_filter?"
-                 "key.shot_filter:0.9f;"
+                 "if(prop==\"filter\")returnkey.has_shot_filter?key.shot_filter:"
+                 "kCamShotSourceDefaultFilter;"
                  "if(prop==\"clamp_height\")returnkey.has_clamp_height?"
                  "key.clamp_height:-1.0f;",
                  "regular camera float filters expose ihatecompvir filter/clamp defaults");
