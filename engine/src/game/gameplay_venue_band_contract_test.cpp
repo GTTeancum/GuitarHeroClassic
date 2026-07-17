@@ -12615,6 +12615,35 @@ int main() {
                  "RndCam::OnSetFrustumsource_msg=set_frustum",
                  "camera diagnostics expose the RndCam set_frustum handler boundary");
   ok &= contains(gameplay_c,
+                 "voidcamera_apply_rndcam_near_plane_prop_like_source("
+                 "ghogx::render::OrbitCamera&cam,floatnear_plane)",
+                 "runtime camera exposes RndCam near_plane PropSync bridge");
+  ok &= contains(gameplay_c,
+                 "cam,near_plane,cam.far_z,cam.fov,source_current_far_z);",
+                 "RndCam near_plane PropSync delegates to SetFrustum(_val,mFarPlane,mYFov,1)");
+  ok &= contains(gameplay_c,
+                 "voidcamera_apply_rndcam_far_plane_prop_like_source("
+                 "ghogx::render::OrbitCamera&cam,floatfar_plane)",
+                 "runtime camera exposes RndCam far_plane PropSync bridge");
+  ok &= contains(gameplay_c,
+                 "cam,cam.near_z,far_plane,cam.fov,source_current_far_z);",
+                 "RndCam far_plane PropSync delegates to SetFrustum(mNearPlane,_val,mYFov,1)");
+  ok &= contains(gameplay_c,
+                 "voidcamera_apply_rndcam_y_fov_prop_like_source("
+                 "ghogx::render::OrbitCamera&cam,floaty_fov_degrees)",
+                 "runtime camera exposes RndCam y_fov PropSync bridge");
+  ok &= contains(gameplay_c,
+                 "cam,cam.near_z,cam.far_z,y_fov_degrees*kDegToRad,"
+                 "source_current_far_z);",
+                 "RndCam y_fov PropSync converts degrees before SetFrustum");
+  ok &= contains(gameplay_c,
+                 "floatcamera_rndcam_on_far_plane_like_source("
+                 "constghogx::render::OrbitCamera&cam)",
+                 "runtime camera exposes RndCam::OnFarPlane bridge");
+  ok &= contains(gameplay_c,
+                 "returncam.far_z;",
+                 "RndCam::OnFarPlane bridge returns current mFarPlane");
+  ok &= contains(gameplay_c,
                  "constfloatsource_current_far_z=cam.far_z;",
                  "runtime camera preserves the previous source far plane for SetFrustum");
   ok &= contains(gameplay_c,

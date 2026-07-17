@@ -18898,6 +18898,58 @@ void camera_apply_rndcam_on_set_frustum_like_source(
     }
 }
 
+void camera_apply_rndcam_near_plane_prop_like_source(
+    ghogx::render::OrbitCamera& cam, float near_plane) {
+    const float source_current_far_z = cam.far_z;
+    camera_apply_rndcam_set_frustum_like_source(
+        cam, near_plane, cam.far_z, cam.fov, source_current_far_z);
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera PropSync: source_class=RndCam prop=near_plane source_expr=SetFrustum(_val,mFarPlane,mYFov,1) requested=%.3f stored=(%.3f %.3f %.6f) source_return=prop_set\n",
+            near_plane, cam.near_z, cam.far_z, cam.fov);
+    }
+}
+
+void camera_apply_rndcam_far_plane_prop_like_source(
+    ghogx::render::OrbitCamera& cam, float far_plane) {
+    const float source_current_far_z = cam.far_z;
+    camera_apply_rndcam_set_frustum_like_source(
+        cam, cam.near_z, far_plane, cam.fov, source_current_far_z);
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera PropSync: source_class=RndCam prop=far_plane source_expr=SetFrustum(mNearPlane,_val,mYFov,1) requested=%.3f stored=(%.3f %.3f %.6f) source_return=prop_set\n",
+            far_plane, cam.near_z, cam.far_z, cam.fov);
+    }
+}
+
+void camera_apply_rndcam_y_fov_prop_like_source(
+    ghogx::render::OrbitCamera& cam, float y_fov_degrees) {
+    constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
+    const float source_current_far_z = cam.far_z;
+    camera_apply_rndcam_set_frustum_like_source(
+        cam, cam.near_z, cam.far_z, y_fov_degrees * kDegToRad,
+        source_current_far_z);
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera PropSync: source_class=RndCam prop=y_fov source_expr=SetFrustum(mNearPlane,mFarPlane,_val*DEG2RAD,1) requested_degrees=%.3f stored=(%.3f %.3f %.6f) source_return=prop_set\n",
+            y_fov_degrees, cam.near_z, cam.far_z, cam.fov);
+    }
+}
+
+float camera_rndcam_on_far_plane_like_source(
+    const ghogx::render::OrbitCamera& cam) {
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera far_plane: source_handler=RndCam::OnFarPlane source_return=DataNode(mFarPlane) far_plane=%.3f\n",
+            cam.far_z);
+    }
+    return cam.far_z;
+}
+
 std::optional<CameraTarget> camera_parent_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets);

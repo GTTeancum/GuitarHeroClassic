@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay RndCam frustum PropSync bridge:
+  ihatecompvir `RndCam` exposes `near_plane`, `far_plane`, and `y_fov`
+  PropSync setters that call `SetFrustum(_val, mFarPlane, mYFov, 1)`,
+  `SetFrustum(mNearPlane, _val, mYFov, 1)`, and
+  `SetFrustum(mNearPlane, mFarPlane, _val * DEG2RAD, 1)`, plus an
+  `OnFarPlane` handler returning `mFarPlane`. Native now has matching
+  source-shaped bridges over the same gameplay frustum fields used by CamShot
+  and RndCamAnim. This is camera object surface parity only: no pose math, no
+  `BuildTransform` synthesis, no under-venue masking, no FreeCam priority
+  change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay RndCam `set_frustum` handler bridge:
   ihatecompvir `RndCam::OnSetFrustum` accepts optional `near_plane`,
   `far_plane`, and `y_fov`, falling back to the current camera fields when a
