@@ -23281,6 +23281,7 @@ void apply_camera_keys(
             std::numeric_limits<float>::quiet_NaN();
         bool under_venue_concern = false;
         const char* under_venue_basis = "none";
+        bool submitted_below_world_zero_and_target = false;
         if (blended_target_centroid) {
             submitted_height_estimate =
                 submitted_result.position[2] - (*blended_target_centroid)[2];
@@ -23288,8 +23289,10 @@ void apply_camera_keys(
                 std::isfinite(submitted_result.position[2]) &&
                 submitted_result.position[2] < -0.001f &&
                 submitted_height_estimate < -0.001f) {
+                submitted_below_world_zero_and_target = true;
                 under_venue_concern = true;
-                under_venue_basis = "submitted_below_world_zero_and_target";
+                under_venue_basis =
+                    "submitted_below_world_zero_and_target_no_bounds";
             }
         }
         const bool venue_crowd_bounds_valid =
@@ -23307,13 +23310,17 @@ void apply_camera_keys(
                 submitted_result.position[2] - venue_crowd_min_z;
             if (std::isfinite(submitted_vs_crowd_min_z) &&
                 submitted_vs_crowd_min_z < -0.001f) {
-                if (under_venue_concern) {
+                if (submitted_below_world_zero_and_target) {
                     under_venue_basis =
                         "submitted_below_world_zero_target_and_crowd_min";
                 } else {
                     under_venue_concern = true;
                     under_venue_basis = "submitted_below_world_crowd_min";
                 }
+            } else if (submitted_below_world_zero_and_target) {
+                under_venue_concern = false;
+                under_venue_basis =
+                    "submitted_below_world_zero_target_but_above_crowd_min";
             }
         }
         if (source_build_transform_result) {

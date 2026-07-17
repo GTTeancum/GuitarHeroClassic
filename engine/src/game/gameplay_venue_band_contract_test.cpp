@@ -9995,7 +9995,7 @@ int main() {
                  "camera debug logs compare submitted normal gameplay camera height to decoded WorldCrowd min Z");
   ok &= contains(gameplay_c,
                  "\"under_venue_concern=%dunder_venue_basis=%s\"",
-                 "camera debug logs flag submitted normal gameplay cameras that resolve below the target and world zero");
+                 "camera debug logs classify submitted normal gameplay cameras against target/world/crowd bounds");
   ok &= contains(gameplay_c,
                  "\"normal_gameplay_pose_concern=%ssource_fix_required=%s\"",
                  "camera debug logs keep under-venue gameplay camera poses as open source-audit concerns");
@@ -10006,11 +10006,14 @@ int main() {
                  "\"recover_RndCam_UpdateLocal_LocalProjectXfm_mzx_sign\"",
                  "same-target under-venue gameplay camera poses require recovered LocalProjectXfm sign evidence");
   ok &= contains(gameplay_c,
-                 "\"submitted_below_world_zero_and_target\"",
-                 "camera under-venue concern remains a diagnostic classification instead of a submitted offset fix");
+                 "\"submitted_below_world_zero_and_target_no_bounds\"",
+                 "camera under-venue concern falls back to target/world-zero only when venue bounds are unavailable");
   ok &= contains(gameplay_c,
                  "\"submitted_below_world_zero_target_and_crowd_min\"",
                  "camera under-venue concern can include decoded WorldCrowd placement bounds without offsetting the camera");
+  ok &= contains(gameplay_c,
+                 "\"submitted_below_world_zero_target_but_above_crowd_min\"",
+                 "camera under-venue diagnostics do not treat negative Z as under-level when venue bounds place the shot above the crowd floor");
   ok &= contains(gameplay_c,
                  "\"diagnostic_only_same_targets\"",
                  "same-target CamShot filter scope stays diagnostic-only");
