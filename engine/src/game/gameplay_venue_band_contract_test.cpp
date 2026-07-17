@@ -14935,13 +14935,19 @@ int main() {
                  "camera_one_bar_to_seek_latch_replay,"
                  "camera_manager_first_shot_ok_hook,"
                  "camera_manager_shotmatches_filters,"
+                 "camera_camshot_radio_flags_bridge,"
                  "camera_manager_findshot_moveitem,"
                  "camera_manager_pickshot_pending,"
                  "camera_manager_force_shot_pending,"
                  "camera_manager_randomize_category_noop,"
                  "camera_worlddir_camshot_overrides_disable,"
                  "camera_lifecycle",
-                 "camera implementation status counts source CamShot PlatformOk gating, one_bar_to seek-latch replay, CameraManager FirstShotOk, ShotMatches filters, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+                 "camera implementation status counts source CamShot PlatformOk gating, one_bar_to seek-latch replay, CameraManager FirstShotOk, ShotMatches filters, CamShot radio flag mutation, FindCameraShot MoveItem rotation, PickCameraShot pending handoff, ForceCameraShot pending handoff, RandomizeCategory no-op, and WorldDir SyncCamShots disabled overrides between selection and lifecycle");
+  ok &= contains(gameplay_c,
+                 "camera_manager_shotmatches_filters,"
+                 "camera_camshot_radio_flags_bridge,"
+                 "camera_manager_findshot_moveitem,",
+                 "camera implementation status keeps CamShot::OnRadio flags between ShotMatches and FindCameraShot");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_postprocess_select_reset,"
                  "camera_camshot_force_char_lod_bridge,"

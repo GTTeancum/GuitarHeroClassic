@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot OnRadio flags status:
+  ihatecompvir `CamShot::OnRadio()` reads the set/clear masks from message
+  args 2 and 3, mutates `mFlags` as `(mFlags & ~clear_mask) | set_mask` only
+  when the set mask is already present, and returns `DataNode(0)`. Native
+  already mirrors that bridge for decoded shots and feeds the resulting flags
+  through the recovered `flags_any` / `flags_exact` `ShotMatches` path; the
+  compact camera status now counts `camera_camshot_radio_flags_bridge` beside
+  `camera_manager_shotmatches_filters`. This is source state/selection parity
+  only: no pose math, `BuildTransform`, `SetPos`, under-venue masking, FreeCam
+  priority, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay CamShot CacheFrames duration status:
   ihatecompvir `CamShot::CacheFrames()` assigns each keyframe start from the
   running `frames` cursor and then adds `mDuration + mBlend` into the CamShot
