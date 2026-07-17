@@ -14022,9 +14022,10 @@ float sample_particle_size(
 
 float sample_camera_fov_key(
     const std::vector<Gameplay::VenueCameraFovAnim::FovKey>& keys,
-    float frame, float fallback) {
+    float frame, float fallback, VecKeySample* out_sample = nullptr) {
     if (keys.empty()) return fallback;
     const VecKeySample sample = source_key_sample(keys, frame);
+    if (out_sample) *out_sample = sample;
     const auto* a = &keys[sample.a];
     const auto* b = &keys[sample.b];
     return a->fov + (b->fov - a->fov) * sample.t;
@@ -26734,8 +26735,10 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
         }
         if (anim.fov_keys.empty()) continue;
         const float previous_fov = cam.fov;
+        VecKeySample fov_key_sample;
         const float sampled_fov =
-            sample_camera_fov_key(anim.fov_keys, frame, previous_fov);
+            sample_camera_fov_key(anim.fov_keys, frame, previous_fov,
+                                  &fov_key_sample);
         if (!std::isfinite(sampled_fov)) continue;
         const float source_setframe_blend = 1.0f;
         const float source_fov = source_rndcamanim_setframe_fov(
@@ -26751,11 +26754,13 @@ void Gameplay::apply_active_camera_fov_anims(ghogx::render::OrbitCamera& cam,
                 active_camera_fov_anim_reported_.insert(report_key);
                 std::fprintf(
                     stderr,
-                    "[world] camera RndCamAnim SetFrame: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=%s frame=%.3f anim_rate=%d fpu=%.1f fov=%.6f sampled_fov=%.6f previous_fov=%.6f keys=%zu source_setframe_blend=%.3f source_blend_rule=current_to_sampled_when_not_one source_frame_provider=CamShot::SetFrame source_start=%.3f source_elapsed=%.3f independent_units=%.3f shot_local_frame=%.3f\n",
+                    "[world] camera RndCamAnim SetFrame: source_msg=mAnims shot=%s anim=%s keys_owner=%s cam=%s frame=%.3f anim_rate=%d fpu=%.1f fov=%.6f sampled_fov=%.6f previous_fov=%.6f keys=%zu source_sampler=FovKeys::AtFrame fov_prev_index=%zu fov_next_index=%zu fov_prev_frame=%.3f fov_next_frame=%.3f fov_key_blend=%.6f source_setframe_blend=%.3f source_blend_rule=current_to_sampled_when_not_one source_frame_provider=CamShot::SetFrame source_start=%.3f source_elapsed=%.3f independent_units=%.3f shot_local_frame=%.3f\n",
                     key.name.c_str(), anim.name.c_str(),
                     anim.keys_owner.c_str(), anim.cam.c_str(), frame,
                     anim.anim_rate, fpu, cam.fov, sampled_fov, previous_fov,
-                    anim.fov_keys.size(),
+                    anim.fov_keys.size(), fov_key_sample.a,
+                    fov_key_sample.b, anim.fov_keys[fov_key_sample.a].frame,
+                    anim.fov_keys[fov_key_sample.b].frame, fov_key_sample.t,
                     source_setframe_blend, active_camera_anim_start_time_,
                     elapsed, independent_units, shot_local_frame);
             }
@@ -37468,7 +37473,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         logged_camera_impl_status = true;
                         std::fprintf(
                             stderr,
-                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_lifecycle,camera_visibility,camera_shot_over,camera_frame_pair_timing,camera_path_transanim_timing active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/RndCam::UpdateLocal hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
+                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_lifecycle,camera_visibility,camera_shot_over,camera_frame_pair_timing,camera_path_transanim_timing,camera_fov_anim_atframe active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/RndCam::UpdateLocal hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
                             active_gameplay_blockers.c_str(),
                             deferred_gameplay_blockers.c_str());
                     }

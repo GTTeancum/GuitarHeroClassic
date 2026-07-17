@@ -9503,8 +9503,9 @@ int main() {
                  "source_msg=mAnimsshot=%sanim=%skeys_owner=%scam=<none>",
                  "linked RndCamAnim diagnostics expose source mCam skips and key owners");
   ok &= contains(gameplay_c,
-                 "sample_camera_fov_key(anim.fov_keys,frame,previous_fov);",
-                 "linked RndCamAnim SetFrame samples source FOV keys at the active frame");
+                 "sample_camera_fov_key(anim.fov_keys,frame,previous_fov,"
+                 "&fov_key_sample);",
+                 "linked RndCamAnim SetFrame samples source FOV keys at the active frame and exposes the AtFrame key pair");
   ok &= contains(gameplay_c,
                  "floatsource_rndcamanim_setframe_fov("
                  "floatcurrent_fov,floatsampled_fov,"
@@ -9530,6 +9531,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_blend_rule=current_to_sampled_when_not_one",
                  "linked RndCamAnim diagnostics name the source non-1 blend behavior");
+  ok &= contains(gameplay_c,
+                 "source_sampler=FovKeys::AtFrame"
+                 "fov_prev_index=%zufov_next_index=%zu"
+                 "fov_prev_frame=%.3ffov_next_frame=%.3f"
+                 "fov_key_blend=%.6f",
+                 "linked RndCamAnim diagnostics expose source AtFrame key pair and blend");
   ok &= contains(gameplay_c,
                  "source_frame_provider=CamShot::SetFrame",
                  "linked RndCamAnim diagnostics name the source frame provider");
@@ -14837,6 +14844,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_frame_pair_timing,camera_path_transanim_timing",
                  "camera implementation status counts audited RndTransAnim path timing beside frame-pair timing");
+  ok &= contains(gameplay_c,
+                 "camera_path_transanim_timing,camera_fov_anim_atframe",
+                 "camera implementation status counts audited RndCamAnim FovKeys::AtFrame sampling");
   ok &= contains(gameplay_c,
                  "hidden_bodies_deferred=cam_shot_ok_rest,"
                  "cam_check_shot,CharWalk,SetPos,BuildTransform,"

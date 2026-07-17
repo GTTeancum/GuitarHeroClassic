@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay RndCamAnim AtFrame proof:
+  ihatecompvir `RndCamAnim::SetFrame` starts from the camera `YFov`, samples
+  `FovKeys().AtFrame(frame, ref)`, optionally blends only for non-1 blend
+  values, then calls `RndCam::SetFrustum`. Native linked camera-FOV anim
+  diagnostics now preserve the sampled previous/next FOV key indices, frames,
+  and key blend, and the implementation status counts
+  `camera_fov_anim_atframe` beside the existing frame-pair/path timing work.
+  This is normal gameplay camera FOV parity/proof only: no camera pose math,
+  no hidden `BuildTransform` or `RndCam::UpdateLocal` synthesis, no
+  under-venue masking, no FreeCam priority change, no dependency change, and
+  no OG Xbox portability change.
 - 2026-07-17 gameplay camera implementation status proof:
   normal gameplay camera debug runs now emit one compact
   `[world] camera implementation status` row during the source-shaped
