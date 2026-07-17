@@ -215,6 +215,9 @@ int main() {
   const std::string reset_camera_manager_like_source_enter_c = compact(
       function_body(gameplay,
                     "Gameplay::reset_camera_manager_like_source_enter"));
+  const std::string destroy_camera_manager_like_source_c = compact(
+      function_body(gameplay,
+                    "Gameplay::destroy_camera_manager_like_source"));
   const std::string diagnostic_camera_seek_restore_c =
       compact(function_body(
           gameplay,
@@ -11810,6 +11813,41 @@ int main() {
                  "camera_unset_dof_proc_like_source(cam);"
                  "camera_unset_shake_like_no_current_camshot(cam);",
                  "empty camera key path clears stale source DOF and shake state");
+  ok &= contains(gameplay_c,
+                 "Gameplay::~Gameplay(){"
+                 "destroy_camera_manager_like_source(\"Gameplay::~Gameplay\");"
+                 "}",
+                 "Gameplay teardown routes through the source CameraManager destructor bridge");
+  ok &= appears_before(
+      gameplay_c,
+      "destroy_camera_manager_like_source(\"load_song\");",
+      "world_.reset();",
+      "song reload tears down the old source CameraManager before discarding the world");
+  ok &= contains(gameplay_h_c,
+                 "voiddestroy_camera_manager_like_source(constchar*context);",
+                 "runtime exposes the source CameraManager destructor bridge");
+  ok &= contains(destroy_camera_manager_like_source_c,
+                 "end_camera_shot_runtime(false,true);",
+                 "CameraManager destructor bridge mirrors StartShot_(0) before manager teardown");
+  ok &= appears_before(
+      destroy_camera_manager_like_source_c,
+      "camera_manager_startshot_side_effects_like_source();",
+      "camera_unset_dof_proc_like_source(world_->camera());",
+      "CameraManager destructor bridge applies StartShot_(0) side effects before DOFProc::UnSet");
+  ok &= appears_before(
+      destroy_camera_manager_like_source_c,
+      "camera_unset_dof_proc_like_source(world_->camera());",
+      "camera_manager_delete_free_cam_like_source(\"CameraManager::~CameraManager\");",
+      "CameraManager destructor bridge keeps the recovered DOFProc::UnSet and free-cam release calls explicit");
+  ok &= contains(destroy_camera_manager_like_source_c,
+                 "source_order=StartShot_(0)->DOFProc::UnSet->RELEASE(mFreeCam)",
+                 "CameraManager destructor diagnostics cite ihatecompvir teardown order");
+  ok &= contains(destroy_camera_manager_like_source_c,
+                 "active_camera_shots_over_.clear();",
+                 "destroyed source CamShot objects clear per-shot mShotOver state");
+  ok &= contains(destroy_camera_manager_like_source_c,
+                 "active_camera_source_current_rndcam_.clear();",
+                 "destroyed source WorldDir camera clears the RndCam::sCurrent diagnostic bridge");
   ok &= contains(end_camera_shot_runtime_c,
                  "constboolclear_no_current_shake="
                  "source_no_current_teardown&&world_;"

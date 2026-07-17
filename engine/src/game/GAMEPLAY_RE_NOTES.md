@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CameraManager destructor bridge:
+  ihatecompvir `CameraManager::~CameraManager()` calls `StartShot_(0)`, then
+  `TheDOFProc->UnSet()`, releases `mFreeCam`, and deletes category storage.
+  Native now routes `Gameplay` destruction and song reload through a source
+  teardown bridge before discarding the old world, clearing pending/current
+  camera manager state, per-shot `mShotOver` latches, old DOF state, FreeCam,
+  postprocess/glow refs, and shot-scoped anim bridges. Ordinary CamShot
+  transitions and `CameraManager::Enter()` still keep their existing source
+  behavior; this is lifecycle parity only: no pose math, no `BuildTransform`
+  synthesis, no under-venue masking, no FreeCam priority change, no dependency
+  change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot looping default parity:
   ihatecompvir `CamShot::CamShot()` initializes `mLooping(1)`, and
   `CheckShotOver(float)` / `CamShot::GetKey` source behavior reads that field.

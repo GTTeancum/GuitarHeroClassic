@@ -25490,6 +25490,10 @@ std::vector<std::string> all_fret_hand_clip_names(
 // load_song
 // ---------------------------------------------------------------------------
 
+Gameplay::~Gameplay() {
+    destroy_camera_manager_like_source("Gameplay::~Gameplay");
+}
+
 bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_path,
                           const std::string& shortname, int difficulty) {
     chart_loaded_ = false;
@@ -25531,6 +25535,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
         venue_script_rng_state_ =
             venue_script_rng_state_ * 1664525u + static_cast<uint32_t>(c) +
             1013904223u;
+    destroy_camera_manager_like_source("load_song");
     world_.reset();
     lighting_.reset();
     drum_kit_.reset();
@@ -26738,6 +26743,68 @@ void Gameplay::reset_camera_manager_like_source_enter(const char* context) {
         std::fprintf(
             stderr,
             "[world] camera Enter clear_shake: source_manager=CameraManager::Enter result=cleared\n");
+    }
+}
+
+void Gameplay::destroy_camera_manager_like_source(const char* context) {
+    const bool had_world = static_cast<bool>(world_);
+    const bool had_current =
+        !active_camera_runtime_shot_.empty() || !active_regular_camera_.empty();
+    const bool had_pending = !pending_regular_camera_.empty();
+    const bool had_free_cam = camera_manager_has_free_cam_like_source();
+    const bool had_dof = world_ && world_->camera().dof_active;
+    const std::string previous_current = active_regular_camera_;
+    const std::string source_next_before_clear = pending_regular_camera_;
+
+    end_camera_shot_runtime(false, true);
+    camera_manager_startshot_side_effects_like_source();
+    if (world_) {
+        camera_unset_dof_proc_like_source(world_->camera());
+    }
+    camera_manager_delete_free_cam_like_source("CameraManager::~CameraManager");
+
+    pending_regular_camera_.clear();
+    pending_regular_camera_start_ = 0.0;
+    pending_regular_camera_local_frame_ = 0.0;
+    active_regular_camera_.clear();
+    previous_regular_camera_.clear();
+    active_regular_camera_start_ = 0.0;
+    active_camera_runtime_shot_.clear();
+    active_camera_source_current_shot_.clear();
+    active_camera_source_current_rndcam_.clear();
+    active_camera_anim_event_.clear();
+    active_camera_anim_target_.clear();
+    active_camera_fov_anim_refs_.clear();
+    active_camera_anim_start_time_ = 0.0;
+    active_camera_fov_anim_reported_.clear();
+    active_camera_postprocess_ref_.clear();
+    set_camera_glow_spot_ref({});
+    active_camera_shot_started_reported_.clear();
+    active_camera_shot_started_ = false;
+    active_camera_setpreframe_calls_ = 0;
+    active_camera_frame_pair_reported_.clear();
+    active_camera_last_prev_key_.clear();
+    active_camera_last_next_key_.clear();
+    active_camera_last_prev_index_ = SIZE_MAX;
+    active_camera_last_next_index_ = SIZE_MAX;
+    active_camera_last_pair_null_frame_ = false;
+    active_camera_shot_over_reported_.clear();
+    active_camera_shot_over_gate_reported_.clear();
+    active_camera_shots_over_.clear();
+    active_camera_skip_next_crowd_update_ = false;
+    camera_result_builder_state_.reset();
+    active_force_char_lod_ = -1;
+
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera destructor: source_manager=CameraManager::~CameraManager source_order=StartShot_(0)->DOFProc::UnSet->RELEASE(mFreeCam) context=%s had_world=%d had_current=%d had_pending=%d pending_before_clear=%s previous_current=%s had_free_cam=%d had_dof=%d tri_frame_requested=%d cooldown_value=%d result=manager_state_cleared\n",
+            context && context[0] ? context : "unknown", had_world ? 1 : 0,
+            had_current ? 1 : 0, had_pending ? 1 : 0,
+            source_next_before_clear.c_str(), previous_current.c_str(),
+            had_free_cam ? 1 : 0, had_dof ? 1 : 0,
+            camera_manager_tri_frame_requested_ ? 1 : 0,
+            camera_manager_source_cooldown_);
     }
 }
 

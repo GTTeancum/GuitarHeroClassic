@@ -704,7 +704,7 @@ class Gameplay {
   };
 
   Gameplay() = default;
-  ~Gameplay() = default;
+  ~Gameplay();
 
   Gameplay(const Gameplay&) = delete;
   Gameplay& operator=(const Gameplay&) = delete;
@@ -882,6 +882,7 @@ class Gameplay {
   void restore_camera_script_state_for_diagnostic_seek_like_source(
       const char* source_caller);
   void reset_camera_manager_like_source_enter(const char* context);
+  void destroy_camera_manager_like_source(const char* context);
   std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
       camera_glow_spot_state_for_ref(const std::string& raw_ref) const;
   void set_camera_glow_spot_ref(const std::string& raw_ref);
