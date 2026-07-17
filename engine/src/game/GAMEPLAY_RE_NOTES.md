@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot task-unit proof labels:
+  ihatecompvir `RndAnimatable` maps rates through `gRateUnits`
+  (`k30_fps`/`k30_fps_ui`/`k30_fps_tutorial` to seconds-like task clocks,
+  `k480_fpb`/`k1_fpb` to `kTaskBeats`) and `gRateFpu`
+  (`30/480/30/1/30`). Native normal gameplay camera diagnostics now print
+  `task_units=` beside `anim_rate` and `fpu`, and the `StartShot_` row no
+  longer labels the raw rate integer as `units`. This is timing-proof parity
+  only: no pose math, no `BuildTransform` synthesis, no under-venue masking,
+  no FreeCam priority change, no dependency change, and no OG Xbox portability
+  change.
 - 2026-07-17 gameplay CamShot category randomize no-op:
   ihatecompvir `CameraManager::Randomize()` still seeds `sRand` and visits
   each category bucket, but the visible `RandomizeCategory(...)` body is empty.

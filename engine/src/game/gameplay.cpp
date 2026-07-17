@@ -14128,6 +14128,21 @@ bool rnd_animatable_rate_uses_beats(int rate) {
     return rate == 1 || rate == 3;
 }
 
+const char* rnd_animatable_task_units_label(int rate) {
+    switch (rate) {
+    case 1:
+    case 3:
+        return "kTaskBeats";
+    case 2:
+        return "kTaskUISeconds";
+    case 4:
+        return "kTaskTutorialSeconds";
+    case 0:
+    default:
+        return "kTaskSeconds";
+    }
+}
+
 double venue_anim_time_units(int rate, double absolute_start_seconds,
                              double elapsed_seconds,
                              const ghogx::chart::Chart* chart) {
@@ -16260,7 +16275,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             const size_t target_ref_count =
                 camshot_authored_target_ref_count(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs_decoded=%d target_ref_count=%zu target_source_object=%s parent_source_object=%s focal_source_object=%s target_refs=%s poses=%zu loop=%d loop_keyframe=%d anim_rate=%d fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s shot_fields=%d category=%s revision=%u alt_revision=%u source_cached_stream=%d drawable_load_branch=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f legacy_path_frame_load=ignored source_load_lifecycle=CamShot::Load(UnHide_if_hidden,read_fields,CacheFrames,DoHide_if_hidden) source_cache=CacheFrames_before_rehide source_reader=CamShot::Load/MiloEditor exact_reader=1 legacy_scanner=0 zero_xfm_reset=%d\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s focal_target=%s:%s parent_first_frame=%s%d parent_rot=%d refs_decoded=%d target_ref_count=%zu target_source_object=%s parent_source_object=%s focal_source_object=%s target_refs=%s poses=%zu loop=%d loop_keyframe=%d anim_rate=%d task_units=%s fpu=%.1f pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d far_starpower_ok=%d bad_waypoints=%zu jump_ok=%d lighter=%d platform_only=%d ps3_per_pixel=%d disabled=0x%08x flags=0x%08x hide_crowd=%d crowd_face_camera=%d force_char_lod=%d next_shot=%s hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s shot_fields=%d category=%s revision=%u alt_revision=%u source_cached_stream=%d drawable_load_branch=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_frame=%s%.3f legacy_path_frame=%s%.3f legacy_path_frame_load=ignored source_load_lifecycle=CamShot::Load(UnHide_if_hidden,read_fields,CacheFrames,DoHide_if_hidden) source_cache=CacheFrames_before_rehide source_reader=CamShot::Load/MiloEditor exact_reader=1 legacy_scanner=0 zero_xfm_reset=%d\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -16279,6 +16294,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.has_camshot_looping && key.camshot_looping ? 1 : 0,
                          key.has_camshot_looping ? key.camshot_loop_keyframe : 0,
                          key.has_camshot_anim_rate ? key.camshot_anim_rate : 0,
+                         rnd_animatable_task_units_label(
+                             key.has_camshot_anim_rate ? key.camshot_anim_rate : 0),
                          rnd_animatable_frames_per_unit(
                              key.has_camshot_anim_rate ? key.camshot_anim_rate : 0),
                          c.off, key.has_timing ? "" : "none/",
@@ -26916,9 +26933,11 @@ void Gameplay::queue_regular_camera_shot(const CameraKey& key,
         if (pending_regular_camera_local_frame_ != 0.0) {
             std::fprintf(
                 stderr,
-                "[world] camera mNextShot path offset: shot=%s local_frame=%.3f anim_rate=%d fpu=%.1f queued_start_preview=%.3f now=%.3f source_manager=CameraManager::CalcFrame source_start=CameraManager::StartShot_\n",
+                "[world] camera mNextShot path offset: shot=%s local_frame=%.3f anim_rate=%d task_units=%s fpu=%.1f queued_start_preview=%.3f now=%.3f source_manager=CameraManager::CalcFrame source_start=CameraManager::StartShot_\n",
                 key.name.c_str(), pending_regular_camera_local_frame_,
-                camera_source_anim_rate(key), camera_source_frames_per_unit(key),
+                camera_source_anim_rate(key),
+                rnd_animatable_task_units_label(camera_source_anim_rate(key)),
+                camera_source_frames_per_unit(key),
                 pending_regular_camera_start_, song_time_);
         }
     }
@@ -27929,9 +27948,11 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             camera_manager_next_shot_like_source();
         std::fprintf(
             stderr,
-            "[world] camera StartShot_: source_manager=CameraManager::StartShot_ source_order=after_CamShot_StartAnim shot=%s start_time=%.3f units=%d fpu=%.1f next_during_start=%s source_next_during_start=%s venue_test=0 source_gate=venue_test!=1 tri_frame_reset=source_WiiRnd_SetTriFrameRendering tri_frame_requested=%d cooldown_reset=source_global_gCooldown cooldown_value=%d native_renderer_side_effect=not_applied\n",
+            "[world] camera StartShot_: source_manager=CameraManager::StartShot_ source_order=after_CamShot_StartAnim shot=%s start_time=%.3f anim_rate=%d task_units=%s fpu=%.1f next_during_start=%s source_next_during_start=%s venue_test=0 source_gate=venue_test!=1 tri_frame_reset=source_WiiRnd_SetTriFrameRendering tri_frame_requested=%d cooldown_reset=source_global_gCooldown cooldown_value=%d native_renderer_side_effect=not_applied\n",
             active_camera_runtime_shot_.c_str(), active_regular_camera_start_,
-            camera_source_anim_rate(key), camera_source_frames_per_unit(key),
+            camera_source_anim_rate(key),
+            rnd_animatable_task_units_label(camera_source_anim_rate(key)),
+            camera_source_frames_per_unit(key),
             pending_regular_camera_.c_str(),
             source_next_during_start ? source_next_during_start->name.c_str()
                                      : "",
@@ -37507,12 +37528,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             "[world] camera shot_started dispatch: source_msg=shot_started source_script=world/camshot.dta source_action=handle(world post_switch_cam) native_handler=apply_venue_event(post_switch_cam) pose_body=not_synthesized\n");
                         std::fprintf(
                             stderr,
-                            "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d fpu=%.1f source_frame_keys=%zu source_camshot_keyframes=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setpreframe_calls=%zu source_setframe_blend=%.3f\n",
+                            "[world] camera SetFrame: source_msg=shot_started source_check=CamShot::CheckShotStarted runtime_flag=unk120p4 serialized_flag=none source_manager=Poll shot=%s local_frame=%.3f duration_frames=%.3f duration_seconds=%.3f duration_source=%s anim_rate=%d task_units=%s fpu=%.1f source_frame_keys=%zu source_camshot_keyframes=%zu source_prep=CameraManager::PrePoll->CamShot::SetPreFrame base_noop=1 source_setpreframe_calls=%zu source_setframe_blend=%.3f\n",
                             key->name.c_str(), source_shot_local_frame,
                             source_camshot_duration_frames(*key),
                             camera_source_duration_seconds(*key),
                             camera_source_duration_seconds_source(*key),
                             camera_source_anim_rate(*key),
+                            rnd_animatable_task_units_label(
+                                camera_source_anim_rate(*key)),
                             camera_source_frames_per_unit(*key),
                             selected_camera.size(),
                             source_camshot_timing_frames(*key).size(),

@@ -3841,7 +3841,8 @@ int main() {
                  "diagnostic camera path offset is log-verifiable");
   ok &= contains(gameplay_c,
                  "\"[world]cameramNextShotpathoffset:shot=%slocal_frame=%.3f"
-                 "anim_rate=%dfpu=%.1fqueued_start_preview=%.3fnow=%.3f"
+                 "anim_rate=%dtask_units=%sfpu=%.1f"
+                 "queued_start_preview=%.3fnow=%.3f"
                  "source_manager=CameraManager::CalcFramesource_start="
                  "CameraManager::StartShot_\\n\"",
                  "diagnostic camera path offset logs the source CalcFrame alignment");
@@ -8021,6 +8022,13 @@ int main() {
                  "rnd_animatable_frames_per_unit(filter.anim_rate)",
                  "venue AnimFilter timing uses source FramesPerUnit instead of hardcoded 30 fps");
   ok &= contains(gameplay_c,
+                 "constchar*rnd_animatable_task_units_label(intrate){"
+                 "switch(rate){case1:case3:return\"kTaskBeats\";"
+                 "case2:return\"kTaskUISeconds\";"
+                 "case4:return\"kTaskTutorialSeconds\";"
+                 "case0:default:return\"kTaskSeconds\";}}",
+                 "shared RndAnimatable task-unit labels mirror ihatecompvir gRateUnits");
+  ok &= contains(gameplay_c,
                  "venue_anim_time_units(filter.anim_rate,"
                  "absolute_start_seconds,elapsed_seconds,chart)",
                  "venue AnimFilter timing routes beat-rate animations through the chart clock");
@@ -12112,7 +12120,7 @@ int main() {
                  "runtime_flag=unk120p4serialized_flag=none"
                  "source_manager=Pollshot=%slocal_frame=%.3f"
                  "duration_frames=%.3fduration_seconds=%.3f"
-                 "duration_source=%sanim_rate=%dfpu=%.1f"
+                 "duration_source=%sanim_rate=%dtask_units=%sfpu=%.1f"
                  "source_frame_keys=%zusource_camshot_keyframes=%zu"
                  "source_prep=CameraManager::PrePoll->"
                  "CamShot::SetPreFramebase_noop=1"
@@ -12713,7 +12721,8 @@ int main() {
                  "target_source_object=%s"
                  "parent_source_object=%sfocal_source_object=%s"
                  "target_refs=%sposes=%zuloop=%d"
-                 "loop_keyframe=%danim_rate=%dfpu=%.1fposebody+0x%zX"
+                 "loop_keyframe=%danim_rate=%dtask_units=%sfpu=%.1f"
+                 "posebody+0x%zX"
                  "timing=%s(%.3f%.3f%.3f)order=%zuspecial=%dwalk_ok=%d"
                  "low_excitement_ok=%dstarpower_ok=%d"
                  "far_starpower_ok=%dbad_waypoints=%zujump_ok=%dlighter=%d"
@@ -15081,6 +15090,7 @@ int main() {
       "camera StartShot_ diagnostics expose the source post-StartAnim manager step");
   ok &= contains(start_camera_shot_runtime_c,
                  "active_regular_camera_start_,camera_source_anim_rate(key),"
+                 "rnd_animatable_task_units_label(camera_source_anim_rate(key)),"
                  "camera_source_frames_per_unit(key),"
                  "pending_regular_camera_.c_str(),"
                  "source_next_during_start?source_next_during_start->"
