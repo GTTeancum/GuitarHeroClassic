@@ -524,8 +524,10 @@
   `active_camera_shot_started_` latch, applies the dependency-free
   `post_switch_cam` venue event once on the source first-SetFrame boundary, and
   logs the bridge as `pose_body=not_synthesized`; the compact status now counts
+  `camera_camshot_checkshotstarted_runtime_bridge` immediately before
   `camera_shot_started_postswitch`. This is a source event/lifecycle bridge
-  only: hidden `SetFrame`, `SetPos`, `BuildTransform`, and
+  only: no same-current selector guard, hidden `SetFrame`, `SetPos`,
+  `BuildTransform`, and
   `RndCam::UpdateLocal` math remain deferred, FreeCam stays last, and no
   dependency or under-venue masking changed.
 - 2026-07-17 gameplay CamShot OnSetPos boundary status:
