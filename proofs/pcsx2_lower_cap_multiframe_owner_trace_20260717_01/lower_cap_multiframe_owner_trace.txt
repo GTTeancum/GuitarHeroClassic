@@ -1,0 +1,9 @@
+pcsx2_lower_cap_multiframe_owner_trace_20260717_01
+source=PCSX2 GS dump embedded 4:3 screenshots plus GIF draw-group trace
+finding=tbp0 14208/cbp 13810 recurs on accepted lower sustain/cap components; tbp0 11424 geometrically covers but samples black
+frame15: component={'count': 243, 'min_x': 220, 'max_x': 264, 'min_y': 259, 'max_y': 287, 'width_px': 45, 'height_px': 29, 'centroid_x': 240.218, 'centroid_y': 274.811, 'selection_method': 'forced_bbox_overlap', 'forced_component_bbox': [220, 259, 264, 287], 'forced_overlap_px': 1305, 'forced_overlap_frac': 1.0} lead_draw=740 transfer=238 tbp0=14208 cover=243/243 frac=1.0 st=[0.02363, 0.02409, 0.019391, 0.019845] sample=[82.0, 203.0, 154.0, 34.0]
+frame15: black_reject draw=2237 tbp0=11424 sample=[0.0, 0.0, 0.0, 255.0]
+frame16: component={'count': 338, 'min_x': 265, 'max_x': 293, 'min_y': 245, 'max_y': 279, 'width_px': 29, 'height_px': 35, 'centroid_x': 282.899, 'centroid_y': 264.834, 'selection_method': 'forced_bbox_overlap', 'forced_component_bbox': [265, 245, 293, 279], 'forced_overlap_px': 1015, 'forced_overlap_frac': 1.0} lead_draw=740 transfer=238 tbp0=14208 cover=338/338 frac=1.0 st=[0.023312, 0.024112, 0.011785, 0.019767] sample=[49.25, 191.75, 161.25, 34.0]
+frame16: black_reject draw=2266 tbp0=11424 sample=[0.0, 0.0, 0.0, 255.0]
+frame17: component={'count': 1813, 'min_x': 212, 'max_x': 296, 'min_y': 245, 'max_y': 370, 'width_px': 85, 'height_px': 126, 'centroid_x': 265.235, 'centroid_y': 321.243, 'selection_method': 'forced_bbox_overlap', 'forced_component_bbox': [212, 245, 296, 370], 'forced_overlap_px': 10710, 'forced_overlap_frac': 1.0} lead_draw=673 transfer=236 tbp0=14208 cover=1813/1813 frac=1.0 st=[0.03865, 0.046639, 0.02825, 0.038678] sample=[65.833, 195.5, 136.167, 34.0]
+frame17: black_reject draw=2244 tbp0=11424 sample=[0.0, 0.0, 0.0, 255.0]

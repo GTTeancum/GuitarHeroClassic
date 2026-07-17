@@ -1,0 +1,817 @@
+{
+  "pass": "pcsx2_lower_cap_multiframe_owner_trace_20260717_01",
+  "method": "PCSX2 GS dump embedded 4:3 screenshots, accepted raster component boxes, exact GIF triangle coverage, and recovered VRAM page sampling. GS blend/depth ownership is not emulated.",
+  "accepted_for": [
+    "multi-frame lower active sustain/cap texture-owner lead",
+    "rejecting full-screen black geometry as visual owner despite coverage"
+  ],
+  "not_accepted_for": [
+    "final native renderer patch",
+    "full GS alpha/depth/blend ownership",
+    "whammy ripple deformation"
+  ],
+  "frames": [
+    {
+      "frame": "frame15",
+      "frame_image_size": [
+        640,
+        480
+      ],
+      "trace_embedded_screenshot_size": [
+        640,
+        480
+      ],
+      "selected_component": {
+        "count": 243,
+        "min_x": 220,
+        "max_x": 264,
+        "min_y": 259,
+        "max_y": 287,
+        "width_px": 45,
+        "height_px": 29,
+        "centroid_x": 240.218,
+        "centroid_y": 274.811,
+        "selection_method": "forced_bbox_overlap",
+        "forced_component_bbox": [
+          220,
+          259,
+          264,
+          287
+        ],
+        "forced_overlap_px": 1305,
+        "forced_overlap_frac": 1.0
+      },
+      "tbp0_14208_colored_lead": {
+        "draw_id": 740,
+        "transfer": 238,
+        "component_pixels_covered": 243,
+        "component_coverage_frac": 1.0,
+        "score": 1883.496,
+        "vertex_count": 46,
+        "prim": {
+          "raw": 92,
+          "prim": 4,
+          "name": "tristrip",
+          "iip": 1,
+          "tme": 1,
+          "fge": 0,
+          "abe": 1,
+          "aa1": 0,
+          "fst": 0,
+          "ctxt": 0,
+          "fix": 0
+        },
+        "bbox": {
+          "x_min": -1307.625,
+          "x_max": 2141.688,
+          "y_min": -1824.0,
+          "y_max": 2271.938,
+          "width": 3449.313,
+          "height": 4095.938,
+          "center_x": 417.032,
+          "center_y": 223.969
+        },
+        "tex0": {
+          "tbp0": 14208,
+          "tbw": 4,
+          "psm": 20,
+          "tw": 8,
+          "th": 7,
+          "tcc": 1,
+          "tfx": 0,
+          "cbp": 13810,
+          "cpsm": 0,
+          "csm": 0,
+          "csa": 0,
+          "cld": 1
+        },
+        "clamp": {
+          "wms": 0,
+          "wmt": 0,
+          "minu": 0,
+          "maxu": 0,
+          "minv": 0,
+          "maxv": 0
+        },
+        "alpha": null,
+        "test": {
+          "ate": 1,
+          "atst": 6,
+          "aref": 0,
+          "afail": 2,
+          "date": 0,
+          "datm": 0,
+          "zte": 1,
+          "ztst": 3
+        },
+        "colors": {
+          "black": 43,
+          "other": 3
+        },
+        "st_bounds": [
+          0.02363,
+          0.02409,
+          0.019391,
+          0.019845
+        ],
+        "texture_sample": {
+          "path": "proofs\\pcsx2_normal_cap_texture_probe_20260717_02_psmt4\\tbp0_14208_cbp_13810_psmt4_rgba_raw_alpha.png",
+          "size": [
+            256,
+            128
+          ],
+          "st_bounds": [
+            0.02363,
+            0.02409,
+            0.019391,
+            0.019845
+          ],
+          "st_in_unit_range": true,
+          "sample_px": [
+            6,
+            2,
+            7,
+            3
+          ],
+          "nonzero_alpha_pixels": 1,
+          "colored_alpha_pixels": 1,
+          "mean_rgba": [
+            82.0,
+            203.0,
+            154.0,
+            34.0
+          ],
+          "min_rgba": [
+            82,
+            203,
+            154,
+            34
+          ],
+          "max_rgba": [
+            82,
+            203,
+            154,
+            34
+          ]
+        }
+      },
+      "tbp0_11424_black_reject": {
+        "draw_id": 2237,
+        "transfer": 1015,
+        "component_pixels_covered": 243,
+        "component_coverage_frac": 1.0,
+        "score": 2065.973,
+        "vertex_count": 32,
+        "prim": {
+          "raw": 6,
+          "prim": 6,
+          "name": "sprite",
+          "iip": 0,
+          "tme": 0,
+          "fge": 0,
+          "abe": 0,
+          "aa1": 0,
+          "fst": 0,
+          "ctxt": 0,
+          "fix": 0
+        },
+        "bbox": {
+          "x_min": 0.0,
+          "x_max": 512.0,
+          "y_min": 0.0,
+          "y_max": 448.0,
+          "width": 512.0,
+          "height": 448.0,
+          "center_x": 256.0,
+          "center_y": 224.0
+        },
+        "tex0": {
+          "tbp0": 11424,
+          "tbw": 2,
+          "psm": 20,
+          "tw": 7,
+          "th": 7,
+          "tcc": 1,
+          "tfx": 0,
+          "cbp": 10322,
+          "cpsm": 0,
+          "csm": 0,
+          "csa": 0,
+          "cld": 1
+        },
+        "clamp": {
+          "wms": 1,
+          "wmt": 1,
+          "minu": 0,
+          "maxu": 0,
+          "minv": 0,
+          "maxv": 0
+        },
+        "alpha": {
+          "a": 0,
+          "b": 1,
+          "c": 0,
+          "d": 1,
+          "fix": 0
+        },
+        "test": {
+          "ate": 0,
+          "atst": 0,
+          "aref": 0,
+          "afail": 0,
+          "date": 0,
+          "datm": 0,
+          "zte": 1,
+          "ztst": 1
+        },
+        "colors": {
+          "black": 32
+        },
+        "st_bounds": [
+          6.3e-05,
+          6.3e-05,
+          0.00024,
+          0.00024
+        ],
+        "texture_sample": {
+          "path": "proofs\\pcsx2_vram_page_trace_20260717_01\\tbp0_11424_psm_20_128x128.png",
+          "size": [
+            128,
+            128
+          ],
+          "st_bounds": [
+            6.3e-05,
+            6.3e-05,
+            0.00024,
+            0.00024
+          ],
+          "st_in_unit_range": true,
+          "sample_px": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "nonzero_alpha_pixels": 1,
+          "colored_alpha_pixels": 0,
+          "mean_rgba": [
+            0.0,
+            0.0,
+            0.0,
+            255.0
+          ],
+          "min_rgba": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "max_rgba": [
+            0,
+            0,
+            0,
+            255
+          ]
+        }
+      },
+      "per_frame_summary": "proofs\\pcsx2_lower_cap_multiframe_owner_trace_20260717_01\\frame15\\lower_cap_owner_summary.json",
+      "per_frame_contact_sheet": "proofs\\pcsx2_lower_cap_multiframe_owner_trace_20260717_01\\frame15\\lower_cap_owner_contact_sheet.png"
+    },
+    {
+      "frame": "frame16",
+      "frame_image_size": [
+        640,
+        480
+      ],
+      "trace_embedded_screenshot_size": [
+        640,
+        480
+      ],
+      "selected_component": {
+        "count": 338,
+        "min_x": 265,
+        "max_x": 293,
+        "min_y": 245,
+        "max_y": 279,
+        "width_px": 29,
+        "height_px": 35,
+        "centroid_x": 282.899,
+        "centroid_y": 264.834,
+        "selection_method": "forced_bbox_overlap",
+        "forced_component_bbox": [
+          265,
+          245,
+          293,
+          279
+        ],
+        "forced_overlap_px": 1015,
+        "forced_overlap_frac": 1.0
+      },
+      "tbp0_14208_colored_lead": {
+        "draw_id": 740,
+        "transfer": 238,
+        "component_pixels_covered": 338,
+        "component_coverage_frac": 1.0,
+        "score": 2833.496,
+        "vertex_count": 46,
+        "prim": {
+          "raw": 92,
+          "prim": 4,
+          "name": "tristrip",
+          "iip": 1,
+          "tme": 1,
+          "fge": 0,
+          "abe": 1,
+          "aa1": 0,
+          "fst": 0,
+          "ctxt": 0,
+          "fix": 0
+        },
+        "bbox": {
+          "x_min": -1307.625,
+          "x_max": 2141.688,
+          "y_min": -1824.0,
+          "y_max": 2271.938,
+          "width": 3449.313,
+          "height": 4095.938,
+          "center_x": 417.032,
+          "center_y": 223.969
+        },
+        "tex0": {
+          "tbp0": 14208,
+          "tbw": 4,
+          "psm": 20,
+          "tw": 8,
+          "th": 7,
+          "tcc": 1,
+          "tfx": 0,
+          "cbp": 13810,
+          "cpsm": 0,
+          "csm": 0,
+          "csa": 0,
+          "cld": 1
+        },
+        "clamp": {
+          "wms": 0,
+          "wmt": 0,
+          "minu": 0,
+          "maxu": 0,
+          "minv": 0,
+          "maxv": 0
+        },
+        "alpha": null,
+        "test": {
+          "ate": 1,
+          "atst": 6,
+          "aref": 0,
+          "afail": 2,
+          "date": 0,
+          "datm": 0,
+          "zte": 1,
+          "ztst": 3
+        },
+        "colors": {
+          "black": 43,
+          "other": 3
+        },
+        "st_bounds": [
+          0.023312,
+          0.024112,
+          0.011785,
+          0.019767
+        ],
+        "texture_sample": {
+          "path": "proofs\\pcsx2_normal_cap_texture_probe_20260717_02_psmt4\\tbp0_14208_cbp_13810_psmt4_rgba_raw_alpha.png",
+          "size": [
+            256,
+            128
+          ],
+          "st_bounds": [
+            0.023312,
+            0.024112,
+            0.011785,
+            0.019767
+          ],
+          "st_in_unit_range": true,
+          "sample_px": [
+            5,
+            1,
+            7,
+            3
+          ],
+          "nonzero_alpha_pixels": 4,
+          "colored_alpha_pixels": 4,
+          "mean_rgba": [
+            49.25,
+            191.75,
+            161.25,
+            34.0
+          ],
+          "min_rgba": [
+            37,
+            188,
+            154,
+            34
+          ],
+          "max_rgba": [
+            82,
+            203,
+            169,
+            34
+          ]
+        }
+      },
+      "tbp0_11424_black_reject": {
+        "draw_id": 2266,
+        "transfer": 1034,
+        "component_pixels_covered": 338,
+        "component_coverage_frac": 1.0,
+        "score": 3015.973,
+        "vertex_count": 32,
+        "prim": {
+          "raw": 6,
+          "prim": 6,
+          "name": "sprite",
+          "iip": 0,
+          "tme": 0,
+          "fge": 0,
+          "abe": 0,
+          "aa1": 0,
+          "fst": 0,
+          "ctxt": 0,
+          "fix": 0
+        },
+        "bbox": {
+          "x_min": 0.0,
+          "x_max": 512.0,
+          "y_min": 0.0,
+          "y_max": 448.0,
+          "width": 512.0,
+          "height": 448.0,
+          "center_x": 256.0,
+          "center_y": 224.0
+        },
+        "tex0": {
+          "tbp0": 11424,
+          "tbw": 2,
+          "psm": 20,
+          "tw": 7,
+          "th": 7,
+          "tcc": 1,
+          "tfx": 0,
+          "cbp": 10322,
+          "cpsm": 0,
+          "csm": 0,
+          "csa": 0,
+          "cld": 1
+        },
+        "clamp": {
+          "wms": 1,
+          "wmt": 1,
+          "minu": 0,
+          "maxu": 0,
+          "minv": 0,
+          "maxv": 0
+        },
+        "alpha": {
+          "a": 0,
+          "b": 1,
+          "c": 0,
+          "d": 1,
+          "fix": 0
+        },
+        "test": {
+          "ate": 0,
+          "atst": 0,
+          "aref": 0,
+          "afail": 0,
+          "date": 0,
+          "datm": 0,
+          "zte": 1,
+          "ztst": 1
+        },
+        "colors": {
+          "black": 32
+        },
+        "st_bounds": [
+          6.3e-05,
+          6.3e-05,
+          0.00024,
+          0.00024
+        ],
+        "texture_sample": {
+          "path": "proofs\\pcsx2_vram_page_trace_20260717_01\\tbp0_11424_psm_20_128x128.png",
+          "size": [
+            128,
+            128
+          ],
+          "st_bounds": [
+            6.3e-05,
+            6.3e-05,
+            0.00024,
+            0.00024
+          ],
+          "st_in_unit_range": true,
+          "sample_px": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "nonzero_alpha_pixels": 1,
+          "colored_alpha_pixels": 0,
+          "mean_rgba": [
+            0.0,
+            0.0,
+            0.0,
+            255.0
+          ],
+          "min_rgba": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "max_rgba": [
+            0,
+            0,
+            0,
+            255
+          ]
+        }
+      },
+      "per_frame_summary": "proofs\\pcsx2_lower_cap_multiframe_owner_trace_20260717_01\\frame16\\lower_cap_owner_summary.json",
+      "per_frame_contact_sheet": "proofs\\pcsx2_lower_cap_multiframe_owner_trace_20260717_01\\frame16\\lower_cap_owner_contact_sheet.png"
+    },
+    {
+      "frame": "frame17",
+      "frame_image_size": [
+        640,
+        480
+      ],
+      "trace_embedded_screenshot_size": [
+        640,
+        480
+      ],
+      "selected_component": {
+        "count": 1813,
+        "min_x": 212,
+        "max_x": 296,
+        "min_y": 245,
+        "max_y": 370,
+        "width_px": 85,
+        "height_px": 126,
+        "centroid_x": 265.235,
+        "centroid_y": 321.243,
+        "selection_method": "forced_bbox_overlap",
+        "forced_component_bbox": [
+          212,
+          245,
+          296,
+          370
+        ],
+        "forced_overlap_px": 10710,
+        "forced_overlap_frac": 1.0
+      },
+      "tbp0_14208_colored_lead": {
+        "draw_id": 673,
+        "transfer": 236,
+        "component_pixels_covered": 1813,
+        "component_coverage_frac": 1.0,
+        "score": 17988.822,
+        "vertex_count": 48,
+        "prim": {
+          "raw": 92,
+          "prim": 4,
+          "name": "tristrip",
+          "iip": 1,
+          "tme": 1,
+          "fge": 0,
+          "abe": 1,
+          "aa1": 0,
+          "fst": 0,
+          "ctxt": 0,
+          "fix": 0
+        },
+        "bbox": {
+          "x_min": -1622.125,
+          "x_max": 2279.062,
+          "y_min": -1824.0,
+          "y_max": 2271.938,
+          "width": 3901.187,
+          "height": 4095.938,
+          "center_x": 328.468,
+          "center_y": 223.969
+        },
+        "tex0": {
+          "tbp0": 14208,
+          "tbw": 4,
+          "psm": 20,
+          "tw": 8,
+          "th": 7,
+          "tcc": 1,
+          "tfx": 0,
+          "cbp": 13810,
+          "cpsm": 0,
+          "csm": 0,
+          "csa": 0,
+          "cld": 1
+        },
+        "clamp": {
+          "wms": 0,
+          "wmt": 0,
+          "minu": 0,
+          "maxu": 0,
+          "minv": 0,
+          "maxv": 0
+        },
+        "alpha": null,
+        "test": {
+          "ate": 1,
+          "atst": 6,
+          "aref": 0,
+          "afail": 2,
+          "date": 0,
+          "datm": 0,
+          "zte": 1,
+          "ztst": 3
+        },
+        "colors": {
+          "black": 27,
+          "other": 21
+        },
+        "st_bounds": [
+          0.03865,
+          0.046639,
+          0.02825,
+          0.038678
+        ],
+        "texture_sample": {
+          "path": "proofs\\pcsx2_normal_cap_texture_probe_20260717_02_psmt4\\tbp0_14208_cbp_13810_psmt4_rgba_raw_alpha.png",
+          "size": [
+            256,
+            128
+          ],
+          "st_bounds": [
+            0.03865,
+            0.046639,
+            0.02825,
+            0.038678
+          ],
+          "st_in_unit_range": true,
+          "sample_px": [
+            9,
+            3,
+            12,
+            5
+          ],
+          "nonzero_alpha_pixels": 6,
+          "colored_alpha_pixels": 6,
+          "mean_rgba": [
+            65.833,
+            195.5,
+            136.167,
+            34.0
+          ],
+          "min_rgba": [
+            39,
+            188,
+            26,
+            34
+          ],
+          "max_rgba": [
+            114,
+            203,
+            161,
+            34
+          ]
+        }
+      },
+      "tbp0_11424_black_reject": {
+        "draw_id": 2244,
+        "transfer": 1022,
+        "component_pixels_covered": 1813,
+        "component_coverage_frac": 1.0,
+        "score": 17765.973,
+        "vertex_count": 32,
+        "prim": {
+          "raw": 6,
+          "prim": 6,
+          "name": "sprite",
+          "iip": 0,
+          "tme": 0,
+          "fge": 0,
+          "abe": 0,
+          "aa1": 0,
+          "fst": 0,
+          "ctxt": 0,
+          "fix": 0
+        },
+        "bbox": {
+          "x_min": 0.0,
+          "x_max": 512.0,
+          "y_min": 0.0,
+          "y_max": 448.0,
+          "width": 512.0,
+          "height": 448.0,
+          "center_x": 256.0,
+          "center_y": 224.0
+        },
+        "tex0": {
+          "tbp0": 11424,
+          "tbw": 2,
+          "psm": 20,
+          "tw": 7,
+          "th": 7,
+          "tcc": 1,
+          "tfx": 0,
+          "cbp": 10322,
+          "cpsm": 0,
+          "csm": 0,
+          "csa": 0,
+          "cld": 1
+        },
+        "clamp": {
+          "wms": 1,
+          "wmt": 1,
+          "minu": 0,
+          "maxu": 0,
+          "minv": 0,
+          "maxv": 0
+        },
+        "alpha": {
+          "a": 0,
+          "b": 1,
+          "c": 0,
+          "d": 1,
+          "fix": 0
+        },
+        "test": {
+          "ate": 0,
+          "atst": 0,
+          "aref": 0,
+          "afail": 0,
+          "date": 0,
+          "datm": 0,
+          "zte": 1,
+          "ztst": 1
+        },
+        "colors": {
+          "black": 32
+        },
+        "st_bounds": [
+          6.3e-05,
+          6.3e-05,
+          0.00024,
+          0.00024
+        ],
+        "texture_sample": {
+          "path": "proofs\\pcsx2_vram_page_trace_20260717_01\\tbp0_11424_psm_20_128x128.png",
+          "size": [
+            128,
+            128
+          ],
+          "st_bounds": [
+            6.3e-05,
+            6.3e-05,
+            0.00024,
+            0.00024
+          ],
+          "st_in_unit_range": true,
+          "sample_px": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "nonzero_alpha_pixels": 1,
+          "colored_alpha_pixels": 0,
+          "mean_rgba": [
+            0.0,
+            0.0,
+            0.0,
+            255.0
+          ],
+          "min_rgba": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "max_rgba": [
+            0,
+            0,
+            0,
+            255
+          ]
+        }
+      },
+      "per_frame_summary": "proofs\\pcsx2_lower_cap_multiframe_owner_trace_20260717_01\\frame17\\lower_cap_owner_summary.json",
+      "per_frame_contact_sheet": "proofs\\pcsx2_lower_cap_multiframe_owner_trace_20260717_01\\frame17\\lower_cap_owner_contact_sheet.png"
+    }
+  ],
+  "decision": {
+    "promote_renderer_patch": false,
+    "reason": "tbp0=14208/cbp=13810 is now a recurring colored texture-footprint lead across accepted components, but source-object ownership and GS blend/depth attribution are still not proven."
+  }
+}
