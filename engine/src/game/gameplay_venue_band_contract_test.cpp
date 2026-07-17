@@ -8763,7 +8763,7 @@ int main() {
                  "boolhas_timing=false;",
                  "CameraKey preserves CamShot keyframe timing fields");
   ok &= contains(gameplay_h_c,
-                 "floatblur_depth=0.35f;floatmax_blur=255.0f;"
+                 "floatblur_depth=0.35f;floatmax_blur=1.0f;"
                  "floatmin_blur=0.0f;floatfocus_blur_multiplier=0.0f;"
                  "boolhas_dof_fields=false;"
                  "std::stringfocus_target_entity;"
@@ -8826,7 +8826,7 @@ int main() {
                  "CamShot frame reader consumes source blur depth through source byte storage");
   ok &= contains(camshot_frame_reader_c,
                  "key.max_blur=camshot_revision>0x17?"
-                 "camshot_source_blur_field(r.f32()):255.0f;"
+                 "camshot_source_blur_field(r.f32()):1.0f;"
                  "key.min_blur=camshot_revision>0x1c?"
                  "camshot_source_blur_field(r.f32()):0.0f;"
                  "key.focus_blur_multiplier=camshot_revision>0x14?"
@@ -8835,7 +8835,7 @@ int main() {
   ok &= contains(gameplay_c,
                  "constfloatmax_blur=lerp_camshot_frame_field("
                  "a->has_dof_fields,a->max_blur,b->has_dof_fields,"
-                 "b->max_blur,255.0f);",
+                 "b->max_blur,1.0f);",
                  "CamShot frame interpolation falls back to source max blur default");
   ok &= contains(gameplay_c,
                  "key.focus_target_entity=std::move(focus.entity);"

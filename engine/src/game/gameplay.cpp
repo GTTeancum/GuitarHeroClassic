@@ -2270,7 +2270,7 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
         camshot_revision < 0x17 ? 1.0f - blur_depth : blur_depth);
     if (camshot_revision < 0x17) (void)r.i32();
     key.max_blur =
-        camshot_revision > 0x17 ? camshot_source_blur_field(r.f32()) : 255.0f;
+        camshot_revision > 0x17 ? camshot_source_blur_field(r.f32()) : 1.0f;
     key.min_blur =
         camshot_revision > 0x1c ? camshot_source_blur_field(r.f32()) : 0.0f;
     key.focus_blur_multiplier =
@@ -22670,7 +22670,7 @@ void apply_camera_keys(
         0.35f);
     const float max_blur = lerp_camshot_frame_field(
         a->has_dof_fields, a->max_blur, b->has_dof_fields, b->max_blur,
-        255.0f);
+        1.0f);
     const float min_blur = lerp_camshot_frame_field(
         a->has_dof_fields, a->min_blur, b->has_dof_fields, b->min_blur,
         0.0f);
