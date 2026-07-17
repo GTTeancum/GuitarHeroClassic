@@ -123,6 +123,19 @@
   predicate, no hidden `cam_shot_ok` / `cam_check_shot` invention, no pose
   math, FreeCam priority, dependency, under-venue masking, or OG Xbox
   portability surface changed.
+- 2026-07-17 gameplay CameraManager cycle_shot pending status:
+  ihatecompvir `CameraManager::OnCycleShot()` resolves
+  `ShotAfter(mCurrentShot)`, then queues any result through
+  `ForceCameraShot(after)`. Native already preserves decoded source object
+  order for `camera_manager_source_shot_after(...)`, exposes
+  `cycle_camera_shot_like_source()`, and routes the chosen shot through the
+  same `mNextShot` / PrePoll pending bridge as forced shots. The compact normal
+  gameplay camera status now counts
+  `camera_manager_cycle_shot_pending_bridge` between
+  `camera_manager_force_shot_pending` and
+  `camera_manager_current_next_state`. This is source manager scheduling parity
+  only: no camera pose math, FreeCam priority, dependency, under-venue masking,
+  or OG Xbox portability surface changed.
 - 2026-07-17 gameplay NumCameraShots prescan status:
   ihatecompvir `CameraManager::NumCameraShots` is useful for source-shaped
   selection proof because it counts acceptable shots without mutating category
