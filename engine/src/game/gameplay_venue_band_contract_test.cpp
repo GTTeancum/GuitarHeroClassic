@@ -12588,6 +12588,33 @@ int main() {
                  "cam.near_z=near_z;cam.far_z=far_z;cam.fov=y_fov;",
                  "runtime camera stores near/far/YFov together like RndCam::SetFrustum");
   ok &= contains(gameplay_c,
+                 "structCameraSourceSetFrustumMessage{"
+                 "std::optional<float>near_plane;"
+                 "std::optional<float>far_plane;"
+                 "std::optional<float>y_fov_degrees;};",
+                 "runtime camera carries source RndCam::OnSetFrustum optional fields");
+  ok &= contains(gameplay_c,
+                 "voidcamera_apply_rndcam_on_set_frustum_like_source("
+                 "ghogx::render::OrbitCamera&cam,"
+                 "constCameraSourceSetFrustumMessage&message)",
+                 "runtime camera exposes ihatecompvir RndCam::OnSetFrustum bridge");
+  ok &= contains(gameplay_c,
+                 "constfloatnear_z=message.near_plane.value_or(cam.near_z);"
+                 "constfloatfar_z=message.far_plane.value_or(cam.far_z);",
+                 "RndCam::OnSetFrustum bridge falls back to current near/far when fields are absent");
+  ok &= contains(gameplay_c,
+                 "message.y_fov_degrees?(*message.y_fov_degrees*kDegToRad)"
+                 ":cam.fov;",
+                 "RndCam::OnSetFrustum bridge converts authored y_fov degrees to radians");
+  ok &= contains(gameplay_c,
+                 "camera_apply_rndcam_set_frustum_like_source("
+                 "cam,near_z,far_z,y_fov,source_current_far_z);",
+                 "RndCam::OnSetFrustum bridge delegates to source SetFrustum helper");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraOnSetFrustum:source_handler="
+                 "RndCam::OnSetFrustumsource_msg=set_frustum",
+                 "camera diagnostics expose the RndCam set_frustum handler boundary");
+  ok &= contains(gameplay_c,
                  "constfloatsource_current_far_z=cam.far_z;",
                  "runtime camera preserves the previous source far plane for SetFrustum");
   ok &= contains(gameplay_c,

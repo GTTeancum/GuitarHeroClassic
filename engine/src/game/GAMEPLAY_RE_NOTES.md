@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay RndCam `set_frustum` handler bridge:
+  ihatecompvir `RndCam::OnSetFrustum` accepts optional `near_plane`,
+  `far_plane`, and `y_fov`, falling back to the current camera fields when a
+  key is absent, converts authored `y_fov` degrees through `DEG2RAD`, then
+  calls `SetFrustum(..., 1.0f)` and returns `DataNode(0)`. Native now has a
+  source-shaped `OnSetFrustum` bridge layered on the existing source
+  `SetFrustum` clamp/store helper, while keeping CamShot interpolation and
+  `RndCamAnim::SetFrame` on their direct `SetFrustum` paths. This is camera
+  handler-surface parity only: no pose math, no `BuildTransform` synthesis, no
+  under-venue masking, no FreeCam priority change, no dependency change, and
+  no OG Xbox portability change.
 - 2026-07-17 gameplay legacy CamShot crowd modify-stamp parity:
   ihatecompvir `CamShot::Load` reads the legacy `CamShotCrowd` modify stamp
   for revisions 8..41 and clears `csc.unk10` when no crowd is resolved and the

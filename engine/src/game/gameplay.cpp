@@ -18870,6 +18870,34 @@ void camera_apply_rndcam_set_frustum_like_source(
     }
 }
 
+struct CameraSourceSetFrustumMessage {
+    std::optional<float> near_plane;
+    std::optional<float> far_plane;
+    std::optional<float> y_fov_degrees;
+};
+
+void camera_apply_rndcam_on_set_frustum_like_source(
+    ghogx::render::OrbitCamera& cam,
+    const CameraSourceSetFrustumMessage& message) {
+    constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
+    const float near_z = message.near_plane.value_or(cam.near_z);
+    const float far_z = message.far_plane.value_or(cam.far_z);
+    const float y_fov =
+        message.y_fov_degrees ? (*message.y_fov_degrees * kDegToRad)
+                              : cam.fov;
+    const float source_current_far_z = cam.far_z;
+    camera_apply_rndcam_set_frustum_like_source(
+        cam, near_z, far_z, y_fov, source_current_far_z);
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera OnSetFrustum: source_handler=RndCam::OnSetFrustum source_msg=set_frustum has_near=%d has_far=%d has_y_fov=%d requested=(%.3f %.3f %.6f) source_y_fov_units=%s source_return=DataNode(0)\n",
+            message.near_plane ? 1 : 0, message.far_plane ? 1 : 0,
+            message.y_fov_degrees ? 1 : 0, near_z, far_z, y_fov,
+            message.y_fov_degrees ? "degrees_to_radians" : "current_radians");
+    }
+}
+
 std::optional<CameraTarget> camera_parent_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets);
