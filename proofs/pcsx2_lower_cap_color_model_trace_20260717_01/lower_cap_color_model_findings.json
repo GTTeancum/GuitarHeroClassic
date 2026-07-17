@@ -1,0 +1,30 @@
+{
+  "pass": "pcsx2_lower_cap_color_model_trace_20260717_01",
+  "source_dump": "proofs/pcsx2_highway_trace_20260715/active_gsdumps/frame_17_Guitar Hero II_SLUS-21447_20260715100717.gs.zst",
+  "accepted_component_bbox_480p": [212, 245, 296, 370],
+  "accepted_component_pixels": 1813,
+  "draw_groups_covering_component": 60,
+  "color_model_note": "Diagnostic only: raw vertex RGB, raw texture RGB, and simple texture*vertex modulation candidates. This is not a full GS blend/depth replay.",
+  "visibility_lead": {
+    "tbp0": 14208,
+    "local_bbox": false,
+    "broad_penalty": 2.0,
+    "component_coverage_frac": 1.0,
+    "best_rgb_model": "texture_rgb",
+    "best_rgb_mae_px": 91.993
+  },
+  "best_color_model_lead": {
+    "tbp0": 14944,
+    "local_bbox": false,
+    "broad_penalty": 2.0,
+    "component_coverage_frac": 1.0,
+    "best_rgb_model": "texture_rgb",
+    "best_rgb_mae_px": 77.753
+  },
+  "decision": "No renderer patch promoted. All full-coverage and best-color candidates remain broad/page-level, not source-owned lower cap/effect draws.",
+  "next_evidence_needed": [
+    "source-object ownership for the lower cap/effect rows",
+    "fuller GS blend/depth attribution",
+    "or recovered Tail::UpdateVerts/texgen behavior"
+  ]
+}

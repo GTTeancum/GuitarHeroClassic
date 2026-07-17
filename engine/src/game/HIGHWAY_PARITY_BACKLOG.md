@@ -1790,3 +1790,21 @@ should only be checked against one of the supported aspect modes.
   `frame15_visibility/lower_cap_owner_trace.txt`,
   `frame16_visibility/lower_cap_owner_trace.txt`, and
   `visibility_trace/lower_cap_owner_trace.txt`.
+- PCSX2 lower-cap color-model trace:
+  `proofs/pcsx2_lower_cap_color_model_trace_20260717_01` extends
+  `trace_pcsx2_lower_cap_owner.py` with a diagnostic-only color-model rank
+  over raw vertex RGB, raw texture RGB, and simple texture*vertex modulation
+  candidates. This is still not a GS blend/depth replay. On the accepted stock
+  GH2 frame-17 component (`[212,245,296,370]`, `1813` pixels), `60` draw groups
+  cover the component. The prior visibility lead remains broad/page-level
+  `tbp0=14208` with full coverage, but its best raw-texture RGB MAE is about
+  `92 px`. The best color-model rows are also broad/page-level pages
+  (`tbp0=14944` at about `77.8 px` MAE and `tbp0=15616` at about `78.1 px`
+  MAE), with `local_bbox=false` and `broad_penalty=2.0`. No local or
+  source-owned lower cap/effect draw is identified, so no renderer patch is
+  promoted. Treat this as stronger negative evidence against using the
+  `14208/13810` lead, another cyan flare, or another smasher/tail cap geometry
+  guess as a default visual change. Contact sheet:
+  `lower_cap_owner_contact_sheet.png`; trace:
+  `lower_cap_owner_trace.txt`; full compact summary:
+  `lower_cap_owner_summary.json`.
