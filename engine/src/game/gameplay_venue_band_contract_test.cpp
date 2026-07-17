@@ -14893,6 +14893,7 @@ int main() {
                  "camera implementation status counts source WorldDir SyncCamShots disabled overrides between selection and lifecycle");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_shot_ok_bad_waypoints,"
+                 "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_prepoll_poll_order,"
                  "camera_camshot_update_target_cache,"
                  "camera_camshot_setfrustum,"
@@ -14903,8 +14904,9 @@ int main() {
                  "camera implementation status counts audited CameraManager PrePoll/Poll order and source-visible CamShotFrame::Interp pieces");
   ok &= contains(gameplay_c,
                  "camera_lifecycle,camera_camshot_shot_ok_bad_waypoints,"
+                 "camera_camshot_check_shot_probe_boundary,"
                  "camera_manager_prepoll_poll_order",
-                 "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection before manager poll order");
+                 "camera implementation status counts the recovered CamShot ShotOk bad_waypoints rejection and check_shot probe boundary before manager poll order");
   ok &= contains(gameplay_c,
                  "camera_path_transanim_timing,"
                  "camera_trace_complete_writer_bridge,"
@@ -14912,7 +14914,7 @@ int main() {
                  "camera implementation status counts frame-scoped trace-complete writer bridge before audited RndCamAnim FovKeys::AtFrame sampling");
   ok &= contains(gameplay_c,
                  "hidden_bodies_deferred=cam_shot_ok_rest,"
-                 "cam_check_shot,CharWalk,SetPos,BuildTransform,"
+                 "cam_check_shot_native,CharWalk,SetPos,BuildTransform,"
                  "RndCam_UpdateLocal"
                  "freecam_priority=deferred_last",
                  "camera implementation status keeps hidden gameplay bodies ahead of deferred FreeCam work");

@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CheckShot status split:
+  the compact normal-gameplay camera status now counts
+  `camera_camshot_check_shot_probe_boundary` for the recovered script/message
+  path from GH2 `world_objects_worldbase.dta::beat` through
+  `world/camshot.dta::check_shot`, while still naming the unrecovered native
+  predicate as `cam_check_shot_native` in `hidden_bodies_deferred`. This is
+  accounting/proof alignment only: no `cam_check_shot` result invention, no
+  pose math, no under-venue masking, no FreeCam priority change, no dependency
+  change, and no OG Xbox portability change.
 - 2026-07-17 gameplay WorldDir CamShot override status proof:
   ihatecompvir `WorldDir::PostLoad` loads `mCamShotOverrides` and
   `WorldDir::SyncCamShots(true)` calls `CamShot::Disable(true, 1)` on each
