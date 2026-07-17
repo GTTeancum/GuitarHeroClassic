@@ -14966,6 +14966,7 @@ int main() {
                  "camera_visibility,"
                  "camera_shot_started_postswitch,"
                  "camera_shot_over,"
+                 "camera_camshot_cacheframes_duration,"
                  "camera_camshot_duration_seconds,"
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,"
@@ -15038,10 +15039,16 @@ int main() {
                  "camera implementation status keeps the source shot_started post_switch_cam bridge before shot_over");
   ok &= contains(gameplay_c,
                  "camera_shot_over,"
+                 "camera_camshot_cacheframes_duration,"
                  "camera_camshot_duration_seconds,"
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,",
-                 "camera implementation status keeps source CamShot duration_seconds and GetKey looping between shot_over timing and frame-pair timing");
+                 "camera implementation status keeps source CacheFrames, duration_seconds, and GetKey looping between shot_over timing and frame-pair timing");
+  ok &= contains(gameplay_c,
+                 "camera_shot_over,"
+                 "camera_camshot_cacheframes_duration,"
+                 "camera_camshot_duration_seconds,",
+                 "camera implementation status counts CamShot::CacheFrames mDuration before duration_seconds");
   ok &= contains(gameplay_c,
                  "camera_frame_pair_timing,"
                  "camera_camshot_onsetpos_boundary,"

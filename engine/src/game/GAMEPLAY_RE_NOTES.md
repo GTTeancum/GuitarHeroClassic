@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot CacheFrames duration status:
+  ihatecompvir `CamShot::CacheFrames()` assigns each keyframe start from the
+  running `frames` cursor and then adds `mDuration + mBlend` into the CamShot
+  `mDuration`. Native already uses that same source-shaped timing span for
+  `CheckShotOver`, `duration_seconds`, and `GetKey`; the compact camera status
+  now counts `camera_camshot_cacheframes_duration` between `camera_shot_over`
+  and `camera_camshot_duration_seconds`. This is normal gameplay timing proof
+  only: no pose math, `BuildTransform`, `SetPos`, under-venue masking, FreeCam
+  priority, dependency, or OG Xbox portability surface changed.
 - 2026-07-17 gameplay RndCam `UpdateLocal` public-stub boundary:
   ihatecompvir's public `rndobj/Cam.cpp` source has an empty
   `RndCam::UpdateLocal()` body. Native proof/status now accounts for that
