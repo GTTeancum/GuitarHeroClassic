@@ -1346,6 +1346,7 @@ class Gameplay {
   std::array<float, 3> venue_camera_world_crowd_max_ = {};
   std::string active_camera_runtime_shot_;
   std::string active_camera_source_current_shot_;
+  std::string active_camera_source_current_rndcam_;
   std::string active_camera_anim_event_;
   std::string active_camera_anim_target_;
   std::vector<std::string> active_camera_fov_anim_refs_;

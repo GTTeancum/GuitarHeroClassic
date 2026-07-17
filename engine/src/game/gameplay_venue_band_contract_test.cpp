@@ -6122,6 +6122,9 @@ int main() {
                  "std::stringactive_camera_source_current_shot_;",
                  "camera runtime tracks ihatecompvir CamShot::sCurrent");
   ok &= contains(gameplay_h_c,
+                 "std::stringactive_camera_source_current_rndcam_;",
+                 "camera runtime tracks ihatecompvir RndCam::sCurrent for CamShot OnSetPos");
+  ok &= contains(gameplay_h_c,
                  "std::stringpending_regular_camera_;",
                  "regular camera runtime carries a CameraManager mNextShot-style pending shot");
   ok &= contains(gameplay_h_c,
@@ -6190,6 +6193,12 @@ int main() {
                  "active_camera_runtime_shot_=runtime_name;"
                  "active_camera_source_current_shot_=runtime_name;",
                  "camera StartAnim sets ihatecompvir CamShot::sCurrent to the started shot");
+  ok &= contains(start_camera_shot_runtime_c,
+                 "active_camera_source_current_rndcam_=\"WorldDir::mCam\";",
+                 "camera StartAnim selects the source world RndCam for RndCam::Current consumers");
+  ok &= absent(end_camera_shot_runtime_c,
+               "active_camera_source_current_rndcam_.clear();",
+               "CamShot EndAnim must not clear RndCam::sCurrent; RndCam owns that static");
   ok &= contains(gameplay_c,
                  "postprocess_lifecycle=preserved_until_start_shot_reset",
                  "camera EndAnim diagnostics preserve RndPostProc current state until the next start_shot select/reset");
@@ -6251,6 +6260,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "source_field=CamShot::sCurrentsource_current=%s",
                  "camera StartAnim diagnostics expose ihatecompvir CamShot::sCurrent");
+  ok &= contains(gameplay_c,
+                 "source_rndcam_current=%ssource_rndcam_select=RndCam::Select",
+                 "camera StartAnim diagnostics expose ihatecompvir RndCam::Select current camera state");
   ok &= contains(gameplay_c,
                  "force_char_lod=%dps3_per_pixel=%dhide_list=%zu",
                  "camera StartAnim diagnostics expose source ps3_per_pixel state");
@@ -15278,7 +15290,8 @@ int main() {
                  "\"[world]cameraOnSetPosboundary:source_msg=set_pos"
                  "source_handler=CamShot::OnSetPosshot=%sa_index=%s%zu"
                  "b_index=%s%zusource_call=SetPos(mKeyFrames[idx],"
-                 "RndCam::Current)rb2_setpos=locals_only"
+                 "RndCam::Current)source_current_rndcam=%s"
+                 "rb2_setpos=locals_only"
                  "native_pose_body=not_synthesized"
                  "route=regular_camera_source_frame_keys\\n\"",
                  "camera diagnostics expose the source CamShot OnSetPos boundary without synthesizing SetPos");
@@ -15286,6 +15299,7 @@ int main() {
                  "\"[world]cameraOnSetPosboundary:source_msg=set_pos"
                  "source_handler=CamShot::OnSetPosshot=%sindex=%s%zu"
                  "source_call=SetPos(mKeyFrames[idx],RndCam::Current)"
+                 "source_current_rndcam=%s"
                  "rb2_setpos=locals_onlynative_pose_body=not_synthesized"
                  "source_phase=hold_before_blend"
                  "route=regular_camera_source_frame_keys\\n\"",

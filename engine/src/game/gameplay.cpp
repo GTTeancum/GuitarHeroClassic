@@ -25552,6 +25552,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     previous_regular_camera_.clear();
     active_camera_runtime_shot_.clear();
     active_camera_source_current_shot_.clear();
+    active_camera_source_current_rndcam_.clear();
     active_camera_anim_event_.clear();
     active_camera_anim_target_.clear();
     active_camera_fov_anim_refs_.clear();
@@ -27611,15 +27612,17 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
     end_camera_shot_runtime(skip_script_crowd_update, false);
     active_camera_runtime_shot_ = runtime_name;
     active_camera_source_current_shot_ = runtime_name;
+    active_camera_source_current_rndcam_ = "WorldDir::mCam";
     active_camera_shot_started_ = false;
     active_camera_setpreframe_calls_ = 0;
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] camera StartAnim: source_msg=start_shot source_order=before_WorldDir_SetCrowds source_field=CamShot::sCurrent source_current=%s shot=%s hide_crowd=%d face_camera=%d "
+            "[world] camera StartAnim: source_msg=start_shot source_order=before_WorldDir_SetCrowds source_field=CamShot::sCurrent source_current=%s source_rndcam_current=%s source_rndcam_select=RndCam::Select shot=%s hide_crowd=%d face_camera=%d "
             "force_char_lod=%d ps3_per_pixel=%d hide_list=%zu show_list=%zu gen_hide=%zu "
             "draw_overrides=%zu postproc_overrides=%zu postprocess=%s anims=%zu glow=%s\n",
             active_camera_source_current_shot_.c_str(),
+            active_camera_source_current_rndcam_.c_str(),
             active_camera_runtime_shot_.c_str(), key.hide_crowd ? 1 : 0,
             key.crowd_face_camera ? 1 : 0, key.force_char_lod,
             key.ps3_per_pixel ? 1 : 0,
@@ -34633,6 +34636,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 pending_regular_camera_local_frame_ = 0.0;
                 active_camera_runtime_shot_.clear();
                 active_camera_source_current_shot_.clear();
+                active_camera_source_current_rndcam_.clear();
                 active_camera_anim_event_.clear();
                 active_camera_anim_target_.clear();
                 active_camera_fov_anim_refs_.clear();
@@ -37444,7 +37448,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         };
                         std::fprintf(
                             stderr,
-                            "[world] camera OnSetPos boundary: source_msg=set_pos source_handler=CamShot::OnSetPos shot=%s a_index=%s%zu b_index=%s%zu source_call=SetPos(mKeyFrames[idx],RndCam::Current) rb2_setpos=locals_only native_pose_body=not_synthesized route=regular_camera_source_frame_keys\n",
+                            "[world] camera OnSetPos boundary: source_msg=set_pos source_handler=CamShot::OnSetPos shot=%s a_index=%s%zu b_index=%s%zu source_call=SetPos(mKeyFrames[idx],RndCam::Current) source_current_rndcam=%s rb2_setpos=locals_only native_pose_body=not_synthesized route=regular_camera_source_frame_keys\n",
                             key->name.c_str(), source_index_prefix(a_key),
                             a_key.has_source_frame_key_index
                                 ? a_key.source_frame_key_index
@@ -37452,7 +37456,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             source_index_prefix(b_key),
                             b_key.has_source_frame_key_index
                                 ? b_key.source_frame_key_index
-                                : size_t{0});
+                                : size_t{0},
+                            active_camera_source_current_rndcam_.c_str());
                         const size_t a_has_targets_index =
                             a_key.has_source_frame_key_index
                                 ? a_key.source_frame_key_index
@@ -37597,11 +37602,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         };
                         std::fprintf(
                             stderr,
-                            "[world] camera OnSetPos boundary: source_msg=set_pos source_handler=CamShot::OnSetPos shot=%s index=%s%zu source_call=SetPos(mKeyFrames[idx],RndCam::Current) rb2_setpos=locals_only native_pose_body=not_synthesized source_phase=hold_before_blend route=regular_camera_source_frame_keys\n",
+                            "[world] camera OnSetPos boundary: source_msg=set_pos source_handler=CamShot::OnSetPos shot=%s index=%s%zu source_call=SetPos(mKeyFrames[idx],RndCam::Current) source_current_rndcam=%s rb2_setpos=locals_only native_pose_body=not_synthesized source_phase=hold_before_blend route=regular_camera_source_frame_keys\n",
                             key->name.c_str(), source_index_prefix(hold_key),
                             hold_key.has_source_frame_key_index
                                 ? hold_key.source_frame_key_index
-                                : size_t{0});
+                                : size_t{0},
+                            active_camera_source_current_rndcam_.c_str());
                         const size_t has_targets_index =
                             hold_key.has_source_frame_key_index
                                 ? hold_key.source_frame_key_index
