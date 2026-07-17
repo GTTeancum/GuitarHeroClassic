@@ -1725,6 +1725,13 @@ constexpr float kCamShotAngleByteInv = 0.012319971f;
 constexpr float kCamShotBlurByteScale = 255.0f;
 constexpr float kCamShotBlurByteInv = 0.0039215689f;
 constexpr float kCamShotFrameSourceDefaultFov = 1.2217305f;
+constexpr float kCamShotFrameSourceDefaultZoomFov = 0.0f;
+constexpr float kCamShotFrameSourceDefaultBlurDepth = 0.35f;
+constexpr float kCamShotFrameSourceDefaultMaxBlur = 1.0f;
+constexpr float kCamShotFrameSourceDefaultMinBlur = 0.0f;
+constexpr float kCamShotFrameSourceDefaultFocusBlurMultiplier = 0.0f;
+constexpr float kCamShotFrameSourceDefaultShake = 0.0f;
+constexpr float kCamShotFrameSourceDefaultAngularOffset = 0.0f;
 constexpr float kCamShotSourceDefaultFilter = 0.9f;
 constexpr float kCamShotSourceDefaultNearPlane = 1.0f;
 constexpr float kCamShotSourceDefaultFarPlane = 1000.0f;
@@ -22630,8 +22637,12 @@ void apply_camera_keys(
     float zoom_fov = 0.0f;
     float source_final_fov = source_screen_offset_fov;
     if (has_zoom_fov) {
-        const float zoom_a = a->has_zoom_fov ? a->zoom_fov : 0.0f;
-        const float zoom_b = b->has_zoom_fov ? b->zoom_fov : zoom_a;
+        const float zoom_a = a->has_zoom_fov
+                                 ? a->zoom_fov
+                                 : kCamShotFrameSourceDefaultZoomFov;
+        const float zoom_b = b->has_zoom_fov
+                                 ? b->zoom_fov
+                                 : kCamShotFrameSourceDefaultZoomFov;
         zoom_fov = zoom_a + (zoom_b - zoom_a) * interp_t;
         if (std::isfinite(zoom_fov)) {
             source_final_fov = source_screen_offset_fov + zoom_fov;
@@ -22672,36 +22683,39 @@ void apply_camera_keys(
     const auto lerp_camshot_frame_field =
         [interp_t](bool has_a, float a_value, bool has_b, float b_value,
                    float fallback) {
-            const float value_a = has_a ? a_value : (has_b ? b_value : fallback);
-            const float value_b = has_b ? b_value : value_a;
+            const float value_a = has_a ? a_value : fallback;
+            const float value_b = has_b ? b_value : fallback;
             return value_a + (value_b - value_a) * interp_t;
         };
     const bool has_dof_fields = a->has_dof_fields || b->has_dof_fields;
     const float blur_depth = lerp_camshot_frame_field(
         a->has_dof_fields, a->blur_depth, b->has_dof_fields, b->blur_depth,
-        0.35f);
+        kCamShotFrameSourceDefaultBlurDepth);
     const float max_blur = lerp_camshot_frame_field(
         a->has_dof_fields, a->max_blur, b->has_dof_fields, b->max_blur,
-        1.0f);
+        kCamShotFrameSourceDefaultMaxBlur);
     const float min_blur = lerp_camshot_frame_field(
         a->has_dof_fields, a->min_blur, b->has_dof_fields, b->min_blur,
-        0.0f);
+        kCamShotFrameSourceDefaultMinBlur);
     const float focus_blur_multiplier = lerp_camshot_frame_field(
         a->has_dof_fields, a->focus_blur_multiplier, b->has_dof_fields,
-        b->focus_blur_multiplier, 0.0f);
+        b->focus_blur_multiplier,
+        kCamShotFrameSourceDefaultFocusBlurMultiplier);
     const bool has_shake_fields = a->has_shake_fields || b->has_shake_fields;
     const float shake_noise_amp = lerp_camshot_frame_field(
         a->has_shake_fields, a->shake_noise_amp, b->has_shake_fields,
-        b->shake_noise_amp, 0.0f);
+        b->shake_noise_amp, kCamShotFrameSourceDefaultShake);
     const float shake_noise_freq = lerp_camshot_frame_field(
         a->has_shake_fields, a->shake_noise_freq, b->has_shake_fields,
-        b->shake_noise_freq, 0.0f);
+        b->shake_noise_freq, kCamShotFrameSourceDefaultShake);
     const float max_angular_offset_x = lerp_camshot_frame_field(
         a->has_shake_fields, a->max_angular_offset[0], b->has_shake_fields,
-        b->max_angular_offset[0], 0.0f);
+        b->max_angular_offset[0],
+        kCamShotFrameSourceDefaultAngularOffset);
     const float max_angular_offset_y = lerp_camshot_frame_field(
         a->has_shake_fields, a->max_angular_offset[1], b->has_shake_fields,
-        b->max_angular_offset[1], 0.0f);
+        b->max_angular_offset[1],
+        kCamShotFrameSourceDefaultAngularOffset);
     const float sx_a = a->has_screen_offset ? a->screen_offset[0] : 0.0f;
     const float sy_a = a->has_screen_offset ? a->screen_offset[1] : 0.0f;
     const float sx_b = b->has_screen_offset ? b->screen_offset[0] : 0.0f;

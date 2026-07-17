@@ -8839,9 +8839,16 @@ int main() {
                  "r.f32():0.0f;",
                  "CamShot frame reader consumes source blur range fields through source byte storage");
   ok &= contains(gameplay_c,
+                 "constfloatvalue_a=has_a?a_value:fallback;"
+                 "constfloatvalue_b=has_b?b_value:fallback;",
+                 "CamShot frame interpolation uses constructor/load defaults for each missing side independently");
+  ok &= absent(gameplay_c,
+               "constfloatvalue_a=has_a?a_value:(has_b?b_value:fallback);",
+               "CamShot frame interpolation must not smear the authored side over a missing source-default side");
+  ok &= contains(gameplay_c,
                  "constfloatmax_blur=lerp_camshot_frame_field("
                  "a->has_dof_fields,a->max_blur,b->has_dof_fields,"
-                 "b->max_blur,1.0f);",
+                 "b->max_blur,kCamShotFrameSourceDefaultMaxBlur);",
                  "CamShot frame interpolation falls back to source max blur default");
   ok &= contains(gameplay_c,
                  "key.focus_target_entity=std::move(focus.entity);"
@@ -9054,6 +9061,12 @@ int main() {
                  "floatsource_final_fov=source_screen_offset_fov;"
                  "if(has_zoom_fov)",
                  "camera interpolation evaluates CamShot zoom FOV");
+  ok &= contains(gameplay_c,
+                 "constfloatzoom_a=a->has_zoom_fov?a->zoom_fov:"
+                 "kCamShotFrameSourceDefaultZoomFov;"
+                 "constfloatzoom_b=b->has_zoom_fov?b->zoom_fov:"
+                 "kCamShotFrameSourceDefaultZoomFov;",
+                 "camera interpolation blends missing CamShot zoom FOV against the source constructor default");
   ok &= contains(gameplay_c,
                  "constfloatsource_default_fov="
                  "camshot_source_default_field_of_view();"
