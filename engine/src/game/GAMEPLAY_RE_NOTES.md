@@ -2,6 +2,14 @@
 
 ## Venue Camera
 
+- 2026-07-16 gameplay CamShot solver frame-index proof:
+  Normal gameplay camera solver rows now print the active source
+  `mKeyFrames` index and source-local frame for both A/B keys beside the
+  existing pose / under-venue diagnostics. This ties any suspicious screenshot
+  directly to the recovered `CamShot::SetFrame(prev,next,keyBlend)` pair
+  without moving the camera, adding clamps/offsets, promoting FreeCam, adding
+  dependencies, or claiming the hidden `BuildTransform` / `RndCam::UpdateLocal`
+  bodies are recovered.
 - 2026-07-16 gameplay CamShot drawable cached-stream branch proof:
   ihatecompvir's `CamShot::Load` uses
   `gRev <= 0x2F || (bs.Cached() && gRev < 0x32)` to choose the single

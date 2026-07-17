@@ -11198,6 +11198,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[camera-solver]pipeline_scope=normal_gameplay_camera\""
                  "\"priority=gameplay_cameraframe=%.2fshot=a:%sb:%s\""
+                 "\"source_key_index=a:%s%zub:%s%zu\""
+                 "\"source_local_frame=a:%s%.3fb:%s%.3f\""
                  "\"shot_filter_branch=%d\"",
                  "camera debug logs expose shot_filter branch state");
   ok &= contains(renderer_h_c,
@@ -11462,6 +11464,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"screen_norm=(%.6f%.6f)a_screen_norm=(%.6f%.6f)\"",
                  "camera debug logs expose interpolated and key screen targets");
+  ok &= contains(gameplay_c,
+                 "\"source_key_index=a:%s%zub:%s%zu\""
+                 "\"source_local_frame=a:%s%.3fb:%s%.3f\"",
+                 "camera solver diagnostics tie pose concerns to source CamShot frame indices");
   ok &= contains(gameplay_c,
                  "target_eye=a:(%.3f%.3f%.3f)",
                  "camera debug logs expose source-target eye candidates");

@@ -24415,10 +24415,32 @@ void apply_camera_keys(
                 ? "CamShotFrame::Interp_sameTargets_applyScreenOffset0;"
                   "filtered_candidate_diagnostic_until_BuildTransform_body"
                 : "CamShotFrame::BuildTransform_applyScreenOffset1";
+        auto source_frame_index_prefix =
+            [](const Gameplay::CameraKey& source_key) -> const char* {
+            return source_key.has_source_frame_key_index ? "" : "none/";
+        };
+        auto source_frame_index_value =
+            [](const Gameplay::CameraKey& source_key) -> size_t {
+            return source_key.has_source_frame_key_index
+                       ? source_key.source_frame_key_index
+                       : size_t{0};
+        };
+        auto source_frame_mapping_prefix =
+            [](const Gameplay::CameraKey& source_key) -> const char* {
+            return source_key.has_source_frame_mapping ? "" : "none/";
+        };
+        auto source_frame_local_value =
+            [](const Gameplay::CameraKey& source_key) -> float {
+            return source_key.has_source_frame_mapping
+                       ? source_key.source_frame_local_frame
+                       : 0.0f;
+        };
         std::fprintf(
             stderr,
             "[camera-solver] pipeline_scope=normal_gameplay_camera "
             "priority=gameplay_camera frame=%.2f shot=a:%s b:%s "
+            "source_key_index=a:%s%zu b:%s%zu "
+            "source_local_frame=a:%s%.3f b:%s%.3f "
             "shot_filter_branch=%d "
             "build_transform_order=%s apply_screen_offset=%d "
             "source_visible_build_pair=%s source_build_calls=%d "
@@ -24464,6 +24486,10 @@ void apply_camera_keys(
             "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset) "
             "freecam_priority=deferred_last freecam_affects_gameplay=0\n",
             frame, a->name.c_str(), b->name.c_str(),
+            source_frame_index_prefix(*a), source_frame_index_value(*a),
+            source_frame_index_prefix(*b), source_frame_index_value(*b),
+            source_frame_mapping_prefix(*a), source_frame_local_value(*a),
+            source_frame_mapping_prefix(*b), source_frame_local_value(*b),
             result_filter_branch ? 1 : 0,
             source_build_transform_order ? "current_frame_twice"
                                          : "blended_seed",
