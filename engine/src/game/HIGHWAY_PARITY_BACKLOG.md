@@ -1687,6 +1687,29 @@ should only be checked against one of the supported aspect modes.
   `active_cap_grounded_fix_summary.json`. This is a regression fix only: it
   does not solve lower cap/effect ownership, cyan flare attribution, or whammy
   ripple deformation.
+- Active sustain cap source gate:
+  `proofs/native_4x3_active_cap_source_gate_20260717_01` tightens the previous
+  normal-only grounding fix. ihatecompvir's local `rb3` source shows
+  `GemRepTemplate::CreateTail` building sustain tails from `mTailVerts` and
+  `SetupTailVerts` copying `tail02.mesh` verts into both `mTailVerts` and
+  `mCapVerts`, but the local source drop still does not include
+  `Tail::UpdateVerts`; `re-gh2` has no matching `GemRepTemplate`/`mCapVerts`
+  implementation. That means the separate active sustain note-head/smasher cap
+  pass is not a source-proven gameplay layer. Default rendering now requires
+  `GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_CAPS` before drawing any active
+  sustain note-head/cap overlay, while the older disable gate remains for A/B
+  traces. Fresh strict 4:3 proof captures frames 1/30/60 at `960x720`,
+  reaches `state=playing` at `t=17.500`, and logs `0`
+  `highway-active-sustain-cap` rows even with
+  `GHOGX_DEBUG_HIGHWAY_ACTIVE_SUSTAIN_CAPS=1`; the same trace still logs
+  `26` tail rows and `15` smasher rows, proving the held sustain and pressed
+  smasher path was exercised. Visual proof:
+  `active_cap_source_gate_contact_sheet.png`; crop:
+  `frame_00060_strikeline_crop.png`; compact trace:
+  `active_cap_source_gate_trace.txt`; summary:
+  `active_cap_source_gate_summary.json`. Lower cap/effect ownership remains
+  open and should be solved by tail-cap source recovery or stronger PCSX2 GS
+  attribution, not by re-enabling the separate cap overlay by default.
 - Normal-tail color-pass retrace / empty-core guard:
   `proofs/native_4x3_normal_tail_colorpass_retrace_20260717_01` refreshes the
   strict 4:3 Shout Expert normal red+blue sustain window after the color pass,

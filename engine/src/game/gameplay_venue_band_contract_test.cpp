@@ -3650,8 +3650,9 @@ int main() {
                  "kNormalHeldTightEdgeOffsetPx720);",
                  "normal active held sustains redraw only the PCSX2-offset tight edge over the lane body");
   ok &= contains(highway_renderer_c,
+                 "env_enabled(\"GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_CAPS\")&&"
                  "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_ACTIVE_SUSTAIN_CAPS\")",
-                 "normal active held sustains expose an A/B switch for source note-head caps");
+                 "active sustain note-head caps stay diagnostic-only until a source tail-cap owner is recovered");
   ok &= contains(highway_renderer_c,
                  "draw_active_sustain_smasher_cap_layer(",
                  "normal active held sustain caps have a source smasher-stack draw helper");

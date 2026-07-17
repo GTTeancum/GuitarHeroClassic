@@ -5951,9 +5951,13 @@ void HighwayRenderer::draw_impl(double song_time,
     }
   }
 
-  // --- 6) Active sustain note heads at the strikeline ---
+  // --- 6) Diagnostic active sustain note-head/cap experiments ---
+  // ihatecompvir's GemRepTemplate keeps sustain cap geometry in the tail mesh
+  // via mCapVerts. Until Tail::UpdateVerts or a matching GH2 draw owner is
+  // recovered, the separate moving-note/smasher cap stack stays opt-in.
   if (active_sustains && !bonus_highway_active &&
       !env_enabled("GHOGX_DISABLE_HIGHWAY_GEMS") &&
+      env_enabled("GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_CAPS") &&
       !env_enabled("GHOGX_DISABLE_HIGHWAY_ACTIVE_SUSTAIN_CAPS")) {
     DWORD prev_z_enable = FALSE;
     DWORD prev_z_write = FALSE;
