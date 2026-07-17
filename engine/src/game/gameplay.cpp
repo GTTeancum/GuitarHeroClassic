@@ -2308,7 +2308,8 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
         camshot_revision < 0x17 ? 1.0f - blur_depth : blur_depth);
     if (camshot_revision < 0x17) (void)r.i32();
     key.max_blur =
-        camshot_revision > 0x17 ? camshot_source_blur_field(r.f32()) : 1.0f;
+        camshot_revision > 0x17 ? camshot_source_blur_field(r.f32())
+                                : camshot_source_default_max_blur();
     key.min_blur =
         camshot_revision > 0x1c ? camshot_source_blur_field(r.f32()) : 0.0f;
     key.focus_blur_multiplier =

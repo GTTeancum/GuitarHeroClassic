@@ -2,6 +2,16 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay CamShot max blur raw/runtime correction:
+  ihatecompvir stores `CamShotFrame::mMaxBlur` as a byte-like raw field:
+  constructor and old-load fallback set raw `0xFF`, while `MaxBlur()` returns
+  `mMaxBlur * 0.0039215689f`, i.e. runtime `1.0f`. Native now names the
+  legacy no-serialized-max-blur fallback through
+  `camshot_source_default_max_blur()` and the contract guards against
+  confusing raw storage (`0xFF`) with the public DOF value (`1.0f`). This is
+  normal gameplay camera DOF metadata parity only: no pose math, no
+  `BuildTransform` synthesis, no under-venue masking, no FreeCam priority
+  change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay RndCam frustum PropSync bridge:
   ihatecompvir `RndCam` exposes `near_plane`, `far_plane`, and `y_fov`
   PropSync setters that call `SetFrustum(_val, mFarPlane, mYFov, 1)`,
@@ -63,9 +73,10 @@
   change, no dependency change, and no OG Xbox portability change.
 - 2026-07-17 gameplay CamShot max blur default parity:
   ihatecompvir `CamShotFrame` constructs `mMaxBlur(0xFF)`, and older frame
-  loads keep that back-compat maximum when no serialized max-blur field exists.
-  Native now uses `255.0f` for `CameraKey::max_blur`, legacy CamShot frame
-  decode, and interpolation fallback. This is normal gameplay camera DOF
+  loads keep that back-compat raw byte when no serialized max-blur field
+  exists. Source `MaxBlur()` converts that raw value to runtime `1.0f`, and
+  native uses the same runtime value for `CameraKey::max_blur`, legacy CamShot
+  frame decode, and interpolation fallback. This is normal gameplay camera DOF
   metadata parity only: no camera pose movement, no `BuildTransform`
   synthesis, no under-venue masking, no FreeCam priority change, no dependency
   change, and no OG Xbox portability change.

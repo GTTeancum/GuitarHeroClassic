@@ -8869,7 +8869,8 @@ int main() {
                  "CamShot frame reader consumes source blur depth through source byte storage");
   ok &= contains(camshot_frame_reader_c,
                  "key.max_blur=camshot_revision>0x17?"
-                 "camshot_source_blur_field(r.f32()):1.0f;"
+                 "camshot_source_blur_field(r.f32()):"
+                 "camshot_source_default_max_blur();"
                  "key.min_blur=camshot_revision>0x1c?"
                  "camshot_source_blur_field(r.f32()):0.0f;"
                  "key.focus_blur_multiplier=camshot_revision>0x14?"
@@ -8889,6 +8890,12 @@ int main() {
                  "returncamshot_source_blur_field("
                  "kCamShotFrameSourceDefaultMaxBlur);}",
                  "CamShot frame max-blur default follows SetMaxBlur byte storage");
+  ok &= contains(gameplay_c,
+                 "constexprfloatkCamShotFrameSourceDefaultMaxBlur=1.0f;",
+                 "CamShot frame max-blur default uses source MaxBlur() runtime value, not raw 0xFF storage");
+  ok &= absent(camshot_frame_reader_c,
+               "camshot_revision>0x17?camshot_source_blur_field(r.f32()):255.0f;",
+               "CamShot legacy max-blur fallback must not confuse raw 0xFF storage with MaxBlur() runtime value");
   ok &= absent(gameplay_c,
                "constfloatvalue_a=has_a?a_value:(has_b?b_value:fallback);",
                "CamShot frame interpolation must not smear the authored side over a missing source-default side");
