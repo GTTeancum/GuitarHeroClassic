@@ -12507,6 +12507,72 @@ std::map<std::string, std::string> load_venue_camera_postprocess_summaries(
     return out;
 }
 
+std::string format_rndcam_source_summary(
+    const ghogx::milo_scene::CamObj& cam) {
+    char buf[768];
+    std::snprintf(
+        buf, sizeof(buf),
+        "source_reader=MiloEditor::RndCam.Read native_reader=milo_scene::decode_cam source_order=Object_if_rev_gt_10,RndTrans,RndDrawable_if_rev_lt_10,near_far_yfov,screen_rect,z_range,target_tex name=%s rev=%u alt=%u trans_rev=%u decoded=%d source_order_decoded=%d clip=(%.3f %.3f) y_fov=%.6f screen_rect=(%.3f %.3f %.3f %.3f) z_range=(%.3f %.3f) target_tex=%s trans_parent=%s trans_target=%s pos=(%.3f %.3f %.3f)",
+        cam.name.c_str(), cam.revision, cam.alt_revision,
+        cam.trans_revision, cam.decoded ? 1 : 0,
+        cam.source_order_decoded ? 1 : 0, cam.near_plane, cam.far_plane,
+        cam.fov, cam.screen_rect[0], cam.screen_rect[1], cam.screen_rect[2],
+        cam.screen_rect[3], cam.z_range[0], cam.z_range[1],
+        cam.target_tex.empty() ? "<none>" : cam.target_tex.c_str(),
+        cam.parent.empty() ? "<none>" : cam.parent.c_str(),
+        cam.target.empty() ? "<none>" : cam.target.c_str(),
+        cam.local.pos[0], cam.local.pos[1], cam.local.pos[2]);
+    return std::string(buf);
+}
+
+std::map<std::string, std::string> build_venue_camera_rndcam_summaries(
+    const ghogx::milo_scene::Scene& scene) {
+    std::map<std::string, std::string> out;
+    size_t decoded = 0;
+    for (const auto& cam : scene.cams) {
+        if (!cam.decoded) continue;
+        const std::string summary = format_rndcam_source_summary(cam);
+        out[canonical_milo_ref(cam.name)] = summary;
+        if (cam.name != canonical_milo_ref(cam.name)) out[cam.name] = summary;
+        ++decoded;
+    }
+    if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] venue camera RndCam assets: source_reader=MiloEditor::RndCam.Read decoded=%zu aliases=%zu source_order=Object_if_rev_gt_10,RndTrans,RndDrawable_if_rev_lt_10,near_far_yfov,screen_rect,z_range,target_tex\n",
+            decoded, out.size());
+        size_t logged = 0;
+        for (const auto& [name, summary] : out) {
+            std::fprintf(stderr,
+                         "[world] venue camera RndCam asset: key=%s %s\n",
+                         name.c_str(), summary.c_str());
+            if (++logged >= 16) break;
+        }
+    }
+    return out;
+}
+
+void log_venue_camera_fov_anim_rndcam_targets(
+    const std::map<std::string, Gameplay::VenueCameraFovAnim>& anims,
+    const std::map<std::string, std::string>& rndcam_summaries) {
+    if (!(debug_camera_enabled() || debug_venue_filters_enabled())) return;
+    for (const auto& [name, anim] : anims) {
+        const std::string cam_ref = canonical_milo_ref(anim.cam);
+        const auto summary_it = rndcam_summaries.find(cam_ref);
+        std::fprintf(
+            stderr,
+            "[world] venue CamAnim RndCam target: anim=%s cam=%s source_payload=%s summaries=%zu %s\n",
+            name.c_str(), cam_ref.empty() ? "<none>" : cam_ref.c_str(),
+            (!cam_ref.empty() && summary_it != rndcam_summaries.end())
+                ? "decoded_from_loaded_scene"
+                : "not_found_in_loaded_scene",
+            rndcam_summaries.size(),
+            (!cam_ref.empty() && summary_it != rndcam_summaries.end())
+                ? summary_it->second.c_str()
+                : "source_reader=MiloEditor::RndCam.Read native_reader=milo_scene::decode_cam");
+    }
+}
+
 void append_scene_for_venue_subdir(ghogx::milo_scene::Scene& dst,
                                     ghogx::milo_scene::Scene&& src) {
     dst.transes.insert(dst.transes.end(),
@@ -17994,56 +18060,7 @@ std::string camera_source_guitarist0_actually_walking_source(
 }
 
 constexpr const char* kCameraRecoveredRuntimeList =
-    "venue_loading,dependency_discovery,animation_routing,lighting,environ,"
-    "redoctane_motion,camera_selection,"
-    "camera_intro_previous_context_bridge,camera_camshot_platform_ok_gate,"
-    "camera_manager_syncobjects_category_buckets,"
-    "camera_manager_random_seed_bridge,camera_one_bar_to_seek_latch_replay,"
-    "camera_worldbase_beat_check_shot_bridge,"
-    "camera_worldbase_downbeat_duration_bridge,"
-    "camera_worldbase_script_filter_bridge,camera_manager_handle_routes,"
-    "camera_manager_make_category_filters,camera_manager_onpick_return_bridge,"
-    "camera_banddirector_findnext_filter_bridge,"
-    "camera_manager_numcamerashots_prescan_bridge,"
-    "camera_manager_onnum_return_bridge,camera_manager_first_shot_ok_hook,"
-    "camera_manager_findshot_category_scan,camera_camshot_disable_bitmask_bridge,"
-    "camera_manager_findshot_disabled_gate,camera_manager_shotmatches_filters,"
-    "camera_camshot_radio_flags_bridge,camera_manager_findshot_moveitem,"
-    "camera_manager_findshot_return_bridge,camera_manager_pickshot_return_bridge,"
-    "camera_manager_pickshot_no_acceptable_warning,camera_manager_pickshot_pending,"
-    "camera_manager_pickshot_same_shot_restart_bridge,"
-    "camera_manager_force_shot_pending,camera_manager_force_shot_action_return_bridge,"
-    "camera_manager_shotafter_order_bridge,camera_manager_shotafter_expr_return_bridge,"
-    "camera_manager_cycle_shot_pending_bridge,camera_manager_cycle_shot_return_bridge,"
-    "camera_manager_current_next_state,camera_manager_current_next_expr_return_bridge,"
-    "camera_manager_iterate_shot_bridge,camera_manager_randomize_category_noop,"
-    "camera_worlddir_camshot_overrides_disable,camera_camshot_copy_runtime_fields,"
-    "camera_lifecycle,camera_manager_enter_reset_bridge,camera_camshot_endanim_bridge,"
-    "camera_camshot_postprocess_select_reset,camera_camshot_force_char_lod_bridge,"
-    "camera_camshot_crowd_payload_bridge,camera_camshot_crowd_message_handlers,"
-    "camera_camshot_startanim_state_reset,camera_camshot_startanim_handler_noops,"
-    "camera_camshot_getcam_rndcam_bridge,camera_camshot_animtarget_bridge,"
-    "camera_camshot_manims_lifecycle,camera_manager_startshot_side_effects,"
-    "camera_camshot_glow_spot_bridge,camera_camshot_shotok_typeswitch,"
-    "camera_camshot_shotok_prev_arg_bridge,camera_current_walkspot_waypoint_bridge,"
-    "camera_camshot_shot_ok_bad_waypoints,camera_camshot_check_shot_probe_boundary,"
-    "camera_manager_milocamera_poll_gate,camera_manager_prepoll_poll_order,"
-    "camera_camshot_setpreframe_noop,camera_manager_calcframe_units,"
-    "camera_manager_poll_setframe_bridge,camera_camshot_update_target_cache,"
-    "camera_camshot_setfrustum,camera_same_target_screen_offset,"
-    "camera_camshot_clamp_height_bridge,camera_camshot_dofproc,"
-    "camera_camshot_shake_tail,camera_camshot_setlocalxfm_tail,"
-    "camera_rndcam_updatelocal_public_stub,camera_camshot_dohide_unhide_visibility,"
-    "camera_visibility,camera_camshot_checkshotstarted_runtime_bridge,"
-    "camera_shot_started_postswitch,camera_camshot_checkshotover_predicate_bridge,"
-    "camera_shot_over,camera_camshot_setshotover_latch_bridge,"
-    "camera_camshot_shot_over_next_shot_bridge,camera_camshot_cacheframes_duration,"
-    "camera_camshot_endframe_duration_bridge,camera_camshot_duration_seconds,"
-    "camera_camshot_getkey_looping,camera_frame_pair_timing,"
-    "camera_camshot_setframe_last_pair_bridge,camera_camshot_onsetpos_boundary,"
-    "camera_camshot_hastargets_boundary,camera_camshot_position_handler_return_bridge,"
-    "camera_path_transanim_timing,camera_trace_complete_writer_bridge,"
-    "camera_fov_anim_atframe";
+    "venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_intro_previous_context_bridge,camera_camshot_platform_ok_gate,camera_manager_syncobjects_category_buckets,camera_manager_random_seed_bridge,camera_one_bar_to_seek_latch_replay,camera_worldbase_beat_check_shot_bridge,camera_worldbase_downbeat_duration_bridge,camera_worldbase_script_filter_bridge,camera_manager_handle_routes,camera_manager_make_category_filters,camera_manager_onpick_return_bridge,camera_banddirector_findnext_filter_bridge,camera_manager_numcamerashots_prescan_bridge,camera_manager_onnum_return_bridge,camera_manager_first_shot_ok_hook,camera_manager_findshot_category_scan,camera_camshot_disable_bitmask_bridge,camera_manager_findshot_disabled_gate,camera_manager_shotmatches_filters,camera_camshot_radio_flags_bridge,camera_manager_findshot_moveitem,camera_manager_findshot_return_bridge,camera_manager_pickshot_return_bridge,camera_manager_pickshot_no_acceptable_warning,camera_manager_pickshot_pending,camera_manager_pickshot_same_shot_restart_bridge,camera_manager_force_shot_pending,camera_manager_force_shot_action_return_bridge,camera_manager_shotafter_order_bridge,camera_manager_shotafter_expr_return_bridge,camera_manager_cycle_shot_pending_bridge,camera_manager_cycle_shot_return_bridge,camera_manager_current_next_state,camera_manager_current_next_expr_return_bridge,camera_manager_iterate_shot_bridge,camera_manager_randomize_category_noop,camera_worlddir_camshot_overrides_disable,camera_camshot_copy_runtime_fields,camera_lifecycle,camera_manager_enter_reset_bridge,camera_camshot_endanim_bridge,camera_camshot_postprocess_select_reset,camera_camshot_force_char_lod_bridge,camera_camshot_crowd_payload_bridge,camera_camshot_crowd_message_handlers,camera_camshot_startanim_state_reset,camera_camshot_startanim_handler_noops,camera_camshot_getcam_rndcam_bridge,camera_camshot_animtarget_bridge,camera_camshot_manims_lifecycle,camera_manager_startshot_side_effects,camera_camshot_glow_spot_bridge,camera_camshot_shotok_typeswitch,camera_camshot_shotok_prev_arg_bridge,camera_current_walkspot_waypoint_bridge,camera_camshot_shot_ok_bad_waypoints,camera_camshot_check_shot_probe_boundary,camera_manager_milocamera_poll_gate,camera_manager_prepoll_poll_order,camera_camshot_setpreframe_noop,camera_manager_calcframe_units,camera_manager_poll_setframe_bridge,camera_camshot_update_target_cache,camera_camshot_setfrustum,camera_same_target_screen_offset,camera_camshot_clamp_height_bridge,camera_camshot_dofproc,camera_camshot_shake_tail,camera_camshot_setlocalxfm_tail,camera_rndcam_updatelocal_public_stub,camera_camshot_dohide_unhide_visibility,camera_visibility,camera_camshot_checkshotstarted_runtime_bridge,camera_shot_started_postswitch,camera_camshot_checkshotover_predicate_bridge,camera_shot_over,camera_camshot_setshotover_latch_bridge,camera_camshot_shot_over_next_shot_bridge,camera_camshot_cacheframes_duration,camera_camshot_endframe_duration_bridge,camera_camshot_duration_seconds,camera_camshot_getkey_looping,camera_frame_pair_timing,camera_camshot_setframe_last_pair_bridge,camera_camshot_onsetpos_boundary,camera_camshot_hastargets_boundary,camera_camshot_position_handler_return_bridge,camera_path_transanim_timing,camera_trace_complete_writer_bridge,camera_fov_anim_atframe";
 
 constexpr size_t kCameraOpenGameplayBlockers = 4;
 
@@ -28397,6 +28414,26 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             canonical_milo_ref(key.postprocess_ref).c_str(),
             key.camera_anim_refs.size(),
             key.glow_spot_ref.c_str());
+        const std::string source_rndcam_ref =
+            canonical_milo_ref(active_camera_source_current_rndcam_);
+        const auto rndcam_summary_it =
+            venue_camera_rndcam_summaries_.find(source_rndcam_ref);
+        const bool rndcam_payload_decoded =
+            !source_rndcam_ref.empty() &&
+            rndcam_summary_it != venue_camera_rndcam_summaries_.end();
+        std::fprintf(
+            stderr,
+            "[world] camera StartAnim RndCam source: source_msg=start_shot source_getcam_return=%s source_payload=%s summaries=%zu %s\n",
+            source_rndcam_ref.empty() ? "<none>" : source_rndcam_ref.c_str(),
+            rndcam_payload_decoded
+                ? "decoded_from_loaded_scene"
+                : (source_rndcam_ref == "PanelDir::mCam"
+                       ? "paneldir_runtime_current_not_asset_ref"
+                       : "not_found_in_loaded_scene"),
+            venue_camera_rndcam_summaries_.size(),
+            rndcam_payload_decoded
+                ? rndcam_summary_it->second.c_str()
+                : "source_reader=MiloEditor::RndCam.Read native_reader=milo_scene::decode_cam source_projection=RndCam::UpdateLocal_binary_projection_body_unrecovered");
     }
     active_camera_postprocess_ref_ = canonical_milo_ref(key.postprocess_ref);
     if (debug_venue_filters_enabled() || debug_camera_enabled()) {
@@ -35333,6 +35370,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             ghogx::milo_scene::Scene venue_chars_scene_for_load;
             const std::string chars_milo = venue_assembly.chars_milo;
             guitarist0_charwalk_object_count_ = 0;
+            venue_camera_rndcam_summaries_.clear();
             venue_camera_postprocess_summaries_.clear();
             bool chars_scene_loaded = false;
             if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_, venue_geom,
@@ -35355,6 +35393,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     merge_visual_venue_subdirs(
                         hdr_path_, ark_path_,
                         venue_assembly.geom_subdir_milos, venue_scene);
+                venue_camera_rndcam_summaries_ =
+                    build_venue_camera_rndcam_summaries(venue_scene);
                 std::vector<std::string> venue_extra_visual_sources =
                     venue_visual_subdir_sources;
                 chars_scene_loaded = ghogx::milo_scene::load_scene(
@@ -35529,6 +35569,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_camera_fov_anims_ =
                     load_venue_camera_fov_anims(hdr_path_, ark_path_,
                                                 venue_geom);
+                log_venue_camera_fov_anim_rndcam_targets(
+                    venue_camera_fov_anims_, venue_camera_rndcam_summaries_);
                 venue_event_filters_ =
                     load_venue_event_filters(hdr_path_, ark_path_, venue_geom);
                 venue_filter_mesh_targets_ =

@@ -5117,6 +5117,10 @@ int main() {
                  "mesh.mutable_flags=r.u32();",
                  "Mesh decoder reads source RndMesh mMutable before vertices");
   ok &= contains(milo_scene_h_c,
+                 "uint16_trevision=0;uint16_talt_revision=0;"
+                 "uint16_ttrans_revision=0;",
+                 "MILO scene Cam object keeps source RndCam/RndTrans revision metadata");
+  ok &= contains(milo_scene_h_c,
                  "floatnear_plane=1.0f;floatfar_plane=1000.0f;"
                  "floatfov=0.5f;",
                  "MILO scene decoder exposes authored Cam projection fields");
@@ -5131,10 +5135,20 @@ int main() {
                  "combined_revision&0xffff);",
                  "Cam decoder reads the source Cam revision first");
   ok &= contains(decode_cam_c,
+                 "c.revision=version;c.alt_revision=static_cast<uint16_t>("
+                 "(combined_revision>>16)&0xffff);",
+                 "Cam decoder stores source RndCam revision metadata for gameplay provenance");
+  ok &= contains(decode_cam_c,
                  "if(version>10)r.skip(kObjMeta);",
                  "GH2 Cam decoder consumes source object metadata before Trans");
   ok &= contains(decode_cam_c,
-                 "constuint32_ttrans_revision=r.u32();"
+                 "constuint32_ttrans_revision=r.u32();",
+                 "Cam decoder reads embedded RndTrans revision in source order");
+  ok &= contains(decode_cam_c,
+                 "c.trans_revision=static_cast<uint16_t>("
+                 "trans_revision&0xffff);",
+                 "Cam decoder stores embedded RndTrans revision metadata");
+  ok &= contains(decode_cam_c,
                  "c.local=r.matrix();c.world_stored=r.matrix();",
                  "Cam decoder reads embedded RndTrans matrices in source order");
   ok &= contains(decode_cam_c,
@@ -5156,6 +5170,9 @@ int main() {
   ok &= contains(decode_cam_c,
                  "if(version>4)c.target_tex=r.str();",
                  "Cam decoder preserves the authored target texture string");
+  ok &= contains(decode_cam_c,
+                 "c.source_order_decoded=true;c.decoded=true;",
+                 "Cam decoder labels successful source-order RndCam decoding");
   ok &= contains(renderer_c,
                  "cam_.fov=authored->fov;cam_.near_z=authored->near_plane;"
                  "cam_.far_z=authored->far_plane;",
@@ -6277,6 +6294,32 @@ int main() {
                  "source_rndcam_current=%s"
                  "source_rndcam_select=not_visible_in_CamShot_StartAnim",
                  "camera StartAnim diagnostics expose only the visible ihatecompvir RndCam current/getter return trail");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::string>"
+                 "venue_camera_rndcam_summaries_;",
+                 "gameplay keeps decoded RndCam source summaries separate from active runtime camera state");
+  ok &= contains(gameplay_c,
+                 "format_rndcam_source_summary(",
+                 "gameplay camera diagnostics format source-shaped RndCam summaries from decoded venue cameras");
+  ok &= contains(gameplay_c,
+                 "source_reader=MiloEditor::RndCam.Read"
+                 "native_reader=milo_scene::decode_cam",
+                 "camera RndCam diagnostics cite the ihatecompvir reader and native source-order decoder");
+  ok &= contains(gameplay_c,
+                 "venue_camera_rndcam_summaries_=build_venue_camera_rndcam_summaries(venue_scene);",
+                 "venue load records RndCam source summaries after visual subdir merge");
+  ok &= contains(gameplay_c,
+                 "log_venue_camera_fov_anim_rndcam_targets("
+                 "venue_camera_fov_anims_,venue_camera_rndcam_summaries_);",
+                 "venue CamAnim diagnostics prove whether authored RndCam targets resolve to loaded scene cameras");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraStartAnimRndCamsource:"
+                 "source_msg=start_shotsource_getcam_return=%s"
+                 "source_payload=%ssummaries=%zu%s\\n\"",
+                 "camera StartAnim reports whether the source current RndCam is backed by loaded RndCam asset data");
+  ok &= contains(gameplay_c,
+                 "source_projection=RndCam::UpdateLocal_binary_projection_body_unrecovered",
+                 "camera RndCam diagnostics do not claim hidden UpdateLocal projection recovery");
   ok &= absent(gameplay_c,
                "source_field=CamShot::sCurrent",
                "camera diagnostics must not claim a non-visible ihatecompvir CamShot::sCurrent field");

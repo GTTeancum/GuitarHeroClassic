@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-18 gameplay RndCam source summaries:
+  MiloEditor source reads `RndCam` as optional base `Object`, `RndTrans`,
+  optional legacy `RndDrawable`, near/far/Y-FOV, screen rect, z range, and
+  target texture. Native already decoded those fields for scene cameras; it now
+  retains the source revision metadata, builds a gameplay-side summary map from
+  the fully merged venue scene, logs `CamAnim` target camera resolution, and
+  reports at `StartAnim` whether `CamShot::GetCam/PanelDir::mCam` maps to a
+  loaded `Cam` object or is only the runtime current camera. This is camera
+  material/provenance support only: no pose math, hidden `BuildTransform`,
+  `RndCam::UpdateLocal`, under-venue masking, dependencies, or FreeCam behavior
+  changed.
 - 2026-07-18 gameplay RndPostProc source summary:
   MiloEditor source reads `RndPostProc` as base `Object` fields followed by
   bloom/luminance, `RndColorXfm`, flicker/noise, trail, poster,

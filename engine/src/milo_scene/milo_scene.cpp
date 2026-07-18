@@ -861,9 +861,12 @@ CamObj decode_cam(const std::string& entry_name,
     Reader r(body.data(), body.size());
     const uint32_t combined_revision = r.u32();
     const uint16_t version = static_cast<uint16_t>(combined_revision & 0xffff);
+    c.revision = version;
+    c.alt_revision = static_cast<uint16_t>((combined_revision >> 16) & 0xffff);
     if (version > 10) r.skip(kObjMeta);
 
     const uint32_t trans_revision = r.u32();
+    c.trans_revision = static_cast<uint16_t>(trans_revision & 0xffff);
     c.local = r.matrix();
     c.world_stored = r.matrix();
     if (trans_revision > 6) c.constraint = r.u32();
@@ -899,6 +902,7 @@ CamObj decode_cam(const std::string& entry_name,
         c.far_plane <= c.near_plane || c.fov <= 0.0f) {
       throw std::runtime_error("milo_scene: invalid Cam projection fields");
     }
+    c.source_order_decoded = true;
     c.decoded = true;
   } catch (const std::exception&) {
     // Leave defaults; caller falls back to a framed orbit camera.

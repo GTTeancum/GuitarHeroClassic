@@ -150,6 +150,9 @@ struct TransObj {
 // can optionally frame the venue from its authored camera.
 struct CamObj {
   std::string name;
+  uint16_t revision = 0;
+  uint16_t alt_revision = 0;
+  uint16_t trans_revision = 0;
   Xfm local;                 // camera transform (pos in local.pos)
   Xfm world_stored;
   uint32_t constraint = 0;
@@ -162,6 +165,7 @@ struct CamObj {
   float screen_rect[4] = {0.0f, 0.0f, 1.0f, 1.0f};
   float z_range[2] = {0.0f, 1.0f};
   std::string target_tex;
+  bool source_order_decoded = false;
   bool decoded = false;
 };
 
