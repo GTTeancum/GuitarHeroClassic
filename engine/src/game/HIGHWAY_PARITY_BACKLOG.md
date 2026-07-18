@@ -4,6 +4,10 @@ This backlog is for the highway/gameplay fidelity fork. It is intentionally
 small and evidence-first: every fix should have a 4:3 proof capture, and 16:9
 should only be checked against one of the supported aspect modes.
 
+## Current Focus: Hit / Flame Threshold Effects
+
+Active hit/flame work is tracked in `HIGHWAY_HIT_FLAME_FOCUS.md`.
+
 ## To-Do, Parked: Whammy Sustain Tails
 
 - Keep the current PCSX2 body-width and blob evidence.
