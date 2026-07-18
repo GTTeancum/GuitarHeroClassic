@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
     CHECK(a->pw > 8 && a->pw < 40);
     CHECK(a->ph > 20 && a->ph < 50);
     CHECK(a->v0 < 0.25f);          // top row
-    CHECK(a->advance >= a->pw);
+    CHECK(a->advance > 0.0f);
   }
   // 'W' is wider than 'I' (variable width sanity).
   const ghogx::ui::Glyph* w = font.glyph('W');
@@ -86,6 +86,55 @@ int main(int argc, char** argv) {
   CHECK(wlen > 60.0f && wlen < 260.0f);
   auto quads = font.layout("CAREER");
   CHECK(quads.size() == 6);       // C A R E E R, all inked
+
+  // Setlist song rows use dyingmarker.milo_ps2; these source metrics feed the
+  // UIList text-height scale in menu_app.cpp.
+  ghogx::ui::MenuFont song_font;
+  bool song_ok = song_font.load(hdr, ark0, "ui/gen/dyingmarker.milo_ps2");
+  CHECK(song_ok);
+  CHECK(song_font.valid());
+  CHECK(song_font.cap_height() == 25.0f);
+  CHECK(song_font.line_height() == 28.0f);
+  CHECK(song_font.has_source_char_info());
+  if (song_font.valid()) {
+    auto letter = song_font.layout("A");
+    auto comma = song_font.layout(",");
+    auto dash = song_font.layout("-");
+    CHECK(!letter.empty());
+    CHECK(!comma.empty());
+    CHECK(!dash.empty());
+    if (!letter.empty() && !comma.empty() && !dash.empty()) {
+      CHECK(comma[0].y0 > letter[0].y0);
+      CHECK(dash[0].y0 > letter[0].y0);
+      CHECK(comma[0].y1 <= song_font.line_height());
+      CHECK(dash[0].y1 <= song_font.line_height());
+    }
+  }
+
+  ghogx::ui::MenuFont helvetica_black;
+  bool helvetica_ok =
+      helvetica_black.load(hdr, ark0, "ui/gen/helveticablack.milo_ps2");
+  CHECK(helvetica_ok);
+  CHECK(helvetica_black.valid());
+  if (helvetica_black.valid()) {
+    const ghogx::ui::Glyph* apostrophe = helvetica_black.glyph('\'');
+    CHECK(apostrophe != nullptr);
+    if (apostrophe) {
+      CHECK(apostrophe->pw > 0.0f);
+      CHECK(apostrophe->ph > 0.0f);
+    }
+    const auto ascii_apostrophe = helvetica_black.layout("DOESN'T");
+    const std::string cp1252_apostrophe =
+        std::string("DOESN") + static_cast<char>(0x92) + "T";
+    const std::string utf8_apostrophe =
+        std::string("DOESN") + "\xE2\x80\x99" + "T";
+    CHECK(!ascii_apostrophe.empty());
+    CHECK(ascii_apostrophe.size() == 7);
+    CHECK(helvetica_black.layout(cp1252_apostrophe).size() ==
+          ascii_apostrophe.size());
+    CHECK(helvetica_black.layout(utf8_apostrophe).size() ==
+          ascii_apostrophe.size());
+  }
 
   if (g_failures == 0) {
     std::printf("ghogx_menu_font_test: OK (impact: charset+kern byte-exact, "

@@ -428,11 +428,105 @@ std::array<float, 16> affine_inverse16(const std::array<float, 16>& m) {
   return r;
 }
 
+std::array<float, 3> transform_point16(const std::array<float, 16>& m,
+                                       float x, float y, float z) {
+  return {x * m[0] + y * m[4] + z * m[8] + m[12],
+          x * m[1] + y * m[5] + z * m[9] + m[13],
+          x * m[2] + y * m[6] + z * m[10] + m[14]};
+}
+
+std::array<float, 3> transform_vector16(const std::array<float, 16>& m,
+                                        float x, float y, float z) {
+  return {x * m[0] + y * m[4] + z * m[8],
+          x * m[1] + y * m[5] + z * m[9],
+          x * m[2] + y * m[6] + z * m[10]};
+}
+
+void normalize_vector3(std::array<float, 3>& v) {
+  const float len =
+      std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  if (len <= 1.0e-8f || !std::isfinite(len)) return;
+  v[0] /= len;
+  v[1] /= len;
+  v[2] /= len;
+}
+
 std::array<float, 16> xfm_to_mat4(const milo_scene::Xfm& x) {
   return {x.rot[0][0], x.rot[0][1], x.rot[0][2], 0.0f,
           x.rot[1][0], x.rot[1][1], x.rot[1][2], 0.0f,
           x.rot[2][0], x.rot[2][1], x.rot[2][2], 0.0f,
           x.pos[0],    x.pos[1],    x.pos[2],    1.0f};
+}
+
+struct SceneNodeXfm {
+  std::array<float, 16> local = identity16();
+  std::array<float, 16> world_stored = identity16();
+  bool world_xfm_override = false;
+  std::string parent;
+  uint32_t constraint = 0;
+};
+
+bool scene_node_xfm_for(const milo_scene::Scene& scene,
+                        const std::string& name, SceneNodeXfm& out) {
+  for (const auto& mesh : scene.meshes) {
+    if (mesh.name != name) continue;
+    out.local = xfm_to_mat4(mesh.local);
+    out.world_stored = xfm_to_mat4(mesh.world_stored);
+    out.world_xfm_override = mesh.world_xfm_override;
+    out.parent = mesh.parent;
+    out.constraint = mesh.constraint;
+    return true;
+  }
+  for (const auto& trans : scene.transes) {
+    if (trans.name != name) continue;
+    out.local = xfm_to_mat4(trans.local);
+    out.world_stored = xfm_to_mat4(trans.world_stored);
+    out.world_xfm_override = trans.world_xfm_override;
+    out.parent = trans.parent;
+    out.constraint = trans.constraint;
+    return true;
+  }
+  for (const auto& group : scene.groups) {
+    if (group.name != name) continue;
+    out.local = group.has_transform ? xfm_to_mat4(group.local) : identity16();
+    out.world_stored =
+        group.has_transform ? xfm_to_mat4(group.world_stored) : identity16();
+    out.world_xfm_override = group.world_xfm_override;
+    out.parent = group.parent;
+    out.constraint = group.has_transform ? group.constraint : 0;
+    return true;
+  }
+  for (const auto& placer : scene.band_placers) {
+    if (placer.name != name || !placer.decoded) continue;
+    out.local = xfm_to_mat4(placer.local);
+    out.world_stored = xfm_to_mat4(placer.world_stored);
+    out.parent = placer.parent;
+    out.constraint = 0;
+    return true;
+  }
+  return false;
+}
+
+bool scene_node_world_for(const milo_scene::Scene& scene,
+                          const std::string& name,
+                          std::array<float, 16>& out,
+                          int guard = 0) {
+  if (guard >= 64) return false;
+  SceneNodeXfm node;
+  if (!scene_node_xfm_for(scene, name, node)) return false;
+  if (node.world_xfm_override) {
+    out = node.world_stored;
+    return true;
+  }
+  if (node.parent.empty() || node.parent == name) {
+    out = node.local;
+    return true;
+  }
+  std::array<float, 16> parent_world{};
+  if (!scene_node_world_for(scene, node.parent, parent_world, guard + 1))
+    return false;
+  out = apply_transform_constraint(node.local, parent_world, node.constraint);
+  return true;
 }
 
 void apply_local_translation_delta(std::array<float, 16>& world,
@@ -2275,6 +2369,11 @@ void MiloSceneRenderer::set_viewport(int x, int y, int width, int height) {
   viewport_h_ = height;
 }
 
+void MiloSceneRenderer::set_default_camera_aspect(float aspect) {
+  default_camera_aspect_ =
+      std::isfinite(aspect) && aspect > 0.0f ? aspect : 0.0f;
+}
+
 void MiloSceneRenderer::set_clear_color(uint8_t r, uint8_t g, uint8_t b) {
   clear_r_ = r;
   clear_g_ = g;
@@ -2836,6 +2935,7 @@ void MiloSceneRenderer::set_scene(
   std::fprintf(stderr, "[scene3d] uploaded %zu/%zu textures\n", tex_.size(),
                textures.size());
 
+  cam_.authored = false;
   cam_.result_frame = {};
   frame_camera_on_bounds();
   const milo_scene::CamObj* authored = nullptr;
@@ -2843,6 +2943,14 @@ void MiloSceneRenderer::set_scene(
     if (c.decoded && c.name == "default.cam") {
       authored = &c;
       break;
+    }
+  }
+  if (!authored) {
+    for (const auto& c : scene_.cams) {
+      if (c.decoded && c.name == "guitar_setup.cam") {
+        authored = &c;
+        break;
+      }
     }
   }
   if (!authored) {
@@ -2961,6 +3069,27 @@ void MiloSceneRenderer::draw_scene_only_over_scene() {
   draw_impl(false, true, false);
 }
 
+void MiloSceneRenderer::draw_scene_only_over_scene_preserving_state() {
+  if (!dev_) return;
+  IDirect3DStateBlock9* state = nullptr;
+  if (FAILED(dev_->CreateStateBlock(D3DSBT_ALL, &state))) {
+    draw_scene_only_over_scene();
+    return;
+  }
+  if (state) state->Capture();
+  draw_scene_only_over_scene();
+  if (state) {
+    state->Apply();
+    state->Release();
+  }
+}
+
+void MiloSceneRenderer::draw_scene_only_over_scene_preserving_state(
+    const OrbitCamera& cam) {
+  cam_ = cam;
+  draw_scene_only_over_scene_preserving_state();
+}
+
 void MiloSceneRenderer::draw_text_over_scene() {
   draw_impl(false, false, true);
 }
@@ -2973,8 +3102,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       win_->bb_height() > 0 ? static_cast<float>(win_->bb_width()) /
                                   static_cast<float>(win_->bb_height())
                             : 16.0f / 9.0f;
+  const float default_aspect =
+      default_camera_aspect_ > 0.0f ? default_camera_aspect_ : backbuffer_aspect;
   const float aspect =
-      env_float_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect, 0.5f, 3.0f);
+      env_float_or("GHOGX_CAMERA_ASPECT", default_aspect, 0.5f, 3.0f);
 
   DebugVenueInspectorState* debug_venue = nullptr;
   if (draw_scene && debug_venue_inspector_enabled() &&
@@ -3595,10 +3726,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     const bool z_mode_writes =
         material_z_mode == kZModeNormal || material_z_mode == kZModeForce ||
         material_z_mode == kZModeDecal;
+    const bool z_mode_tests = material_z_mode != kZModeDisable;
     const bool disable_zwrite =
-        !z_mode_writes || blend_state.additive ||
+        !z_mode_tests || !z_mode_writes || blend_state.additive ||
         material_blend == kBlendSubtract || material_blend == kBlendMultiply ||
         ma < 0.999f;
+    dev_->SetRenderState(D3DRS_ZENABLE, z_mode_tests ? TRUE : FALSE);
     dev_->SetRenderState(D3DRS_ZWRITEENABLE, disable_zwrite ? FALSE : TRUE);
     dev_->SetRenderState(D3DRS_BLENDOP, blend_state.op);
     dev_->SetRenderState(D3DRS_SRCBLEND, blend_state.src);
@@ -3742,29 +3875,88 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         !normal_it->second.empty()) {
       normal_override = &normal_it->second;
     }
+    std::vector<std::array<float, 16>> skin_mats;
+    if (!m.bones.empty()) {
+      const std::array<float, 16> inv_mesh_world = affine_inverse16(w);
+      skin_mats.reserve(m.bones.size());
+      bool resolved_all_bones = true;
+      for (const auto& bone : m.bones) {
+        std::array<float, 16> bone_world{};
+        if (!scene_node_world_for(scene_, bone.name, bone_world)) {
+          resolved_all_bones = false;
+          break;
+        }
+        skin_mats.push_back(
+            mul16(mul16(xfm_to_mat4(bone.offset), bone_world),
+                  inv_mesh_world));
+      }
+      if (!resolved_all_bones) skin_mats.clear();
+      if (env_enabled("GHOGX_LOG_SKINNED_MILO_MESHES")) {
+        static std::unordered_set<std::string> logged_skinned_meshes;
+        if (logged_skinned_meshes.insert(m.name).second) {
+          std::fprintf(stderr,
+                       "[milo_scene] skinned mesh=%s bones=%zu resolved=%zu\n",
+                       m.name.c_str(), m.bones.size(), skin_mats.size());
+          for (size_t bi = 0; bi < m.bones.size(); ++bi) {
+            std::fprintf(stderr,
+                         "[milo_scene]   bone[%zu]=%s%s\n", bi,
+                         m.bones[bi].name.c_str(),
+                         bi < skin_mats.size() ? "" : " unresolved");
+          }
+        }
+      }
+    }
     for (size_t vi = 0; vi < m.verts.size(); ++vi) {
       const auto& v = m.verts[vi];
       SVtx s;
+      std::array<float, 3> base_pos{};
       if (position_override && vi < position_override->size()) {
         const auto& p = (*position_override)[vi];
-        s.x = v.px + (p[0] - v.px) * mesh_anim_blend;
-        s.y = v.py + (p[1] - v.py) * mesh_anim_blend;
-        s.z = v.pz + (p[2] - v.pz) * mesh_anim_blend;
+        base_pos = {v.px + (p[0] - v.px) * mesh_anim_blend,
+                    v.py + (p[1] - v.py) * mesh_anim_blend,
+                    v.pz + (p[2] - v.pz) * mesh_anim_blend};
       } else {
-        s.x = v.px;
-        s.y = v.py;
-        s.z = v.pz;
+        base_pos = {v.px, v.py, v.pz};
       }
+      std::array<float, 3> base_nrm{};
       if (normal_override && vi < normal_override->size()) {
         const auto& n = (*normal_override)[vi];
-        s.nx = v.nx + (n[0] - v.nx) * mesh_anim_blend;
-        s.ny = v.ny + (n[1] - v.ny) * mesh_anim_blend;
-        s.nz = v.nz + (n[2] - v.nz) * mesh_anim_blend;
+        base_nrm = {v.nx + (n[0] - v.nx) * mesh_anim_blend,
+                    v.ny + (n[1] - v.ny) * mesh_anim_blend,
+                    v.nz + (n[2] - v.nz) * mesh_anim_blend};
       } else {
-        s.nx = v.nx;
-        s.ny = v.ny;
-        s.nz = v.nz;
+        base_nrm = {v.nx, v.ny, v.nz};
       }
+      if (!skin_mats.empty()) {
+        std::array<float, 3> skinned_pos{0.0f, 0.0f, 0.0f};
+        std::array<float, 3> skinned_nrm{0.0f, 0.0f, 0.0f};
+        float weight_sum = 0.0f;
+        const size_t slots = std::min<size_t>(skin_mats.size(), 4);
+        for (size_t bi = 0; bi < slots; ++bi) {
+          const float weight = v.w[bi];
+          if (std::fabs(weight) <= 1.0e-6f) continue;
+          const auto p = transform_point16(skin_mats[bi], base_pos[0],
+                                           base_pos[1], base_pos[2]);
+          const auto n = transform_vector16(skin_mats[bi], base_nrm[0],
+                                            base_nrm[1], base_nrm[2]);
+          for (int k = 0; k < 3; ++k) {
+            skinned_pos[k] += p[k] * weight;
+            skinned_nrm[k] += n[k] * weight;
+          }
+          weight_sum += weight;
+        }
+        if (std::fabs(weight_sum) > 1.0e-6f) {
+          base_pos = skinned_pos;
+          base_nrm = skinned_nrm;
+          normalize_vector3(base_nrm);
+        }
+      }
+      s.x = base_pos[0];
+      s.y = base_pos[1];
+      s.z = base_pos[2];
+      s.nx = base_nrm[0];
+      s.ny = base_nrm[1];
+      s.nz = base_nrm[2];
       const auto cc = [](float f) -> int {
         int i = static_cast<int>(f * 255.0f + 0.5f);
         return i < 0 ? 0 : (i > 255 ? 255 : i);
@@ -4044,6 +4236,27 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
       if (queued.insert(&m).second) draw_meshes.push_back(&m);
     }
+    if (env_enabled("GHOGX_LOG_SCENE_DRAW_ORDER")) {
+      static std::unordered_set<const MiloSceneRenderer*> logged_draw_order;
+      if (logged_draw_order.insert(this).second) {
+        std::fprintf(stderr,
+                     "[milo_scene] renderer draw order meshes=%zu "
+                     "groups=%zu grouped=%zu source_order=%zu\n",
+                     draw_meshes.size(), scene_.groups.size(),
+                     scene_.grouped_meshes.size(), scene_.draw_order.size());
+        for (size_t i = 0; i < draw_meshes.size(); ++i) {
+          const auto* mesh = draw_meshes[i];
+          const auto* mat = mesh ? scene_.find_mat(mesh->material) : nullptr;
+          std::fprintf(stderr,
+                       "[milo_scene] draw_order[%zu]=%s material=%s zmode=%u "
+                       "parent=%s\n",
+                       i, mesh ? mesh->name.c_str() : "<null>",
+                       mesh ? mesh->material.c_str() : "<none>",
+                       mat ? static_cast<unsigned>(mat->z_mode) : 255u,
+                       mesh ? mesh->parent.c_str() : "<none>");
+        }
+      }
+    }
 
     const bool draw_spotlight_instances =
         !env_enabled("GHOGX_DISABLE_SPOTLIGHT_INSTANCES");
@@ -4186,6 +4399,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       for (const auto& group : scene_.groups) {
         if (group.name == name) return "Group";
       }
+      for (const auto& placer : scene_.band_placers) {
+        if (placer.name == name) return "BandPlacer";
+      }
       for (const auto& light : scene_.lights) {
         if (light.name == name) return "Light";
       }
@@ -4193,13 +4409,22 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     };
     auto parent_for = [&](const std::string& name) -> std::string {
       for (const auto& group : scene_.groups) {
-        if (group.name == name) return group.parent;
+        if (group.name == name && !group.parent.empty()) return group.parent;
       }
       for (const auto& mesh : scene_.meshes) {
-        if (mesh.name == name) return mesh.parent;
+        if (mesh.name == name && !mesh.parent.empty()) return mesh.parent;
       }
       for (const auto& trans : scene_.transes) {
-        if (trans.name == name) return trans.parent;
+        if (trans.name == name && !trans.parent.empty()) return trans.parent;
+      }
+      for (const auto& placer : scene_.band_placers) {
+        if (placer.name == name && !placer.parent.empty()) return placer.parent;
+      }
+      for (const auto& group : scene_.groups) {
+        if (std::find(group.children.begin(), group.children.end(), name) !=
+            group.children.end()) {
+          return group.name;
+        }
       }
       return {};
     };
@@ -4214,7 +4439,37 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       for (const auto& trans : scene_.transes) {
         if (trans.name == name) return trans.constraint;
       }
+      for (const auto& placer : scene_.band_placers) {
+        if (placer.name == name) return 0;
+      }
       return 0;
+    };
+    auto world_override_for = [&](const std::string& name,
+                                  std::array<float, 16>& world) -> bool {
+      if (m.name == name && m.world_xfm_override) {
+        world = xfm_to_mat4(m.world_stored);
+        return true;
+      }
+      for (const auto& mesh : scene_.meshes) {
+        if (mesh.name == name && mesh.world_xfm_override) {
+          world = xfm_to_mat4(mesh.world_stored);
+          return true;
+        }
+      }
+      for (const auto& group : scene_.groups) {
+        if (group.name == name && group.has_transform &&
+            group.world_xfm_override) {
+          world = xfm_to_mat4(group.world_stored);
+          return true;
+        }
+      }
+      for (const auto& trans : scene_.transes) {
+        if (trans.name == name && trans.world_xfm_override) {
+          world = xfm_to_mat4(trans.world_stored);
+          return true;
+        }
+      }
+      return false;
     };
     auto local_for = [&](const std::string& name, std::array<float, 16>& local)
         -> bool {
@@ -4240,6 +4495,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           return true;
         }
       }
+      for (const auto& placer : scene_.band_placers) {
+        if (placer.name == name && placer.decoded) {
+          local = xfm_to_mat4(placer.local);
+          return true;
+        }
+      }
       return false;
     };
     auto composed_world_for = [&](const std::string& name,
@@ -4247,6 +4508,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       auto impl = [&](auto&& self, const std::string& node,
                       std::array<float, 16>& out, int guard) -> bool {
         if (guard >= 64) return false;
+        if (world_override_for(node, out)) return true;
         std::array<float, 16> local{};
         if (!local_for(node, local)) return false;
         const std::string parent = parent_for(node);
@@ -4288,6 +4550,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           return true;
         }
       }
+      for (const auto& placer : scene_.band_placers) {
+        if (placer.name == name && placer.decoded) {
+          world = xfm_to_mat4(placer.world_stored);
+          return true;
+        }
+      }
       return false;
     };
     auto target_has_transform_sample = [&](const std::string& target) -> bool {
@@ -4308,6 +4576,52 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       apply_mesh_transform_sample(
           local, sample_transform_anim(active.anim, anim_frame));
     };
+    auto animated_world_for = [&](auto&& self, const std::string& node,
+                                  std::array<float, 16>& out,
+                                  int guard) -> bool {
+      if (guard >= 64) {
+        if (env_enabled("GHOGX_LOG_MESH_ANIM_RESOLVE")) {
+          std::fprintf(stderr,
+                       "[milo_scene] mesh_anim_resolve fail=guard mesh=%s "
+                       "node=%s\n",
+                       m.name.c_str(), node.c_str());
+        }
+        return false;
+      }
+      if (world_override_for(node, out)) return true;
+      std::array<float, 16> local{};
+      if (!local_for(node, local)) {
+        if (env_enabled("GHOGX_LOG_MESH_ANIM_RESOLVE")) {
+          std::fprintf(stderr,
+                       "[milo_scene] mesh_anim_resolve fail=local mesh=%s "
+                       "node=%s kind=%s parent=%s\n",
+                       m.name.c_str(), node.c_str(), target_kind_for(node),
+                       parent_for(node).empty() ? "<none>"
+                                                : parent_for(node).c_str());
+        }
+        return false;
+      }
+      apply_transform_samples(local, node);
+      const std::string parent = parent_for(node);
+      if (parent.empty() || parent == node) {
+        out = local;
+        return true;
+      }
+      std::array<float, 16> parent_world{};
+      if (!self(self, parent, parent_world, guard + 1)) {
+        if (env_enabled("GHOGX_LOG_MESH_ANIM_RESOLVE")) {
+          std::fprintf(stderr,
+                       "[milo_scene] mesh_anim_resolve fail=parent mesh=%s "
+                       "node=%s parent=%s kind=%s\n",
+                       m.name.c_str(), node.c_str(), parent.c_str(),
+                       target_kind_for(parent));
+        }
+        return false;
+      }
+      out = apply_transform_constraint(local, parent_world,
+                                       constraint_for(node));
+      return true;
+    };
     std::vector<std::string> animated_ancestors;
     for (std::string parent = m.parent; !parent.empty();) {
       animated_ancestors.push_back(parent);
@@ -4321,78 +4635,18 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         target_has_transform_sample(m.name) ||
         std::any_of(animated_ancestors.begin(), animated_ancestors.end(),
                     target_has_transform_sample);
+    const bool chain_has_world_override =
+        m.world_xfm_override ||
+        std::any_of(animated_ancestors.begin(), animated_ancestors.end(),
+                    [&](const std::string& target) {
+                      std::array<float, 16> ignored{};
+                      return world_override_for(target, ignored);
+                    });
     auto world = scene_.world_matrix(m);
     bool recomposed_animated_chain = false;
-    if (chain_has_transform_sample) {
-      std::vector<std::string> chain;
-      chain.reserve(animated_ancestors.size() + 1);
-      for (const auto& ancestor : animated_ancestors) chain.push_back(ancestor);
-      chain.push_back(m.name);
-      std::array<float, 16> anchor_base{};
-      std::array<float, 16> anchor_current{};
-      bool have_anchor = false;
-      bool resolved_all_nodes = true;
-      std::array<float, 16> composed = world;
-      for (const std::string& target : chain) {
-        const bool target_is_mesh = target == m.name;
-        const bool target_sampled = target_has_transform_sample(target);
-        if (!target_sampled && !target_is_mesh) continue;
-        std::array<float, 16> base_world{};
-        if (!base_world_for(target, base_world)) {
-          resolved_all_nodes = false;
-          break;
-        }
-        std::array<float, 16> current_world = base_world;
-        if (have_anchor) {
-          current_world =
-              mul16(mul16(base_world, affine_inverse16(anchor_base)),
-                    anchor_current);
-        }
-        if (target_sampled) {
-          std::array<float, 16> base_local{};
-          if (!local_for(target, base_local)) {
-            resolved_all_nodes = false;
-            break;
-          }
-          std::array<float, 16> sampled_local = base_local;
-          const bool log_local =
-              env_mesh_filter_matches("GHOGX_LOG_MESH_ANIM_LOCAL", m.name) ||
-              env_mesh_filter_matches("GHOGX_LOG_MESH_ANIM_LOCAL", target);
-          const auto offset_it = mesh_transform_offsets_.find(target);
-          const bool has_offset = offset_it != mesh_transform_offsets_.end();
-          const auto active_it = active_mesh_anims_.find(target);
-          const bool has_active_anim = active_it != active_mesh_anims_.end();
-          MiloSceneRenderer::MeshTransformSample active_sample;
-          const MiloSceneRenderer::MeshTransformSample* applied_sample =
-              nullptr;
-          float active_frame = 0.0f;
-          if (has_offset) {
-            applied_sample = &offset_it->second;
-            apply_mesh_transform_sample(sampled_local, offset_it->second);
-          }
-          if (has_active_anim) {
-            const auto& active = active_it->second;
-            active_frame = active.elapsed * active.frames_per_second;
-            active_sample = sample_transform_anim(active.anim, active_frame);
-            applied_sample = &active_sample;
-            apply_mesh_transform_sample(sampled_local, active_sample);
-          }
-          if (log_local) {
-            log_mesh_anim_local_rows(
-                m.name, target, target_kind_for(target), parent_for(target),
-                base_local, sampled_local, applied_sample, active_frame,
-                has_offset, has_active_anim);
-          }
-          current_world =
-              mul16(mul16(sampled_local, affine_inverse16(base_local)),
-                    current_world);
-          anchor_base = base_world;
-          anchor_current = current_world;
-          have_anchor = true;
-        }
-        if (target_is_mesh) composed = current_world;
-      }
-      if (resolved_all_nodes) {
+    if (chain_has_transform_sample || chain_has_world_override) {
+      std::array<float, 16> composed{};
+      if (animated_world_for(animated_world_for, m.name, composed, 0)) {
         world = composed;
         recomposed_animated_chain = true;
       }
@@ -4855,12 +5109,18 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     std::memcpy(&wi, world_transform_.data(), 64);
     dev_->SetTransform(D3DTS_WORLD, &wi);
 
+    dev_->SetFVF(kFVF);
     dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
     dev_->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
     dev_->SetRenderState(D3DRS_ZENABLE, FALSE);
     dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    dev_->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
     dev_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
     dev_->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    dev_->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+    dev_->SetRenderState(D3DRS_FOGENABLE, FALSE);
+    dev_->SetRenderState(D3DRS_POINTSPRITEENABLE, FALSE);
+    dev_->SetRenderState(D3DRS_POINTSCALEENABLE, FALSE);
     dev_->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
     const DWORD text_filter =
         env_enabled("GHOGX_MENU_TEXT_POINT") ? D3DTEXF_POINT : D3DTEXF_LINEAR;
@@ -4875,6 +5135,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
     dev_->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
     dev_->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+    dev_->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+    dev_->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 
     for (size_t bi = begin; bi < end; ++bi) {
       if (bi >= text_tex_.size() || !text_tex_[bi] || text_[bi].size() < 3) continue;

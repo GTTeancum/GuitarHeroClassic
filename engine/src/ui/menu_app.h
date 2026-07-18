@@ -18,6 +18,6 @@ namespace ghogx::ui {
 // screenshot_frame; max_frames>0 auto-exits (0 = run until the window closes).
 int run_menu_mode(const std::string& hdr, const std::string& ark,
                   const std::string& screenshot_path, int screenshot_frame,
-                  int max_frames);
+                  int max_frames, float fixed_dt = 0.0f);
 
 }  // namespace ghogx::ui

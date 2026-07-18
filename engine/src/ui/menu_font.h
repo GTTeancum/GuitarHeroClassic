@@ -45,7 +45,9 @@ struct Glyph {
   // Normalized atlas coords (0..1), ready for UVs.
   float u0 = 0, v0 = 0, u1 = 0, v1 = 0;
   // Ink box in atlas pixels (the drawn quad's native size).
-  int px = 0, py = 0, pw = 0, ph = 0;
+  float px = 0, py = 0, pw = 0, ph = 0;
+  // Vertical offset from the font row's cell top to this glyph's ink box.
+  float yoff = 0;
   // Pen advance in native (atlas) pixels after drawing this glyph.
   float advance = 0;
   bool present = false;
@@ -65,8 +67,12 @@ class MenuFont {
   // The decoded atlas (RGBA8; glyph coverage in the alpha channel).
   const asset::Image& atlas() const { return atlas_; }
 
-  float cap_height() const { return cap_height_; }    // 34 (header)
-  float line_height() const { return line_height_; }  // 50 (header)
+  // MiloLib RndFont names these two serialized values cellSize.x/y. Existing
+  // callers keep the historical cap/line names, but RndText::mSize should be
+  // normalized against the vertical cell height.
+  float cap_height() const { return cap_height_; }    // impact: 34
+  float line_height() const { return line_height_; }  // impact: 50
+  bool has_source_char_info() const { return has_source_char_info_; }
 
   // Glyph for a byte (Latin-1 code). nullptr if the font has no such glyph.
   // impact is an UPPERCASE-only font, so lowercase folds to its uppercase glyph
@@ -96,15 +102,29 @@ class MenuFont {
   float measure(const std::string& text) const;
 
  private:
+  struct SourceCharInfo {
+    bool valid = false;
+    float tex_u = 0.0f;
+    float tex_v = 0.0f;
+    float width = 0.0f;
+    float advance = 0.0f;
+  };
+
   bool parse_font(const std::vector<uint8_t>& body);
   void segment_glyphs();  // derive rects from atlas alpha, assign to charset
+  void apply_source_char_info();
 
   asset::Image atlas_;
   std::string charset_;                 // 104 chars, exact order from the file
   std::array<Glyph, 256> glyphs_{};     // indexed by Latin-1 code
+  std::array<SourceCharInfo, 256> char_info_{};
   std::unordered_map<uint16_t, float> kern_;  // (L<<8|R) -> native px
   float cap_height_ = 34.0f;
   float line_height_ = 50.0f;
+  float base_kerning_px_ = 2.0f;
+  float tex_cell_u_ = 0.0f;
+  float tex_cell_v_ = 0.0f;
+  bool has_source_char_info_ = false;
   int glyph_count_ = 0;
 };
 

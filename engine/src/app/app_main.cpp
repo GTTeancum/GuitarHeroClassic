@@ -2278,7 +2278,8 @@ int main(int argc, char** argv) {
       std::fprintf(stderr, "[ghogx] --menu requires --ark-dir\n");
       return 2;
     }
-    return ghogx::ui::run_menu_mode(hdr, ark, screenshot_path, screenshot_frame, max_frames);
+    return ghogx::ui::run_menu_mode(hdr, ark, screenshot_path,
+                                    screenshot_frame, max_frames, fixed_dt);
   }
 
   // --scene: dedicated 3-D MILO scene viewer (venue/stage/track geometry).

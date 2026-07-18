@@ -140,6 +140,7 @@ struct TransObj {
   std::string name;          // the entry name
   Xfm local;                 // local matrix (matrix 1)
   Xfm world_stored;          // world matrix as stored (matrix 2)
+  bool world_xfm_override = false;  // Runtime SetWorldXfm cache override.
   uint32_t constraint = 0;    // RndTransformable::Constraint
   std::string target;         // optional target name used by constrained transforms
   bool preserve_scale = false;
@@ -276,6 +277,7 @@ struct GroupObj {
   std::string parent;
   Xfm local;
   Xfm world_stored;
+  bool world_xfm_override = false;  // Runtime SetWorldXfm cache override.
   uint32_t constraint = 0;
   std::string target;
   bool preserve_scale = false;
@@ -333,10 +335,15 @@ struct MatObj {
 struct Vertex {
   float px, py, pz;          // position
   float nx, ny, nz;          // normal
-  float r, g, b, a;          // runtime diffuse tint; source slot is weights
+  float w[4] = {0, 0, 0, 0}; // GH2 rev 28 source slot; becomes bone weights
+  float r, g, b, a;          // runtime diffuse tint
   float u, v;                // texture coords
 };
-static_assert(sizeof(Vertex) == 48, "GH2 PS2 mesh vertex stride must be 48 bytes");
+
+struct BoneTransform {
+  std::string name;          // RndBone::mBone target
+  Xfm offset;                // RndBone::mOffset
+};
 
 struct MeshObj {
   std::string name;          // entry name (e.g. "green_gem.mesh")
@@ -345,6 +352,7 @@ struct MeshObj {
   std::string geometry_owner;// Mesh entry that owns reusable geometry.
   Xfm local;                 // the mesh's own Trans local matrix
   Xfm world_stored;          // the stored Trans world matrix from the MILO
+  bool world_xfm_override = false;  // Runtime SetWorldXfm cache override.
   uint32_t constraint = 0;    // RndTransformable::Constraint
   std::string target;
   bool preserve_scale = false;
@@ -353,6 +361,7 @@ struct MeshObj {
   uint32_t face_count = 0;
   std::vector<Vertex> verts;
   std::vector<uint16_t> indices;  // face_count*3 indices
+  std::vector<BoneTransform> bones;
   // Bounding box (object-space), filled after decode.
   float bb_min[3] = {0, 0, 0};
   float bb_max[3] = {0, 0, 0};

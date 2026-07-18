@@ -47,6 +47,13 @@ NodePtr process_node(const NodePtr& sp, Ctx& ctx) {
   return sp;
 }
 
+NodePtr macro_body_node(const NodePtr& body) {
+  if (!body || body->tag != 0x10) return body;
+  const NodeList& kids = gh::dtb::children(*body);
+  if (kids.size() == 1) return kids[0];
+  return body;
+}
+
 NodeList process(const NodeList& in, Ctx& ctx) {
   NodeList out;
   std::vector<Cond> conds;
@@ -86,7 +93,7 @@ NodeList process(const NodeList& in, Ctx& ctx) {
         if (active() && i + 1 < in.size()) {
           std::string nm = dir_name(n);
           ctx.defined.insert(nm);
-          ctx.macros[nm] = in[i + 1];
+          ctx.macros[nm] = macro_body_node(in[i + 1]);
         }
         if (i + 1 < in.size()) ++i;  // consume the body node either way
         continue;
