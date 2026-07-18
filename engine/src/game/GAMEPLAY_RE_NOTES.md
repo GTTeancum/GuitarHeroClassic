@@ -2,6 +2,15 @@
 
 ## Venue Camera
 
+- 2026-07-17 gameplay camera progress row hardening:
+  The normal-gameplay camera proof rows now derive
+  `recovered_runtime_count` by counting the shared recovered-runtime token list,
+  then derive `completion_percent` from that count plus the explicit four open
+  gameplay blockers. Runtime output remains 97 recovered, 4 open, and 96.0%,
+  but the number is no longer copied separately from the implementation-status
+  list. This is progress-proof hardening only: no selector behavior, camera
+  pose math, hidden predicate, `CharWalk`, FreeCam, dependency, OG Xbox
+  portability, or under-venue behavior changed.
 - 2026-07-17 gameplay camera progress proof row:
   Runtime camera proofs now emit a separate `[world] camera progress` row with
   the current normal-gameplay checklist basis: 97 recovered runtime items, 4

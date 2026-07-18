@@ -14994,26 +14994,39 @@ int main() {
                  "source_truth=ihatecompvir",
                  "regular camera proof emits a compact source-truth implementation status row");
   ok &= contains(gameplay_c,
+                 "constexprconstchar*kCameraRecoveredRuntimeList=",
+                 "regular camera progress count is derived from the shared recovered-runtime token list");
+  ok &= contains(gameplay_c,
+                 "constexprsize_tkCameraOpenGameplayBlockers=4;",
+                 "regular camera progress keeps the open gameplay blocker denominator explicit");
+  ok &= contains(gameplay_c,
+                 "camera_count_csv_tokens(kCameraRecoveredRuntimeList)",
+                 "regular camera progress row counts recovered runtime tokens instead of copying a stale literal");
+  ok &= contains(gameplay_c,
+                 "camera_completion_percent(recovered_camera_runtime_count,"
+                 "kCameraOpenGameplayBlockers)",
+                 "regular camera progress row derives the percent from the recovered/open denominator");
+  ok &= contains(gameplay_c,
                  "\"[world]cameraprogress:"
                  "pipeline_scope=normal_gameplay_camera"
                  "priority=gameplay_camera"
                  "source_truth=ihatecompvir"
-                 "recovered_runtime_count=97"
-                 "open_gameplay_blockers=4"
+                 "recovered_runtime_count=%zu"
+                 "open_gameplay_blockers=%zu"
                  "completion_basis=recovered_runtime/"
                  "(recovered_runtime+open_gameplay_blockers)"
-                 "completion_percent=96.0",
+                 "completion_percent=%.1f",
                  "regular camera proof emits the current percent basis beside the source-truth status row");
   ok &= contains(gameplay_c,
                  "\"[world]cameraprogress:"
                  "pipeline_scope=normal_gameplay_camera"
                  "priority=gameplay_camera"
                  "source_truth=ihatecompvir"
-                 "recovered_runtime_count=97"
-                 "open_gameplay_blockers=4"
+                 "recovered_runtime_count=%zu"
+                 "open_gameplay_blockers=%zu"
                  "completion_basis=recovered_runtime/"
                  "(recovered_runtime+open_gameplay_blockers)"
-                 "completion_percent=96.0"
+                 "completion_percent=%.1f"
                  "active_hidden_gameplay_blockers=%s"
                  "deferred_gameplay_blockers=%s"
                  "freecam_priority=deferred_last"
@@ -15022,6 +15035,10 @@ int main() {
                  "no_dependency_change=1"
                  "og_xbox_portability_preserved=1",
                  "regular camera progress proof keeps FreeCam deferred, under-venue open, and dependency status explicit");
+  ok &= absent(gameplay_c, "recovered_runtime_count=97",
+               "regular camera progress count must not be hard-coded separately from the recovered-runtime list");
+  ok &= absent(gameplay_c, "completion_percent=96.0",
+               "regular camera progress percent must not be hard-coded separately from the recovered/open denominator");
   ok &= contains(gameplay_c,
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,"
