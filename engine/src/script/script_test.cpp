@@ -90,13 +90,46 @@ class MockHost : public Host {
  public:
   std::map<const void*, Object*> objs;
   std::map<const void*, DataNode> globals;
+  std::map<const void*, NodeList> funcs;
+  std::map<const void*, std::string> options;
   std::vector<std::string> unhandled;
+  std::vector<std::pair<float, std::size_t>> scheduled;
+  std::vector<std::string> commands;
 
   void bind(const char* name, Object* o) { objs[Symbol(name).id()] = o; }
+  void bind_func(const char* name, NodeList body) { funcs[Symbol(name).id()] = std::move(body); }
   Object* resolve_object(Symbol n) override { auto it = objs.find(n.id()); return it == objs.end() ? nullptr : it->second; }
   DataNode get_global(Symbol n) override { auto it = globals.find(n.id()); return it == globals.end() ? DataNode() : it->second; }
   void set_global(Symbol n, DataNode v) override { globals[n.id()] = std::move(v); }
   void on_unhandled(const std::string& w) override { unhandled.push_back(w); }
+  const NodeList* resolve_function(Symbol n) override {
+    auto it = funcs.find(n.id());
+    return it == funcs.end() ? nullptr : &it->second;
+  }
+  bool handle_command(Symbol n, const DataArray& args, DataNode& out) override {
+    if (n != Symbol("game_restart_fast")) return false;
+    std::string rec = n.c_str();
+    rec += ':';
+    for (std::size_t i = 0; i < args.size(); ++i) {
+      if (i) rec += ',';
+      rec += to_str(args.at(i));
+    }
+    commands.push_back(rec);
+    out = DataNode::Sym(n);
+    return true;
+  }
+  std::optional<std::string> consume_option_str(Symbol n) override {
+    auto it = options.find(n.id());
+    if (it == options.end()) return std::nullopt;
+    std::string value = it->second;
+    options.erase(it);
+    return value;
+  }
+  void schedule_script_task(const NodeList& body, Object* self,
+                            float delay_seconds) override {
+    (void)self;
+    scheduled.push_back({delay_seconds, body.size()});
+  }
 };
 
 // --- tests -----------------------------------------------------------------
@@ -104,6 +137,13 @@ static void test_operators() {
   Interp ip; MockHost host; Scope root; Env env; env.host = &host; env.scope = &root;
   CHECK(ip.eval(*mkcmd({mksym("=="), mkint(2), mkint(2)}), env).as_int().value() == 1);
   CHECK(ip.eval(*mkcmd({mksym("=="), mkint(2), mkint(3)}), env).as_int().value() == 0);
+  CHECK(ip.eval(*mkcmd({mksym("=="), mkint(0), mksym("kNormal")}), env).as_int().value() == 1);
+  CHECK(ip.eval(*mkcmd({mksym("=="), mkint(1), mksym("kFocused")}), env).as_int().value() == 1);
+  CHECK(ip.eval(*mkcmd({mksym("=="), mkint(2), mksym("kDisabled")}), env).as_int().value() == 1);
+  CHECK(ip.eval(*mkcmd({mksym("=="), mksym("kSelecting"), mkint(3)}), env).as_int().value() == 1);
+  CHECK(ip.eval(*mkcmd({mksym("=="), mksym("kSelected"), mkint(4)}), env).as_int().value() == 1);
+  CHECK(ip.eval(*mkcmd({mksym("=="), mkint(2), mksym("kFocused")}), env).as_int().value() == 0);
+  CHECK(ip.eval(*mkcmd({mksym("=="), mkflt(2.5f), mksym("kDisabled")}), env).as_int().value() == 0);
   CHECK(ip.eval(*mkcmd({mksym(">"), mkint(5), mkint(0)}), env).as_int().value() == 1);
   CHECK(ip.eval(*mkcmd({mksym("!"), mkcmd({mksym("=="), mkint(1), mkint(2)})}), env).as_int().value() == 1);
   CHECK(ip.eval(*mkcmd({mksym("&&"), mkint(1), mkint(1)}), env).as_int().value() == 1);
@@ -224,6 +264,53 @@ static void test_foreach_load() {
   CHECK(b.called("load:"));
 }
 
+// career.dta shape: {campaign foreach_venue $venue {...$venue...}}.
+// Object foreach callbacks must bind the variable before evaluating the body.
+static void test_object_foreach_callback() {
+  Interp ip; MockHost host; Scope root;
+  MockObject campaign("Campaign"), screen("GHScreen");
+  auto venues = std::make_shared<DataArray>();
+  venues->push(DataNode::Sym(Symbol("battle")));
+  venues->push(DataNode::Sym(Symbol("small2")));
+  campaign.ret("foreach_venue_values", DataNode::Array(venues));
+  host.bind("campaign", &campaign);
+  host.bind("screen", &screen);
+  Env env; env.host = &host; env.scope = &root;
+
+  NodePtr e = mkcmd({
+      mksym("campaign"), mksym("foreach_venue"), mkvar("venue"),
+      mkcmd({mksym("screen"), mksym("set_venue_seen"), mkvar("venue")})});
+  ip.eval(*e, env);
+  CHECK(campaign.called("foreach_venue_values:"));
+  CHECK(screen.called("set_venue_seen:battle"));
+  CHECK(screen.called("set_venue_seen:small2"));
+  CHECK(!campaign.called("foreach_venue:"));
+}
+
+// manage_bands.dta shape:
+// {foreach_int $idx 0 MAX_NUM_PROFILES ...} and {$btn set_text new_band}, where
+// $btn is a sprintf-created object name string.
+static void test_foreach_int_and_string_target() {
+  Interp ip; MockHost host; Scope root;
+  MockObject band0("BandButton"), band1("BandButton"), band2("BandButton");
+  host.bind("cp_band0.btn", &band0);
+  host.bind("cp_band1.btn", &band1);
+  host.bind("cp_band2.btn", &band2);
+  Env env; env.host = &host; env.scope = &root;
+
+  NodePtr e = mkcmd({
+      mksym("foreach_int"), mkvar("idx"), mkint(0), mkint(3),
+      mkcmd({
+          mksym("do"),
+          mkarr({mkvar("btn"),
+                 mkcmd({mksym("sprintf"), mkstr("cp_band%d.btn"), mkvar("idx")})}),
+          mkcmd({mkvar("btn"), mksym("set_text"), mksym("new_band")})})});
+  ip.eval(*e, env);
+  CHECK(band0.called("set_text:new_band"));
+  CHECK(band1.called("set_text:new_band"));
+  CHECK(band2.called("set_text:new_band"));
+}
+
 // run_handler with a (params) list, display_cheat_msg shape.
 static void test_run_handler_params() {
   Interp ip; MockHost host; MockObject self("GHPanel"), lbl("UILabel");
@@ -237,11 +324,264 @@ static void test_run_handler_params() {
   CHECK(lbl.called("set_text:my_cheat"));
 }
 
+static void test_top_level_function_call() {
+  Interp ip; MockHost host; Scope root; MockObject ui("UIManager");
+  host.bind("ui", &ui);
+  host.bind_func("route_to", {
+      mksym("func"), mksym("route_to"), mkarr({mkvar("screen")}),
+      mkcmd({mksym("ui"), mksym("goto_screen"), mkvar("screen")})});
+  Env env; env.host = &host; env.scope = &root;
+
+  ip.eval(*mkcmd({mksym("route_to"), mksym("complete_screen")}), env);
+  CHECK(ui.called("goto_screen:complete_screen"));
+}
+
 // sprintf + localize (display_cheat_msg uses {sprintf {localize ...} {localize $cheat}}).
 static void test_sprintf() {
   Interp ip; MockHost host; Scope root; Env env; env.host = &host; env.scope = &root;
   DataNode r = ip.eval(*mkcmd({mksym("sprintf"), mkstr("%s=%d"), mksym("foo"), mkint(5)}), env);
   CHECK(to_str(r) == "foo=5");
+  CHECK(to_str(ip.eval(*mkcmd({mksym("sprintf"), mkstr("guitar%02d.env"), mkint(1)}), env)) ==
+        "guitar01.env");
+  CHECK(to_str(ip.eval(*mkcmd({mksym("sprintf"), mkstr("CASH: $%/D"), mkint(12345)}), env)) ==
+        "CASH: $12,345");
+}
+
+static void test_stock_collection_helpers() {
+  Interp ip; MockHost host; Scope root; MockObject ui("UIManager");
+  host.bind("ui", &ui);
+  Env env; env.host = &host; env.scope = &root;
+
+  CHECK(ip.eval(*mkcmd({mksym("mod"), mkint(-1), mkint(5)}), env)
+            .as_int()
+            .value_or(-1) == 4);
+  CHECK(ip.eval(*mkcmd({mksym("min"), mkint(21), mkint(20)}), env)
+            .as_int()
+            .value_or(-1) == 20);
+  CHECK(ip.eval(*mkcmd({mksym("max"), mkint(-1), mkint(0)}), env)
+            .as_int()
+            .value_or(-1) == 0);
+  CHECK(ip.eval(*mkcmd({mksym("int"), mkflt(12.75f)}), env)
+            .as_int()
+            .value_or(-1) == 12);
+  DataNode empty_array = ip.eval(*mkcmd({mksym("array"), mkint(0)}), env);
+  CHECK(empty_array.as_array() && empty_array.as_array()->empty());
+  DataNode sized_array = ip.eval(*mkcmd({mksym("array"), mkint(2)}), env);
+  CHECK(sized_array.as_array() && sized_array.as_array()->size() == 2);
+  CHECK(to_str(ip.eval(*mkcmd({mksym("sprint"), mksym("help_"), mkstr("back")}), env)) ==
+        "help_back");
+
+  NodePtr helpbar = mkcmd({
+      mksym("do"),
+      mkarr({mkvar("array")}),
+      mkcmd({mksym("set"), mkvar("array"), mkarr({mksym("stale")})}),
+      mkcmd({mksym("resize"), mkvar("array"), mkint(0)}),
+      mkcmd({mksym("push_back"), mkvar("array"),
+             mkarr({mksym("fret1"), mksym("help_select")})}),
+      mkcmd({mksym("push_back"), mkvar("array"),
+             mkarr({mksym("fret2"), mksym("help_back")})}),
+      mkvar("array")});
+  DataNode help = ip.eval(*helpbar, env);
+  auto arr = help.as_array();
+  CHECK(arr && arr->size() == 2);
+  if (arr && arr->size() == 2) {
+    auto row0 = arr->at(0).as_array();
+    auto row1 = arr->at(1).as_array();
+    CHECK(row0 && row0->size() == 2 &&
+          row0->at(0).as_symbol().value_or(Symbol()) == Symbol("fret1") &&
+          row0->at(1).as_symbol().value_or(Symbol()) == Symbol("help_select"));
+    CHECK(row1 && row1->size() == 2 &&
+          row1->at(0).as_symbol().value_or(Symbol()) == Symbol("fret2") &&
+          row1->at(1).as_symbol().value_or(Symbol()) == Symbol("help_back"));
+  }
+
+  NodePtr conditional = mkcmd({
+      mksym("cond"),
+      mkarr({mkcmd({mksym("=="), mkint(0), mkint(1)}),
+             mkcmd({mksym("ui"), mksym("goto_screen"), mksym("wrong_screen")})}),
+      mkarr({mkcmd({mksym("=="), mkint(2), mkint(2)}),
+             mkcmd({mksym("ui"), mksym("goto_screen"), mksym("right_screen")})}),
+      mkarr({mksym("TRUE"),
+             mkcmd({mksym("ui"), mksym("goto_screen"), mksym("fallback_screen")})})});
+  ip.eval(*conditional, env);
+  CHECK(ui.called("goto_screen:right_screen"));
+  CHECK(!ui.called("goto_screen:wrong_screen"));
+  CHECK(!ui.called("goto_screen:fallback_screen"));
+
+  ip.eval(*mkcmd({mksym("autosave_goto"), mksym("nameprof_screen")}), env);
+  CHECK(ui.called("goto_screen:nameprof_screen"));
+
+  MockObject ten("BandTextEntry");
+  ten.ret("user_can_scroll", DataNode::Sym(Symbol("TRUE")));
+  ten.ret("no_text_entered", DataNode::Int(0));
+  host.bind("profile.ten", &ten);
+  DataNode text_help = ip.eval(*mkcmd({mksym("get_text_entry_help_text"),
+                                       mkarr({}), mksym("profile.ten"),
+                                       mksym("TRUE")}), env);
+  auto text_help_rows = text_help.as_array();
+  CHECK(text_help_rows && text_help_rows->size() == 3);
+  if (text_help_rows && text_help_rows->size() == 3) {
+    auto row0 = text_help_rows->at(0).as_array();
+    auto row1 = text_help_rows->at(1).as_array();
+    auto row2 = text_help_rows->at(2).as_array();
+    CHECK(row0 && row0->at(1).as_symbol().value_or(Symbol()) ==
+                      Symbol("help_nextletter"));
+    CHECK(row1 && row1->at(1).as_symbol().value_or(Symbol()) ==
+                      Symbol("help_deleteletter"));
+    CHECK(row2 && row2->at(1).as_symbol().value_or(Symbol()) ==
+                      Symbol("help_updown"));
+  }
+
+  NodePtr award_helpers = mkcmd({
+      mksym("do"),
+      mkarr({mkvar("awards"),
+             mkarr({mkarr({mksym("ca_blurb1"), mkint(10)}),
+                    mkarr({mksym("ca_blurb2"), mkint(20)})})}),
+      mkarr({mkvar("total"), mkint(5)}),
+      mkarr({mkvar("slot"), mkint(0)}),
+      mkarr({mkvar("data"), mkcmd({mksym("random_elem"), mkvar("awards")})}),
+      mkcmd({mksym("remove_elem"), mkvar("awards"), mkvar("data")}),
+      mkcmd({mksym("+="), mkvar("total"),
+             mkcmd({mksym("elem"), mkvar("data"), mkint(1)})}),
+      mkcmd({mksym("++"), mkvar("slot")}),
+      mkcmd({mksym("sprintf"), mkstr("%d:%d:%d"), mkvar("total"), mkvar("slot"),
+             mkcmd({mksym("find_elem"), mkvar("awards"), mkvar("data")})})});
+  CHECK(to_str(ip.eval(*award_helpers, env)) == "15:1:-1");
+}
+
+static void test_script_task_boot_shape() {
+  Interp ip; MockHost host; Scope root; MockObject self("GHScreen");
+  Env env; env.host = &host; env.scope = &root; env.self = &self;
+  NodePtr task = mkcmd({
+      mksym("script_task"),
+      mkarr({mksym("delay"), mkint(1)}),
+      mkarr({mksym("units"), mksym("kTaskUISeconds")}),
+      mkarr({mksym("script"),
+             mkcmd({mksym("dialog"), mksym("set_message"), mksym("load_loading")}),
+             mkcmd({mksym("memcard"), mksym("load_data"), mksym("bootup_load")})})});
+  ip.eval(*task, env);
+  CHECK(host.scheduled.size() == 1);
+  if (!host.scheduled.empty()) {
+    CHECK(host.scheduled[0].first == 1.0f);
+    CHECK(host.scheduled[0].second == 2);
+  }
+}
+
+static void test_thread_task_sleep_segments() {
+  Interp ip; MockHost host; Scope root; MockObject self("LagPanel");
+  Env env; env.host = &host; env.scope = &root; env.self = &self;
+  NodePtr task = mkcmd({
+      mksym("thread_task"),
+      mkarr({mksym("units"), mksym("kTaskUISeconds")}),
+      mkarr({mksym("script"),
+             mkcmd({mksym("countdown.lbl"), mksym("set"), mksym("text_token"),
+                    mksym("lag_3")}),
+             mkcmd({mkvar("task"), mksym("sleep"), mkflt(0.133f)}),
+             mkcmd({mksym("practice_hat"), mksym("play")}),
+             mkcmd({mkvar("task"), mksym("sleep"), mkflt(0.6f)}),
+             mkcmd({mksym("sync_click.cue"), mksym("play")})})});
+  ip.eval(*task, env);
+  CHECK(host.scheduled.size() == 3);
+  if (host.scheduled.size() == 3) {
+    CHECK(host.scheduled[0].first == 0.0f);
+    CHECK(host.scheduled[0].second == 1);
+    CHECK(host.scheduled[1].first > 0.132f &&
+          host.scheduled[1].first < 0.134f);
+    CHECK(host.scheduled[1].second == 1);
+    CHECK(host.scheduled[2].first > 0.732f &&
+          host.scheduled[2].first < 0.734f);
+    CHECK(host.scheduled[2].second == 1);
+  }
+}
+
+static void test_switch_matches_object_component_names() {
+  Interp ip; MockHost host; Scope root; MockObject reset("UIButton");
+  reset.set_name(Symbol("reset_to_zero.btn"));
+  host.set_global(Symbol("component"), DataNode::Obj(&reset));
+  MockObject panel("LagPanel");
+  panel.set_property(Symbol("lag"), DataNode::Int(44));
+  Env env; env.host = &host; env.scope = &root; env.self = &panel;
+  NodePtr sw = mkcmd({
+      mksym("switch"),
+      mkvar("component"),
+      mkarr({mksym("autocalibrate.btn"),
+             mkcmd({mksym("set"), mkvar("matched"), mksym("auto")})}),
+      mkarr({mksym("reset_to_zero.btn"),
+             mkcmd({mksym("set"), mkprop("lag"), mkint(0)}),
+             mkcmd({mksym("set"), mkvar("matched"), mksym("reset")})})});
+  ip.eval(*sw, env);
+  CHECK(panel.get_property(Symbol("lag")).as_int().value_or(-1) == 0);
+  CHECK(host.get_global(Symbol("matched")).as_symbol().value_or(Symbol()) ==
+        Symbol("reset"));
+}
+
+static void test_host_global_command() {
+  Interp ip;
+  MockHost host;
+  Scope root;
+  Env env;
+  env.host = &host;
+  env.scope = &root;
+
+  DataNode out =
+      ip.eval(*mkcmd({mksym("game_restart_fast"), mksym("fast_intro")}), env);
+  CHECK(out.as_symbol().value_or(Symbol()) == Symbol("game_restart_fast"));
+  CHECK(host.commands.size() == 1);
+  if (!host.commands.empty())
+    CHECK(host.commands[0] == "game_restart_fast:fast_intro");
+  CHECK(host.unhandled.empty());
+}
+
+static void test_option_str_boot_shape() {
+  Interp ip;
+  MockHost host;
+  Scope root;
+  Env env;
+  env.host = &host;
+  env.scope = &root;
+
+  NodePtr option =
+      mkcmd({mksym("option_str"), mksym("budget_config"), mkvar("cfg")});
+  CHECK(ip.eval(*option, env).as_int().value_or(-1) == 0);
+  CHECK(!host.get_global(Symbol("cfg")).as_string().has_value());
+
+  host.options[Symbol("budget_config").id()] = "track_budget.dtb";
+  CHECK(ip.eval(*option, env).as_int().value_or(0) == 1);
+  CHECK(host.get_global(Symbol("cfg")).as_string().value_or("") ==
+        "track_budget.dtb");
+  CHECK(host.options.empty());
+  CHECK(ip.eval(*option, env).as_int().value_or(-1) == 0);
+  CHECK(host.get_global(Symbol("cfg")).as_string().value_or("") ==
+        "track_budget.dtb");
+  CHECK(host.unhandled.empty());
+}
+
+static void test_exists_data_func_shape() {
+  Interp ip;
+  MockHost host;
+  Scope root;
+  Env env;
+  env.host = &host;
+  env.scope = &root;
+
+  MockObject anim("Group");
+  anim.set_name(Symbol("unlock_anim"));
+  host.bind("unlock_anim", &anim);
+  host.bind_func("route_to", NodeList{mksym("func"), mksym("route_to")});
+
+  CHECK(ip.eval(*mkcmd({mksym("exists"), mksym("unlock_anim")}), env)
+            .as_int()
+            .value_or(0) == 1);
+  CHECK(ip.eval(*mkcmd({mksym("exists"), mksym("route_to")}), env)
+            .as_int()
+            .value_or(0) == 1);
+  CHECK(ip.eval(*mkcmd({mksym("exists"), mksym("sprintf")}), env)
+            .as_int()
+            .value_or(0) == 1);
+  CHECK(ip.eval(*mkcmd({mksym("exists"), mksym("missing_anim")}), env)
+            .as_int()
+            .value_or(-1) == 0);
+  CHECK(host.unhandled.empty());
 }
 
 static void test_preprocess() {
@@ -274,6 +614,19 @@ static void test_preprocess() {
             gh::dtb::children(*cmd[1]).size() == 3);
     }
   }
+  // #define DELAY (60) ; {> $now DELAY} -> DELAY substituted by the scalar.
+  {
+    NodeList r3 = {mkdir(0x20, "DELAY"), mkarr({mkint(60)}),
+                   mkcmd({mksym(">"), mkvar("now"), mksym("DELAY")})};
+    PreprocessOptions o;
+    NodeList out = preprocess(r3, o);
+    CHECK(out.size() == 1);
+    if (out.size() == 1) {
+      const auto& cmd = gh::dtb::children(*out[0]);
+      CHECK(cmd.size() == 3 &&
+            gh::dtb::as_int(*cmd[2]).value_or(-1) == 60);
+    }
+  }
 }
 
 int main() {
@@ -283,8 +636,18 @@ int main() {
   test_career_branch();
   test_do_local_object();
   test_foreach_load();
+  test_object_foreach_callback();
+  test_foreach_int_and_string_target();
   test_run_handler_params();
+  test_top_level_function_call();
   test_sprintf();
+  test_stock_collection_helpers();
+  test_script_task_boot_shape();
+  test_thread_task_sleep_segments();
+  test_switch_matches_object_component_names();
+  test_host_global_command();
+  test_option_str_boot_shape();
+  test_exists_data_func_shape();
   test_preprocess();
   if (g_failures == 0) {
     std::printf("ghogx_script_test: interpreter runs real main.dtb script shapes -- all checks passed\n");

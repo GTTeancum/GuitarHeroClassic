@@ -55,8 +55,8 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
 ### Screen manager / transition (`engine/src/ui/screen_manager.cpp`)
 | Behavior | Current basis | To ground against |
 |---|---|---|
-| enter = load+finish_load+enter; exit = exit | `[INFERENCE]` skeleton | menus.md full protocol + recomp goto_screen |
-| full protocol (screen_change/ui_exit/change_proxies/ui_enter/...) | NOT YET DONE | menus.md (verified trace) + recomp |
+| enter/exit lifecycle + deferred completion | `[VERBATIM-TRACE]` menus.md + stock `animate_transition` | recomp goto_screen / SceneTransition |
+| transition visual layering/crossfade | `[VERBATIM-TRACE]` window + `[DTB-SURFACE]` `animate_transition` | exact authored interpolation still needs game files + fresh PCSX2 trace |
 | scene-state IDs | NOT YET DONE | harmonix_symbols.h:904 + recomp SceneTransition |
 
 ### Game-side singletons (`install_default_singletons`)
@@ -303,21 +303,408 @@ never DEFINED as a handler are true engine primitives needing grounded C++:
 - **`enable`/`disable` target — `[DTB-SURFACE]`.** Resolved from the argument (named
   child if it resolves via `find_path`, else self), so correct for both the panel
   (`{$this disable a.btn}`) and component (`{b disable}`) forms without a class guess.
+- **Focused panel primitive — `[DTB-SURFACE]`.** Stock scripts call
+  `{ui focus_panel}` both as an object target (`{{ui focus_panel} get button_idx}`)
+  and in identity comparisons (`{!= {ui focus_panel} credits_panel}`). It now
+  returns the current screen's focused panel object, relying on the interpreter's
+  object-vs-symbol name comparison for those stock equality cases. `GHScreen
+  set_focus_panel` updates the screen `focus` property from either a symbol or
+  object argument (endgame encore uses this directly).
+- **Back input dispatch — `[DTB-SURFACE]`.** Windowed menu Back now sends the
+  authored `BUTTON_DOWN_MSG` with `$button = kPad_Tri` to the focused panel and
+  screen before falling through to generic `go_back`. Screens with
+  `(allow_back FALSE)` no longer escape through manager history unless their
+  own back-button handler routes somewhere, matching the stock DTB split between
+  explicit back handlers and generic back affordance.
+- **Named overlay pop — `[DTB-SURFACE]`.** Stock `tutorials.dta` uses
+  `{ui pop_screen tutorial_quit_screen}` from `tut_pause_screen` after setting
+  the confirmation screen's `next_screen`. The manager now treats a named
+  `pop_screen` argument as "close the current pushed screen, resume the
+  underlying screen, then push the named overlay", preserving the pause ->
+  confirmation flow instead of dropping straight back to gameplay/tutorial.
+- **Pause/task menu surface — `[DTB-SURFACE]`.** Stock tutorial/game UI scripts
+  message `beatmatch paused/set_paused/set_volume/set_music_speed`,
+  `taskmgr seconds/clear_tasks`, and `HudPanel`/`TrackPanel`/`GHPanel`
+  `set_paused`. The menu runtime now preserves those state changes instead of
+  dropping them on the floor; `taskmgr clear_tasks` clears scheduled menu
+  script tasks, and generic UI `reset` dispatches an authored `on_reset` handler
+  when present (HudPanel uses this shape).
+- **Pause/game restart command surface — `[DTB-SURFACE]` + `[HARMONIX]`.**
+  Stock `pause.dta`, `practice.dta`, `lose.dta`, `game.dta`, and `endgame.dta`
+  call bare commands `{game_restart}` / `{game_restart_fast}` rather than an
+  object-message pair. The interpreter now exposes host-owned global commands
+  for that shape, and the menu manager records the authored restart request,
+  clears pause/intro state, and routes back through the configured
+  `gamecfg.game_screen`. This keeps stock restart handlers source-driven and
+  removes the previous unhandled-command fallthrough; full gameplay restart
+  semantics remain owned by the gameplay runtime.
+- **Normal pause screen lock-in — `[DTB-SURFACE]` + `[MILO]`.** For
+  `pause_screen`, source truth is `ui/gen/pause.dtb` plus `ui/gen/pause.milo_ps2`.
+  `ghogx_ui_test` now pins the stock screen contract: `(allow_back FALSE)`,
+  `(animate_transition FALSE)`, `pause_panel` focus on `resume.btn`, Start and
+  Resume route back to `gamecfg.game_screen`, Audio/Video route to their pause
+  settings screens, and Restart still drives `game_restart_fast` plus
+  `button_play`. `ghogx_menu_labels_test` pins the six authored labels, fonts,
+  parent views, nav links, and world-Z rows. `ghogx_milo_scene_test` pins the
+  four border-tile meshes, shared `pl_tile.tex` source, parent
+  `pause_background.view`, and per-corner UV flips that form the square border.
+- **Controller-loss pause screen lock-in — `[DTB-SURFACE]` + `[MILO]`.** For
+  `pause_controller_screen`, source truth is `ui/gen/pause.dtb` plus
+  `ui/gen/pause_controller.milo_ps2`. `ghogx_ui_test` now pins the stock screen
+  contract: `(allow_back FALSE)`, `(animate_transition FALSE)`,
+  `pause_controller_panel` focus on `resume.btn`, missing-controller entry sets
+  `pause_controller_msg.lbl` to `controller_loss_msg`, disables `resume.btn`,
+  and Start stays on the controller-loss screen while the controller is still
+  missing. `ghogx_menu_labels_test` pins the three authored labels, fonts,
+  parent views, world-Z rows, and red title text tail. `ghogx_milo_scene_test`
+  pins this screen's own `tile1..tile4` meshes/materials, shared `pl_tile.tex`,
+  parent `pause_controller_background.view`, and the same per-corner UV flips
+  that form a square border.
+- **Pause audio settings screen lock-in - `[DTB-SURFACE]` + `[MILO]`.** For
+  `pause_audio_settings_screen`, source truth is `ui/gen/pause.dtb`,
+  `ui/gen/pause_audio_settings.milo_ps2`, `ui/gen/slider.milo_ps2`, and
+  `ui/gen/checkbox.milo_ps2`. `ghogx_ui_test` now pins
+  `pause_audio_settings_panel` focus on `gs_band.sld`, the stock 12-step volume
+  sliders initialized from `options`, selected-slider confirm/undo behavior,
+  `set_volumes` writing back to `options`, stereo row toggling, and the Back
+  route returning to `pause_screen` when entered from the pause Audio Settings
+  row. `ghogx_menu_labels_test` pins the MILO-authored `char` slider rows,
+  `AUDIO SETTINGS` rokk title, `STEREO_SOUND` helveticablack button, and checked
+  `stereo.chk` placement. `ghogx_milo_scene_test` pins the screen's
+  `gs_tile1..gs_tile4` meshes/materials, parent `gs_background.view`, and the
+  per-corner UV flips that form the same square pause border.
+- **Pause video settings screen lock-in - `[DTB-SURFACE]` + `[MILO]` +
+  `[HARMONIX]`.** For `pause_video_settings_screen`, source truth is
+  `ui/gen/pause.dtb`, `ui/gen/pause_video_settings.milo_ps2`,
+  `ui/gen/checkbox.milo_ps2`, and MiloLib's `BandButton`, `UILabel`,
+  `BandLabel`, and `CheckboxDisplay` field semantics. `ghogx_ui_test` now pins
+  `pause_video_settings_panel` focus on `gs_left_p1.btn`, the disabled P2-lefty
+  row, P1-lefty and widescreen checkbox toggles, the live `options` writes, and
+  the Back route returning to `pause_screen` when entered from the pause Video
+  Settings row. `ghogx_menu_labels_test` pins the authored rokk title plus the
+  five helveticablack BandButtons, including text tokens, parent views, nav
+  links, world rows, fit type, width, height, leading, alignment, text size, and
+  width-bound fields. The visual `calibrate_lag.btn` row exists in the MILO, but
+  the stock pause DTB surface does not provide a pause-video route to
+  `lag_screen`, so this lock-in does not invent one. `ghogx_milo_scene_test`
+  pins the `gs_tile1..gs_tile4` meshes/materials, parent `gs_background.view`,
+  and per-corner UV flips; checkbox rendering uses the shared toggle mesh with
+  the source on/off textures instead of treating unchecked boxes as invisible.
+- **Loader period command surface - `[DTB-SURFACE]` + `[HARMONIX]`.**
+  Stock `splash.dta` and `game.dta` call bare
+  `{set_loader_period 13}` on panel load and `{set_loader_period 5}` on enter.
+  ihatecompvir's Harmonix `LoadMgr` registers `set_loader_period`, stores the
+  requested period globally, and returns the previous period. The menu manager
+  now preserves that source-shaped command result and mirrors the current
+  period to `taskmgr` so later loader/task work can consume the authored state
+  without treating the stock script call as unhandled.
+- **Boot option string primitive - `[DTB-SURFACE]` + `[HARMONIX]`.**
+  Stock `init.dta` calls `{option_str budget_config $cfg}` before the optional
+  `track_budget` route. ihatecompvir's Harmonix `Option.cpp` registers
+  `option_str`, writes the found option value into `Var(2)`, returns `1` when
+  found / `0` when absent, and consumes the option. The interpreter now handles
+  that assignable-argument shape directly instead of evaluating `$cfg` too
+  early or logging `target?:option_str`; the default menu host has no option
+  source, so normal boot keeps the authored absent-option path.
+- **Named animation task existence - `[DTB-SURFACE]` + `[HARMONIX]`.**
+  Stock `endgame.dta::unlock_venue_panel` starts
+  `{unlock_anim.grp animate (name unlock_anim) (period 3) (range 0 200) ...}`
+  and later polls `{exists unlock_anim}`. ihatecompvir's Harmonix
+  `RndAnimatable::OnAnimate` creates an `AnimTask`, applies `(name ...)` to the
+  task, and `AnimTask::Poll` drives `SetFrame` until the bounded task deletes
+  itself; `DataExists` checks live objects first and registered data functions
+  second. The interpreter now implements `exists`, and the menu manager records
+  named bounded animation tasks so the stock poll sees the task while it is
+  alive and stops seeing it after its authored period expires.
+- **30fps forever animation command — `[DTB-SURFACE]` + `[HARMONIX]`.**
+  Stock `loading.dta` and `pause.dta` call bare
+  `{animate_forever_30fps $this <group>}` for `flyingtape2.grp`,
+  `loading_word.grp`, and `meta_loading.view`; character-select screens use the
+  same command but remain outside this pass. ihatecompvir's Harmonix
+  `RndPollAnim::Poll` advances `k30_fps_ui` animations as
+  `30.0f * TheTaskMgr.UISeconds()` and calls `SetFrame`. The menu manager now
+  resolves the authored panel/child target, marks it as looping
+  `k30_fps_ui`, and advances its frame from UI seconds each update so the DTB
+  animation request lands on the source-shaped object surface.
+- **Loading screen layer order - `[VERBATIM-DATA]` + `[MILO-SOURCE]`.**
+  Stock `ui/gen/loading.milo_ps2` has `loading.grp` children in source order
+  `load_wall.mesh`, `ready.mesh`, `flyingtape2.grp`, `loading.view`,
+  `load_blink.view`; inside `loading.view`, `loading_word.grp` follows
+  `load_poster.view`. The renderer keeps that group-authored draw order, so the
+  winged tape and looping `loading_word.tnm` animation come from the source
+  hierarchy instead of an app-side placement guess. `ghogx_menu_labels_test`
+  asserts the group order and the authored loading-word/flying-tape local
+  positions from the MILO.
+- **Loading word material animation - `[MILO-SOURCE]`.** `loading_word.grp`
+  owns both `loading_word.filt` and `loading_tweak.filt`; the latter targets
+  `loading_word.mnm`, whose keyed textures are `loading_word_gw.tex` at frame
+  0, `loading_word2_gw.tex` at frame 5, and `loading_word_gw.tex` again at
+  frame 10. The menu renderer now uploads those texture keys from
+  `loading.milo_ps2` and samples the material texture from the live 30fps
+  `loading_word.grp` frame. `ready.mesh` remains source-visible here; the stock
+  `loading_panel` enter handler does not hide it.
+- **Panel focus component state — `[HARMONIX]` + `[DTB-SURFACE]`.**
+  ihatecompvir's `PanelDir::SetFocusComponent` clears the previous
+  `UIComponent` to `normal` and marks the new focus `focused`; `DisableComponent`
+  sets the component state to `disabled`, while `EnableComponent` restores a
+  disabled component to `normal`. The runtime now mirrors those state changes
+  whenever stock DTB handlers call `set_focus`, `enable`, or `disable`, while
+  keeping compatibility with the earlier `kDisabled`/`kNormal` script symbols.
+- **UIComponent state constants - `[HARMONIX]` + `[DTB-SURFACE]`.**
+  ihatecompvir's `UIComponent::State` enum is `kNormal=0`, `kFocused=1`,
+  `kDisabled=2`, `kSelecting=3`, `kSelected=4`, and stock GH2 scripts compare
+  `{component get_state}` directly against symbols like `kDisabled`. The
+  Sandbox equality operator now treats those five state symbols as their source
+  enum values only for numeric comparison, so pause/dialog/menu branches can
+  mirror source `get_state` checks without rewriting object state storage.
+- **Panel focus query surface — `[HARMONIX]` + `[DTB-SURFACE]`.**
+  ihatecompvir's `UIComponent` handler exposes `can_have_focus`; `PanelDir`
+  exposes `focus_name`, `get_focusable_components`, and
+  `set_show_focus_component`, with `mShowFocusComponent` defaulting true. The
+  runtime now reports those queries from the live panel focus state and keeps
+  decorative `UILabel`/`BandLabel` children out of focusable-component results.
+- **UIComponent select state — `[HARMONIX]` + `[VERBATIM-DATA]`.**
+  ihatecompvir's `UIComponent::SendSelect` sets a focused component to
+  `selecting`, then `Poll` calls `FinishSelecting` after `sSelectFrames`.
+  Stock `ui_objects.dta` sets `BandButton (select_frames 10)`, so app-level
+  Confirm now sends the focused component through a 10-frame `selecting` state
+  before it settles back to `focused`; the menu renderer reads that live state
+  when choosing button text color.
+- **UISlider scroll-select state — `[HARMONIX]` + `[DTB-SURFACE]`.**
+  ihatecompvir's `UISlider` inherits `ScrollSelect`: `store` captures the
+  selected aux value, `confirm` resets the selection, `undo` reverts it, and
+  `is_scroll_selected` reports whether a slider is currently selected for
+  scrolling. Stock `options.dta` `AUDIO_SETTINGS_PANEL_HANDLERS` uses
+  `slider_selected`, `slider_start_msg`, `slider_select_cancel`, and
+  `set_volumes` around `gs_band.sld`, `gs_guitar.sld`, and `gs_sfx.sld`.
+  The runtime now exposes those slider messages, lets selected sliders consume
+  up/down as value changes, and lets Back cancel/revert the selected slider
+  before the screen's normal back route runs.
+- **Audio settings slider display - `[DTB-SURFACE]` + `[MILO-SOURCE]` + `[HARMONIX]`.**
+  Stock `options.dta` defines `audio_settings_panel` as a `SliderPanel` backed
+  by `game_settings.milo`; that MILO's `BandSlider` entries serialize the
+  resource `aaron`, navigation target, and label/config tokens `gs_band`,
+  `gs_guitar`, and `gs_sound_fx`. ihatecompvir's `UISlider` source identifies
+  sliders as `UIComponent`s whose frames correspond to values, while
+  `slider.milo_ps2` supplies the shared slider meshes and aaron/char materials.
+  The menu renderer now draws slider token labels from the source `BandSlider`
+  entries and places the shared slider resource from the same live world/frame
+  state used by `UISlider::Frame()`.
+- **Video settings checkbox/button alignment - `[MILO-SOURCE]` + `[HARMONIX]`.**
+  Stock `video_settings.milo_ps2` places the `lefty*.chk`, `widescreen.chk`,
+  and `p_scan.chk` CheckBox objects as siblings of their `BandButton` rows under
+  `vs_buttons.view`. ihatecompvir's `BandButton`/`UIButton`/`UILabel` readers
+  show the button tail carries `fitType`, width, height, leading, and alignment;
+  the video-settings rows decode as `fitType == 2`, `width == 180`,
+  `height == 30`, `alignment == 33`, and `width_bound == 400`, with the checkbox
+  world X to the left of the button text world X. The renderer now uses decoded
+  BandButton alignment for non-main-menu button text, so checkboxes no longer
+  sit on top of their labels.
+- **Options root text layout - `[MILO-SOURCE]`.** Stock
+  `options.milo_ps2` owns the tilted poster title and row placements, including
+  `op_title.lbl` world `(-22, 0, 37)` with BandLabel tail
+  `(width=210, height=55, text_size=54, alignment=68, width_bound=400)`, and
+  six `BandButton` rows with `text_size=35`, `height=40`, alignment `36`, and
+  source row widths from `120` to `280`. `ghogx_menu_labels_test` pins those
+  world positions and tail fields so the options menu stays driven by the MILO
+  rather than per-screen renderer nudges.
+- **Video settings behavior lock-in - `[DTB-SURFACE]`.**
+  `options.dta::VIDEO_SETTINGS_PANEL_HANDLERS` is the source of truth for the
+  non-pause video settings flow. `ghogx_ui_test` now pins panel focus on
+  `gs_left_p1.btn`, non-pause P2-lefty remaining enabled, enter-time checkbox
+  sync from `options`, helpbar switching between `help_onoff` and `help_select`
+  when focus moves to `calibrate_lag.btn`, `set_lefty <player> <checked>` writes
+  for both players, widescreen writes, unchecked p-scan routing to
+  `pscan_warning_screen`, checked p-scan toggling off in place, calibrate routing
+  to `lag_screen`, and Triangle/Back returning to `options_screen`. The runtime
+  boolean helpers also treat authored `TRUE`/`FALSE` symbols as booleans, so
+  stock calls such as `options set_pscan TRUE` preserve the intended option
+  state.
+- **Lag calibration state/countdown surface - `[DTB-SURFACE]` +
+  `[VERBATIM-DATA]`.** Stock `options.dta::LagPanel lag_panel` owns the
+  `lag_screen`/`pause_lag_screen` text, groups, helpbar state, sync-offset sign,
+  reset button, autocalibrate countdown, hit capture, and cue calls. The
+  interpreter now covers the authored helpers this panel needs (`array`, `int`,
+  and `thread_task` sleep segmentation), while `ghogx_ui_test` pins enter-time
+  `options get_sync_offset` negation, `update_text`/`update_helpbar` for
+  `init` and `calibrating`, `DUp`/`DDown` hit recording, `reset_to_zero.btn`
+  numeric reset, first countdown beats, `practice_hat play`, sync-click cue
+  playback, success-state text, and exit-time `options set_sync_offset`
+  writeback.
+- **P-scan switch behavior lock-in - `[DTB-SURFACE]` + `[MILO-SOURCE]`.**
+  Stock `options.dta::PSCAN_SWITCH_SCREEN_HANDLERS` drives
+  `pscan_switch_screen` and its `pscan_switching.milo` panel. `ghogx_ui_test`
+  now pins the screen focus on `pscan_switching_panel`, panel focus on
+  `pscan_yes.btn`, `(allow_back FALSE)`, default `help_continue`/`help_updown`
+  helpbar display, transition-complete `options set_pscan TRUE`, the authored
+  15-second `test_time`, Yes returning to `video_settings_screen` while leaving
+  p-scan enabled, No clearing p-scan before returning, and timer expiry clearing
+  p-scan before returning. `ghogx_menu_labels_test` pins the matching MILO labels
+  and Yes/No button rows from `ui/gen/pscan_switching.milo_ps2`.
+- **TutorialPanel state/VO surface - `[HARMONIX]` + `[DTB-SURFACE]`.**
+  ihatecompvir's RB2 source identifies TutorialPanel as the owner of the
+  tutorial lifecycle/message handler; GH2 `tutorials.dta` supplies the concrete
+  `TUTORIAL_STATES` order plus `get_next_state`, `set_state`, `play_vo`,
+  `reset_vo`, `is_vo_playing`, and `is_missing_guitar` call sites. The runtime
+  now advances lessons through that stock order, records voice-over state, and
+  routes the missing-guitar gate through `game is_missing_controller`.
+- **Training root text layout - `[MILO-SOURCE]` + `[DTB-SURFACE]`.**
+  Stock `training.milo_ps2` owns the visible mode-selection rows under
+  `cp_buttons.view`: `selectmode.lbl` at `(65, 0, 37)` with Clarendon
+  BandLabel tail `(width=150, height=40, text_size=25, alignment=66,
+  width_bound=400)`, plus `tutorials.btn` at `(65, 0, 25)` and `practice.btn`
+  at `(65, 0, 0)` with Clarendon BandButton tails `(width=150, height=30,
+  text_size=30, alignment=34)`. The DTB screen handlers still own focus and
+  routing to `tutorials_screen` / `practice_selsong_screen`; the renderer should
+  not hand-position these rows beyond the decoded MILO fields.
+- **Quoted panel MILO file values — `[VERBATIM]`.** Most stock panels use bareword
+  `(file training.milo)`, but `tutorials_panel` uses quoted
+  `(file "tutorials.milo")`. The menu renderer now accepts both symbol and
+  string file values when resolving panel MILOs, so quoted stock files still
+  contribute scene geometry and labels.
+- **Shared UI macro prepass — `[VERBATIM]`.** Stock compiled DTBs preserve
+  `#define` directives and cross-file macro references; ARK entry order places
+  `multiplayer.dtb` before `career.dtb`, even though the multiplayer venue
+  screens reuse `SEL_VENUE_SCREEN_HANDLERS` from career. The UI loader now first
+  scans all `ui/gen/*.dtb` files into the shared macro table, then loads objects
+  with that complete table, so source-authored screen handler macros expand
+  independent of ARK listing order.
+- **`GHScreen set_focus` component target — `[DTB-SURFACE]`.** The venue macro's
+  `enter` handler calls `{$this set_focus {$this venue_button $venue}}`, where
+  `$this` is the screen and the target is a button object inside
+  `sel_venue_panel`. The runtime now resolves that component back to its owning
+  panel: the screen keeps panel focus, and the panel stores the selected
+  component focus.
+- **Object foreach callback messages — `[DTB-SURFACE]`.** `career.dta` sends
+  `{campaign foreach_venue $venue {...}}`, which must bind `$venue` before the
+  callback body runs; eager argument evaluation executes the body once with an
+  empty value. The interpreter now recognizes `foreach_*` object messages when
+  the target exposes `<message>_values`, then evaluates the callback once per
+  source value.
+- **`foreach_int` and string object targets — `[DTB-SURFACE]`.** `manage_bands.dta`
+  uses `{foreach_int $idx 0 MAX_NUM_PROFILES ...}` to address
+  `cp_band0.btn` through `cp_band7.btn`, then stores a `sprintf` result in
+  `$btn` and calls `{$btn set_text new_band}`. The interpreter now treats
+  `foreach_int` as an exclusive-upper-bound integer loop and resolves
+  string-valued command heads as object names, matching that stock profile-menu
+  script shape.
+- **Venue list/default/index — `[VERBATIM]` + `[DTB-SURFACE]`.** The venue order
+  comes directly from `config/gen/gh2.dtb` `(venues battle small1 small2 big
+  theatre fest arena stone)`. Stock `main.dta` `reset_player_settings` sets
+  `game set_venue small2`, and the shared venue screen macro reads
+  `get_venue`, `get_venue_index`, `set_venue`, and `set_career_venue`; the
+  game-side object now answers those calls from the loaded venue list.
+- **Fresh profile slots — `[DTB-SURFACE]`.** `chooseprof_panel enter` asks
+  `campaign is_empty_profile` for each stock profile slot before either
+  displaying `new_band` or `campaign profile_name`. The current no-save profile
+  store has zero profiles, so every queried slot reports empty and
+  `profile_name` is empty until profile persistence lands.
+- **Options choose-band layout - `[DTB-SURFACE]` + `[MILO-SOURCE]`.**
+  Stock `options.dtb` routes `op_data.btn` to `options_chooseprof_screen`, which
+  reuses `manage_bands.dtb`'s `chooseprof_panel` and `PROFILE_PANEL_COMMON`
+  setup. `chooseprof.milo_ps2` supplies `cp_title.lbl` at world Z 158.610 and
+  the eight `cp_band*.btn` rows from Z 118.497 down to -168.999, with a
+  source-authored nav ring from `cp_band0.btn` through `cp_band7.btn` and back
+  to `cp_band0.btn`. `ghogx_ui_test` pins the route target, and
+  `ghogx_menu_labels_test` pins the MILO-authored title/profile-row layout.
+- **Profile name entry flow — `[DTB-SURFACE]`.** `manage_bands.dta`
+  `nameprof_screen` drives a `BandTextEntry` named `profile.ten` via
+  `get_text`, `length`, `no_text_entered`, `user_can_scroll`, and
+  `resume_input`, then saves through `campaign set_profile_name` and routes via
+  `autosave_goto`. The text-entry object now answers that method surface, and
+  `campaign` keeps an in-memory slot/name table with `profile_slot`,
+  `empty_slot`, `is_empty_profile`, `profile_name`, `has_profile_name`, and
+  `set_profile_name`. `autosave_goto` currently performs the requested
+  `ui goto_screen` directly; the autosave interstitial itself remains a later
+  fidelity layer.
+- **Profile delete/save-complete flow - `[DTB-SURFACE]`.** Stock
+  `manage_bands.dta::manage_band_screen` routes `delete_band.btn` into
+  `mem_card.dta::delete_confirm`, whose first dialog button calls
+  `campaign delete_slot [selected_slot]` before `autosave_goto options_screen`.
+  The save-success paths in `mem_card.dta` call `campaign save_complete`.
+  Campaign now clears the selected in-memory profile slot, marks the store dirty
+  on profile changes/deletes, and clears that dirty flag when save completion is
+  reported.
+- **Text-entry helper/min/max — `[DTB-SURFACE]`.** The stock global
+  `get_text_entry_help_text` function is authored in `splash.dta` and reused by
+  name/high-score entry screens; the interpreter now exposes that helper shape
+  directly, along with `min`/`max` used by the name-entry length animation.
+- **Endgame collection helpers — `[DTB-SURFACE]`.** `endgame.dta` cash-award and
+  high-score handlers use `elem`, `find_elem`, `random_elem`, `remove_elem`,
+  `++`, `+=`, and `printf` on DataArray rows such as
+  `CASH_AWARD_DEDUCTIONS`. The interpreter now implements these shared
+  primitives, including content-based array equality for row removal and
+  assignment back into `$variables`. `random_elem` is deterministic for now
+  (first element) so test/proof captures stay repeatable; game-RNG parity is
+  still a later refinement.
+- **Top-level DTB functions — `[VERBATIM]`.** Stock UI DTBs define helpers with
+  `{func name ...}` and call them as bare commands, e.g. `endgame.dta`
+  `goto_endgame_complete`, `mem_card.dta` `is_autosave_queued`, and
+  `splash.dta` `get_text_entry_help_text`. The UI loader now preserves those
+  function bodies verbatim, and the interpreter invokes them with normal
+  evaluated arguments plus local parameter binding.
 - **Transition protocol — `[VERBATIM-TRACE]` (menus.md, 195 s verified trace).**
-  exit = `screen_change|screen_back -> exit(screen+panels) -> ui_exit[_back] -> unload`;
-  enter = `change_proxies -> load -> finish_load -> ui_enter[_back] -> enter`. The
+  exit = `screen_change|screen_back -> exit(screen+panels) -> ui_exit[_back] -> exit_complete(screen+panels) -> unload`;
+  enter = `change_proxies -> load -> finish_load -> ui_enter[_back] -> enter`.
+  Screen-to-screen replacement now opens a real `ui in_transition` window when
+  both screens allow transitions (default on; stock DTBs opt out with
+  `animate_transition FALSE`). During that window the old screen has exited but
+  has not received `exit_complete`/`unload`, and the new screen's
+  `TRANSITION_COMPLETE_MSG` is deferred until the timer closes. The menu
+  renderer now consumes the manager's transition snapshot, keeps the exiting
+  screen rendered as a second layer during that window, and crossfades it with
+  the entering screen instead of visually hard-cutting at `goto_screen`.
+  Static-capture state fires `TRANSITION_COMPLETE_MSG` immediately only for
+  opt-out screens; gameplay loading handoffs (`loading_screen` /
+  `practice_loading_screen`) keep completion external to menu rendering.
   `screen_back` exceptions (chooseprof/mem_card/bonus_material/credits) fall out of
   "fire screen_back only if the screen defines that handler" — no name list.
   goto=replace; push=overlay (underlying stays loaded + unpolled); pop=exit overlay,
-  resume underlying. OPEN `[INFERENCE]`: intra-message screen-vs-panel sub-ordering,
-  persistent-panel (meta/helpbar) reload skipping, per-screen scene-state IDs +
-  helpbar/focus application (Phase 5/6).
+  resume underlying. OPEN `[INFERENCE]`: exact authored visual interpolation
+  curve/slide/camera work during the transition window, intra-message
+  screen-vs-panel sub-ordering, persistent-panel (meta/helpbar) reload
+  skipping, per-screen scene-state IDs + helpbar/focus application (Phase 5/6).
+
+- **Localized label writes — `[DTB-SURFACE]` + `[VERBATIM-DATA]`.** Stock
+  `loading.dta` enters with `{tip.lbl set_localized_text {tips random_tip}}`;
+  `tips random_tip` returns the authored tip key from `tips.dtb`, and
+  `set_localized_text`/`set_localized` now resolve that token through the PS2
+  locale before storing the live label text. Plain `set_text` remains literal.
+
+- **`GHScreen backwards_anim` route direction — `[DTB-SURFACE]`.** Stock
+  `career.dta`, `options.dta`, `manage_bands.dta`, and `multiplayer.dta` call
+  `{$this backwards_anim}` immediately before an explicit `{ui goto_screen ...}`
+  or autosave route. The runtime now treats `backwards_anim` as a one-shot
+  request for the next replacement route to use the back transition direction,
+  giving those authored back-button handlers `ui_exit_back`/`ui_enter_back`
+  lifecycle instead of an ordinary forward replacement.
 
 ### Game-side objects from `config/gen/*.dtb` — core DONE
 `config_db.{h,cpp}` loads songs/guitars/store/campaign/gh2 (83 songs verified);
 `meta_objects.{h,cpp}` backs game/gamecfg/campaign/player0-1/song_provider:
 - `MetaObject` get_<x>/set_<x> accessor convention — `[HARMONIX]`+`[DTB-SURFACE]`
   (menus pair set_character/get_character, so they MUST round-trip; no per-msg code).
+- `MetaObject` direct no-arg property reads — `[DTB-SURFACE]` + local main
+  parity. Stock result scripts use commands like `{player0 score}`,
+  `{player0 percent_hit}`, and `{band star_rating}` as direct reads rather than
+  `get_` accessors. Menu-side meta objects now answer a no-argument message with
+  the same-named stored property when it exists.
+- `MetaObject` array-key `set/get/has` — `[DTB-SURFACE]`. Stock practice
+  selection writes `{gamecfg set (practice_sections 0) $idx}` and
+  `{gamecfg set (practice_sections 1) $idx}`. Meta objects now serialize that
+  array-shaped key as stored state so the authored script can run without a
+  practice-only special case.
+- `PlayerCfg` result/tutorial surface — `[DTB-SURFACE]`. Stock endgame,
+  multiplayer, practice, and tutorial scripts message `player0`/`player1` for
+  score, percent, streak, star, gem, star-power, and sink/player-matcher
+  methods. `PlayerConfig` now owns that surface with conservative zero defaults
+  and direct property reads; live gameplay can replace the stored values without
+  changing the menu scripts.
+- `Practice section provider` — `[VERBATIM-DATA]` + `[DTB-SURFACE]`. The list
+  starts with `full_song`, then is extracted from stock MIDI `[section ...]`
+  text events for the first campaign song. Stock `practice.dta` accesses it via
+  `{game practice_section_provider}`, `section_provider set_start_section`, and
+  `section_provider section_after_last`.
 - `GameConfig` get_song_text/get_song_artist_text/get_song_caption — `[VERBATIM-DATA]`
   (songs.dtb `find_keyed` name/artist); get_player_config -> per-player MetaObjects.
 - `Campaign` num_profiles = real empty-profile-store size (0 on fresh boot) —
@@ -327,5 +714,206 @@ objects (game.venue=small2, game.character=punk1, player0.difficulty=Medium).
 
 STILL OPEN (flagged `[INFERENCE]`, refined per-screen from config DTBs + recomp via
 the unhandled log): the deeper game-vs-player state split, campaign progression
-(beat_song/cash/unlocks/status), song_provider/store specifics, synth/play_sfx,
-profilemgr/content_mgr/memcard.
+(beat_song/cash/unlocks/status), song_provider/store specifics,
+actual decoded audio-bank playback, profilemgr/content_mgr/memcard.
+- **Credits num_lines contract - `[DTB-SURFACE]` + `[VERBATIM-DATA]`.**
+  Stock `options.dta::credits_screen` compares
+  `(+ 1 {{credits_panel find credits.lst} selected_pos})` with
+  `{$this num_lines}` before routing back to `options_screen`. The runtime now
+  seeds `credits_screen.num_lines` from decoded `config/gen/credits.dtb` row
+  count and exposes `num_lines` as a UI builtin.
+- **Credits UIList layout - `[VERBATIM-DATA]` + `[MiloLib]`.** The stock
+  `credits.milo_ps2` `credits.lst` is a rev-2 UIList with 16 visible rows,
+  25-unit row spacing, 30-unit legacy text height, world Z 186, and source
+  autoscroll speed 1.0. The initial decoded credit rows are intentionally blank,
+  so visual proof needs a late enough frame for the title rows to enter.
+- **Credits UIList autoscroll state - `[HARMONIX]` + `[MILO-SOURCE]`.**
+  ihatecompvir's `CreditsPanel::Enter` calls `mList->SetSelected(0, -1)` and
+  `mList->AutoScroll()`, while `UIList::Poll` waits `mAutoScrollPause`, calls
+  `Scroll(mAutoScrollDir)`, then lets `UIListState::Poll` move from
+  `mFirstShowing` to `mTargetShowing` over `mSpeed`. The runtime now keeps those
+  list-state fields (`first_showing`, `target_showing`, `selected_display`,
+  `scroll_step_percent`, `current_scroll`) separate from the auto-scroll enabled
+  flag, and the credits renderer draws the source 16-row window from fractional
+  first-showing instead of popping to a new integer row.
+- **Memory-card dialog button helpers - `[DTB-SURFACE]`.** Stock
+  `mem_card.dta` dialog defines `get_button`, `set_button_text`,
+  `set_button_focus`, and `hide_button` around `dl_button1.btn` /
+  `dl_button2.btn`. The runtime dialog helper now mirrors that surface so
+  boot/memory-card dialogs can resolve, show, focus, and disable their stock
+  buttons through the same messages the authored script uses.
+- **Helpbar display message - `[DTB-SURFACE]`.** Stock scripts send
+  `helpbar set_display (...)` from dialog, store, lag, and text-entry flows.
+  `set_display`, `display`, and `get_display` are now generic UI object
+  messages as well as the legacy singleton path, so the real loaded
+  `HelpBarPanel helpbar` can carry authored display arrays directly.
+- **Shared helpbar footer rendering - `[MILO]` + `[VERBATIM-DATA]` +
+  `[HARMONIX]`.** The footer is global structure with per-screen contents:
+  stock screens opt into the shared `HelpBarPanel helpbar` by listing it in
+  `(panels ...)`, while each screen or dynamic handler supplies the display
+  token array. The renderer now keeps that split: it draws the footer only for
+  screens whose source panel list includes `helpbar`, reads tokens from the live
+  `helpbar.display`, and draws the global footer from `ui/gen/helpbar.milo_ps2`
+  plus `splash.dtb` source data. `ScreenManager::enter_sequence` applies the
+  same source-panel gate when copying a screen's `helpbar` display into the
+  shared `HelpBarPanel`, so non-footer screens cannot clear or replace it. The
+  bottom-row anchors come from `help_bar_starting.mesh` at
+  `(-294.915, 0, -205)` and `help_bar_strumbar.mesh` at `(90.699, 0, -205)`;
+  and the renderer reads `max_labels 4`, `max_buttons 4`,
+  `button_spacing 35`, `text_spacing 30`, and `strumbar_spacing 70` from the
+  live stock `HelpBarPanel helpbar` object loaded from `splash.dtb`. Footer
+  text uses `help_bar.txt`'s decoded `helveticablackcondensed.font`, size `18`,
+  leading `0.75`, alignment `33`, template world `(0, 0, 15)`, and grey
+  `(0.9, 0.9, 0.9, 1.0)` color. Footer icons now use the authored
+  `help_bar.mesh` / `help_bar_strum.mesh` geometry placed into the shared
+  HelpBarPanel slots instead of flowing each item from the previous label's
+  rendered width. Footer box corners use the decoded `help_box_left.mesh` /
+  `help_box_right.mesh` transforms and UVs; the center strip still uses the
+  source `help_box_mid.tex` as a stretched fill because the static GH2 mid mesh
+  carries zeroed UVs and stock `HelpBarPanel::DoUpdateConfig` populates widget
+  geometry at runtime. `max_labels` and `max_buttons` cap the rendered token
+  pairs together, matching the source object limits. ihatecompvir's RB2 dump
+  exposes `HelpBarPanel::mWidgetXPos[9]` / `mLabelSpace` as runtime fields, but
+  GH2 PS2 `splash.dtb` serializes only the public spacing/cap properties above;
+  the wider strum/fat-bar right edge is therefore treated as runtime
+  `HelpBarPanel` slot geometry and traced from the native setlist footer shape,
+  not inferred from the rendered `UP/DOWN` text width. `hb_fret3.tex` is
+  decoded and rendered in its own third fret slot even though the stock GH2
+  static helpbar displays scanned so far use `fret1`, `fret2`, and `strum`.
+  Menu-mode renderers now default their camera aspect to the PS2-authored 4:3
+  frame instead of inheriting the widescreen backbuffer aspect; this keeps the
+  global helpbar and setlist paper in the same projection family as the source
+  `metacam` menu assets while preserving `GHOGX_CAMERA_ASPECT` as an explicit
+  diagnostic override.
+- **StorePanel cost messages - `[DTB-SURFACE]` + `[VERBATIM-DATA]`.**
+  Stock `career.dta::store_panel` calls panel-side `price`, `low_cost`, and
+  `high_cost` while its item/category providers read from decoded
+  `config/gen/store`. The runtime now bridges those panel messages to the live
+  `store_*_provider` singletons, so category ranges and item prices are derived
+  from the same store table as the stock menu script.
+- **Guitar display anchors - `[MILO-SOURCE]` + `[DTB-SURFACE]`.**
+  Stock `ui/gen/guitar_display.milo_ps2` supplies the menu-space placement
+  anchors used by the live 3D guitar renderer: `guitar_single.view`
+  `(16, -162, -58)`, `guitar_store.view` `(-33, 0, -30)`,
+  `guitar_axe.view` `(-11.819, 0, 27.719)`, `guitar_p1.view`
+  `(-8.5, -150, -62)`, and `guitar_p2.view` `(20.7, -150, -62)`, all parented
+  to `guitar_display.view`. The same source MILO also supplies the actual
+  guitar attachment placers: `guitar_store.placer`, `guitar_axe.placer`, and
+  `guitar_multi{0,1}.placer`, plus their source poses:
+  `guitar_store.filt -> guitar_store.tnm @ 240`,
+  `guitar_axe.filt -> guitar_axe.tnm @ 100`, and
+  `guitar_p{1,2}.filt -> guitar_p{1,2}.tnm @ 240`. The runtime keeps that rig
+  scene as the fallback path, and the renderer treats decoded `BandPlacer`
+  entries as first-class transform parents so meshes parented to
+  `guitar_store.placer`, `guitar_axe.placer`, or the multiplayer guitar placers
+  compose through the same MILO-authored anchor chain. When the live stock script
+  passes screen-owned objects through `GuitarDisplayPanel::show_guitar`, those
+  source objects win:
+  `sel_guitar.milo_ps2` supplies `guitar.pxy` under `guitar.grp`, its stored
+  world transform `(-15.865, -685, -7.729)`, `guitar_single.filt ->
+  guitar_single.tnm @ 120`, and `guitar.env` lighting. The runtime stores that
+  state per player, resolves live `UIProxy`/`BandPlacer` objects as transform
+  parents, applies the source display filter rotation to the selected target,
+  and reparents root guitar meshes to the DTB-selected player target when
+  available. The multiplayer select screen is also live-proxy authored, not a
+  shared-placer-only display: stock `multiplayer.dta` passes
+  `guitar_multi{0,1}.pxy` and `guitar_multi{0,1}.filt`, and
+  `multi_sel_guitar.milo_ps2` pins those proxies under
+  `mgs_guitar_p{1,2}.grp` at local `(-20, -650, -14)` / `(20, -650, -14)`,
+  stored world `(-20.855, -670, -11.626)` / `(25.854, -670, -11.628)`,
+  with `guitar_multi{0,1}.filt -> guitar_multi{0,1}.tnm @ 500`.
+  Store's stock handler likewise does
+  `store_guitar_display_panel set_env 0 {$dir find ...}` before
+  `show_guitar`; therefore `Environ`/`Light` entries are script-visible MILO
+  objects. `store.milo_ps2` supplies `guitar.pxy` under `guitar.grp`, local
+  `(6, -85, -16)`, world `(-23.650, -648.406, -18.863)`,
+  `guitar_single.filt -> guitar_single.tnm @ 240`, `guitar.env`, and
+  `guitar_black.env`. The separate guitar renderer uses the live source
+  environment when present, otherwise the rig root's authored
+  `guitar_display.view -> guitar_setup.env` fallback, for source `use_environ`
+  guitar materials. `ghogx_menu_labels_test` pins the authored view, placer,
+  proxy, filter, environment, and TransAnim routes directly from the PS2 MILOs;
+  `ghogx.exe mats` confirms the displayed guitar skins carry `use_environ` on
+  their source materials.
+- **Campaign cash/unlock economy - `[DTB-SURFACE]` + `[VERBATIM-DATA]`.**
+  Stock career/store/bonus scripts read `campaign cash`, `starting_cash`, and
+  `is_unlocked`, then purchase through `campaign buy_item <item> <price>`.
+  The runtime now seeds `starting_cash` from decoded `config/gen/campaign`
+  `(cash (starting ...))`, keeps campaign cash as mutable profile state, and
+  marks purchased store symbols unlocked while subtracting the stock store
+  price. Bonus-video unlock checks therefore use the same purchased-symbol
+  state as store item sold/buy logic.
+- **Campaign song progression - `[DTB-SURFACE]` + `[VERBATIM-DATA]`.**
+  Stock career/endgame/game scripts query `beat_song`, `cheat_beat_song`,
+  `career_score`, `get_status_progress`, `finish_song`, `won_campaign`,
+  `is_encore_song`, `final_song`, `is_store_song`, and `get_cur_encore`.
+  The runtime now derives campaign song order, encores, and final-song checks
+  from decoded `config/gen/campaign`, derives store-song checks from decoded
+  `config/gen/store`, and keeps per-difficulty beaten-song/best-score state for
+  career progress text and endgame completion routing.
+- **Campaign guitar-award queue - `[DTB-SURFACE]` + `[VERBATIM-DATA]`.**
+  Stock `endgame.dta::post_show_screen` routes to `unlock_guitar_screen` when
+  `{campaign num_guitar_awards}` is nonzero, while
+  `unlock_guitar_panel` consumes `{campaign next_guitar_award}` before showing
+  the guitar. The runtime now queues tour-passed guitar awards when a career
+  finish reaches the decoded campaign max status, then consumes pending awards
+  in decoded `config/gen/store` guitar order while filtering the exact reward
+  metadata from decoded `config/gen/guitars`.
+- **Campaign encore-unlock gate - `[DTB-SURFACE]` + `[VERBATIM-DATA]`.**
+  Stock `endgame.dta::post_show_screen` routes to `endgame_encore_screen` when
+  `{game get encore_unlock_check}` and `{campaign encore_newly_unlocked
+  $freebird}` pass. The runtime now derives encore unlock potential and newly
+  unlocked status from decoded `config/gen/campaign` tier order plus
+  `required_songs`, requiring the current regular song to be newly completed at
+  the exact threshold. The stock `$freebird` out-param is recorded as
+  `campaign.last_encore_freebird` until interpreter-level by-reference object
+  message arguments are modeled.
+- **Campaign attract-song picker - `[DTB-SURFACE]` + `[VERBATIM-DATA]`.**
+  Stock `splash.dta::splash_screen` enters attract mode by setting
+  `{game set_song {campaign pick_attract_song}}`, forcing expert difficulty,
+  calling `game set_quickplay`, marking `game_screen attract_mode TRUE`, and
+  routing to `loading_screen`. The runtime now selects attract songs from the
+  decoded `config/gen/campaign` song order and advances deterministically for
+  repeatable harness captures; profile/random weighting remains open.
+- **Menu sound script events - `[DTB-SURFACE]`.** `synth play_sequence`,
+  `synth stop_all_sfx`/`pause_all_sfx`, global `play_sfx`/`stop_sfx`,
+  `meta_music`, `world play_sfx`/`play_meta_sfx`, and direct cue-object
+  `sync_click.cue play` now land on menu singleton objects and preserve the
+  authored sequence/cue/control symbol. This removes them from the unhandled
+  path and gives transition/input work source-shaped sound events; real
+  bank/cue playback is still open.
+- **Shared menu input SFX - `[DTB-SURFACE]`.** Stock `sfx.dta` top-level
+  `SELECT_START_MSG`/`SCROLL_MSG`/`FOCUS_MSG`/`SCREEN_BACK_MSG` handlers are
+  represented on the `ui` manager because they are not normal screen objects in
+  this harness. The conditions are transcribed from `sfx.dta`: select normally
+  plays `button_select`, the authored song/difficulty/restart cases play
+  `button_play`, focus/scroll play `button_toggle` with the stock credits and
+  character-select exceptions, and Back plays `button_back.cue` when `meta
+  is_up` is true. App-level Confirm dispatches the shared select sound before
+  the selected panel changes screens so `{ui current_screen}` and `$component`
+  match the stock handler's inputs.
+- **Bad-select event surface - `[DTB-SURFACE]`.** Stock `sfx.dta`
+  defines `BAD_SELECT_MSG` -> `play_sfx button_error`, except when
+  `{ui focus_panel}` is `nameprof_panel`; practice also routes invalid section
+  selection through `(ui BAD_SELECT_START_MSG)`. The UI manager now owns that
+  start message, dispatches `BAD_SELECT_MSG` to the focused panel/screen, and
+  applies the same `button_error` exception. Disabled app-level Confirm sets
+  `$component` first, then routes through that event instead of silently
+  returning.
+- **Stock init boot path - `[VERBATIM-DATA]`.** Menu mode now runs the
+  executable roots from `ui/gen/init.dtb` after loading screen objects and meta
+  singletons, so `meta set_defaults`, `ui my_init`, and
+  `ui goto_screen $first_screen` come from the authored boot script. The direct
+  bootup-load jump remains only as a stripped-data fallback.
+- **PS2 locale fallback - `[VERBATIM-DATA]`.** Stock scripts call base tokens
+  such as `mc_checking`, while the PS2 locale table stores the platform body at
+  `mc_checking_ps2`. Menu localization now tries the exact key first, then the
+  `_ps2` key, matching the PS2 data shape without hardcoding individual
+  strings.
+- **BandLabel vertical alignment - `[HARMONIX]` + `[VERBATIM-DATA]`.**
+  MiloLib/RndText names the serialized alignment values as
+  `kTopCenter = 0x12`, `kMiddleCenter = 0x22`, and `kBottomCenter = 0x42`.
+  Dialog labels use that split directly (`dl_message.lbl` is top-center,
+  `dl_title.lbl` is bottom-center), so rendered BandLabel text now anchors the
+  wrapped block from those vertical bits instead of treating every label as
+  middle-aligned.

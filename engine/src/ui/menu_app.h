@@ -19,6 +19,6 @@ namespace ghogx::ui {
 int run_menu_mode(const std::string& hdr, const std::string& ark,
                   const std::string& screenshot_path, int screenshot_frame,
                   int max_frames, int window_width = 960,
-                  int window_height = 720);
+                  int window_height = 720, float fixed_dt = 0.0f);
 
 }  // namespace ghogx::ui

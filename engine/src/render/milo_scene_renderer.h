@@ -131,8 +131,11 @@ class MiloSceneRenderer {
   void draw_over_scene(const OrbitCamera& cam);
   void draw_scene_only();
   void draw_scene_only_over_scene();
+  void draw_scene_only_over_scene_preserving_state();
+  void draw_scene_only_over_scene_preserving_state(const OrbitCamera& cam);
   void draw_text_over_scene();
   void set_viewport(int x, int y, int width, int height);
+  void set_default_camera_aspect(float aspect);
   void set_clear_color(uint8_t r, uint8_t g, uint8_t b);
   void set_clear_depth_on_overlay(bool enabled);
   void set_environment_dynamic_lights(bool enabled);
@@ -305,6 +308,7 @@ class MiloSceneRenderer {
   int viewport_y_ = 0;
   int viewport_w_ = 0;
   int viewport_h_ = 0;
+  float default_camera_aspect_ = 0.0f;
   bool clear_depth_on_overlay_ = false;
   bool force_environment_dynamic_lights_ = false;
   float global_brightness_ = 1.0f;

@@ -77,6 +77,7 @@ class DataArray {
   const DataNode& at(std::size_t i) const { return nodes_.at(i); }
   DataNode& at(std::size_t i) { return nodes_.at(i); }
   void push(DataNode n) { nodes_.push_back(std::move(n)); }
+  void resize(std::size_t n) { nodes_.resize(n); }
 
   // Harmonix keyed-array convention: a child whose first element is the
   // symbol `key`, e.g. (artist "Skid Row") found by key "artist". Returns the

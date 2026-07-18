@@ -96,6 +96,7 @@ struct Reader {
 // metadata). GH2 Trans blocks then store the source RndTransformable fields as
 // u32 constraint, empty target string, u8 preserve_scale before parent.
 constexpr size_t kObjMeta = 9;
+constexpr size_t kGh2MeshVertexSourceStride = 48;
 
 float convert_fov_like_miloeditor(float fov, float aspect_ratio) {
   return std::atan(aspect_ratio * std::tan(0.5f * fov)) * 2.0f;
@@ -3510,8 +3511,9 @@ MeshObj decode_mesh(const std::string& entry_name,
     uint32_t vcount = r.u32();
 
     // Sanity-gate the vertex count against the remaining bytes: we need at least
-    // vcount*48 + 4 (face count) more bytes.
-    if (static_cast<uint64_t>(vcount) * sizeof(Vertex) + 4 > body.size() - r.pos) {
+    // vcount*48 + 4 (face count) more bytes in GH2 PS2 rev 28 source layout.
+    if (static_cast<uint64_t>(vcount) * kGh2MeshVertexSourceStride + 4 >
+        body.size() - r.pos) {
       mesh.error = "vertex_count " + std::to_string(vcount) + " exceeds entry";
       return mesh;
     }
@@ -3521,17 +3523,12 @@ MeshObj decode_mesh(const std::string& entry_name,
       Vertex& v = mesh.verts[i];
       v.px = r.f32(); v.py = r.f32(); v.pz = r.f32();
       v.nx = r.f32(); v.ny = r.f32(); v.nz = r.f32();
-      // ihatecompvir's RndMesh reader treats GH2 rev 28's next four floats as
-      // weights, not vertex colors. Keep venue diffuse neutral until skinned
-      // mesh weights are used by the native renderer.
-      const float weight0 = r.f32();
-      const float weight1 = r.f32();
-      const float weight2 = r.f32();
-      const float weight3 = r.f32();
-      (void)weight0;
-      (void)weight1;
-      (void)weight2;
-      (void)weight3;
+      // ihatecompvir's RndMesh reader treats GH2 rev 28's pre-separate-color
+      // slot as color first, then copies it into boneWeights when mBones exists.
+      v.w[0] = r.f32();
+      v.w[1] = r.f32();
+      v.w[2] = r.f32();
+      v.w[3] = r.f32();
       v.r = 1.0f; v.g = 1.0f; v.b = 1.0f; v.a = 1.0f;
       v.u  = r.f32(); v.v  = r.f32();
     }
@@ -3554,6 +3551,46 @@ MeshObj decode_mesh(const std::string& entry_name,
       if (idx >= vcount) {
         mesh.error = "face index out of range";
         return mesh;
+      }
+    }
+
+    if (ver > 0x17 && r.pos + 4 <= body.size()) {
+      const size_t group_size_pos = r.pos;
+      const uint32_t group_sizes_count = r.u32();
+      if (group_sizes_count <= body.size() - r.pos) {
+        r.skip(group_sizes_count);
+      } else {
+        r.pos = group_size_pos;
+      }
+    }
+
+    if (r.pos + 4 <= body.size()) {
+      const size_t bone_probe = r.pos;
+      const int32_t bone_marker = r.i32();
+      if (bone_marker > 0) {
+        r.pos = bone_probe;
+        if (ver >= 33) {
+          const uint32_t bone_count = r.u32();
+          if (bone_count <= 64 &&
+              static_cast<uint64_t>(bone_count) * (4 + 48) <= body.size() - r.pos) {
+            mesh.bones.reserve(bone_count);
+            for (uint32_t i = 0; i < bone_count; ++i) {
+              BoneTransform bone;
+              bone.name = r.str();
+              bone.offset = r.matrix();
+              if (!bone.name.empty()) mesh.bones.push_back(std::move(bone));
+            }
+          }
+        } else if (r.pos < body.size()) {
+          std::array<std::string, 4> names{};
+          std::array<Xfm, 4> offsets{};
+          for (std::string& name : names) name = r.str();
+          for (Xfm& offset : offsets) offset = r.matrix();
+          for (size_t i = 0; i < names.size(); ++i) {
+            if (names[i].empty()) break;
+            mesh.bones.push_back(BoneTransform{std::move(names[i]), offsets[i]});
+          }
+        }
       }
     }
 
@@ -3925,6 +3962,7 @@ std::array<float, 16> apply_transform_constraint(
 struct TransformNode {
   Xfm local;
   Xfm world_stored;
+  bool world_xfm_override = false;
   std::string parent;
   uint32_t constraint = 0;
 };
@@ -3935,6 +3973,7 @@ bool find_transform_node(const Scene& scene, const std::string& name,
     if (t.name == name) {
       out.local = t.local;
       out.world_stored = t.world_stored;
+      out.world_xfm_override = t.world_xfm_override;
       out.parent = t.parent;
       out.constraint = t.constraint;
       return true;
@@ -3944,6 +3983,7 @@ bool find_transform_node(const Scene& scene, const std::string& name,
     if (mesh.name == name) {
       out.local = mesh.local;
       out.world_stored = mesh.world_stored;
+      out.world_xfm_override = mesh.world_xfm_override;
       out.parent = mesh.parent;
       out.constraint = mesh.constraint;
       return true;
@@ -3953,8 +3993,18 @@ bool find_transform_node(const Scene& scene, const std::string& name,
     if (group.name == name) {
       out.local = group.has_transform ? group.local : Xfm{};
       out.world_stored = group.has_transform ? group.world_stored : Xfm{};
+      out.world_xfm_override = group.world_xfm_override;
       out.parent = group.parent;
       out.constraint = group.has_transform ? group.constraint : 0;
+      return true;
+    }
+  }
+  for (const BandPlacerObj& placer : scene.band_placers) {
+    if (placer.name == name && placer.decoded) {
+      out.local = placer.local;
+      out.world_stored = placer.world_stored;
+      out.parent = placer.parent;
+      out.constraint = 0;
       return true;
     }
   }
@@ -3974,6 +4024,10 @@ bool source_world_for_name(const Scene& scene, const std::string& name,
 
 bool source_world_from_node(const Scene& scene, const TransformNode& node,
                             std::array<float, 16>& world, int guard) {
+  if (node.world_xfm_override) {
+    world = xfm_to_mat4(node.world_stored);
+    return true;
+  }
   const std::array<float, 16> local = xfm_to_mat4(node.local);
   if (node.parent.empty()) {
     world = local;
@@ -4018,6 +4072,8 @@ const BandPlacerObj* Scene::find_band_placer(const std::string& name) const {
 }
 
 std::array<float, 16> Scene::world_matrix(const MeshObj& mesh) const {
+  if (mesh.world_xfm_override) return xfm_to_mat4(mesh.world_stored);
+
   // Mirror RndTransformable::WorldXfm_Force: compose local through the parent
   // chain, honoring kLocalRotate and kParentWorld instead of treating those
   // source fields as padding.
@@ -4199,6 +4255,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         m.face_count = owner.face_count;
         m.verts = owner.verts;
         m.indices = owner.indices;
+        m.bones = owner.bones;
         std::memcpy(m.bb_min, owner.bb_min, sizeof(m.bb_min));
         std::memcpy(m.bb_max, owner.bb_max, sizeof(m.bb_max));
         m.decoded = true;

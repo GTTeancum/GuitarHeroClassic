@@ -29,11 +29,26 @@ bool load_ui_dtb_from_ark(const gh::ark::ArkV3Reader& ark,
                           const std::vector<std::string>& ark_paths,
                           const std::string& dtb_path, ScreenManager& mgr);
 
+// Read a stock UI script DTB (normally ui/gen/init.dtb), preprocess it against
+// the PS2 define set, and return only executable top-level commands. Authored
+// declarations ({new ...}/{func ...}) are still handled by load_all_ui_screens.
+gh::dtb::NodeList load_ui_script_roots_from_ark(
+    const gh::ark::ArkV3Reader& ark,
+    const std::vector<std::string>& ark_paths,
+    const std::string& dtb_path);
+
 // Load EVERY ui/gen/*.dtb in the ARK into the manager -- the full stock screen
 // set, verbatim. ui/gen/ui.dtb is processed first so its #define macros are
 // visible to the rest (shared macro table). Returns the number of DTBs loaded.
 int load_all_ui_screens(const gh::ark::ArkV3Reader& ark,
                         const std::vector<std::string>& ark_paths,
                         ScreenManager& mgr);
+
+// Populate each DTB panel's ObjectDir with lightweight children for creatable
+// UIComponent entries and script-addressed Rnd perObjs found in its authored
+// panel MILO. Returns child count.
+int load_panel_milo_widgets(const gh::ark::ArkV3Reader& ark,
+                            const std::vector<std::string>& ark_paths,
+                            ScreenManager& mgr);
 
 }  // namespace ghogx::ui

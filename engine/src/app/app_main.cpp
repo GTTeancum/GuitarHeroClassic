@@ -3047,7 +3047,7 @@ int main(int argc, char** argv) {
     }
     return ghogx::ui::run_menu_mode(hdr, ark, screenshot_path, screenshot_frame,
                                     max_frames, render_size.width,
-                                    render_size.height);
+                                    render_size.height, fixed_dt);
   }
 
   // --scene: dedicated 3-D MILO scene viewer (venue/stage/track geometry).

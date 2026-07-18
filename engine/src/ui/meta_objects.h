@@ -16,6 +16,7 @@
 #include "core/symbol.h"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace ghogx::ui {
@@ -73,7 +74,10 @@ class Campaign : public MetaObject {
   bool handle_meta(Symbol msg, const DataArray& args, DataNode& out) override;
 
  private:
-  struct Profile {};  // name/slot/cash/status added as the store is fleshed out
+  struct Profile {
+    bool used = false;
+    std::string name;
+  };
   std::vector<Profile> profiles_;
 };
 

@@ -26,6 +26,7 @@
 
 #include "dtb.h"  // gh::dtb::Node / NodeList (tools/dtb)
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -100,6 +101,44 @@ class Host {
   // Diagnostics worklist: a builtin or class::message the interpreter hit but
   // does not implement. Hosts should dedup. Drives the screen fan-out.
   virtual void on_unhandled(const std::string& what) { (void)what; }
+
+  // Top-level stock `{func name ...}` helpers loaded from UI DTBs.
+  virtual const NodeList* resolve_function(Symbol name) {
+    (void)name;
+    return nullptr;
+  }
+
+  // Host-owned global commands such as `{game_restart}` are neither builtins
+  // nor object messages. They are still part of the stock script surface.
+  virtual bool handle_command(Symbol name, const DataArray& args, DataNode& out) {
+    (void)name;
+    (void)args;
+    (void)out;
+    return false;
+  }
+
+  // DataExists checks the current data directory first, then the registered
+  // data-function table. Hosts can extend "object exists" beyond static
+  // objects, e.g. named animation tasks.
+  virtual bool symbol_exists(Symbol name) {
+    return resolve_object(name) != nullptr || resolve_function(name) != nullptr;
+  }
+
+  // Harmonix OptionStr consumes command-line options as they are read. The
+  // default host has no app option source, so stock {option_str ...} returns 0.
+  virtual std::optional<std::string> consume_option_str(Symbol option) {
+    (void)option;
+    return std::nullopt;
+  }
+
+  // Stock menu scripts use {script_task (delay N) (script ...)} for boot and
+  // loading handoffs. The host owns the clock, so it queues those bodies.
+  virtual void schedule_script_task(const NodeList& body, Object* self,
+                                    float delay_seconds) {
+    (void)body;
+    (void)self;
+    (void)delay_seconds;
+  }
 };
 
 // Per-evaluation context. self = $this / [prop] target; component-style params
@@ -125,6 +164,8 @@ class Interp {
   // _MSG)/custom handlers.
   DataNode run_handler(const NodeList& handler_body, Object* self,
                        const DataArray& args, Env& parent_env);
+  DataNode run_function(const NodeList& function_body, const DataArray& args,
+                        Env& parent_env);
 
  private:
   DataNode eval_command(const Node& cmd, Env& env);
@@ -132,19 +173,41 @@ class Interp {
   Object* eval_object(const Node& head, Env& env);
   // Evaluate children[arg_start..] of `cmd` into a positional DataArray.
   DataArray eval_args(const Node& cmd, std::size_t arg_start, Env& env);
+  bool try_object_foreach(Object* target, Symbol msg, const Node& cmd,
+                          Env& env, DataNode& out);
+  DataNode assign_target(const Node& target, DataNode value, Env& env);
 
   // Builtins (each controls evaluation of its own operands).
   DataNode bi_if(const Node& c, Env&, bool has_else);
   DataNode bi_do(const Node& c, Env&);
   DataNode bi_switch(const Node& c, Env&);
   DataNode bi_foreach(const Node& c, Env&);
+  DataNode bi_foreach_int(const Node& c, Env&);
+  DataNode bi_cond(const Node& c, Env&);
   DataNode bi_set(const Node& c, Env&);
   DataNode bi_compare(const Node& c, Env&, int op);   // == != < > <= >=
   DataNode bi_logic(const Node& c, Env&, int op);     // ! && ||
   DataNode bi_arith(const Node& c, Env&, int op);     // + - * /
+  DataNode bi_mod(const Node& c, Env&);
+  DataNode bi_minmax(const Node& c, Env&, int op);
+  DataNode bi_inc_assign(const Node& c, Env&, int op);
+  DataNode bi_int(const Node& c, Env&);
+  DataNode bi_array(const Node& c, Env&);
+  DataNode bi_elem(const Node& c, Env&);
+  DataNode bi_find_elem(const Node& c, Env&);
+  DataNode bi_random_elem(const Node& c, Env&);
+  DataNode bi_remove_elem(const Node& c, Env&);
   DataNode bi_sprintf(const Node& c, Env&);
+  DataNode bi_sprint(const Node& c, Env&);
+  DataNode bi_resize(const Node& c, Env&);
+  DataNode bi_push_back(const Node& c, Env&);
+  DataNode bi_exists(const Node& c, Env&);
+  DataNode bi_option_str(const Node& c, Env&);
+  DataNode bi_text_entry_help(const Node& c, Env&);
+  DataNode bi_autosave_goto(const Node& c, Env&);
   DataNode bi_localize(const Node& c, Env&);
   DataNode bi_print(const Node& c, Env&);
+  DataNode bi_script_task(const Node& c, Env&);
 };
 
 }  // namespace ghogx::script

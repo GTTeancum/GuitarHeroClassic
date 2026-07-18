@@ -21,10 +21,56 @@ constexpr int kInkAlpha = 40;
 // A content band shorter than this (px) is a diacritic strip, not a glyph row;
 // it gets merged into the glyph row directly below it.
 constexpr int kMinRowHeight = 18;
-// Inter-glyph tracking added to each glyph's ink width to get its pen advance.
-// This is the ONE metric impact.font doesn't expose decodably (see FIDELITY 2c);
-// seeded small and meant to be pinned against a GH2 screenshot.
+// Fallback inter-glyph tracking when an old font lacks serialized CharInfo.
 constexpr float kDefaultTrackingPx = 2.0f;
+
+uint8_t next_font_char(const std::string& text, size_t& index) {
+  const uint8_t c = static_cast<uint8_t>(text[index++]);
+  switch (c) {
+    case 0x91:
+    case 0x92:
+    case 0xB4:
+    case '`':
+      return '\'';
+    case 0x93:
+    case 0x94:
+      return '"';
+    case 0x96:
+    case 0x97:
+      return '-';
+    default:
+      break;
+  }
+
+  if (c == 0xC2 && index < text.size()) {
+    const uint8_t d = static_cast<uint8_t>(text[index]);
+    if (d == 0xB4) {
+      ++index;
+      return '\'';
+    }
+  }
+
+  if (c == 0xE2 && index + 1 < text.size()) {
+    const uint8_t d = static_cast<uint8_t>(text[index]);
+    const uint8_t e = static_cast<uint8_t>(text[index + 1]);
+    if (d == 0x80) {
+      if (e == 0x98 || e == 0x99) {
+        index += 2;
+        return '\'';
+      }
+      if (e == 0x9C || e == 0x9D) {
+        index += 2;
+        return '"';
+      }
+      if (e == 0x93 || e == 0x94) {
+        index += 2;
+        return '-';
+      }
+    }
+  }
+
+  return c;
+}
 
 // Little-endian readers over a byte body, with bounds checks.
 struct Reader {
@@ -106,21 +152,29 @@ bool MenuFont::load(const std::string& hdr_path, const std::string& ark_path,
   }
   segment_glyphs();
   std::fprintf(stderr,
-               "[font] %s: charset=%zu kern=%zu atlas=%dx%d glyphs=%d cap=%.0f line=%.0f\n",
+               "[font] %s: charset=%zu kern=%zu atlas=%dx%d glyphs=%d cap=%.0f line=%.0f charinfo=%d\n",
                milo_path.c_str(), charset_.size(), kern_.size(), atlas_.width,
-               atlas_.height, glyph_count_, cap_height_, line_height_);
+               atlas_.height, glyph_count_, cap_height_, line_height_,
+               has_source_char_info_ ? 1 : 0);
   return valid();
 }
 
 bool MenuFont::parse_font(const std::vector<uint8_t>& body) {
   Reader r{body.data(), body.size()};
   int32_t version = r.i32();
+  has_source_char_info_ = false;
+  tex_cell_u_ = 0.0f;
+  tex_cell_v_ = 0.0f;
+  char_info_.fill(SourceCharInfo{});
   r.skip(9);                      // Hmx::Object metadata (all zero in practice)
   std::string material = r.str(); // "impact.mat"
   cap_height_ = r.f32();          // 34
   line_height_ = r.f32();         // 50
-  r.f32();                        // 0
-  r.f32();                        // 0
+  r.f32();                        // deprecatedSize
+  const float base_kerning = r.f32();
+  base_kerning_px_ =
+      std::isfinite(base_kerning) ? base_kerning * cap_height_
+                                  : kDefaultTrackingPx;
   int32_t charcount = r.i32();    // 104
   if (!r.ok || charcount <= 0 || charcount > 4096) {
     std::fprintf(stderr, "[font] bad header (v=%d mat='%s' cc=%d)\n", version,
@@ -133,8 +187,8 @@ bool MenuFont::parse_font(const std::vector<uint8_t>& body) {
   r.pos += static_cast<size_t>(charcount);
 
   // Kerning: u8 flag, i32 count, then count * [u8 L][u8 R][i16][f32 kern].
-  r.u8();                         // flag (1)
-  int32_t kerncount = r.i32();
+  const bool has_kerning = r.u8() != 0;
+  int32_t kerncount = has_kerning ? r.i32() : 0;
   kern_.clear();
   for (int32_t i = 0; i < kerncount && r.ok; ++i) {
     if (!r.need(8)) break;
@@ -145,6 +199,74 @@ bool MenuFont::parse_font(const std::vector<uint8_t>& body) {
     r.pos += 8;
     // The kern is an em-fraction (±1/34 ⇒ ±1px at cap height 34). Store native px.
     kern_[static_cast<uint16_t>((left << 8) | right)] = frac * cap_height_;
+  }
+  // MiloLib RndFont.cs source order after kerning:
+  // textureOwner, monospace, packed, bitmap size, texCellSize, CharInfo.
+  if (version > 8) r.str();       // textureOwner
+  if (version > 10) r.u8();       // monospace
+  if (version > 0x0e) r.u8();     // packed
+  if (version > 0x0c) {
+    r.i32();                      // bitmapWidth
+    r.i32();                      // bitmapHeight
+  }
+  if (version > 0x0d) {
+    tex_cell_u_ = r.f32();
+    tex_cell_v_ = r.f32();
+    if (version < 0x11) {
+      int valid_count = 0;
+      for (int i = 0; i < 256 && r.ok; ++i) {
+        SourceCharInfo info;
+        info.tex_u = r.f32();
+        info.tex_v = r.f32();
+        info.width = r.f32();
+        info.advance = version > 0x0e ? r.f32() : info.width;
+        const bool plausible =
+            std::isfinite(info.tex_u) && std::isfinite(info.tex_v) &&
+            std::isfinite(info.width) && std::isfinite(info.advance) &&
+            info.tex_u >= 0.0f && info.tex_u <= 1.0f &&
+            info.tex_v >= 0.0f && info.tex_v <= 1.0f &&
+            info.width >= 0.0f && info.width < 8.0f &&
+            info.advance >= 0.0f && info.advance < 8.0f;
+        if (plausible && (info.width > 0.0f || info.advance > 0.0f)) {
+          info.valid = true;
+          ++valid_count;
+        }
+        char_info_[static_cast<uint8_t>(i)] = info;
+      }
+      has_source_char_info_ =
+          r.ok && valid_count > 0 && tex_cell_u_ > 0.0f && tex_cell_v_ > 0.0f;
+    } else {
+      const int32_t count = r.i32();
+      if (count >= 0 && count <= 4096) {
+        int valid_count = 0;
+        for (int32_t i = 0; i < count && r.ok; ++i) {
+          if (!r.need(2)) break;
+          uint16_t key;
+          std::memcpy(&key, body.data() + r.pos, 2);
+          r.pos += 2;
+          SourceCharInfo info;
+          info.tex_u = r.f32();
+          info.tex_v = r.f32();
+          info.width = r.f32();
+          info.advance = r.f32();
+          const bool plausible =
+              std::isfinite(info.tex_u) && std::isfinite(info.tex_v) &&
+              std::isfinite(info.width) && std::isfinite(info.advance) &&
+              info.tex_u >= 0.0f && info.tex_u <= 1.0f &&
+              info.tex_v >= 0.0f && info.tex_v <= 1.0f &&
+              info.width >= 0.0f && info.width < 8.0f &&
+              info.advance >= 0.0f && info.advance < 8.0f && key < 256;
+          if (plausible && (info.width > 0.0f || info.advance > 0.0f)) {
+            info.valid = true;
+            char_info_[static_cast<uint8_t>(key)] = info;
+            ++valid_count;
+          }
+        }
+        has_source_char_info_ =
+            r.ok && valid_count > 0 && tex_cell_u_ > 0.0f &&
+            tex_cell_v_ > 0.0f;
+      }
+    }
   }
   return !charset_.empty();
 }
@@ -191,7 +313,7 @@ void MenuFont::segment_glyphs() {
 
   // 3. Within each row, segment glyph columns (x-runs with ink), in reading
   //    order; collect boxes (x0,x1,y0,y1).
-  struct Box { int x0, x1, y0, y1; };
+  struct Box { int x0, x1, y0, y1, row_y0; };
   std::vector<Box> boxes;
   for (const Row& row : rows) {
     for (int x = 0; x < W;) {
@@ -210,7 +332,7 @@ void MenuFont::segment_glyphs() {
       for (int yy = row.y0; yy < row.y1; ++yy)
         for (int xx = x0; xx < x; ++xx)
           if (alpha(xx, yy) > kInkAlpha) { gy0 = std::min(gy0, yy); gy1 = std::max(gy1, yy + 1); break; }
-      boxes.push_back({x0, x, gy0, gy1});
+      boxes.push_back({x0, x, gy0, gy1, row.y0});
     }
   }
 
@@ -232,14 +354,82 @@ void MenuFont::segment_glyphs() {
     if (bi >= boxes.size()) break;
     const Box& b = boxes[bi++];
     Glyph& g = glyphs_[ch];
-    g.px = b.x0; g.py = b.y0; g.pw = b.x1 - b.x0; g.ph = b.y1 - b.y0;
+    g.px = static_cast<float>(b.x0);
+    g.py = static_cast<float>(b.y0);
+    g.pw = static_cast<float>(b.x1 - b.x0);
+    g.ph = static_cast<float>(b.y1 - b.y0);
+    g.yoff = static_cast<float>(b.y0 - b.row_y0);
     g.u0 = static_cast<float>(b.x0) / W;
     g.u1 = static_cast<float>(b.x1) / W;
     g.v0 = static_cast<float>(b.y0) / H;
     g.v1 = static_cast<float>(b.y1) / H;
-    g.advance = g.pw + kDefaultTrackingPx;
+    g.advance = g.pw + base_kerning_px_;
     g.present = true;
     ++glyph_count_;
+  }
+  apply_source_char_info();
+}
+
+void MenuFont::apply_source_char_info() {
+  if (!has_source_char_info_) return;
+  const int W = atlas_.width;
+  const int H = atlas_.height;
+  const uint8_t* px = atlas_.rgba.data();
+  auto alpha = [&](int x, int y) -> int { return px[(y * W + x) * 4 + 3]; };
+  for (char cc : charset_) {
+    const uint8_t ch = static_cast<uint8_t>(cc);
+    const SourceCharInfo& info = char_info_[ch];
+    if (!info.valid) continue;
+
+    Glyph& g = glyphs_[ch];
+    g.present = true;
+    const float source_width = info.width * cap_height_;
+    const float source_advance =
+        (info.advance > 0.0f ? info.advance : info.width) * cap_height_;
+
+    if (source_width > 0.0f) {
+      g.pw = source_width;
+      if (tex_cell_u_ > 0.0f) {
+        g.u0 = info.tex_u;
+        g.u1 = info.tex_u + info.width * tex_cell_u_;
+      }
+    }
+    if (source_width > 0.0f && tex_cell_u_ > 0.0f && tex_cell_v_ > 0.0f &&
+        atlas_.valid()) {
+      const int cell_x0 =
+          std::clamp(static_cast<int>(std::floor(info.tex_u * W + 0.5f)), 0, W);
+      const int cell_y0 =
+          std::clamp(static_cast<int>(std::floor(info.tex_v * H + 0.5f)), 0, H);
+      const int cell_x1 = std::clamp(
+          static_cast<int>(
+              std::ceil((info.tex_u + info.width * tex_cell_u_) * W)),
+          cell_x0, W);
+      const int cell_y1 = std::clamp(
+          static_cast<int>(std::ceil((info.tex_v + tex_cell_v_) * H)),
+          cell_y0, H);
+      int gx0 = cell_x1, gx1 = cell_x0, gy0 = cell_y1, gy1 = cell_y0;
+      for (int y = cell_y0; y < cell_y1; ++y) {
+        for (int x = cell_x0; x < cell_x1; ++x) {
+          if (alpha(x, y) <= kInkAlpha) continue;
+          gx0 = std::min(gx0, x);
+          gx1 = std::max(gx1, x + 1);
+          gy0 = std::min(gy0, y);
+          gy1 = std::max(gy1, y + 1);
+        }
+      }
+      if (gx1 > gx0 && gy1 > gy0) {
+        g.px = static_cast<float>(gx0);
+        g.py = static_cast<float>(gy0);
+        g.pw = static_cast<float>(gx1 - gx0);
+        g.ph = static_cast<float>(gy1 - gy0);
+        g.yoff = static_cast<float>(gy0 - cell_y0);
+        g.u0 = static_cast<float>(gx0) / W;
+        g.u1 = static_cast<float>(gx1) / W;
+        g.v0 = static_cast<float>(gy0) / H;
+        g.v1 = static_cast<float>(gy1) / H;
+      }
+    }
+    if (source_advance > 0.0f) g.advance = source_advance;
   }
 }
 
@@ -254,8 +444,8 @@ std::vector<MenuFont::Quad> MenuFont::layout(const std::string& text,
   float pen = 0.0f;
   uint8_t prev = 0;
   // Baseline: all-caps menu labels — align glyph tops within the cap band.
-  for (size_t i = 0; i < text.size(); ++i) {
-    uint8_t ch = static_cast<uint8_t>(text[i]);
+  for (size_t i = 0; i < text.size();) {
+    uint8_t ch = next_font_char(text, i);
     const Glyph* g = glyph(ch);
     if (!g) { g = glyph(' '); if (!g) continue; }
     if (prev) pen += kerning(prev, ch);
@@ -263,8 +453,8 @@ std::vector<MenuFont::Quad> MenuFont::layout(const std::string& text,
       Quad q;
       q.x0 = pen;
       q.x1 = pen + g->pw;
-      q.y0 = 0.0f;
-      q.y1 = static_cast<float>(g->ph);
+      q.y0 = static_cast<float>(g->yoff);
+      q.y1 = static_cast<float>(g->yoff + g->ph);
       q.u0 = g->u0; q.v0 = g->v0; q.u1 = g->u1; q.v1 = g->v1;
       quads.push_back(q);
     }
@@ -278,8 +468,8 @@ std::vector<MenuFont::Quad> MenuFont::layout(const std::string& text,
 float MenuFont::measure(const std::string& text) const {
   float w = 0.0f;
   uint8_t prev = 0;
-  for (char cc : text) {
-    uint8_t ch = static_cast<uint8_t>(cc);
+  for (size_t i = 0; i < text.size();) {
+    uint8_t ch = next_font_char(text, i);
     const Glyph* g = glyph(ch);
     if (!g) { g = glyph(' '); if (!g) continue; }
     if (prev) w += kerning(prev, ch);

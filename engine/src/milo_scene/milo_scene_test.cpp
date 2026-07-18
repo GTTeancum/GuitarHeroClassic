@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -62,6 +63,7 @@ void put_matrix(std::vector<uint8_t>& b, float tx, float ty, float tz) {
 }
 
 bool approx(float a, float b) { return std::fabs(a - b) < 1e-4f; }
+bool approx_eps(float a, float b, float eps) { return std::fabs(a - b) < eps; }
 
 std::string first_existing(const std::string& dir,
                            std::initializer_list<const char*> names) {
@@ -2646,6 +2648,103 @@ void test_real_menu_band_placers() {
   std::printf("  [ok] real menu BandPlacers: char_single, char_multi0/1, char_store\n");
 }
 
+void test_real_pause_tile_source_transforms() {
+  const std::string ark_dir =
+      "C:/Programming/GitHub/Guitar Hero II/gh2_ps2_hybrid_assets/gen";
+  const std::string hdr = first_existing(ark_dir, {"main.hdr", "MAIN.HDR"});
+  const std::string ark = first_existing(ark_dir, {"main_0.ark", "MAIN_0.ARK"});
+  if (hdr.empty() || ark.empty()) {
+    std::printf("  [skip] real pause tile transforms (no PS2 archive)\n");
+    return;
+  }
+
+  struct ExpectedTile {
+    const char* mesh_name;
+    const char* mat_name;
+    float x;
+    float z;
+    float u_scale;
+    float v_scale;
+  };
+  const ExpectedTile pause_expected[] = {
+      {"pause_tile1.mesh", "pause_tile1.mat", -110.0f, 100.0f, 1.0f, 1.0f},
+      {"pause_tile2.mesh", "pause_tile2.mat", 110.0f, 100.0f, -1.0f, 1.0f},
+      {"pause_tile3.mesh", "pause_tile3.mat", -110.0f, -100.0f, 1.0f, -1.0f},
+      {"pause_tile4.mesh", "pause_tile4.mat", 110.0f, -100.0f, -1.0f, -1.0f},
+  };
+  const ExpectedTile pause_controller_expected[] = {
+      {"tile1.mesh", "tile1.mat", -110.0f, 100.0f, 1.0f, 1.0f},
+      {"tile2.mesh", "tile2.mat", 110.0f, 100.0f, -1.0f, 1.0f},
+      {"tile3.mesh", "tile3.mat", -110.0f, -100.0f, 1.0f, -1.0f},
+      {"tile4.mesh", "tile4.mat", 110.0f, -100.0f, -1.0f, -1.0f},
+  };
+  const ExpectedTile pause_audio_expected[] = {
+      {"gs_tile1.mesh", "gs_tile1.mat", -110.0f, 100.0f, 1.0f, 1.0f},
+      {"gs_tile2.mesh", "gs_tile2.mat", 110.0f, 100.0f, -1.0f, 1.0f},
+      {"gs_tile3.mesh", "gs_tile3.mat", -110.0f, -100.0f, 1.0f, -1.0f},
+      {"gs_tile4.mesh", "gs_tile4.mat", 110.0f, -100.0f, -1.0f, -1.0f},
+  };
+  const ExpectedTile pause_video_expected[] = {
+      {"gs_tile1.mesh", "gs_tile1.mat", -110.0f, 100.0f, 1.0f, 1.0f},
+      {"gs_tile2.mesh", "gs_tile2.mat", 110.0f, 100.0f, -1.0f, 1.0f},
+      {"gs_tile3.mesh", "gs_tile3.mat", -110.0f, -100.0f, 1.0f, -1.0f},
+      {"gs_tile4.mesh", "gs_tile4.mat", 110.0f, -100.0f, -1.0f, -1.0f},
+  };
+  struct PauseTileCase {
+    const char* milo_path;
+    const char* parent;
+    const ExpectedTile* tiles;
+    std::size_t count;
+  };
+  const PauseTileCase cases[] = {
+      {"ui/gen/pause.milo_ps2", "pause_background.view", pause_expected,
+       std::size(pause_expected)},
+      {"ui/gen/pause_controller.milo_ps2",
+       "pause_controller_background.view", pause_controller_expected,
+       std::size(pause_controller_expected)},
+      {"ui/gen/pause_audio_settings.milo_ps2", "gs_background.view",
+       pause_audio_expected, std::size(pause_audio_expected)},
+      {"ui/gen/pause_video_settings.milo_ps2", "gs_background.view",
+       pause_video_expected, std::size(pause_video_expected)},
+  };
+  for (const PauseTileCase& source : cases) {
+    Scene scene;
+    CHECK(load_scene(hdr, ark, source.milo_path, scene));
+    for (std::size_t i = 0; i < source.count; ++i) {
+      const ExpectedTile& tile = source.tiles[i];
+      const MeshObj* mesh = nullptr;
+      for (const MeshObj& candidate : scene.meshes) {
+        if (candidate.name == tile.mesh_name) {
+          mesh = &candidate;
+          break;
+        }
+      }
+      CHECK(mesh != nullptr);
+      CHECK(mesh && mesh->decoded);
+      if (!mesh) continue;
+      const MatObj* mat = scene.find_mat(mesh->material);
+      CHECK(mat != nullptr);
+      const auto world = scene.world_matrix(*mesh);
+      CHECK(mesh->parent == source.parent);
+      CHECK(mesh->material == tile.mat_name);
+      CHECK(approx(world[12], tile.x));
+      CHECK(approx(world[13], 0.0f));
+      CHECK(approx(world[14], tile.z));
+      CHECK(approx(mesh->local.rot[0][0], 1.0f));
+      CHECK(approx(mesh->local.rot[1][2], 1.0f));
+      CHECK(approx(mesh->local.rot[2][1], -1.0f));
+      CHECK(approx_eps(mat->tex_xfm[0][0], tile.u_scale, 0.002f));
+      CHECK(approx(mat->tex_xfm[0][1], 0.0f));
+      CHECK(approx(mat->tex_xfm[1][0], 0.0f));
+      CHECK(approx_eps(mat->tex_xfm[1][1], tile.v_scale, 0.002f));
+      CHECK(approx(mat->tex_xfm[2][0], 0.0f));
+      CHECK(approx(mat->tex_xfm[2][1], 0.0f));
+      CHECK(approx(mat->tex_xfm[2][2], 1.0f));
+    }
+  }
+  std::printf("  [ok] real pause border tiles: pause, controller-loss, audio settings, and video settings source UV flips form all four corners\n");
+}
+
 void test_mesh() {
   std::vector<uint8_t> b;
   put_u32(b, 28);                // mesh version 0x1c
@@ -2668,17 +2767,26 @@ void test_mesh() {
   put_u32(b, 1);                 // volume
   b.push_back(0);                // null BSP-tree owner
   put_u32(b, 3);                 // vertex_count = 3
-  // 3 vertices (pos / normal / colour / uv), forming a unit triangle.
+  // 3 vertices (pos / normal / GH2 rev28 weight slot / uv), forming a unit triangle.
   const float P[3][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
   for (int i = 0; i < 3; ++i) {
     put_f32(b, P[i][0]); put_f32(b, P[i][1]); put_f32(b, P[i][2]);  // pos
     put_f32(b, 0); put_f32(b, 0); put_f32(b, 1);                    // normal
-    put_f32(b, 1); put_f32(b, 1); put_f32(b, 1); put_f32(b, 1);     // colour
+    put_f32(b, 1); put_f32(b, 0); put_f32(b, 0); put_f32(b, 0);     // weights
     put_f32(b, P[i][0]); put_f32(b, P[i][1]);                       // uv
   }
   put_u32(b, 1);                 // face_count = 1
   put_u16(b, 0); put_u16(b, 1); put_u16(b, 2);  // the triangle
-  put_zeros(b, 8);               // trailing group data
+  put_u32(b, 1);                 // groupSizesCount
+  b.push_back(1);                // one material/face group
+  put_str(b, "bone_a.mesh");     // old pre-rev33 fixed four-entry bone table
+  put_str(b, "bone_b.mesh");
+  put_str(b, "");
+  put_str(b, "");
+  put_matrix(b, 7.0f, 8.0f, 9.0f);
+  put_matrix(b, 10.0f, 11.0f, 12.0f);
+  put_matrix(b, 0.0f, 0.0f, 0.0f);
+  put_matrix(b, 0.0f, 0.0f, 0.0f);
 
   MeshObj m = decode_mesh("tri.mesh", b);
   if (!m.decoded) std::printf("  [FAIL] mesh error: %s\n", m.error.c_str());
@@ -2690,6 +2798,10 @@ void test_mesh() {
   CHECK(m.mutable_flags == 0x1F);
   CHECK(m.parent == "track.view");
   CHECK(m.showing);
+  CHECK(approx(m.verts[0].w[0], 1.0f) && approx(m.verts[0].w[1], 0.0f));
+  CHECK(m.bones.size() == 2);
+  CHECK(m.bones[0].name == "bone_a.mesh");
+  CHECK(approx(m.bones[0].offset.pos[0], 7.0f));
   CHECK(approx(m.local.pos[0], 1.0f) && approx(m.local.pos[2], 3.0f));
   // bbox of the unit triangle.
   CHECK(approx(m.bb_min[0], 0.0f) && approx(m.bb_max[0], 1.0f));
@@ -2728,6 +2840,33 @@ void test_mesh() {
   CHECK(approx(gw[14], 3.0f));
   std::printf("  [ok] group world compose: translation=(%.0f,%.0f,%.0f)\n",
               gw[12], gw[13], gw[14]);
+
+  Scene placer_sc;
+  GroupObj display_group;
+  display_group.name = "guitar_store.view";
+  display_group.has_transform = true;
+  display_group.local.pos[0] = -33.0f;
+  display_group.local.pos[2] = -30.0f;
+  display_group.world_stored = display_group.local;
+  placer_sc.groups.push_back(display_group);
+  BandPlacerObj guitar_placer;
+  guitar_placer.name = "guitar_store.placer";
+  guitar_placer.kind = "guitar";
+  guitar_placer.parent = "guitar_store.view";
+  guitar_placer.local.pos[2] = 55.0f;
+  guitar_placer.world_stored.pos[0] = -33.0f;
+  guitar_placer.world_stored.pos[2] = 25.0f;
+  guitar_placer.decoded = true;
+  placer_sc.band_placers.push_back(guitar_placer);
+  MeshObj placed = m;
+  placed.parent = "guitar_store.placer";
+  placer_sc.meshes.push_back(placed);
+  auto pw = placer_sc.world_matrix(placer_sc.meshes[0]);
+  CHECK(approx(pw[12], -32.0f));
+  CHECK(approx(pw[13], 2.0f));
+  CHECK(approx(pw[14], 28.0f));
+  std::printf("  [ok] BandPlacer world compose: translation=(%.0f,%.0f,%.0f)\n",
+              pw[12], pw[13], pw[14]);
 
   MeshObj authored = m;
   authored.world_stored.pos[0] = 100.0f;
@@ -2963,6 +3102,7 @@ int main() {
   test_group_draw_order_matches_rnddir_roots();
   test_band_placer();
   test_real_menu_band_placers();
+  test_real_pause_tile_source_transforms();
   test_mesh();
   test_particle_sys_source_order();
   test_world_crowd_gh2_matrix_stride();

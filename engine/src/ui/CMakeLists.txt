@@ -15,7 +15,7 @@ add_library(ghogx_ui_core STATIC
 )
 target_include_directories(ghogx_ui_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_ui_core PUBLIC
-    ghogx_core ghogx_script ghogx_dtb_bridge ark_v3 dtb)
+    ghogx_core ghogx_script ghogx_dtb_bridge ghogx_chart ark_v3 dtb milo)
 
 if(MSVC)
     target_compile_options(ghogx_ui_core PRIVATE /W4)
@@ -54,7 +54,7 @@ endif()
 add_test(NAME ghogx_menu_font_test COMMAND ghogx_menu_font_test)
 
 add_executable(ghogx_menu_labels_test menu_labels_test.cpp)
-target_link_libraries(ghogx_menu_labels_test PRIVATE ghogx_menu_font)
+target_link_libraries(ghogx_menu_labels_test PRIVATE ghogx_menu_font ghogx_milo_scene)
 if(MSVC)
     target_compile_options(ghogx_menu_labels_test PRIVATE /W4)
 endif()

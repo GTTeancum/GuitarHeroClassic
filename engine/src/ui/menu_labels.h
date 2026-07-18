@@ -16,6 +16,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -25,31 +26,218 @@ struct MenuLabel {
   std::string name;   // entry name, e.g. "main_career.btn"
   std::string type;   // "BandButton" / "Text" / "BandLabel"
   std::string font;   // first embedded string ("impact"); "" if only one string
+  std::string parent; // authored parent group/view string, when serialized
   std::string text;   // last embedded string = label / locale key ("CAREER")
   std::string nav;    // BandButton nav target (the embedded "*.btn" string)
                       // focus-down link; "" if none (e.g. Text objects)
+  bool has_showing = false; // Draw base visibility was decoded from MILO.
+  bool showing = true;      // Authored initial Draw visibility.
 
   // BandButton text/layout tail, decoded from the bytes immediately after the
-  // embedded label string. These names are conservative: the byte offsets are
-  // grounded, while unknown slots still need loader/recomp mapping before the
-  // renderer consumes them as semantics.
+  // embedded label string. Main-menu buttons use the compact GH2 tail; newer
+  // menu rows use the UILabel/BandButton fit/layout tail mirrored from MiloLib.
+  // These names are conservative where the old and new layouts overlap.
   struct ButtonTail {
     bool valid = false;
-    std::uint8_t all_caps = 0;  // label_end + 0
-    float label_width = 0.0f;   // label_end + 4 (CAREER=310, QUICK_PLAY=320...)
-    float box_height = 0.0f;    // label_end + 8 (15)
-    float field_0c = 0.0f;      // label_end + 12 (1)
-    std::int32_t field_10 = 0;  // label_end + 16 (34)
-    std::int32_t field_14 = 0;  // label_end + 20 (varies by label)
-    float text_size = 0.0f;     // label_end + 28 (0.5)
-    float field_20 = 0.0f;      // label_end + 32 (1)
-    std::uint8_t field_24 = 0;  // label_end + 36 (1)
-    float kerning = 0.0f;       // label_end + 37 (-0.05)
-    float field_29 = 0.0f;      // label_end + 41 (30)
-    float width_bound = 0.0f;   // label_end + 45 (280)
+    std::int32_t fit_text = 0;   // UILabel/BandButton fitType when present.
+    std::int32_t alignment = 34; // UILabel::TextAlignments / RndText bits.
+    std::uint8_t all_caps = 0;
+    float width = 0.0f;
+    float height = 0.0f;
+    float leading = 0.0f;
+    std::int32_t unknown_10 = 0;
+    std::int32_t unknown_14 = 0;
+    float text_size = 0.0f;
+    float unknown_20 = 0.0f;
+    std::uint8_t unknown_24 = 0;
+    float kerning = 0.0f;
+    float wrap_width = 0.0f;
+    float width_bound = 0.0f;
   } button_tail;
 
-  // World Trans matrix: row-major 3x3 (world[0..8]) + translation (world[9..11]).
+  // BandLabel/RndText text/layout tail. Like BandButton, this block is
+  // byte-aligned to the end of the variable-length label string.
+  struct TextTail {
+    bool valid = false;
+    std::int32_t fit_text = 0;     // label_end + 0
+    float width = 0.0f;            // label_end + 4
+    float height = 0.0f;           // label_end + 8
+    float leading = 0.0f;          // label_end + 12
+    std::int32_t alignment = 0;    // label_end + 16 (raw; not consumed yet)
+    std::int32_t unknown_14 = 0;   // label_end + 20
+    std::uint8_t all_caps = 0;     // label_end + 36
+    float kerning = 0.0f;          // label_end + 37
+    float text_size = 0.0f;        // label_end + 41
+    float width_bound = 0.0f;      // label_end + 45
+    std::array<float, 4> color{{1.0f, 1.0f, 1.0f, 1.0f}};
+  } text_tail;
+
+  // Local + world Trans matrices: row-major 3x3 (m[0..8]) + translation
+  // (m[9..11]).
+  std::array<float, 12> local{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
+  bool has_local = false;
+  std::array<float, 12> world{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
+  bool has_world = false;
+};
+
+struct MenuCheckbox {
+  std::string name;      // entry name, e.g. "p_scan.chk"
+  std::string type;      // "CheckBox" / "CheckboxDisplay"
+  std::string resource;  // UIComponent resource string, e.g. "default"
+  std::string parent;    // authored parent group/view string
+  bool checked = false;  // authored checked state before scripts override it
+  bool showing = true;   // Draw base visibility
+
+  std::array<float, 12> local{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
+  bool has_local = false;
+  std::array<float, 12> world{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
+  bool has_world = false;
+};
+
+struct MenuSlider {
+  std::string name;      // entry name, e.g. "gs_band.sld"
+  std::string type;      // "BandSlider" / "UISlider"
+  std::string resource;  // UI resource style, e.g. "aaron" or "char"
+  std::string parent;    // authored parent group/view string
+  std::string nav;       // neighbouring slider/button target, when serialized
+  std::string token;     // label/config token at the tail, e.g. "BAND"
+  std::int32_t current = 0;
+  std::int32_t num_steps = 1;
+  bool vertical = false;
+  bool showing = true;
+
+  std::array<float, 12> local{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
+  bool has_local = false;
+  std::array<float, 12> world{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
+  bool has_world = false;
+};
+
+struct MenuTransVecKey {
+  float frame = 0.0f;
+  std::array<float, 3> value{{0.0f, 0.0f, 0.0f}};
+};
+
+struct MenuTransQuatKey {
+  float frame = 0.0f;
+  std::array<float, 4> quat_xyzw{{0.0f, 0.0f, 0.0f, 1.0f}};
+};
+
+struct MenuSliderAnim {
+  bool valid = false;
+  std::string name;
+  std::string target; // TransAnim target, e.g. "char_slider_pod.mesh"
+  std::vector<MenuTransQuatKey> rotation_keys;
+  std::vector<MenuTransVecKey> translation_keys;
+  std::vector<MenuTransVecKey> scale_keys;
+  std::array<float, 3> first{{0.0f, 0.0f, 0.0f}};
+  float first_frame = 0.0f;
+  std::array<float, 3> last{{0.0f, 0.0f, 0.0f}};
+  float last_frame = 1.0f;
+};
+
+struct MenuAnimFilter {
+  bool valid = false;
+  std::string name;
+  std::string trans_anim;  // referenced TransAnim, e.g. "guitar_store.tnm"
+  float frame = 0.0f;
+  float scale = 1.0f;
+  float offset = 0.0f;
+  float start = 0.0f;
+  float end = 0.0f;
+  std::int32_t type = 0;  // RndAnimFilter::Type: 0 range, 1 loop, 2 shuttle.
+};
+
+struct MenuMaterialTextureKey {
+  float frame = 0.0f;
+  std::string texture;  // keyed .tex entry, e.g. "loading_word2_gw.tex"
+};
+
+struct MenuMaterialAnim {
+  bool valid = false;
+  std::string name;
+  std::string material;  // RndMat target, e.g. "loading_word.mat"
+  std::vector<MenuMaterialTextureKey> texture_keys;
+  float first_frame = 0.0f;
+  float last_frame = 0.0f;
+};
+
+struct MenuProxyTransform {
+  bool valid = false;
+  std::string name;    // UIProxy entry name, e.g. "guitar.pxy"
+  std::string parent;  // authored parent transform, e.g. "guitar.grp"
+  std::string target;  // inherited RndTransformable target, usually empty
+  std::uint32_t constraint = 0;
+  bool preserve_scale = false;
+  std::array<float, 12> local{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
+  std::array<float, 12> world{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
+};
+
+struct UiListLayout {
+  bool valid = false;
+  std::string name;
+  std::uint16_t revision = 0;
+  std::uint16_t alt_revision = 0;
+
+  // MiloLib Assets/UI/UIList.cs source order, decoded from the UIList tail after
+  // the inherited UIComponent block.
+  std::int32_t legacy_i = 0;
+  std::int32_t legacy_j = 0;
+  std::int32_t legacy_k = 0;
+  std::int32_t legacy_x = 0;
+  std::int32_t legacy_unk3 = 0;
+  bool legacy_b8 = false;
+  bool legacy_b9 = false;
+  bool legacy_ba = false;
+
+  std::int32_t num_display = 0;
+  std::int32_t grid_span = 0;
+  bool circular = false;
+  float speed = 0.0f;
+  bool scroll_past_min = false;
+  bool scroll_past_max = false;
+  bool paginate = false;
+  bool select_to_scroll = false;
+  std::int32_t min_display = 0;
+  std::int32_t max_display = -1;
+  std::int32_t num_data = 0;
+  float auto_scroll_pause = 0.0f;
+  bool auto_scroll_send_messages = false;
+  std::vector<std::string> extended_label_entries;
+  std::vector<std::string> extended_mesh_entries;
+  std::vector<std::string> extended_custom_entries;
+  std::string in_anim;
+  std::string out_anim;
+
+  // GH2 PS2 revision-2 UILists carry early compact list metrics that MiloLib's
+  // newer UIList source order does not name. These are decoded from the stock
+  // bytes after the inherited UIComponent/RndDrawable block.
+  bool has_legacy_row_metrics = false;
+  float legacy_visible_slots = 0.0f;
+  float legacy_row_height = 0.0f;
+  float legacy_text_height = 0.0f;
+
+  std::array<float, 12> world{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
+  bool has_world = false;
+};
+
+struct MenuTextStyle {
+  bool valid = false;
+  std::string name;       // Text entry name, e.g. "list.txt"
+  std::string parent;     // authored RndTransformable parent
+  std::string font;       // RndText mFont, e.g. "dyingmarker.font"
+  std::string text;       // serialized sample/default string
+  std::int32_t alignment = 0;
+  std::array<float, 4> color{{1.0f, 1.0f, 1.0f, 1.0f}};
+  float wrap_width = 0.0f;
+  float leading = 1.0f;
+  std::int32_t fixed_length = 0;
+  float italic_strength = 0.0f;
+  float text_size = 0.0f;  // RndText::mSize
+  bool markup = false;
+  std::int32_t caps_mode = 0;
+
+  std::array<float, 12> local{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
+  bool has_local = false;
   std::array<float, 12> world{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
   bool has_world = false;
 };
@@ -59,5 +247,63 @@ struct MenuLabel {
 std::vector<MenuLabel> extract_menu_labels(const std::string& hdr_path,
                                            const std::string& ark_path,
                                            const std::string& milo_path);
+
+// Decode CheckBox/CheckboxDisplay widget state and RndTrans matrices. The
+// renderer uses this to draw the shared checkbox.milo resource at the authored
+// widget WorldXfm.
+std::vector<MenuCheckbox> extract_menu_checkboxes(const std::string& hdr_path,
+                                                  const std::string& ark_path,
+                                                  const std::string& milo_path);
+
+// Decode BandSlider/UISlider widget state, using the current/num_steps/Frame()
+// shape from Harmonix UISlider and GH2's compact BandSlider bytes.
+std::vector<MenuSlider> extract_menu_sliders(const std::string& hdr_path,
+                                             const std::string& ark_path,
+                                             const std::string& milo_path);
+
+// Decode the stock slider resource TransAnim translation endpoints. UISlider
+// drives the resource RndDir frame; this exposes the target mesh travel range.
+MenuSliderAnim extract_menu_slider_anim(const std::string& hdr_path,
+                                        const std::string& ark_path,
+                                        const std::string& milo_path,
+                                        const std::string& anim_name);
+
+// Decode an AnimFilter entry enough to recover its source TransAnim reference
+// and stored frame. Harmonix AnimFilter drives a RndAnimatable to an authored
+// frame; this pins that source route for menu pose work.
+MenuAnimFilter extract_menu_anim_filter(const std::string& hdr_path,
+                                        const std::string& ark_path,
+                                        const std::string& milo_path,
+                                        const std::string& filter_name);
+
+// Decode a MatAnim entry enough to recover its material target and keyed diffuse
+// texture swaps. Loading's LOADING word uses this for the stock blink/flip.
+MenuMaterialAnim extract_menu_material_anim(const std::string& hdr_path,
+                                            const std::string& ark_path,
+                                            const std::string& milo_path,
+                                            const std::string& anim_name);
+
+// Decode a UIProxy's authored transform. GuitarDisplayPanel::show_guitar passes
+// panel-local UIProxy objects such as sel_guitar/guitar.pxy as live placement
+// targets for the 3D guitar overlay.
+MenuProxyTransform extract_menu_proxy_transform(const std::string& hdr_path,
+                                                const std::string& ark_path,
+                                                const std::string& milo_path,
+                                                const std::string& proxy_name);
+
+// Decode a UIList entry using the MiloLib UIList field order. Returns an invalid
+// layout on failure.
+UiListLayout extract_ui_list_layout(const std::string& hdr_path,
+                                    const std::string& ark_path,
+                                    const std::string& milo_path,
+                                    const std::string& list_name);
+
+// Decode a RndText entry using ihatecompvir's RndText source order. Used by
+// UIList slot resources such as list_song.milo, where the slot text object
+// owns the real font size.
+MenuTextStyle extract_menu_text_style(const std::string& hdr_path,
+                                      const std::string& ark_path,
+                                      const std::string& milo_path,
+                                      const std::string& text_name);
 
 }  // namespace ghogx::ui
