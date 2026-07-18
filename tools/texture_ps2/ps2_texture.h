@@ -35,8 +35,9 @@ struct HmxBitmap {
 HmxBitmap parse(const std::vector<uint8_t>& bytes);
 
 // Decode the base mip to RGBA32 (top-left origin, 4 bytes per pixel).
-// Handles 4bpp and 8bpp PS2 indexed textures. Returns width*height*4 bytes.
-// PS2 alpha (0..128 = transparent..opaque) is rescaled to 0..255.
+// Handles 4/8bpp PS2 indexed textures and 24/32bpp direct-color textures.
+// Returns width*height*4 bytes. PS2 alpha (0..128 = transparent..opaque) is
+// rescaled to 0..255 for alpha-bearing formats.
 std::vector<uint8_t> decode_to_rgba(const HmxBitmap& bm);
 
 // File helpers.

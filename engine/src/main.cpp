@@ -478,9 +478,10 @@ int run_objdir(const Args& a) {
 
 // ----- mesh ----------------------------------------------------------------
 // Decode the 3-D render objects of a MILO and report mesh stats: vertex_count,
-// face_count, bounding box (min/max xyz), and material name. With --name, only
-// that one Mesh entry; otherwise every Mesh in the MILO (summary). Verifies the
-// Mesh/Trans/Mat byte decode against entry size.
+// face_count, bounding box (min/max xyz), material name, material parameters,
+// and authored draw order. With --name, only that one Mesh entry; otherwise
+// every Mesh in the MILO (summary). Verifies the Mesh/Trans/Mat byte decode
+// against entry size.
 //   ghogx mesh --milo-path <p> [--name <mesh>]
 int run_mesh(const Args& a) {
     if (a.milo_path.empty()) {
@@ -611,6 +612,82 @@ int run_mesh(const Args& a) {
             std::printf("      world row2=[%.4f %.4f %.4f]\n",
                         t.world_stored.rot[2][0], t.world_stored.rot[2][1],
                         t.world_stored.rot[2][2]);
+        }
+    }
+    if (!scene.mats.empty()) {
+        std::printf("\n  %-26s %5s %5s %6s  %-18s  %s\n",
+                    "material", "blend", "env", "prelit", "diffuse",
+                    "color rgba / uv scale+offset");
+        for (const auto& mat : scene.mats) {
+            std::printf(
+                "  %-26s %5u %5u %6u  %-18s  "
+                "(%.3f %.3f %.3f %.3f) uv=(%.3f %.3f)+(%.3f %.3f) "
+                "uvm=[%.3f %.3f %.3f %.3f %.3f %.3f]\n",
+                mat.name.substr(0, 26).c_str(),
+                static_cast<unsigned>(mat.blend),
+                mat.use_environ ? 1u : 0u,
+                mat.prelit ? 1u : 0u,
+                mat.diffuse_tex.substr(0, 18).c_str(),
+                mat.color[0], mat.color[1], mat.color[2], mat.color[3],
+                mat.tex_scale[0], mat.tex_scale[1],
+                mat.tex_offset[0], mat.tex_offset[1],
+                mat.tex_xfm[0][0], mat.tex_xfm[0][1],
+                mat.tex_xfm[1][0], mat.tex_xfm[1][1],
+                mat.tex_xfm[2][0], mat.tex_xfm[2][1]);
+        }
+    }
+    if (!scene.cams.empty()) {
+        std::printf("\n  cameras (%zu):\n", scene.cams.size());
+        for (const auto& cam : scene.cams) {
+            std::printf(
+                "    %s decoded=%u pos=(%.3f %.3f %.3f) "
+                "row1=(%.3f %.3f %.3f) row2=(%.3f %.3f %.3f) "
+                "fov=%.6f near=%.3f far=%.3f\n",
+                cam.name.c_str(), cam.decoded ? 1u : 0u,
+                cam.local.pos[0], cam.local.pos[1], cam.local.pos[2],
+                cam.local.rot[1][0], cam.local.rot[1][1],
+                cam.local.rot[1][2], cam.local.rot[2][0],
+                cam.local.rot[2][1], cam.local.rot[2][2],
+                cam.fov, cam.near_plane, cam.far_plane);
+        }
+    }
+    if (!scene.environs.empty()) {
+        std::printf("\n  environs (%zu):\n", scene.environs.size());
+        for (const auto& env : scene.environs) {
+            std::printf(
+                "    %s decoded=%u lights=%zu color_a=(%.3f %.3f %.3f %.3f) "
+                "range=(%.3f %.3f %.3f) fog=%u color_b=(%.3f %.3f %.3f %.3f)\n",
+                env.name.c_str(), env.decoded ? 1u : 0u, env.lights.size(),
+                env.color_a[0], env.color_a[1], env.color_a[2],
+                env.color_a[3], env.range_a, env.range_b, env.range,
+                env.fog_enabled ? 1u : 0u, env.color_b[0], env.color_b[1],
+                env.color_b[2], env.color_b[3]);
+            for (std::size_t i = 0; i < env.lights.size(); ++i)
+                std::printf("      %3zu  %s\n", i, env.lights[i].c_str());
+        }
+    }
+    if (!scene.groups.empty()) {
+        std::printf("\n  groups (%zu):\n", scene.groups.size());
+        for (const auto& group : scene.groups) {
+            std::printf("    %s parent=%s env=%s children=%zu",
+                        group.name.c_str(), group.parent.c_str(),
+                        group.environment_ref.c_str(), group.children.size());
+            if (group.has_transform) {
+                std::printf(" local=(%.1f %.1f %.1f) world=(%.1f %.1f %.1f)",
+                            group.local.pos[0], group.local.pos[1],
+                            group.local.pos[2], group.world_stored.pos[0],
+                            group.world_stored.pos[1], group.world_stored.pos[2]);
+            }
+            std::printf("\n");
+            for (std::size_t i = 0; i < group.children.size(); ++i) {
+                std::printf("      %3zu  %s\n", i, group.children[i].c_str());
+            }
+        }
+    }
+    if (!scene.draw_order.empty()) {
+        std::printf("\n  authored draw_order (%zu):\n", scene.draw_order.size());
+        for (std::size_t i = 0; i < scene.draw_order.size(); ++i) {
+            std::printf("    %3zu  %s\n", i, scene.draw_order[i].c_str());
         }
     }
     std::printf("\n%d mesh%s shown  (%d decoded, %d failed)\n", shown,

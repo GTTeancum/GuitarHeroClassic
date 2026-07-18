@@ -19,8 +19,9 @@ constexpr size_t kHeaderSize = 32;
 uint16_t rd_u16(const uint8_t* p) { uint16_t v; std::memcpy(&v, p, 2); return v; }
 int32_t  rd_i32(const uint8_t* p) { int32_t  v; std::memcpy(&v, p, 4); return v; }
 
-// PS2 indexed-color file layout: 32-byte header, then (palette | pixels | mips).
+// PS2 bitmap layout: 32-byte header, then (palette | pixels | mips).
 // For encoding=3 with 4 or 8 bpp the palette comes first as 32-bit RGBA entries.
+// 24/32 bpp textures are direct-color and have no palette.
 size_t palette_byte_size(int bpp) {
     if (bpp == 4) return 16  * 4;   // 16 entries
     if (bpp == 8) return 256 * 4;   // 256 entries
@@ -73,18 +74,53 @@ std::vector<uint8_t> decode_to_rgba(const HmxBitmap& b) {
         std::ostringstream oss;
         oss << "decode_to_rgba: encoding " << b.encoding
             << " not supported by this PS2-focused reader "
-               "(only encoding=3 indexed handled)";
+               "(only encoding=3 bitmap handled)";
         throw std::runtime_error(oss.str());
     }
+    const size_t base_pixels = static_cast<size_t>(b.width) * b.height;
+
+    if (b.bpp == 24 || b.bpp == 32) {
+        const size_t bytes_per_pixel = static_cast<size_t>(b.bpp) / 8;
+        const size_t base_pix_bytes = base_pixels * bytes_per_pixel;
+        if (b.raw.size() < base_pix_bytes) {
+            std::ostringstream oss;
+            oss << "decode_to_rgba: direct-color payload too small: have "
+                << b.raw.size() << ", need at least " << base_pix_bytes;
+            throw std::runtime_error(oss.str());
+        }
+
+        std::vector<uint8_t> out(base_pixels * 4);
+        const uint8_t* pix = b.raw.data();
+        if (b.bpp == 32) {
+            for (size_t i = 0; i < base_pixels; ++i) {
+                const uint8_t* s = pix + i * 4;
+                uint8_t* d = out.data() + i * 4;
+                d[0] = s[0];
+                d[1] = s[1];
+                d[2] = s[2];
+                d[3] = scale_ps2_alpha(s[3]);
+            }
+        } else {  // bpp == 24
+            for (size_t i = 0; i < base_pixels; ++i) {
+                const uint8_t* s = pix + i * 3;
+                uint8_t* d = out.data() + i * 4;
+                d[0] = s[0];
+                d[1] = s[1];
+                d[2] = s[2];
+                d[3] = 0xFF;
+            }
+        }
+        return out;
+    }
+
     if (b.bpp != 4 && b.bpp != 8) {
         std::ostringstream oss;
         oss << "decode_to_rgba: bpp=" << int(b.bpp)
-            << " not supported (only 4 or 8)";
+            << " not supported (only 4/8 indexed or 24/32 direct-color)";
         throw std::runtime_error(oss.str());
     }
 
     const size_t pal_sz = palette_byte_size(b.bpp);
-    const size_t base_pixels = static_cast<size_t>(b.width) * b.height;
     const size_t base_pix_bytes = (base_pixels * b.bpp) / 8;
     if (b.raw.size() < pal_sz + base_pix_bytes) {
         std::ostringstream oss;
