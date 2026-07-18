@@ -17768,14 +17768,6 @@ size_t camera_count_csv_tokens(std::string_view csv) {
     return count;
 }
 
-float camera_completion_percent(size_t recovered_runtime_count,
-                                size_t open_gameplay_blockers) {
-    const size_t total = recovered_runtime_count + open_gameplay_blockers;
-    if (total == 0) return 0.0f;
-    return 100.0f * static_cast<float>(recovered_runtime_count) /
-           static_cast<float>(total);
-}
-
 std::string camera_hidden_gameplay_blockers(bool build_transform_active,
                                             bool cam_shot_ok_active,
                                             bool cam_check_shot_active,
@@ -37690,10 +37682,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         logged_camera_impl_status = true;
                         const size_t recovered_camera_runtime_count =
                             camera_count_csv_tokens(kCameraRecoveredRuntimeList);
-                        const float camera_progress_percent =
-                            camera_completion_percent(
-                                recovered_camera_runtime_count,
-                                kCameraOpenGameplayBlockers);
                         std::fprintf(
                             stderr,
                             "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=%s active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/SetPos/RndCam_binary_projection rndcam_updatelocal_public_source=empty_body hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot_native,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal_binary_projection postprocess_render_effect=deferred freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
@@ -37702,10 +37690,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             deferred_gameplay_blockers.c_str());
                         std::fprintf(
                             stderr,
-                            "[world] camera progress: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime_count=%zu open_gameplay_blockers=%zu completion_basis=recovered_runtime/(recovered_runtime+open_gameplay_blockers) completion_percent=%.1f active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
+                            "[world] camera source-backed status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime_count=%zu open_gameplay_blockers=%zu active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
                             recovered_camera_runtime_count,
                             kCameraOpenGameplayBlockers,
-                            camera_progress_percent,
                             active_gameplay_blockers.c_str(),
                             deferred_gameplay_blockers.c_str());
                     }
@@ -38570,10 +38557,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                       venue_camera_target_worlds_, song_time_,
                                       !diagnostic_camera_shot_.empty());
         update_worldcrowd_actor_runtime(static_cast<float>(dt));
-        update_venue_proxy_objects();
-        update_lighting_preset_env_light_state();
-        world_->draw();
-        draw_venue_proxy_objects(world_->camera());
+        bool scene_drawn = false;
         bool worldcrowd_drawn = false;
         if (lighting_) {
             const LightingRequest lighting_request =
@@ -38888,7 +38872,20 @@ void Gameplay::draw(ghogx::render::Window& win) {
             const bool late_lighting_overlay = late_lighting_overlay_enabled();
             update_lighting_preset_env_light_state();
             update_lighting_spotlight_renderer();
+            if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+                static bool logged_worlddir_lightpreset_order = false;
+                if (!logged_worlddir_lightpreset_order) {
+                    logged_worlddir_lightpreset_order = true;
+                    std::fprintf(
+                        stderr,
+                        "[world] camera LightPreset/RndDir order: bridge=camera_worlddir_lightpreset_rnddir_order_bridge source_owner=WorldDir::Poll source_order=CameraManager::PrePoll->LightPresetManager::Poll->RndDir::Poll->CameraManager::Poll native_bridge=LightPreset_poll_before_venue_proxy_update_before_scene_draw camera_poll_split=regular_SetFrame_before_native_proxy_update;FreeCamera_deferred_last result=lighting_state_visible_to_RndDir_proxy_update pipeline_scope=normal_gameplay_camera priority=gameplay_camera freecam_priority=deferred_last freecam_affects_gameplay=0 no_dependency_change=1 og_xbox_portability_preserved=1\n");
+                }
+            }
+            update_venue_proxy_objects();
             update_worldcrowd_actor_lighting();
+            world_->draw();
+            scene_drawn = true;
+            draw_venue_proxy_objects(world_->camera());
             draw_worldcrowd_actor_runtime(world_->camera());
             worldcrowd_drawn = true;
             if (!late_lighting_overlay) {
@@ -38901,6 +38898,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         song_time_);
                 }
             }
+        }
+        if (!scene_drawn) {
+            update_venue_proxy_objects();
+            update_lighting_preset_env_light_state();
+            world_->draw();
+            draw_venue_proxy_objects(world_->camera());
         }
         if (!worldcrowd_drawn) {
             update_worldcrowd_actor_lighting();

@@ -250,6 +250,8 @@ int main() {
       gameplay, "Gameplay::draw_venue_proxy_objects"));
   const std::string draw_worldcrowd_runtime_c = compact(function_body(
       gameplay, "Gameplay::draw_worldcrowd_actor_runtime"));
+  const std::string gameplay_draw_c =
+      compact(function_body(gameplay, "void Gameplay::draw("));
   const std::string attached_prop_world_c = compact(function_body(
       char_renderer, "CharRenderer::attached_prop_world"));
 
@@ -7030,8 +7032,9 @@ int main() {
                  "\"[world]LightPresetstatetransition:",
                  "LightPreset Environ/Light transition emits runtime proof rows");
   ok &= contains(gameplay_c,
-                 "update_lighting_preset_env_light_state();world_->draw();",
-                 "world geometry samples in-progress LightPreset Environ/Light fades before drawing");
+                 "update_lighting_preset_env_light_state();"
+                 "update_lighting_spotlight_renderer();",
+                 "world geometry prepares in-progress LightPreset Environ/Light fades before RndDir/proxy update and drawing");
   ok &= contains(gameplay_c,
                  "\"[world]LightPresetstateapplied:preset=%skeyframe=%s"
                  "env_states=%llulight_states=%llu",
@@ -7073,11 +7076,17 @@ int main() {
   ok &= contains(gameplay_c,
                  "constboollate_lighting_overlay=late_lighting_overlay_enabled();"
                  "update_lighting_preset_env_light_state();"
-                 "update_lighting_spotlight_renderer();"
+                 "update_lighting_spotlight_renderer();",
+                 "lighting renderer samples transition before native RndDir/proxy update");
+  ok &= contains(gameplay_c,
+                 "update_venue_proxy_objects();"
                  "update_worldcrowd_actor_lighting();"
+                 "world_->draw();"
+                 "scene_drawn=true;"
+                 "draw_venue_proxy_objects(world_->camera());"
                  "draw_worldcrowd_actor_runtime(world_->camera());"
                  "worldcrowd_drawn=true;",
-                 "lighting renderer samples transition before the crowd and late overlay draw");
+                 "native RndDir/proxy update and scene draw happen before the crowd and late overlay draw");
   ok &= contains(gameplay_c,
                  "boollate_lighting_overlay_enabled(){"
                  "returnenv_value(\"GHOGX_DISABLE_LATE_LIGHTING_OVERLAY\")"
@@ -10789,7 +10798,32 @@ int main() {
                  "venue excitement changes repush composed material alpha to the lighting overlay");
   ok &= contains(gameplay_c,
                  "update_lighting_spotlight_renderer();"
+                 "if(debug_camera_enabled()||debug_venue_filters_enabled()){"
+                 "staticboollogged_worlddir_lightpreset_order=false;"
+                 "if(!logged_worlddir_lightpreset_order){"
+                 "logged_worlddir_lightpreset_order=true;"
+                 "std::fprintf(stderr,"
+                 "\"[world]cameraLightPreset/RndDirorder:"
+                 "bridge=camera_worlddir_lightpreset_rnddir_order_bridge"
+                 "source_owner=WorldDir::Poll"
+                 "source_order=CameraManager::PrePoll->"
+                 "LightPresetManager::Poll->RndDir::Poll->"
+                 "CameraManager::Poll"
+                 "native_bridge=LightPreset_poll_before_venue_proxy_update_before_scene_draw"
+                 "camera_poll_split=regular_SetFrame_before_native_proxy_update;"
+                 "FreeCamera_deferred_last"
+                 "result=lighting_state_visible_to_RndDir_proxy_update"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "freecam_priority=deferred_last"
+                 "freecam_affects_gameplay=0"
+                 "no_dependency_change=1"
+                 "og_xbox_portability_preserved=1\\n\");}}"
+                 "update_venue_proxy_objects();"
                  "update_worldcrowd_actor_lighting();"
+                 "world_->draw();"
+                 "scene_drawn=true;"
+                 "draw_venue_proxy_objects(world_->camera());"
                  "draw_worldcrowd_actor_runtime(world_->camera());",
                  "WorldCrowd actors draw after active lighting preset/keyframe selection and before the lighting overlay");
   ok &= appears_before(gameplay_c,
@@ -14995,38 +15029,28 @@ int main() {
                  "regular camera proof emits a compact source-truth implementation status row");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kCameraRecoveredRuntimeList=",
-                 "regular camera progress count is derived from the shared recovered-runtime token list");
+                 "regular camera source-backed status count is derived from the shared recovered-runtime token list");
   ok &= contains(gameplay_c,
                  "constexprsize_tkCameraOpenGameplayBlockers=4;",
-                 "regular camera progress keeps the open gameplay blocker denominator explicit");
+                 "regular camera source-backed status keeps the open gameplay blocker count explicit");
   ok &= contains(gameplay_c,
                  "camera_count_csv_tokens(kCameraRecoveredRuntimeList)",
-                 "regular camera progress row counts recovered runtime tokens instead of copying a stale literal");
+                 "regular camera source-backed status counts recovered runtime tokens instead of copying a stale literal");
   ok &= contains(gameplay_c,
-                 "camera_completion_percent(recovered_camera_runtime_count,"
-                 "kCameraOpenGameplayBlockers)",
-                 "regular camera progress row derives the percent from the recovered/open denominator");
+                 "\"[world]camerasource-backedstatus:"
+                 "pipeline_scope=normal_gameplay_camera"
+                 "priority=gameplay_camera"
+                 "source_truth=ihatecompvir"
+                 "recovered_runtime_count=%zu"
+                 "open_gameplay_blockers=%zu",
+                 "regular camera proof emits count-based source-truth status without a percent");
   ok &= contains(gameplay_c,
-                 "\"[world]cameraprogress:"
+                 "\"[world]camerasource-backedstatus:"
                  "pipeline_scope=normal_gameplay_camera"
                  "priority=gameplay_camera"
                  "source_truth=ihatecompvir"
                  "recovered_runtime_count=%zu"
                  "open_gameplay_blockers=%zu"
-                 "completion_basis=recovered_runtime/"
-                 "(recovered_runtime+open_gameplay_blockers)"
-                 "completion_percent=%.1f",
-                 "regular camera proof emits the current percent basis beside the source-truth status row");
-  ok &= contains(gameplay_c,
-                 "\"[world]cameraprogress:"
-                 "pipeline_scope=normal_gameplay_camera"
-                 "priority=gameplay_camera"
-                 "source_truth=ihatecompvir"
-                 "recovered_runtime_count=%zu"
-                 "open_gameplay_blockers=%zu"
-                 "completion_basis=recovered_runtime/"
-                 "(recovered_runtime+open_gameplay_blockers)"
-                 "completion_percent=%.1f"
                  "active_hidden_gameplay_blockers=%s"
                  "deferred_gameplay_blockers=%s"
                  "freecam_priority=deferred_last"
@@ -15034,11 +15058,29 @@ int main() {
                  "under_venue_concern=open"
                  "no_dependency_change=1"
                  "og_xbox_portability_preserved=1",
-                 "regular camera progress proof keeps FreeCam deferred, under-venue open, and dependency status explicit");
+                 "regular camera source-backed status keeps FreeCam deferred, under-venue open, and dependency status explicit");
   ok &= absent(gameplay_c, "recovered_runtime_count=97",
-               "regular camera progress count must not be hard-coded separately from the recovered-runtime list");
-  ok &= absent(gameplay_c, "completion_percent=96.0",
-               "regular camera progress percent must not be hard-coded separately from the recovered/open denominator");
+               "regular camera source-backed status count must not be hard-coded separately from the recovered-runtime list");
+  ok &= absent(gameplay_c, "completion_percent",
+               "regular camera source-backed status must not report percent complete");
+  ok &= absent(gameplay_c, "camera_completion_percent",
+               "regular camera source-backed status must not keep percent-completion helpers");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraLightPreset/RndDirorder:"
+                 "bridge=camera_worlddir_lightpreset_rnddir_order_bridge"
+                 "source_owner=WorldDir::Poll"
+                 "source_order=CameraManager::PrePoll->"
+                 "LightPresetManager::Poll->RndDir::Poll->"
+                 "CameraManager::Poll"
+                 "native_bridge=LightPreset_poll_before_venue_proxy_update_before_scene_draw",
+                 "regular camera runtime proof exposes the ihatecompvir WorldDir LightPreset/RndDir source order bridge");
+  ok &= appears_before(gameplay_draw_c,
+                       "update_lighting_preset_env_light_state();",
+                       "update_venue_proxy_objects();",
+                       "WorldDir source order keeps LightPreset polling before native RndDir/proxy update");
+  ok &= appears_before(gameplay_draw_c, "update_venue_proxy_objects();",
+                       "world_->draw();",
+                       "native RndDir/proxy update happens before scene draw");
   ok &= contains(gameplay_c,
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,"

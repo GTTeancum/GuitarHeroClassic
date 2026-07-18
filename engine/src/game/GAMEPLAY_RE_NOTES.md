@@ -2,24 +2,26 @@
 
 ## Venue Camera
 
-- 2026-07-17 gameplay camera progress row hardening:
-  The normal-gameplay camera proof rows now derive
+- 2026-07-17 gameplay camera source-backed status row:
+  Runtime camera proofs now emit `[world] camera source-backed status` instead
+  of the numeric progress row. The row derives
   `recovered_runtime_count` by counting the shared recovered-runtime token list,
-  then derive `completion_percent` from that count plus the explicit four open
-  gameplay blockers. Runtime output remains 97 recovered, 4 open, and 96.0%,
-  but the number is no longer copied separately from the implementation-status
-  list. This is progress-proof hardening only: no selector behavior, camera
-  pose math, hidden predicate, `CharWalk`, FreeCam, dependency, OG Xbox
-  portability, or under-venue behavior changed.
-- 2026-07-17 gameplay camera progress proof row:
-  Runtime camera proofs now emit a separate `[world] camera progress` row with
-  the current normal-gameplay checklist basis: 97 recovered runtime items, 4
-  open gameplay blockers, and 96.0% completion under
-  `recovered_runtime/(recovered_runtime+open_gameplay_blockers)`. The row also
-  repeats the active/deferred blocker lists, FreeCam priority, under-venue
-  concern, dependency status, and OG Xbox portability status. This is progress
-  visibility only: no selector behavior, pose math, hidden predicate,
-  `CharWalk`, FreeCam, dependency, or under-venue behavior changes.
+  keeps the explicit open gameplay blocker count, and repeats the
+  active/deferred blocker lists, FreeCam priority, under-venue concern,
+  dependency status, and OG Xbox portability status. This is proof/status
+  formatting only: no selector behavior, camera pose math, hidden predicate,
+  `CharWalk`, FreeCam, dependency, OG Xbox portability, or under-venue behavior
+  changed.
+- 2026-07-17 gameplay WorldDir LightPreset/RndDir order bridge:
+  ihatecompvir `WorldDir::Poll()` runs
+  `CameraManager::PrePoll() -> LightPresetManager::Poll() -> RndDir::Poll() ->
+  CameraManager::Poll()` when world polling is enabled. Native now applies the
+  active LightPreset state and spotlight renderer state before
+  `update_venue_proxy_objects()` and scene draw, so venue/proxy RndDir-style
+  updates see the same-frame lighting state. The runtime proof row labels this
+  as `bridge=camera_worlddir_lightpreset_rnddir_order_bridge` and explicitly
+  labels the remaining native camera-poll split instead of claiming hidden
+  camera pose or FreeCam recovery.
 - 2026-07-17 gameplay CamShot clamp_height bridge status:
   ihatecompvir exposes `CamShot::mClampHeight`, initializes it to `-1.0f`,
   loads and copies it with the other CamShot camera fields, and syncs it as
