@@ -74,32 +74,38 @@ Header parse_header(const std::vector<uint8_t>& src) {
         h.streams[i].frame_count = rd_u32(src.data() + off + 4);
 
         if (h.streams[i].sample_rate == 0) break;
-        h.channels++;
+        h.stream_count++;
     }
-    if (h.channels == 0) {
+    if (h.stream_count == 0) {
         throw std::runtime_error("VGS: zero channels in header");
     }
 
-    // Reference sample rate from the first active stream; verify the rest match.
-    // (vgmstream notes that GH II occasionally has the last stream at half rate;
-    // we treat that as malformed and stop early.)
+    // Harmonix may append a half-rate auxiliary stream to the main-rate music
+    // channels. It remains physically interleaved in the payload even though it
+    // is not part of the playable output. Keep the stored count so the decoder
+    // can step over those frames without shifting every music channel.
     h.sample_rate = h.streams[0].sample_rate;
-    h.frames_per_channel = h.streams[0].frame_count;
-    for (int i = 1; i < h.channels; ++i) {
-        if (h.streams[i].sample_rate != h.sample_rate) {
-            // Truncate channel count -- the trailing stream isn't a real audio channel.
-            h.channels = i;
-            break;
-        }
-        h.frames_per_channel = std::min(h.frames_per_channel, h.streams[i].frame_count);
+    for (int i = 0; i < h.stream_count; ++i) {
+        if (h.streams[i].sample_rate != h.sample_rate) break;
+        if (h.channels == 0)
+            h.frames_per_channel = h.streams[i].frame_count;
+        else
+            h.frames_per_channel =
+                std::min(h.frames_per_channel, h.streams[i].frame_count);
+        h.channels++;
+    }
+    if (h.channels == 0 || h.sample_rate <= 0 || h.frames_per_channel == 0) {
+        throw std::runtime_error("VGS: invalid primary stream");
     }
     return h;
 }
 
 std::vector<int16_t> decode_pcm_s16(const std::vector<uint8_t>& bytes,
                                     const Header& h) {
-    const size_t expected = kHeaderSize +
-                            static_cast<size_t>(h.channels) * h.frames_per_channel * kFrameSize;
+    size_t expected = kHeaderSize;
+    for (int i = 0; i < h.stream_count; ++i) {
+        expected += static_cast<size_t>(h.streams[i].frame_count) * kFrameSize;
+    }
     if (bytes.size() < expected) {
         std::ostringstream oss;
         oss << "VGS: payload truncated, need " << expected
@@ -114,12 +120,14 @@ std::vector<int16_t> decode_pcm_s16(const std::vector<uint8_t>& bytes,
     const size_t total_samples = static_cast<size_t>(h.frames_per_channel) * kSamplesPerFrame;
     std::vector<int16_t> out(total_samples * h.channels);
 
-    // Block layout: one frame per channel in turn. So block k of channel c
-    // begins at: 0x80 + (k * channels + c) * 0x10.
+    // A logical block begins at channel 0 and contains each output channel in
+    // order. Lower-rate auxiliary streams can follow it. Their flag byte still
+    // carries the stored channel number, so skip until the next channel-0 frame.
+    size_t block_offset = kHeaderSize;
     for (uint32_t blk = 0; blk < h.frames_per_channel; ++blk) {
         for (int c = 0; c < h.channels; ++c) {
-            const uint8_t* frame = bytes.data() + kHeaderSize
-                                 + (static_cast<size_t>(blk) * h.channels + c) * kFrameSize;
+            const uint8_t* frame =
+                bytes.data() + block_offset + static_cast<size_t>(c) * kFrameSize;
 
             // Byte 0: filter index (high nibble), shift (low nibble).
             // Byte 1: flag byte (Harmonix uses this as channel id; ignore).
@@ -143,6 +151,11 @@ std::vector<int16_t> decode_pcm_s16(const std::vector<uint8_t>& bytes,
                 st[c].h2 = st[c].h1;
                 st[c].h1 = hist;   // UNCLAMPED feedback (matches PS-ADPCM spec)
             }
+        }
+        block_offset += static_cast<size_t>(h.channels) * kFrameSize;
+        while (block_offset + kFrameSize <= bytes.size() &&
+               (bytes[block_offset + 1] & 0x0Fu) != 0) {
+            block_offset += kFrameSize;
         }
     }
     return out;
@@ -213,6 +226,7 @@ bool Stream::open(std::unique_ptr<ByteSource> src) {
     st_.assign(static_cast<size_t>(h_.channels), Pred{});
     scratch_.assign(static_cast<size_t>(h_.channels), {});
     cur_block_ = 0xFFFFFFFFu;
+    next_block_offset_ = static_cast<uint32_t>(kHeaderSize);
     pos_ = 0;
     return true;
 }
@@ -221,8 +235,8 @@ void Stream::decode_block(uint32_t b) {
     const int ch = h_.channels;
     uint8_t frame[kFrameSize];
     for (int c = 0; c < ch; ++c) {
-        const uint32_t off = static_cast<uint32_t>(kHeaderSize) +
-                             (b * static_cast<uint32_t>(ch) + static_cast<uint32_t>(c)) *
+        const uint32_t off = next_block_offset_ +
+                             static_cast<uint32_t>(c) *
                                  static_cast<uint32_t>(kFrameSize);
         src_->read(off, frame, static_cast<uint32_t>(kFrameSize));
 
@@ -244,6 +258,14 @@ void Stream::decode_block(uint32_t b) {
             st_[c].h1 = hist;   // UNCLAMPED feedback
         }
     }
+    next_block_offset_ +=
+        static_cast<uint32_t>(ch) * static_cast<uint32_t>(kFrameSize);
+    uint8_t stream_flag = 0;
+    while (next_block_offset_ + kFrameSize <= src_->size()) {
+        src_->read(next_block_offset_ + 1u, &stream_flag, 1u);
+        if ((stream_flag & 0x0Fu) == 0) break;
+        next_block_offset_ += static_cast<uint32_t>(kFrameSize);
+    }
     cur_block_ = b;
 }
 
@@ -253,6 +275,7 @@ void Stream::ensure_block(uint32_t block) {
     if (cur_block_ == 0xFFFFFFFFu || block <= cur_block_ || block > cur_block_ + 1) {
         // Rebuild predictor history from the very start (covers loop/seek).
         for (auto& s : st_) s = Pred{};
+        next_block_offset_ = static_cast<uint32_t>(kHeaderSize);
         start = 0;
     } else {
         // Pure forward step: predictor already reflects cur_block_.

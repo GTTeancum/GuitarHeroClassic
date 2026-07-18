@@ -35,12 +35,13 @@ int main(int argc, char** argv) {
             std::printf("size               : %zu bytes\n", bytes.size());
             std::printf("magic              : %.4s\n", h.magic);
             std::printf("version            : %u\n", h.version);
-            std::printf("channels           : %d\n", h.channels);
+            std::printf("output channels    : %d\n", h.channels);
+            std::printf("stored streams     : %d\n", h.stream_count);
             std::printf("sample_rate        : %d Hz\n", h.sample_rate);
             std::printf("frames_per_channel : %u  (%.2f sec)\n",
                         h.frames_per_channel,
                         static_cast<double>(h.frames_per_channel) * 28.0 / h.sample_rate);
-            for (int i = 0; i < h.channels; ++i) {
+            for (int i = 0; i < h.stream_count; ++i) {
                 std::printf("  stream %d: rate=%d  frames=%u\n",
                             i, h.streams[i].sample_rate, h.streams[i].frame_count);
             }

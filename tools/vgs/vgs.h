@@ -29,10 +29,11 @@ struct StreamHeader {
 struct Header {
     char     magic[4];                  // "VgS!"
     uint32_t version;                   // observed 2 in GH80s
-    StreamHeader streams[8];            // up to 8 channels; channel count = first zero-rate index
-    int      channels = 0;              // derived
-    int      sample_rate = 0;           // derived (consistent across channels)
-    uint32_t frames_per_channel = 0;    // derived (smallest of the active streams)
+    StreamHeader streams[8];            // up to 8 stored streams; first zero rate ends the list
+    int      stream_count = 0;          // stored streams, including ignored half-rate tracks
+    int      channels = 0;              // output channels at the primary sample rate
+    int      sample_rate = 0;           // primary/output sample rate
+    uint32_t frames_per_channel = 0;    // smallest frame count among output channels
 };
 
 // Parse the 128-byte header. Throws std::runtime_error on malformed input.
@@ -42,7 +43,8 @@ Header parse_header(const std::vector<uint8_t>& bytes);
 // (frames_per_channel * 28) sample-frames * channels samples.
 //
 // Stream layout in the file is block-interleaved: one PS-ADPCM frame per
-// channel, in channel order, repeated; payload begins at offset 0x80.
+// output channel, in channel order, followed by any lower-rate auxiliary
+// frames before the next channel-0 frame. Payload begins at offset 0x80.
 std::vector<int16_t> decode_pcm_s16(const std::vector<uint8_t>& bytes,
                                     const Header& h);
 
@@ -142,6 +144,7 @@ class Stream {
   std::vector<Pred> st_;                          // per-channel predictor
   std::vector<std::array<int16_t, 28>> scratch_;  // decoded current block
   uint32_t cur_block_ = 0xFFFFFFFFu;              // block currently in scratch_
+  uint32_t next_block_offset_ = 0x80u;            // compressed offset for cur_block_ + 1
   uint32_t pos_ = 0;                              // current sample-frame
 };
 

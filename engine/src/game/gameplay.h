@@ -1000,6 +1000,11 @@ class Gameplay {
   AudioPlayer audio_;
   bool deterministic_clock_ = false;
   bool song_started_ = false;
+  bool sync_audit_started_ = false;
+  double sync_audit_wall_start_sec_ = 0.0;
+  double sync_audit_audio_start_sec_ = 0.0;
+  double sync_audit_next_log_sec_ = 1.0;
+  uint64_t sync_audit_frames_ = 0;
   std::unique_ptr<HighwayRenderer> highway_;
   std::unique_ptr<ghogx::render::MiloSceneRenderer> world_;
   std::unique_ptr<ghogx::render::MiloSceneRenderer> lighting_;

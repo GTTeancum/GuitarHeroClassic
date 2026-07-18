@@ -115,6 +115,16 @@ bool debug_gameplay_camera_enabled() {
     return env_value("GHOGX_DEBUG_GAMEPLAY_CAMERA") != nullptr;
 }
 
+bool sync_audit_enabled() {
+    return env_value("GHOGX_SYNC_AUDIT") != nullptr;
+}
+
+double monotonic_seconds() {
+    return std::chrono::duration<double>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+
 bool debug_backing_camera_enabled() {
     return env_value("GHOGX_DEBUG_BACKING_CAMERA") != nullptr;
 }
@@ -26119,6 +26129,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     chart_loaded_ = false;
     song_time_    = 0.0;
     song_started_ = false;
+    sync_audit_started_ = false;
+    sync_audit_wall_start_sec_ = 0.0;
+    sync_audit_audio_start_sec_ = 0.0;
+    sync_audit_next_log_sec_ = 1.0;
+    sync_audit_frames_ = 0;
     next_note_idx_= 0;
     score_        = 0;
     streak_       = 0;
@@ -34784,10 +34799,35 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
 
     // Master clock: the audio playback position when playing (so note timing
     // stays locked to the sound), else wall-clock accumulation.
-    if (!deterministic_clock_ && audio_.is_playing())
+    const bool live_audio = !deterministic_clock_ && audio_.is_playing();
+    if (live_audio)
         song_time_ = audio_.position_sec();
     else
         song_time_ += static_cast<double>(dt);
+
+    if (sync_audit_enabled() && live_audio) {
+        const double wall_now = monotonic_seconds();
+        if (!sync_audit_started_) {
+            sync_audit_started_ = true;
+            sync_audit_wall_start_sec_ = wall_now;
+            sync_audit_audio_start_sec_ = song_time_;
+            sync_audit_next_log_sec_ = 1.0;
+            sync_audit_frames_ = 0;
+        }
+        ++sync_audit_frames_;
+        const double wall_elapsed = wall_now - sync_audit_wall_start_sec_;
+        if (wall_elapsed >= sync_audit_next_log_sec_) {
+            const double audio_elapsed = song_time_ - sync_audit_audio_start_sec_;
+            const double fps = sync_audit_frames_ /
+                               std::max(0.001, wall_elapsed);
+            std::fprintf(stderr,
+                         "[sync-audit] wall=%.3f audio=%.3f visual=%.3f "
+                         "drift_ms=%+.2f fps=%.2f\n",
+                         wall_elapsed, audio_elapsed, song_time_,
+                         (audio_elapsed - wall_elapsed) * 1000.0, fps);
+            sync_audit_next_log_sec_ = std::floor(wall_elapsed) + 1.0;
+        }
+    }
 
     auto update_audio_whammy_state = [&]() {
         const bool raw_whammy = (fret_mask & (1u << 7)) != 0;
