@@ -3538,6 +3538,26 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->draw();",
                  "venue draw path still renders the 3D world before overlays");
+  ok &= contains(gameplay_c,
+                 "booldiagnostic_hide_highway_enabled(){returnenv_value("
+                 "\"GHOGX_HIDE_HIGHWAY\")!=nullptr||env_value("
+                 "\"GHOGX_DIAGNOSTIC_HIDE_HIGHWAY\")!=nullptr;}",
+                 "highway hiding is diagnostic-only and opt-in");
+  ok &= contains(gameplay_c,
+                 "\"[diagnostic-highway]hiddenmode=%st=%.3fenv=%s\\n\"",
+                 "diagnostic highway hiding emits proof logs");
+  ok &= appears_before(
+      gameplay_c,
+      "if(diagnostic_hide_highway_enabled()){"
+      "log_diagnostic_highway_hidden_once(song_time_,true);return;}",
+      "highway_->draw_over_scene(song_time_,chart_,difficulty_,",
+      "diagnostic highway hiding skips only the 3D over-scene highway overlay");
+  ok &= contains(app_main_c,
+                 "diagnostic_hide_hud_enabled()",
+                 "HUD hiding is an app-level diagnostic capture hook");
+  ok &= contains(app_main_c,
+                 "\"[diagnostic-hud]GHOGX_HIDE_HUDactive;skippingHUDdraw\\n\"",
+                 "diagnostic HUD hiding emits proof logs");
   ok &= appears_before(gameplay_c,
                        "world_->draw();",
                        "highway_->draw_over_scene(song_time_,chart_,difficulty_,",
@@ -3787,6 +3807,30 @@ int main() {
                  "compact==\"redoctane\"||compact==\"bigclub\"||"
                  "compact==\"big\"",
                  "RedOctane diagnostics resolve to the GH2 source venue key big");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_character_override(conststd::string&character)",
+                 "diagnostic character override stays an explicit gameplay test hook");
+  ok &= contains(gameplay_h_c,
+                 "std::stringdiagnostic_character_override_;",
+                 "diagnostic character override is scoped to roster visual validation");
+  ok &= contains(gameplay_c,
+                 "diagnosticcharacteroverride:%s->%s",
+                 "diagnostic character override logs stock and substituted guitarist outfit");
+  ok &= contains(gameplay_c,
+                 "quickplay_rig_->character_outfit=diagnostic_character_override_;",
+                 "diagnostic character override feeds the shared performer loader");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_guitar_override(conststd::string&guitar)",
+                 "diagnostic guitar override stays an explicit prop-trace hook");
+  ok &= contains(gameplay_h_c,
+                 "std::stringdiagnostic_guitar_override_;",
+                 "diagnostic guitar override is scoped to prop-anchor validation");
+  ok &= contains(gameplay_c,
+                 "diagnosticguitaroverride:%s->%s",
+                 "diagnostic guitar override logs stock and substituted prop symbol");
+  ok &= contains(gameplay_c,
+                 "quickplay_rig_->guitar=diagnostic_guitar_override_;",
+                 "diagnostic guitar override feeds the shared prop loader");
   ok &= contains(gameplay_h_c,
                  "voidset_diagnostic_venue_event(conststd::string&event_name)",
                  "diagnostic venue event stays an explicit gameplay test hook");
@@ -7198,6 +7242,9 @@ int main() {
                  "std::stringenvironment_ref;",
                  "decoded Groups retain their authored Environ ref");
   ok &= contains(milo_scene_h_c,
+                 "std::stringdraw_only;boolsort_in_world=false;",
+                 "decoded Groups retain source draw-only and sort flags");
+  ok &= contains(milo_scene_h_c,
                  "booluse_environ=false;boolprelit=false;",
                  "decoded materials retain environment/prelit flags");
   ok &= contains(milo_scene_h_c,
@@ -7379,8 +7426,25 @@ int main() {
                  "m.use_environ=body[state++]!=0;",
                  "Mat decoder preserves source-order use_environ flag");
   ok &= contains(milo_scene_cpp_c,
-                 "constuint32_tblend=r.u32();",
-                 "Mat decoder reads BLEND_ENUM before material color");
+                 "GroupObjdecode_group(conststd::string&entry_name,"
+                 "conststd::vector<uint8_t>&body,"
+                 "int32_tparent_dir_revision)",
+                 "Group decoder uses source-backed RndGroup layout");
+  ok &= contains(milo_scene_cpp_c,
+                 "group.children.push_back(r.str());",
+                 "Group decoder preserves authored object list order");
+  ok &= contains(milo_scene_cpp_c,
+                 "if(ver<16)group.environment_ref=r.str();",
+                 "Group decoder preserves source-gated Environ refs");
+  ok &= contains(milo_scene_cpp_c,
+                 "m.use_environ=r.u8()!=0;",
+                 "Mat decoder preserves source-backed use_environ flag order");
+  ok &= contains(milo_scene_cpp_c,
+                 "m.prelit=r.u8()!=0;",
+                 "Mat decoder preserves source-backed prelit flag order");
+  ok &= contains(milo_scene_cpp_c,
+                 "constuint32_tblend=plan.reads_blend?r.u32():0;",
+                 "Mat decoder reads source-gated BLEND_ENUM before material color");
   ok &= contains(milo_scene_cpp_c,
                  "m.blend=static_cast<uint8_t>(blend);",
                  "Mat decoder stores the authored blend enum");
@@ -10541,6 +10605,53 @@ int main() {
                  "load_char_clip_group(hdr_path_,ark_path_,main_milos,"
                  "group_name)",
                  "WorldCrowd runtime resolves authored DTA main.drv play_group clip sets");
+  ok &= contains(gameplay_c,
+                 "returnghogx::character::load_clip_group_names("
+                 "hdr_path,ark_path,milo_candidates,group_name);",
+                 "gameplay CharClipGroup lookup routes through the shared source-backed character helper");
+  ok &= contains(gameplay_h_c,
+                 "int32_tactive_group_which=0;",
+                 "performer stores source CharClipGroup mWhich state");
+  ok &= contains(gameplay_c,
+                 "ghogx::character::char_clip_group_get_clip_index(group)",
+                 "gameplay advances active CharClipGroup through source GetClip");
+  ok &= contains(gameplay_c,
+                 "constchar*clip_source_path(constghogx::character::"
+                 "CharClip&clip){returnclip.source_milo_path.empty()?"
+                 "\"<none>\":clip.source_milo_path.c_str();}",
+                 "gameplay exposes concrete source animation MILO paths for performer proof logs");
+  ok &= contains(gameplay_c,
+                 "\"[world]performerclipsources:role=%schar=%sidle=%s"
+                 "intro=%sactive=%sband_jump=%sstrum=%sfret=%s\\n\"",
+                 "performer load logs include concrete source clip MILOs");
+  ok &= contains(gameplay_c,
+                 "\"[world]performeractiveclip:role=%smode=%sclip=%s"
+                 "source=%st=%.3f\\n\"",
+                 "performer active-clip logs include concrete source clip MILOs");
+  ok &= contains(gameplay_c,
+                 "\"[world]performergroupclip:role=%sgroup=normalclip=%s"
+                 "source=%st=%.3f\\n\"",
+                 "performer group-clip logs include concrete source clip MILOs");
+  ok &= contains(gameplay_c,
+                 "\"[world]performerband_jump:role=%sclip=%ssource=%s"
+                 "tick=%uduration=%.3ft=%.3f\\n\"",
+                 "performer band-jump logs include concrete source clip MILOs");
+  ok &= contains(gameplay_c,
+                 "active_group=ghogx::character::load_clip_group("
+                 "hdr_path_,ark_path_,main_anim_milos,\"normal\");",
+                 "guitarist normal group loads full source CharClipGroup state");
+  ok &= contains(gameplay_c,
+                 "perf.active_group_which=active_group.which;",
+                 "guitarist normal group starts from source mWhich");
+  ok &= absent(gameplay_c,
+               "choose_graph_continuity_clip(",
+               "active CharClipGroup selection must not use native graph scoring");
+  ok &= absent(gameplay_c,
+               "choose_stance_continuity_clip(",
+               "active CharClipGroup selection must not use native stance scoring");
+  ok &= absent(gameplay_c,
+               "autoread_u8=[](conststd::vector<uint8_t>&b,size_t&p)->uint8_t",
+               "gameplay must not keep a local ad hoc CharClipGroup byte reader");
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "runtime.clips_by_group=std::move(clips_by_group);",
                  "WorldCrowd runtime stores decoded play_group clips after load");
@@ -16545,9 +16656,9 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "ghogx::character::CharClipband_jump_clip;",
                  "performers carry the traced sync_jump/band_jump clip");
-  ok &= contains(gameplay_h_c,
-                 "ghogx::character::CharClipPlayerband_jump_player;",
-                 "performer band_jump uses an independent transient player");
+  ok &= absent(gameplay_h_c,
+               "ghogx::character::CharClipPlayerband_jump_player;",
+               "performer band_jump no longer uses an isolated transient player");
   ok &= contains(gameplay_h_c,
                  "uint32_tlast_band_jump_tick=UINT32_MAX;",
                  "band_jump dispatch is deduped per authored event tick");
@@ -16582,21 +16693,21 @@ int main() {
                  "band_jump_names)",
                  "performer band_jump resolves through main.drv before fallback");
   ok &= contains(gameplay_c,
-                 "perf.band_jump_player.play(perf.band_jump_clip,"
+                 "perf.active_player.play(perf.band_jump_clip,"
                  "ghogx::character::kCharPlayDirty|"
                  "ghogx::character::kCharPlayNoLoop,"
                  "character_driver_blend_seconds());",
-                 "band_jump plays the traced dirty non-loop clip transiently");
-  ok &= contains(gameplay_c,
-                 "song_time_-perf.last_band_jump_started>"
-                 "perf.last_band_jump_duration){perf.band_jump_player.clear();}",
-                 "band_jump clears after authored clip duration");
+                 "band_jump plays the traced dirty non-loop clip on the active source stack");
+  ok &= absent(gameplay_c, "perf.band_jump_player.clear();",
+               "band_jump stack return is handled by CharClipPlayer transient exit");
   ok &= appears_before(
       gameplay_c,
-      "if(!intro_active&&perf.band_jump_player.active()){"
-      "add_player_layer(perf.band_jump_player,1.0f);}",
-      "elseif(!intro_active&&performer_playing&&perf.active_player.active())",
-      "band_jump temporarily supplies the base pose before active/idle fallback");
+      "perf.active_player.play(perf.band_jump_clip,"
+      "ghogx::character::kCharPlayDirty|"
+      "ghogx::character::kCharPlayNoLoop,"
+      "character_driver_blend_seconds());",
+      "constNoteCueperf_note_cue=",
+      "band_jump dispatch remains before note/hand pose evaluation");
   ok &= contains(gameplay_c,
                  "booldebug_performer_sync_enabled(){"
                  "returnenv_value(\"GHOGX_DEBUG_PERFORMER_SYNC\")!=nullptr;}",

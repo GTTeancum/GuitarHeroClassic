@@ -534,6 +534,11 @@ uint32_t FoFiXGameplaySession::diagnostic_autoplay_mask(
                 std::min<size_t>(target, UINT32_MAX - 1u));
   uint32_t strum_mask = 0;
   if (source_tick != diagnostic_autoplay_last_strum_tick_) {
+    const bool previous_strum_held = (prev_fret_mask_ & (1u << 5)) != 0;
+    const bool target_is_still_early = song_time + 1e-6 < notes_[target].time;
+    if (previous_strum_held && target_is_still_early) {
+      return sustain_mask | mask | star_power_mask;
+    }
     strum_mask = 1u << 5;
     diagnostic_autoplay_last_strum_tick_ = source_tick;
     prev_fret_mask_ &= ~(1u << 5);

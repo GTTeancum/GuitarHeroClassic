@@ -3039,8 +3039,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   dev_->SetViewport(&full_viewport);
 
   if (clear_target) {
+    const D3DCOLOR clear_color =
+        env_enabled("GHOGX_CHARACTER_SOFT_GREEN_BG")
+            ? D3DCOLOR_XRGB(116, 151, 124)
+            : D3DCOLOR_XRGB(clear_r_, clear_g_, clear_b_);
     dev_->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-                D3DCOLOR_XRGB(clear_r_, clear_g_, clear_b_), 1.0f, 0);
+                clear_color, 1.0f, 0);
   } else if (clear_depth_on_overlay_) {
     dev_->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
   }

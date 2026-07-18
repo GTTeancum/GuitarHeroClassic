@@ -234,15 +234,27 @@ Community metadata Rosetta:
   glam1 capture, while `woman_f900_hair_probe_debugcam.bmp` turned rock2's
   hair into a rigid sheet across the camera. That probe wrote point rows from
   authored positions and did not reproduce the accepted PS2 strand/update path.
-- Native `CharHair` now polls by default after clip/IK/twist inputs. Runtime
-  state is stored per decoded character, initialized from the live Trans row,
-  and updated through the decoded `CharHair` graph with authored stiffness,
-  inertia, gravity, weight, friction, strand roots, point bones, segment
-  lengths, and sphere/inside-sphere collision references. The decoded
-  `point.parent` field is treated as the PS2 collision object, not as a
-  skeletal attachment parent.
-- `GHOGX_DISABLE_CHAR_HAIR=1` disables the poller for A/B validation.
-  `GHOGX_DEBUG_CHAR_HAIR=1` logs each solved point row.
+- Current native `CharHair` behavior ports the checked ihatecompvir
+  `CharHair::Poll`, `DoReset`, `SimulateLoops`, and `SimulateInternal`
+  dataflow for persistent point position, force, friction, and `lastZ` state.
+  ihatecompvir's `CharHair::Load` still consumes the GH2 revision-2 legacy
+  inline collision fields, then clears `Point.collides`; the checked source also
+  lacks the overloaded collision-list `Hookup(ObjPtrList<CharCollide>&)` body
+  needed to populate the runtime point collide list. The character-level
+  BandCharacter source path sets hair rows to managed hookup and calls the
+  overloaded hookup directly with the collected character collide list before
+  `Character::SyncObjects`; native logs that path separately from the default
+  no-arg `CharHair::Hookup()` return. Native therefore logs
+  decoded stiffness, inertia, gravity, weight, friction, strand roots, point
+  bones, segment lengths, legacy inline collision names/types, `unk5c` rows,
+  source poll/reset/sim status, directory `CharCollide` inventory, and whether
+  the missing hookup overload body is available, but keeps point
+  `runtimeWriteback=0` until that exact hookup path is ported.
+- Historical `GHOGX_ENABLE_CHAR_HAIR_PROBE=1` and `GHOGX_DISABLE_CHAR_HAIR=1`
+  captures remain useful rejected evidence, but those gates are not current
+  runtime controls. `GHOGX_DEBUG_CHAR_HAIR=1` logs decoded source rows plus the
+  source poll/reset/sim boundary; it does not mean a solved hair simulation is
+  active.
 
 Head-local attachment hair:
 
@@ -325,16 +337,18 @@ Glam1 hair:
   the matching log places `hair-front.mesh` in the same transformed face region
   as `lashes.mesh`.
 - `hair.hair` contains three strand groups rooted at `bone_hair01.mesh`,
-  `bone_bangL.mesh`, and `bone_bangR.mesh`; those groups are now driven by the
-  common native `CharHair` poller.
+  `bone_bangL.mesh`, and `bone_bangR.mesh`; native currently decodes/logs those
+  source groups only. Do not treat the decoded groups as runtime writeback until
+  the missing ihatecompvir `CharHair` hookup/collide-list path is ported.
 - Single-point `CharHair` groups are follow/controller rows, not simulated
-  chains. Native must not solve them back toward the collision primitive or
-  write a new local transform from the solver. Accepted PS2 row evidence from
+  chains. Current native must not solve them back toward the collision
+  primitive or write a new local/world transform from a solver. Accepted PS2
+  row evidence from
   `pcsx2_hair_eye_active_rows_20260611.json` showed Glam1 child/root rows
   moving in later/world row bands while the sampled local row band for
-  `bone_hair01.mesh` and `bone_bangL.mesh` stayed stable. Native keeps those
-  points follow-only; single-point local-row writes and single-point physics
-  simulation are rejected probes, not the Glam1 hair fix.
+  `bone_hair01.mesh` and `bone_bangL.mesh` stayed stable. Current source-truth
+  keeps those rows decoded/logged only; single-point local-row writes and
+  single-point physics simulation are rejected probes, not the Glam1 hair fix.
 - Rejected Glam1 hair routes: disabling local hair attachment shaved the hair
   sheets off the head (`shout_glam1_localhair_disabled_f900.bmp`), and forcing
   the hair material through per-mesh bind skinning dragged a sheet sideways
@@ -365,15 +379,17 @@ Glam1 hair:
     the face.
   - `shout_glam1_sim_single_hair_f900.bmp`: running the normal physics solver
     on the single-point groups lowered the sheets but over-covered the face.
-  Keep single-point groups follow-only until a PS2 trace gives final named
-  hair-bone rows for the matching in-song moment.
-- Promoted 2026-06-15 Glam1 hair route:
+  Keep single-point solver/writeback disabled until the ihatecompvir source
+  runtime path is complete.
+- Historical 2026-06-15 Glam1 hair render-state route:
   `shout_glam1_iso_hair_side_mesh_f900.bmp` and
   `shout_glam1_iso_hair_bottom_mesh_f900.bmp` isolated the visibly detached
   class to the blended weighted hair sheets, while `glam1_hair.tex.bmp` proved
   the texture alpha is mostly opaque with a small authored cutout range. The
-  accepted renderer fix is to draw blended hair materials with depth writes
-  disabled while keeping alpha test/blend enabled. Validation:
+  old branch treated this as a renderer fix that drew blended hair materials
+  with depth writes disabled while keeping alpha test/blend enabled. Current
+  source-truth instead uses decoded `RndMat` alpha/z/wrap state and keeps hair
+  policy limited to two-sided culling. Historical validation:
   `engine/out/native_song_20260615/shout_glam1_hair_nozwrite_final_f900.bmp`
   and `.log`. This improves hair-card self-layering; it is not a claim that
   every Glam1 hair shape is final.
@@ -387,19 +403,22 @@ Glam1 hair:
   `hair-side.mesh`/`hair-top.mesh` are Mesh entries only; the live controller
   rows named in the accepted trace are `bone_hair01.mesh`, `bone_bangL.mesh`,
   `bone_bangR.mesh`, plus parent rows such as `bone_head.mesh` and
-  `bone_neck.mesh`. The remaining Glam1 hair fix must feed the traced
-  world-row CharHair result into skinning for those controller bones; do not
-  solve this by hiding sheets, per-mesh offsets, or changing draw order again.
-- 2026-06-15 runtime row bridge:
-  native now stores a runtime world row for each active `CharHair` point and
-  lets hair skinning consume it for matching controller bones. Validation
+  `bone_neck.mesh`. The remaining evidence gap is the ihatecompvir `CharHair`
+  runtime consumer for those controller bones; do not solve this by hiding
+  sheets, per-mesh offsets, or changing draw order again.
+- 2026-06-15 historical runtime row bridge trial:
+  a removed branch stored a runtime world row for each active `CharHair` point
+  and let hair skinning consume it for matching controller bones. Validation
   `shout_glam1_hair_runtimeworld_default_f900.bmp` is hash-stable against the
   previous promoted player-visible frame, and
   `shout_glam1_hair_runtimeworld_skinmatrix_f60.log` proves weighted Glam1
   hair sheets see `hairOverride=1` for `bone_hair01.mesh`,
   `bone_bangL.mesh`, and `bone_bangR.mesh`. The same log also shows the
   current local-attachment matrix collapses to identity for those pieces, so
-  this is structural plumbing only, not a completed visual hair fix.
+  this was structural plumbing only, not a completed visual hair fix. Current
+  native CharHair uses the checked ihatecompvir poll/reset/sim dataflow but
+  remains at point `runtimeWriteback=0` until the missing source hookup body is
+  available.
 - 2026-06-15 rejected skin-matrix probes:
   global `GHOGX_DISABLE_LOCAL_HAIR_ATTACHMENT=1` runs under
   `engine/out/native_song_20260615/hair_formula_probe/` with
@@ -877,15 +896,17 @@ Glam1 hair:
   matrix rows at target offsets `+0x60/+0x70/+0x80/+0x90`; the `a1` matrix
   passed to `trans_write_001dd7b8` copies those rows (mean row dot products
   are at or above 0.995 for row0 and 0.996 for rows1/2 across all three
-  targets). Native therefore must write follow-only `CharHair` target locals
-  every tick before weighted hair skinning. This promotes the traced
-  follow-row write, while keeping `GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE`
-  diagnostic-only.
-- 2026-06-16 native follow-row bridge promoted:
-  follow-only `CharHair` groups now keep the controller translation at the
-  decoded target row but build the runtime controller orientation from the
-  traced PS2 point vector (`row1 * point.length`) plus a persistent cached roll
-  row. The cached row initializes to the common Glam1 write-site phase
+  targets). Earlier work treated this as proof that native should write
+  follow-only `CharHair` target locals every tick before weighted hair skinning.
+  Current source-truth does not keep that PS2-trace promotion live: native
+  remains `runtimeWriteback=0` until ihatecompvir's `CharHair` hookup,
+  collision-list, reset, simulation, and visible-consumer flow is faithfully
+  ported.
+- 2026-06-16 historical native follow-row bridge trial:
+  a removed branch kept follow-only `CharHair` controller translation at the
+  decoded target row but built runtime controller orientation from the traced
+  PS2 point vector (`row1 * point.length`) plus a persistent cached roll row.
+  The cached row initialized to the common Glam1 write-site phase
   `0.5 * descriptor row0 - 0.8660254 * descriptor row2`, which matches the
   paired trace rows for `bone_hair01.mesh`, `bone_bangL.mesh`, and
   `bone_bangR.mesh` without moving the controller to the simulated strand
@@ -896,7 +917,8 @@ Glam1 hair:
   three live controller bones and the close frame keeps eyes visible while
   reattaching the side hair. Rock2 cross-check
   `engine/out/codex_goal_20260616_follow_ps2_basis_crosschecks/woman_rock2_follow_ps2_basis_f120.bmp`
-  still has unresolved hair chunks; do not call Rock2 closed from this pass.
+  still has unresolved hair chunks. Treat this section as historical trace
+  evidence only, not current source-backed native behavior.
 - 2026-06-16 accepted Rock2 multi-point point-state trace:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_rock2_woman_hair_point_state_ring4096_20260616.json`
   hooks the PS2 write site `0x001778e4` in active Woman gameplay and records
@@ -910,16 +932,18 @@ Glam1 hair:
   Trans position: `bone_hair01.s0pos == bone_hair02.sp30`,
   `bone_hair02.s0pos == bone_hair03.sp30`, `bone_hair03.s0pos ==
   bone_hair04.sp30`, and the same relation holds for the two-point side
-  chains. Native chain rows therefore submit the visible controller at the
-  segment root/anchor and aim row1 at the endpoint. This is necessary format
-  coverage, not visual closure for Rock2 weighted hair-card consumption.
-- 2026-06-19 native multi-point chain fix:
-  native now snapshots every multi-point `CharHair` group controller world row
-  before any point in that group is rewritten. Chain endpoints use the cached
-  unmodified next controller root, and the final segment extends from the
-  cached current controller row, so parent rewrites no longer collapse later
-  points into a straight vertical child chain. This implements the accepted
-  PS2 relation above without character names or mesh offsets. Validation
+  chains. Earlier work interpreted this as a native chain-row submission rule
+  for visible controllers at segment roots/anchors with row1 aimed at the
+  endpoint. Current source-truth keeps it as PS2 trace evidence only until the
+  ihatecompvir `CharHair` runtime consumer path is ported.
+- 2026-06-19 historical native multi-point chain trial:
+  a removed branch snapshotted every multi-point `CharHair` group controller
+  world row before any point in that group was rewritten. Chain endpoints used
+  the cached unmodified next controller root, and the final segment extended
+  from the cached current controller row, so parent rewrites no longer
+  collapsed later points into a straight vertical child chain. This attempted
+  to implement the accepted PS2 relation above without character names or mesh
+  offsets. Validation
   `engine/out/codex_goal_20260619_rock2_hair_cached_chain/rock2_cached_chain_y055_f900.bmp`
   visibly pulls the large left/back Rock2 hair mass back onto the head versus
   `engine/out/codex_goal_20260619_rock2_after_uppertwist/rock2_current_y055_f900.bmp`.
@@ -933,35 +957,37 @@ Glam1 hair:
   consumption path, not a root-parent hair-card or per-mesh offset fix.
 - 2026-06-19 Rock2 local-hair consumer A/B:
   `engine/out/codex_goal_20260619_rock2_hair_consumer_probe/rock2_hair_top_probe_f900.bmp`
-  recreated the front-angle `hair-top.mesh` highlight with focused skin/hair
-  logging. The deleted 36 MB diagnostic log showed `hair-top.mesh` remains
+  recreated the front-angle `hair-top.mesh` highlight in the old branch with
+  focused skin/hair logging. The deleted 36 MB diagnostic log showed
+  `hair-top.mesh` remains
   `mode=local-attachment`, its palette is `bone_head.mesh`,
   `bone_L-hair01.mesh`, and `bone_R-hair01.mesh`, and both side hair rows reach
   skinning with `hairOverride=1` and non-identity skin rows. The bind audit
   classifies `hair-top.mesh` as `basis=mesh-local-chain` with
-  `meshLC(max)=0.00001`, so the current shared consumer is still in the right
-  decoded asset class. The follow-up
+  `meshLC(max)=0.00001`, so the asset-class evidence remains useful even
+  though the native `hairOverride` consumer is no longer live. The follow-up
   `engine/out/codex_goal_20260619_rock2_hair_worldmode_ab/` rechecked
   `GHOGX_LOCAL_HAIR_WORLD_MODE=identity`, `parent`, and `attachment_parent` at
   the same frame. `parent` and `attachment_parent` were identical and visibly
   exposed the sheet behind the ear; `identity` only removed it from this camera
   and is not trace-backed as a global solution. Keep these as rejected
   diagnostics. Do not promote a world-mode override or character/name branch for
-  Rock2 hair; the next evidence must come from PS2 local-attachment
-  controller-row-to-card consumption, not another draw-world toggle.
-- 2026-06-19 Glam1 local-hair consumer recheck after the newer non-identity
-  CharHair row bridge:
+  Rock2 hair. The later 2026-07-04 active PCSX2 local-attachment trace below
+  supplies the needed mesh/card ownership evidence; do not replace it with an
+  untraced draw-world toggle.
+- 2026-06-19 historical Glam1 local-hair consumer recheck after the removed
+  non-identity CharHair row bridge:
   `engine/out/codex_goal_20260619_glam1_hair_consumer_recheck/` reran the
   same live head camera with the existing shared diagnostics. The default and
   `GHOGX_DISABLE_LOCAL_HAIR_ATTACHMENT=1` captures were visually equivalent at
   this frame, while `GHOGX_LOCAL_HAIR_SKIN_MATRIX_MODE=meshbind_local` and
   `GHOGX_LOCAL_HAIR_WORLD_MODE=identity` shaved or tore visible hair mass away
   from the head. The compact summaries show `hair-top.mesh` still receiving
-  non-identity `hairOverride=1` rows in default mode. Keep the current
-  head-local weighted-card path as the least-wrong traced route; do not promote
-  mesh-bind, identity-world, or disable-local-hair variants just because the
-  controller rows are now live. The remaining Glam1/Rock2 hair issue is still
-  the shared PS2 local-attachment controller-row-to-card consumption step.
+  non-identity `hairOverride=1` rows in default mode. Treat this as old-branch
+  comparison evidence only; do not promote mesh-bind, identity-world, or
+  disable-local-hair variants just because the removed controller-row bridge
+  looked less wrong. The remaining Glam1/Rock2 hair issue is still the shared
+  source-backed local-attachment controller-row-to-card consumption step.
 - 2026-06-19 Glam1 follow-up rejected renderer diagnostics:
   `engine/out/codex_goal_20260619_glam1_local_chain_close_probe/` temporarily
   tested drawing local-attachment hair cards with the same local-chain world
@@ -979,30 +1005,33 @@ Glam1 hair:
   `gh2dxu_rock2_woman_hair_writer_rows_state1_ghdxelf_20260616.json` submits
   `bone_hair-front.mesh`, `bone_R-hair01.mesh`, `bone_R-hair02.mesh`,
   `bone_L-hair01.mesh`, and `bone_L-hair02.mesh` with row1 mostly along `-Z`
-  and side-specific row0/row2 roll. Native now reaches the same matrix-shape
-  family for those controllers in the highlighted Rock2 frame, for example
-  `bone_R-hair01.mesh` tail rows stay near row1
+  and side-specific row0/row2 roll. The removed native branch reached the same
+  matrix-shape family for those controllers in the highlighted Rock2 frame, for
+  example `bone_R-hair01.mesh` tail rows stay near row1
   `(0.01, -0.14, -0.99)` while PS2 sampled the same controller class near
-  `(0.07, -0.04, -0.997)`. Treat this as evidence that the remaining highlighted
-  tuft is not a missing controller write. Do not change the shared CharHair
-  matrix writer or draw-world path from this Rock2 close-up alone.
-- 2026-06-19 promoted CharHair runtime-world consumer bridge:
+  `(0.07, -0.04, -0.997)`. Treat this as historical evidence that a
+  controller-row write alone did not close the remaining highlighted tuft. Do
+  not revive the removed CharHair matrix writer or draw-world path from this
+  Rock2 close-up alone.
+- 2026-06-19 historical CharHair runtime-world consumer bridge trial:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/codex_rock2_hair_card_rows_20260619.json`
   captures the visible `hair-top.mesh` object row at `0x007ba390` changing
   during active Woman gameplay, with nearby controller/object evidence for
   `bone_hair01.mesh` and `bone_hair-front.mesh`. The older accepted writer
   trace `gh2dxu_rock2_woman_hair_writer_rows_state1_ghdxelf_20260616.json`
   showed the same family being submitted through the shared Trans writer, not
-  authored as static local-row edits. Native now mirrors that ownership:
-  `CharHair` submits each live controller row into
+  authored as static local-row edits. A removed native trial mirrored that
+  ownership by submitting each live controller row into
   `Character::runtime_world_overrides`, just like the accepted IK hand bridge,
-  and leaves authored locals untouched for later graph consumers. Validation:
+  and leaving authored locals untouched for later graph consumers. Validation:
   `engine/out/codex_goal_20260619_hair_world_override_validation/rock2_hair_override_f900.log`
   shows `hair-top.mesh` consuming `hairOverride=1` skin rows while the draw
   path still reports `world=mesh-world`; the Glam1 front viewer sweep
   `engine/out/codex_goal_20260619_glam1_camera_sweep/glam1_y3p14.bmp` keeps
-  the eyes in their sockets and the hair mass attached around the head. This
-  is a shared format rule, not a Glam1/Rock2 branch. Rock2 still needs a
+  the eyes in their sockets and the hair mass attached around the head. Current
+  source-truth no longer treats this as a live shared format rule; native logs
+  decoded `CharHair` rows only and leaves runtime writeback off until the
+  ihatecompvir `CharHair` runtime path is complete. Rock2 still needs a
   separate mesh-local bind-space card review for the `hair-mid`/`hair-back`
   silhouettes before calling all hair complete.
 - 2026-06-20 Rock2 normal-camera recheck:
@@ -1016,25 +1045,685 @@ Glam1 hair:
   a close-camera local-card parity question, not proof for a hide/offset or
   character-specific patch. Reopen focused PS2 local-attachment card tracing
   only if a normal gameplay-angle mismatch appears.
+- 2026-07-04 CharHair segment-format checkpoint:
+  this is an understanding checkpoint, not a visual close. The native decoder
+  reads `.hair` entries as `version`, Hmx object metadata, six global floats,
+  a group count, then each group as source-schema `root`, `angle`,
+  `point_count`, per-point `{pos[3], bone, length, collide_type, collision,
+  distance, align_dist if version > 1}`, 18 trailing group floats, and an
+  optional enabled byte. The current C++ structs still carry older internal
+  member names for those fields, but user-facing diagnostics report the source
+  schema names. The
+  runtime structs keep those decoded records separate from `RuntimeHairPoint`
+  state, which stores current/previous world point state plus the submitted
+  orientation row. Do not replace this with per-character offsets or hidden
+  mesh lists.
+- 2026-07-06 ihatecompvir in-repo public-source cross-check:
+  use the local reference copy at
+  `../ihatecompvir-public-milo-sources/` before opening new RE traces. The
+  current local snapshot includes `glTFMilo` commit `6c54acb` and `MiloEditor`
+  commit `3ebffb1`; keep future source comparisons inside this repo tree so
+  they are reviewable and do not create stray drive-level checkouts. `grim`
+  (`grim/core/grim/src/scene/char_hair/io.rs`), `MiloEditor`
+  (`MiloEditor/MiloLib/Assets/Char/CharHair.cs`), and
+  `re-notes/templates/milo/char_hair.bt` agree that GH2/GH2 360 `CharHair`
+  version/revision 2 loads globals, then strands as `root`, `angle`,
+  `point_count`, per-point `pos[3]`, `bone`, `length`, `collide_type`,
+  `collision`, `radius`/`distance`, `outer_radius`/`align_dist`, followed by
+  `baseMat` and `rootMat`. The template explicitly describes `bone` as the hair
+  bone whose transform is set.
+  The RB3 source (`src/system/char/CharHair.h/.cpp`) shows the runtime shape:
+  points own a `RndTransformable` bone, strands keep `mBaseMat`/`mRootMat`,
+  simulation eventually calls `bone->SetWorldXfm(...)`, and `SetRoot` can
+  populate a strand by walking the root Trans child chain. Therefore
+  `CharHair` is a controller graph that writes live Trans rows; visible hair
+  meshes are consumers of those driven Trans rows through ordinary mesh/skinning
+  draw paths, not children embedded inside the `.hair` object.
+- The same in-repo public-source pass supports the mesh/render-state boundary without
+  closing the remaining visual bugs. RB3 `RndMesh` load source reads the GH2-era
+  `RndMesh` rev28 skinning tail as a four-bone palette plus four offsets; it
+  only reads explicit per-vertex `boneIndices` in newer revs.
+  `glTFMilo/external/MiloEditor`
+  `RndMat` reads GH2-era material state in this source order after color:
+  `useEnviron`, `preLit`, `zMode`, `alphaCut`, `alphaWrite`, `texGen`,
+  `texWrap`, 12-float `texXfm`, `diffuseTex`, `nextPass`, `intensify`, `cull`,
+  `emissiveMultiplier`. That supports the native blend/cull render-state path
+  and gives the string-scanning Mat decoder a concrete schema target. Public
+  source does not by itself prove the final Rock1 or Rockabill2 hair-card
+  consumer equation, nor the Rockabill2 eye/teeth consumer path; those still
+  require matching runtime trace or equally direct source-backed consumer
+  evidence before any native visual fix is promoted.
+- 2026-07-04 retained PS2 row evidence:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_rock2_hair_trace_20260611.json`
+  and
+  `codex_artifacts/guitarist_fidelity/pcsx2_rock2_object_words_include_samples_20260704/rock2_object_words_include_samples.json`
+  remain the successful PS2-backed row evidence for the current slice. The
+  object samples show controller-style rows with a static/local matrix at
+  object `+0x20`, a live/current matrix at object `+0x60`, translation at
+  `+0x90`, and a name pointer at `+0xd4` for
+  `bone_hair-front.mesh`, `bone_R-hair01.mesh`, and
+  `bone_L-hair01.mesh`; the visible `hair-top.mesh` object row changes during
+  active gameplay as a render mesh. The accepted 2026-06-16 writer trace shows
+  chain groups submit the visible Trans row at the segment root/anchor while
+  the simulated endpoint becomes the next segment's anchor. Native diagnostics
+  now log both `solved=(...)` and `submitted=(...)` so those two concepts stay
+  separate.
+- 2026-07-04 Rock1 hair inventory:
+  `codex_artifacts/guitarist_fidelity/hair_format_understanding_20260704/rock1_bind_audit_all.txt`
+  and
+  `rock1_submitted_row_diag/capture.log` show `rock1` has decoded
+  `hair_back.hair` and `hair_front.hair` controllers. `hair_back.hair` is one
+  four-point group rooted at `bone_hair01.mesh` with `angle=-5.0000`.
+  `hair_front.hair` is two three-point groups rooted at
+  `bone_L-hair01.mesh` and `bone_R-hair01.mesh` with `angle=-4.0000`
+  and `-2.0000`. The visible hair sheets, including `Hair-lower*`,
+  `hair-top_back*`, `hair-side*`, `hair-front*`, `hair-sides*`, and
+  `rock1.3.mesh`, audit mostly as `basis=mesh-local-chain`, while
+  `hair-bottom.mesh` audits as `basis=mesh-stored-world`. Runtime logs show
+  live `hairOverride=1` rows reaching those hair palettes through
+  `mode=mesh-local-bind`. The current close screenshot still reads the hair too
+  far back, so Rock1 is not closed; the next evidence must explain card
+  consumption or an undecoded field, not add a Rock1 offset.
+- 2026-07-04 Rock1 current recheck:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260704_current/rock1_head_current_unresolved.bmp`
+  and its log reproduce the same unresolved card-read issue. The refreshed
+  inventory shows `rocker1_hair.mat` and `rock1_hair2.mat` decode with
+  `Mat.ng.cull=1`, so Rock1 is not a two-sided-material case like Grim. The
+  focused frame-90 diagnostic
+  `rock1_front1_f90_matrix_recheck/rock1_front1_f90_matrix_recheck.bmp`
+  highlights the visibly bad `hair-front1.mesh` card. Its log proves the
+  controller rows are live: `bone_R-hair01/02/03.mesh` all reach the palette
+  with `hairOverride=1`, and the detailed current-local/current-stored rows
+  differ by segment. The final skin matrices emitted for the weighted card are
+  still close to identity plus mesh translation, with only small row3 offsets
+  from the shared mesh row. That refines the failure to the
+  controller-row-to-weighted-card consumption/decode path, not missing
+  controllers, cull, alpha, card hiding, or a Rock1-specific offset. Do not
+  promote a Rock1 code fix without a matching PS2 card/row trace or equivalent
+  source-backed decode.
+- 2026-07-04 Rock2 cross-check:
+  `rock2_submitted_row_diag/capture.log` shows `hair_front.hair` as one
+  follow-only front group plus two side chains, and `hair_back.hair` as the
+  four-point back chain. The native `submitted` positions differ from the
+  `solved` endpoints by roughly one segment length, which matches the accepted
+  PS2 segment-root submission rule instead of proving an offset bug. The
+  next failure was the hair-card consumer path: `hair-front1.mesh` and
+  `hair-top.mesh` are compact weighted `bone_head.mesh` children with
+  `basis=mesh-local-chain`, and `hair-front1.mesh` is the detached forward
+  sheet in `rock2_highlight_hair-front1.mesh.bmp`. Its vertices are mostly
+  parent/head weighted, and the local-attachment skin solve already returns
+  mesh-local card coordinates. Drawing that result through the corrected stored
+  mesh-world row applies an attachment-space correction that the active PS2 row
+  trace does not show. Native now draws weighted local-attachment hair through
+  the decoded live mesh-local row (`local-hair-mesh-local`) while keeping the
+  same CharHair runtime rows and local-attachment skin equation. This is a
+  format rule, not a Rock2 offset. Earlier diagnostics
+  `GHOGX_LOCAL_HAIR_WORLD_MODE=parent`, `attachment_parent`, and `identity`
+  remain rejected as probes unless a PS2 trace proves one of those rows is the
+  active renderer row. `GHOGX_DISABLE_LOCAL_HAIR_ATTACHMENT=1` changed the
+  authored top/front hair shape too much and remains rejected.
+- 2026-07-04 `Mat.ng.cull` render-state decode:
+  `_community_re/Guitar-Hero-II-Deluxe-Unified/_ark/(..)/(..)/system/run/config/rnd_objects.dta`
+  defines `Mat.ng.cull` after the generic material state. In observed GH2 PS2
+  v27 Mat bodies the post-diffuse block begins with an empty `next_pass` ref,
+  one state byte, then a one-byte `ng.cull` value, followed by the stable
+  `emissive_multiplier` float. The audit now prints `ng_cull` and the raw bytes
+  around the diffuse texture ref so this mapping stays reviewable. Rock1 hair
+  materials decode `ng_cull=1`, while Grim `grim_arms`, `grim_head`,
+  `grim_legs`, `grim_torso`, and `grim_wings` decode `ng_cull=0`; Grim
+  `grim_belt` remains `ng_cull=1`. Native now applies `Mat.ng.cull=false` as
+  two-sided mesh rendering. This is a source-backed render-state rule, not a
+  Grim name branch. Visual proof:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260704_current/grim_front_mat_ng_cull_fix.bmp`
+  and
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260704_current/grim_hourglass_mat_ng_cull_fix.bmp`.
+- 2026-07-04 active PCSX2 local-attachment relation trace:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260704_current/pcsx2_rock2_local_attachment_relations_20260704/`
+  is a fresh no-focus active gameplay capture on the Rock2 trace ISO. The
+  successful PCSX2 launch form is `pcsx2-qt.exe -batch -- <iso>`; the earlier
+  `--background-input` / `--retry-pulses` attempt is invalid for PCSX2 Qt and
+  should not be reused. Explicit live candidates moved:
+  `hair_top_live=0x007d8a20`, `hair_front1_live=0x007d7350`,
+  `bone_head_live_candidate=0x00eb31f0`,
+  `bone_hair_front_live=0x00eb3bf0`,
+  `bone_L_hair01_live=0x00eb33f0`, and
+  `bone_R_hair01_live=0x00eb24f0`. The visible Mesh live row is at object
+  `+0x00` with translation at `+0x30`, while the Trans/controller live world
+  row is at object `+0x60`. Same-frame relative rows match decoded slot binds:
+  `hair-front1.mesh` relative to head is approximately `(6.19, 2.64, -0.02)`
+  through `(6.31, 2.47, 0.18)`, matching decoded head slot
+  `(6.2304, 2.5214, 0.1303)`, and relative to `bone_hair-front.mesh` is
+  approximately `(-0.03, 0.23, 0.54)` through `(0.16, 0.04, 0.62)`,
+  matching decoded slot `(0.1070, 0.2388, 0.5876)`. `hair-top.mesh` similarly
+  matches the decoded head, `bone_L-hair01.mesh`, and `bone_R-hair01.mesh`
+  slot rows. This proves that weighted head-local hair cards keep a live Mesh
+  row under `bone_head.mesh` and consume source-controller Trans rows through
+  their decoded palette binds. It does not prove Rock1, Funk1, Rockabill2, Grim,
+  or Sand Time Keeper visual parity by itself; each target still needs
+  character-level visual proof and any extra trace/audit evidence required by
+  its failure mode.
+- 2026-07-05 Rock2 one-point root-controller descriptor row:
+  the refreshed native row compare in
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/rock2_native_row_compare/`
+  reproduced the old mismatch without changing the decoded mesh slot:
+  `hair-front1.mesh` relative to `bone_head.mesh` is
+  `(6.23035, 2.52136, 0.13029)`, and relative to the decoded
+  `bone_hair-front.mesh` bind/local row is `(0.10701, 0.23876, 0.58761)`,
+  matching the authored slot `(0.1070, 0.2388, 0.5876)`. The bad native
+  runtime relation came from the one-point root-controller group consuming the
+  displaced source/current controller row instead of the descriptor/controller
+  row used by the active PS2 trace. Native now treats source-backed
+  root==point one-point `CharHair` groups with a descriptor row as
+  `basis=root-controller-descriptor`: anchor and endpoint are derived from the
+  decoded descriptor row, while multi-point chains still prefer source
+  controller rows. The post-fix capture
+  `rock2_root_controller_descriptor_after/rock2_after_root_descriptor.stderr.log`
+  logs `hair_front.hair point=bone_hair-front.mesh ... basis=root-controller-descriptor`.
+  Its live `hair-front1.mesh * inverse(bone_hair-front.mesh)` relation over
+  93 sampled skin rows is `x=0.10701..0.10779 avg=0.10772`,
+  `y=0.07101..0.23876 avg=0.13356`, `z=0.58762..0.63015 avg=0.61973`,
+  inside the accepted PCSX2 relation band above and starting exactly at the
+  decoded slot. Visual proof:
+  `rock2_after_root_descriptor_hairfront1_highlight.bmp` and
+  `rock2_after_root_descriptor_natural.bmp`. This is a shared descriptor-row
+  rule, not a Rock2 offset. Rock2 still needs user/PCSX2 close-up signoff for
+  the remaining card layering; Rock1, Rockabill2, Grim, Funk1, and Sand Time
+  Keeper remain scoped separately.
+- 2026-07-04 no-focus PCSX2 snapshot clarification:
+  `pcsx2_snapshot_hair_candidates.py` now waits for a configurable minimum
+  scan count and optional required strings before sampling. The strict Rock2
+  run in
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260704_current/pcsx2_rock2_snapshot_candidates_required_20260704/`
+  found the full front/mid/back/top hair set and controller set by scan 3,
+  waited through scan 8, then sampled 243 candidates across 71 frames. Clean
+  matrix-object rows such as `hair-top.mesh@0x7c34e0`,
+  `hair-mid.mesh@0x7d0190`, `hair-back.mesh@0x7d5f00`, and
+  `hair-back.*.mesh` remain static. Same-name changing candidates such as
+  `hair-front1.mesh@0x7d7350` and `hair-top.mesh@0x7d8a20` are the active
+  render/live position rows called out by the older relation trace, not
+  evidence for an arbitrary native card offset. The source-backed rule remains:
+  weighted head-local cards keep a live Mesh row under `bone_head.mesh` and
+  consume CharHair controller Trans rows through decoded palette binds. The
+  matching native diagnostic in
+  `native_world_vertex_diag_20260704_raw/rock2_side_world_vertex_diag.stderr.txt`
+  logs `[mesh-world-verts]` for post-world card vertices and confirms the
+  renderer is still on `world=local-hair-mesh-local`; no new Rock2 transform
+  fix was promoted from this trace alone.
+- 2026-07-04 prepatched PCSX2 call-trace checkpoint:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260704_current/pcsx2_state_mesh_consumer_trace_20260704/`
+  contains the current no-focus prepatched-ELF call traces. The first
+  savestate-prepatch route is rejected as active evidence: it verified patched
+  prologues but produced zero ring records and static sampled rows. The
+  valid route is a full patched ISO booted with `pcsx2-qt.exe -batch -- <iso>`.
+  A combined multi-target trace with the internal `trans_write` site reached
+  `355695` records but never loaded `hair-front1.mesh`, so it is also rejected
+  as hair behavior evidence; patch internal hot sites only one at a time.
+  The safe `hair_update`-only trace
+  `rock2_hair_update_only_sequence.json` reaches the live Rock2 performance,
+  proves patched prologues in EE memory, loads `current_shot`,
+  `hair-front1.mesh`, and `bone_R-hair01.mesh`, and records `14496`
+  `hair_update` calls. Candidate mesh/render sites then split as follows:
+  `psmesh_slot_19dd88` is active in the loaded scene (`18` calls);
+  `psmesh_1c6398` and `psmesh_1c6490` reach the loaded scene but record zero
+  calls; `psmesh_slot_1c87f0_hair_window_sequence.json` waits for the hair
+  strings before enabling and records `45` calls; and
+  `psmesh_slot_1c8c70_hair_window_sequence.json` records `5082` calls in a
+  25-second hair-window trace. These traces prove a live native CharHair update
+  path and identify active render hot sites, but the current stub records after
+  the replaced instructions. For call sites whose first two instructions mutate
+  arguments or call through `jal`, the recorded registers are post-site state,
+  not direct pre-call mesh ownership. Do not promote a Rock1/Rock2/Rockabill2
+  card transform fix from these call traces alone; the remaining evidence needs
+  either a pre-instruction record stub or a matching source-backed consumer
+  equation tied to the same active row data.
+- 2026-07-04 scoped target recheck after the material blend/cull and palette
+  CharHair fixes:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260704_current/stock_blend_state_after_20260704/`
+  captures the current stock GH2 PS2 state. `funk1_side_head_blend_state.bmp`
+  is the good current Funk1 proof: the matching log shows the decoded
+  `coat_C.hair`, `hair.hair`, and `coat_LR.hair` objects, plus `hairOverride=1`
+  on `funk1.7.mesh`/`funk1.13.mesh` coat bones and `funk1.37.mesh`
+  `bone_hair.mesh`. That validates the source-backed palette-bone consumer rule
+  and fixes the earlier hinge-like Funk1 hair/coat failure without a character
+  offset. `grim_head_hood_blend_state.bmp`,
+  `grim_hourglass_blend_state.bmp`, and
+  `grim_hourglass_opposite_blend_state.bmp` are the current Grim/Sand Time
+  Keeper proof. The stock archive has no separate top-level
+  `sand/time/keeper/hour` entry; the MILO object inventory exposes the scoped
+  accessory as `hour-glass*.mesh` plus `glass.mesh` under Grim. The logs show
+  those accessory, robe, hood, and wing meshes using decoded `Mat.blend` and
+  `Mat.ng.cull` (`ngCull=0` -> two-sided) rather than a Grim name branch.
+  `rock1_side_head_blend_state.bmp` and `rock2_side_head_blend_state.bmp` remain
+  visibly wrong in close-up, despite live decoded CharHair rows, alpha blend,
+  and source cull states; they are reopened controller/card consumption cases,
+  not material-alpha failures. The strict no-focus Rock1 snapshot in
+  `pcsx2_rock1_snapshot_candidates_required_20260704/` waited through eight
+  scans after finding `hair-front1.mesh`, `hair-front2.mesh`,
+  `bone_L/R-hair01..03.mesh`, `hair_front.hair`, and `hair_back.hair`, then
+  sampled 159 candidates. The visible `hair-front1.mesh` and
+  `hair-front2.mesh` matrix-object rows stayed static for every sample, while
+  `bone_L/R-hair01..03.mesh` controller rows moved every sample. The matching
+  native diagnostic in
+  `native_world_vertex_diag_rock1_rockabill_20260704/` shows those cards are
+  root-parent hair (`parent=rock1`), use decoded `basis=mesh-local-chain`, and
+  render as `world=identity-skinned` / `mode=mesh-local-bind`, not through the
+  Rock2 `local-hair-mesh-local` branch. That refines Rock1 to a
+  root-parent weighted-card consumer question; do not patch it as a generic
+  head-local attachment offset.
+  The strict Rock2 snapshot above shows both static matrix-object rows and
+  same-name changing live/render rows, so Rock2 must be reasoned about with the
+  older relative-row trace instead of template rows alone.
+  `rockabill2_side_head_blend_state.bmp` still has suspicious forward hair
+  strands. The strict Rockabilly snapshot in
+  `pcsx2_rockabill2_snapshot_candidates_required_20260704/` waited through
+  eight scans after finding `hair.mesh`, `hair 2.mesh`, `bone_hair.mesh`, and
+  `hair.hair`, then sampled 162 candidates. The clean visible `hair.mesh` and
+  `hair 2.mesh` rows remained static while `bone_hair.mesh` moved every sample;
+  the native diagnostic shows Rockabilly is a separate `parent=bone_head.mesh`
+  local-attachment case with `bone_head.mesh` and `bone_hair.mesh` palette
+  slots. Do not promote Rock1, Rock2, or Rockabilly transform fixes until the
+  traced PS2 consumer row/equation is matched to native card output for the
+  same animation state.
+- 2026-07-04 Rock1/Rockabill2 relation-row follow-up:
+  `pcsx2_relation_row_probe.py` is a no-focus PCSX2 batch probe that reads the
+  strict snapshot candidates over time, then picks the most populated loaded
+  sample instead of trusting the first zero-filled frame. The Rock1 run
+  `pcsx2_rock1_relation_row_probe_20260704/pcsx2_relation_row_probe.json`
+  shows the clean visible `hair-front1.mesh@0x7d5190` and
+  `hair-front2.mesh@0x7d2350` rows staying static at
+  `(2.12031, 3.06860, 68.34480)` while `bone_R-hair01.mesh@0xeb2b80`,
+  `bone_L-hair01.mesh@0xeb5980`, and `bone_head.mesh@0xeb3b80` all move.
+  That matches the native bind row but not yet the final rendered card
+  vertices, so it is evidence against a Rock1 material/cull/static-offset fix,
+  not evidence for a new skinning equation.
+  The Rockabill2 loaded run
+  `pcsx2_rockabill2_relation_row_probe_loaded_20260704/pcsx2_relation_row_probe.json`
+  uses loaded sample 61 at about 12.201s. The clean rows populate late:
+  `hair.mesh@0x7d7030` reaches `(-2.31119, -2.68607, 64.10558)`,
+  `hair 2.mesh@0x7c3e40` reaches `(-2.34160, 4.60174, 73.76531)`, and
+  `bone_hair.mesh@0xeb2e70` reaches a live controller row at object `+0x60`.
+  Same-name identity/garbage candidates remain in the scan, so conclusions must
+  filter to populated rows and same-performer head/controller families. This
+  keeps Rockabill2 in the same unresolved bucket: the source-backed data proves
+  animated controller rows exist, but does not yet prove the final native
+  card-consumer equation.
+- 2026-07-05 Rockabill2 face row correction:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260704_current/pcsx2_rockabill2_face_relation_direct3_20260705/`
+  reruns the Rockabill2 relation probe with PCSX2's own screenshot hotkey
+  output copied from the emulator `snaps` directory, not a desktop/window grab.
+  The loaded sample shows `top-teeth.mesh`, `lower-teeth.mesh`, `tounge.mesh`,
+  `l-eye.mesh`, and `r-eye.mesh` all populated at their Mesh object `+0x0`
+  rows with object `+0x60` zero. The eye rows also carry the authored scale in
+  their row lengths (`~1.106` / `~1.110`). A native mouth experiment that
+  consumed the decoded Mesh object row directly was a false fix: the highlighted
+  native recheck
+  `rockabill2_face_mouth_recheck_20260705/rockabill2_mouth_recheck_hairhidden_highlight.bmp`
+  leaves the teeth/tongue down near the collar. The row-candidate diagnostic in
+  `rockabill2_mouth_row_candidates_20260705/` shows the active `mesh-world`
+  path at bbox z `~56-57`, while the active mesh-local-chain row places
+  `top-teeth.mesh`, `lower-teeth.mesh`, and `tounge.mesh` in the mouth band at
+  bbox z `~60-62`. Native therefore treats only compact, zero-palette,
+  head-material teeth/tongue meshes under `bone_head.mesh` or `bone_jaw.mesh`
+  as rigid mouth details that consume `bone_world_local_chain(m.name)`. This is
+  not the old mouth attachment shortcut, and it does not move eyes. A native eye
+  draw experiment that consumed the decoded Mesh object row directly produced
+  detached eye spheres in `rockabill2_native_profile_after_eye_mesh_rows.bmp`,
+  so that eye change was not promoted. The traced eye object rows are evidence
+  to continue the draw consumer investigation, not proof of the final renderer
+  equation. Rockabill2 hair remains unresolved: the same direct probe still
+  only proves `bone_hair.mesh` controller movement plus static visible hair Mesh
+  rows, not the final weighted-card consumer equation.
+- 2026-07-05 Rock1 live object / palette owner scan:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rock1_hair_live_object_ref_scan_20260705/rock1_hair_live_object_ref_scan.json`
+  is a no-state, no-GUI, no-focus/no-screenshot PCSX2 EE scan of the patched
+  Rock1 disc. It waits until `current_shot`, `hair-front1.mesh`,
+  `hair-front2.mesh`, `bone_R-hair01.mesh`, `bone_L-hair01.mesh`, and
+  `bone_head.mesh` are all live. The scan shows the Rock1 object directory
+  maps `hair-front1.mesh` string `0x00eadd44` to live object row
+  `0x007d5250`, and `hair-front2.mesh` string `0x00eadb8b` to live object row
+  `0x007d2410`. Those live object rows have 15 aligned references each. The
+  earlier relation-row addresses `0x007d5190` and `0x007d2350` are therefore
+  not valid object identities in this no-state boot; do not carry them into a
+  consumer equation without re-deriving the active object rows from the object
+  directory for that boot.
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rock1_hair_palette_owner_scan_20260705/rock1_hair_palette_owner_scan.json`
+  then targets the derived owner/palette rows. `hair-front1.mesh` owns palette
+  pair block `0x00f64350` (referenced by object field `0x007d522c` and owner
+  table `0x007dafb8`); `hair-front2.mesh` owns palette pair block
+  `0x00f0f110` (referenced by object field `0x007d23ec` and owner table
+  `0x007da5b8`). The pair blocks repeat the card object followed by controller
+  rows: front1 uses `0x007d5250 -> bone_head 0x00eb3b80`,
+  `0x007d5250 -> bone_R-hair01 row 0x00eb2b80`,
+  `0x007d5250 -> bone_R-hair02 row 0x00eb0980`, and
+  `0x007d5250 -> bone_R-hair03 row 0x00eaf080`; front2 uses the same row
+  family with mesh object `0x007d2410`. This is positive PS2 evidence that the
+  front sheets are normal root-parent weighted cards consuming palette
+  controller rows, not a material/cull issue and not a per-character positional
+  offset. It still does not prove the final native multiply order, so keep the
+  visual bug open until a draw/skin consumer trace or same-state vertex
+  comparison proves the exact card-consumer equation.
+- 2026-07-05 Rockabill2 live object / palette owner scan:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rockabill2_hair_live_object_ref_scan_20260705/rockabill2_hair_live_object_ref_scan.json`
+  is the matching no-state, no-GUI, no-focus/no-screenshot PCSX2 EE scan for
+  the Rockabill2 autoplay disc. It waits until `current_shot`, `hair.mesh`,
+  `hair 2.mesh`, `bone_hair.mesh`, and `bone_head.mesh` are live. The object
+  directory maps the real `hair.mesh` string `0x00eadc0c` to live object row
+  `0x007d1600`, and `hair 2.mesh` string `0x00ead6f8` to live object row
+  `0x007c3f00`. The generic script/config `hair.mesh` string at `0x0054e7f5`
+  is not the character object name and must not be used as a mesh identity.
+  `bone_hair.mesh` maps to object row `0x00eb2f30`, while the older relation
+  row address `0x00eb2e70` is the controller/live row that points back to that
+  object and is referenced by both hair palette blocks.
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rockabill2_hair_palette_owner_scan_20260705/rockabill2_hair_palette_owner_scan.json`
+  targets those derived rows. `hair.mesh` owns palette pair block `0x00f0eaa0`
+  (referenced by object field `0x007d15dc` and owner table `0x007da158`);
+  `hair 2.mesh` owns palette pair block `0x00ef5860` (referenced by object
+  field `0x007c3edc` and owner table `0x007d8968`). The pair blocks repeat the
+  card object with `bone_head` live row `0x00eb3670`, then the same card object
+  with `bone_hair` live row `0x00eb2e70`, followed by two zero controller
+  slots. This confirms Rockabill2 is a two-controller head-local weighted-card
+  case, not a root-parent Rock1-style card and not a static mesh offset. The
+  native close-up remains open until this head-local palette/card consumer path
+  is matched to same-state PS2 output.
+- 2026-07-05 Rock1/Rockabill2 live palette matrix dumps:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rock1_hair_palette_extended_20260705/rock1_hair_palette_extended.json`
+  is a no-focus/no-screenshot PCSX2 dump of the derived Rock1 palette rows.
+  `hair-front1.mesh` palette block `0x00f64350` stores four
+  type/mesh/controller triplets:
+  `0x003e50c8,0x007d5250,0x00eb3b80`,
+  `0x003e3b70,0x007d5250,0x00eb2b80`,
+  `0x003e3b70,0x007d5250,0x00eb0980`, and
+  `0x003e3b70,0x007d5250,0x00eaf080`. The four decoded bind matrices start at
+  `0x00f64380`, `0x00f643c0`, `0x00f64400`, and `0x00f64440`; their
+  translation rows are `(3.447334,3.571206,-2.098167)`,
+  `(1.653214,3.329735,1.204718)`,
+  `(1.653214,-1.434395,1.204717)`, and
+  `(1.653214,-6.174786,1.204718)`. `hair-front2.mesh` palette block
+  `0x00f0f110` has the same controller family and matrix translations at
+  `0x00f0f140`, `0x00f0f180`, `0x00f0f1c0`, and `0x00f0f200`. These rows
+  match the native `mesh.bind[i]` rows from `ghogx_character_bind_audit`, so
+  Rock1 root-parent weighted cards should consume decoded slot bind rows, not a
+  character offset or a reconstructed mesh/bone bind relation.
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rockabill2_hair_matrix_dump_20260705/rockabill2_hair_matrix_dump.json`
+  is the matching Rockabill2 dump. `hair.mesh` palette block `0x00f0eaa0`
+  stores the real object `0x007d1600` with live `bone_head` row `0x00eb3670`,
+  then the same object with live `bone_hair` row `0x00eb2e70`, followed by two
+  zero-controller slots. Its active bind matrices start at `0x00f0ead0` and
+  `0x00f0eb10`, with translation rows `(7.886734,3.154339,-0.820415)` and
+  `(-0.820409,-0.548721,3.499631)`. `hair 2.mesh` palette block `0x00ef5860`
+  stores object `0x007c3f00` with the same two live controller rows; its active
+  bind matrices start at `0x00ef5890` and `0x00ef58d0`, with translation rows
+  `(7.268105,4.508918,2.277922)` and `(2.277929,-1.370506,4.741509)`. These
+  rows also match native `mesh.bind[i]`.
+  This promotes the native local-attachment equation to consume decoded
+  `mesh.bind[i]` directly as the PS2 palette slot row:
+  `slot_bind * curr_world * inverse(mesh_world)`. It is an evidence-backed
+  renderer equation for local hair cards, not a visual signoff by itself.
+- 2026-07-05 Rock1 native root-parent diagnostic after the palette matrix dump:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/rock1_root_parent_skin_matrix_20260705/rock1_right_profile_dist80_skin_matrix.stderr.log`
+  captures `hair-front1.mesh` and `hair-front2.mesh` with
+  `GHOGX_DEBUG_SKIN_MATRIX=1`. Both cards run as `mode=mesh-local-bind` and
+  `world=identity-skinned`, not through the head-local local-attachment path.
+  The logged first slot keeps the decoded mesh row at
+  `(2.12031,3.06860,68.34480)`, and the live hair controller slots show
+  `hairOverride=1` with current rows such as `bone_R-hair01.mesh`
+  `(11.16056,2.41779,59.90932)`, `bone_R-hair02.mesh`
+  `(11.54733,1.41109,55.26884)`, and `bone_R-hair03.mesh`
+  `(12.99576,0.93424,50.78042)`. This proves native already consumes decoded
+  slot bind rows plus live CharHair controller rows for the root-parent cards.
+  The fresh visual
+  `rock1_root_parent_skin_matrix_20260705/rock1_right_profile_dist80_skin_matrix.png`
+  is still visibly wrong, so Rock1 remains a draw-consumer/card-layering trace
+  problem. Do not promote a Rock1 transform or offset patch from the
+  local-attachment Rockabill2/Rock2 equation.
+- 2026-07-05 Rock1 PSMesh record-before render packet trace:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rock1_psmesh_record_first_20260705/`
+  builds a fresh record-before trace ISO by copying the known-good Rock1 trace
+  ISO and replacing the two byte-identical `GHDX_003.00` extents at `0x96000`
+  and `0x3ff000`. `rock1_psmesh_record_first_manifest.json` records
+  `record_timing: before_original_words` for `psmesh_slot_1c87f0=0x001c87f0`
+  and `psmesh_slot_1c8c70=0x001c8c70`. The no-focus/no-screenshot batch run
+  `rock1_psmesh_record_first_sequence_wide.json` proves patched prologues,
+  waits for `current_shot`, `hair-front1.mesh`, `hair-front2.mesh`,
+  `bone_R-hair01.mesh`, and `bone_L-hair01.mesh`, and records `4881` total
+  calls (`26` at `0x1c87f0`, `4070` retained at `0x1c8c70` in the ring).
+  The record-first disassembly shows `0x1c87f0` is the late render dispatch
+  tail that loads a mesh packet callback from `s2+0x34`, while `0x1c8c70` is
+  inside the PSMesh packet emission helper reached from `0x003d4dbc` and
+  `0x003d4c70`. The widened pointer sample shows the first retained Rock1
+  `0x1c8c70` packet at `a0=0x008adc70` contains two low-memory palette/type
+  values also seen in the Rock1 triplets above: `0x003e50c8` at packet offset
+  `+0x48` and `0x003e3b70` at `+0xec`. A follow-up call-time a0-only snapshot trace in
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rock1_psmesh_a0_snapshot_calltime_20260705/`
+  records `5074` total `0x001c8c70` calls, retains `1024` ring entries, and
+  stores `128` words from `a0` before executing the original helper words.
+  `rock1_psmesh_a0_snapshot_analysis.json` proves every retained call has
+  `0x003e50c8` at `+0x48` and `0x003e3b70` at `+0xec`. It also proves the
+  earlier `+0x1d8` observation was a post-call memory-neighbor artifact:
+  call-time packets have zero matches for `0x003e50c8` at `+0x1d8` (top values
+  are `0x00000000` and `0x00babff8`). Those packet values match the first
+  field of the live Rock1 palette triplets, not the actual mesh object row
+  `0x007d5250`, and the packet snapshot does not carry the controller row
+  pointers (`0x00eb3b80`, `0x00eb2b80`, `0x00eb0980`, `0x00eaf080`). A
+  Rockabill2 high-memory cross-check in
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rockabill2_psmesh_a0_snapshot_highmem_20260705/`
+  uses `data_base=0x01e00000` so the trace buffer is not overwritten, waits for
+  `hair.mesh`, `hair 2.mesh`, `bone_hair.mesh`, and `bone_head.mesh`, records
+  the same `5074` total calls / `1024` retained entries, and keeps
+  `enable_word_after_trace=0x00000001`. Its analysis finds zero occurrences of
+  Rockabill2's known hair object/controller rows (`0x007d1600`, `0x007c3f00`,
+  `0x00eb3670`, `0x00eb2e70`) in the `0x001c8c70` packet snapshots while again
+  seeing `0x003e50c8` at `+0x48`, `0x003e3b70` at `+0xec`, and `0x003e6e30`
+  at `+0xf8`. That makes this a source-backed boundary but not a hair-card
+  draw-consumer proof: the hook sees a shared PSMesh packet/type layer after
+  some palette consumption, but it does not yet expose the per-character
+  mesh/controller rows needed to prove a different native transform equation or
+  any static card offset for Rock1 or Rockabill2.
+- 2026-07-05 Rockabill2 mesh-vtable consumer candidate traces:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rockabill2_mesh_vtable_1c8cb0_prepatch_20260705/`
+  is a pre-boot record-first hook for the hair-mesh vtable candidate
+  `mesh_vtable_1c8cb0=0x001c8cb0`. The trace waits for `current_shot`,
+  `hair.mesh`, `hair 2.mesh`, `bone_hair.mesh`, and `bone_head.mesh`, patches
+  the prologue, leaves `enable_word_after_trace=0x00000001`, and records `140`
+  calls. Its compact analysis records `56` sampled `a1` object rows with the
+  same layout markers seen on the hair mesh family:
+  `+0x34=0x003e6e48`, `+0x48=0x003e50c8`, `+0xec=0x003e3b70`, and
+  `+0x160=0x003e6d98`. The `sp48_word` string samples are `hand_L-clap.mesh`,
+  `hand_R-clap.mesh`, `hand_L-devil.mesh`, `hand_R-devil.mesh`,
+  `hand_L-fist.mesh`, `hand_R-fist.mesh`, and `hand_R-lighter.mesh`, while the
+  `a2` samples sit in `char/char_objects_ps2.dtb` showing-command rows. The
+  same analysis records zero direct register hits and zero sampled-word hits for
+  Rockabill2's known hair object/controller/palette rows (`0x007d1600`,
+  `0x007c3f00`, `0x00eb3670`, `0x00eb2e70`, `0x00eb2f30`, `0x00f0eaa0`, and
+  `0x00ef5860`). This makes `0x001c8cb0` a useful mesh-object/showing-command
+  boundary, but not the Rockabill2 hair-card consumer and not evidence for a
+  static offset or alternate transform equation.
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rockabill2_mesh_vtable_1ca2d0_prepatch_20260705/`
+  is the adjacent hair-mesh vtable candidate `mesh_vtable_1ca2d0=0x001ca2d0`.
+  It also patches cleanly and waits for the same live Rockabill2 terms, but the
+  75-second enabled window records `0` calls with
+  `enable_word_after_trace=0x00000001`. Treat it as an inactive candidate in
+  this captured state, not as negative proof about the whole renderer. Earlier
+  `0x001c8830` attempts produced hook/writeback instability or a late-live
+  zero-call window, so they are trace-tool/timing evidence only until a clean
+  pre-boot call capture exists.
+- 2026-07-05 Rockabill2 packet-table second-cluster traces:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rockabill2_mesh_second_cluster_prepatch_20260705/`
+  patches `mesh_vtable_1c63d8=0x001c63d8`,
+  `mesh_vtable_1c64d0=0x001c64d0`, `mesh_vtable_1c7c98=0x001c7c98`,
+  `mesh_vtable_1ca618=0x001ca618`, `mesh_vtable_1ca6d8=0x001ca6d8`,
+  `mesh_vtable_1ca8e8=0x001ca8e8`, `mesh_vtable_1caad0=0x001caad0`,
+  and `mesh_vtable_1cabb8=0x001cabb8` before boot. After the same
+  Rockabill2 hair/head term wait, the 75-second enabled window records
+  `1241990` total calls, with the retained ring fully occupied by
+  `mesh_vtable_1c64d0`. The compact analysis finds zero direct register hits
+  and zero sampled-word hits for the known Rockabill2 hair object/controller
+  rows, while the retained `a0` rows again show the shared mesh layout markers
+  `+0x34=0x003e6e48`, `+0x48=0x003e50c8`, `+0xec=0x003e3b70`,
+  `+0xf8=0x003e6e30`, and `+0x160=0x003e6d98`. A follow-up quiet-cluster run
+  in
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rockabill2_mesh_quiet_cluster_prepatch_20260705/`
+  omits the hot `0x001c64d0` method and adds the neighboring table entries
+  `0x001c5e00`, `0x001c6298`, `0x001ca738`, and `0x001ca868`; it patches
+  cleanly and records `0` calls over the same 75-second enabled window. This
+  bounds the packet-table cluster to hot `0x001c64d0` activity for this state,
+  but still does not identify the Rockabill2 hair-card consumer.
+- 2026-07-05 Rockabill2 hot `0x001c64d0` a0-filter trace:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/prepatch_ps2_trace_elf_a0_filter.py`
+  is a tiny pre-boot filter helper added after the deeper `a0` snapshot hook
+  proved too invasive for this hot function. The filtered run in
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rockabill2_mesh_1c64d0_a0_hair_filter_20260705/`
+  patches `mesh_vtable_1c64d0=0x001c64d0`, waits for the same Rockabill2
+  terms, keeps `enable_word_after_trace=0x00000001`, and records only calls
+  where `a0` equals the known Rockabill2 `hair.mesh` object row `0x007d1600`
+  or `hair 2.mesh` object row `0x007c3f00`. The 75-second enabled trace records
+  `0` filtered calls. Combined with the no-filter `1241990`-call trace, this
+  proves `0x001c64d0` is an active mesh-like packet-table method in this state
+  but does not directly consume the two known Rockabill2 hair card object rows
+  as `a0`. Keep looking upstream/downstream for the actual hair-card draw or
+  skin consumer; do not patch native Rockabill2 hair from `0x001c64d0`.
+- 2026-07-05 Rockabill2 per-mesh argument-wide filtered traces:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/prepatch_ps2_trace_elf_a0_filter.py`
+  now supports filtering any of `a0`/`a1`/`a2`/`a3` before recording. The first
+  generic-entry batch in
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/pcsx2_rockabill2_mesh_args_hairobj_batch1_20260705/`
+  included broad `0x0034...`/`0x003c...` vtable entries and never reached the
+  Rockabill2-specific `hair 2.mesh`, `bone_hair.mesh`, or `bone_head.mesh`
+  terms, so it is not renderer evidence. The valid per-mesh batch limits the
+  hooks to `0x0019ddc8`, `0x001c8830`, `0x001c8cb0`, `0x001ca2d0`,
+  `0x001c7c98`, `0x0019dc78`, `0x001c63d8`, `0x001c64d0`, `0x001c5e00`,
+  `0x001c6298`, `0x001b5be0`, and `0x0019e530`; these stay within the safe
+  stub range before the nearby nonzero table/data region. In
+  `pcsx2_rockabill2_mesh_args_hairobj_permesh_20260705/`, after Rockabill2
+  hair/head terms are live, the all-argument filter for `hair.mesh` object row
+  `0x007d1600` and `hair 2.mesh` object row `0x007c3f00` records `0` calls.
+  In `pcsx2_rockabill2_mesh_args_hairctrl_permesh_20260705/`, the
+  all-argument filter for live `bone_head` row `0x00eb3670` and live
+  `bone_hair` row `0x00eb2e70` also records `0` calls. In
+  `pcsx2_rockabill2_mesh_args_hairpalette_permesh_20260705/`, the
+  all-argument filter for hair palette blocks `0x00f0eaa0` and `0x00ef5860`
+  also records `0` calls. The wider five-value controller/palette pass in
+  `pcsx2_rockabill2_mesh_args_hairrows_permesh_20260705/` did not reach the
+  Rockabill2-specific terms and is likewise not renderer evidence. Together,
+  the valid per-mesh passes bound these twelve methods: they do not directly
+  receive the known Rockabill2 hair card object rows, live controller rows, or
+  palette blocks in argument registers during this captured state. The real
+  consumer is likely an indirect list/table/packet path outside these direct
+  argument filters.
+- 2026-07-05 Rockabill2 name-pointer field filters:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/rockabill2_mesh_nameptr_field_filters_20260705.json`
+  summarizes two no-focus pre-boot PCSX2 runs using the same twelve-method
+  per-mesh target set. The helper now supports `--field-offset`; these runs
+  record only when `a0+0x174` or `a1+0x174` equals the live name pointers for
+  Rockabill2 `hair.mesh` (`0x00eadc0c`), `hair 2.mesh` (`0x00ead6f8`), or
+  `lower-teeth.mesh` (`0x00eadd7f`). Both
+  `pcsx2_rockabill2_mesh_nameptr_a0_20260705/` and
+  `pcsx2_rockabill2_mesh_nameptr_a1_20260705/` patched all twelve prologues,
+  waited until Rockabill2 hair/head/lower-teeth strings were live, kept
+  `enable_word_after_trace=0x00000001`, and recorded `0` calls. This is not a
+  visual fix; it is negative evidence that these twelve methods do not receive
+  cloned Rockabill2 hair/teeth rows as `a0` or `a1` through the observed
+  `+0x174` name-pointer layout in this captured state. Keep tracing the
+  upstream list/table/packet owner or a different consumer before changing the
+  native Rockabill2 hair/teeth skin equation.
+- 2026-07-05 Rockabill2 palette-type owner audit:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/rockabill2_palette_type_trace_owner_audit_20260705.json`
+  cross-checks the PCSX2 `palette_type_3319a8`,
+  `palette_type_3237b0`, and `palette_type_1d29a0` traces against the known
+  live Rockabill2 rows from the owner scan. The owner scan remains positive:
+  `hair.mesh` object `0x007d1600`, `hair 2.mesh` object `0x007c3f00`,
+  palette-pair blocks `0x00f0eaa0`/`0x00ef5860`, and live
+  `bone_head`/`bone_hair` rows `0x00eb3670`/`0x00eb2e70` are the source-backed
+  hair-card inputs. The palette-type trace side is negative: `palette_type_3319a8`
+  records `23` calls, `palette_type_3237b0` records `7` calls, and
+  `palette_type_1d29a0` records `950` calls, but their captured registers and
+  snapshots contain `0` hits for the Rockabill2 hair object rows, palette-pair
+  blocks, live controller rows, or name pointers. Some rows point at venue/effect
+  data such as `world/small1/og/textures/sign_flaming_shot_glow_decal.bmp`.
+  Treat these hooks as bounded-off list/effect/packet paths, not as the visible
+  hair-card skinning consumer. The next source-backed trace target remains the
+  upstream owner/list/table path around refs `0x007da158` and `0x007d8968`, or a
+  later draw consumer reached after object-directory resolution.
+- 2026-07-05 Rockabill2 owner-table neighborhood audit:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/rockabill2_owner_table_neighborhood_audit_20260705.json`
+  distills the 2 MB owner scan into the rows that matter for the next hook.
+  The palette blocks are explicit two-controller blocks: `0x00f0eaa0` starts
+  with `0x003e50c8`, then `hair.mesh` object `0x007d1600` plus live
+  `bone_head` row `0x00eb3670`; the next entry starts at `0x00f0eaac` with
+  `0x003e3b70`, repeats `0x007d1600`, and points at live `bone_hair` row
+  `0x00eb2e70`. The `hair 2.mesh` block at `0x00ef5860` mirrors the same
+  layout with object `0x007c3f00`. The owner-table windows are broader linked
+  rows, not draw calls: `0x007da158` points at `0x00f0eaa0`, while neighboring
+  rows include `0x007da160`, `0x00eb2f50`, and `0x00f0eaac`; `0x007d8968`
+  points at `0x00ef5860`, with neighboring rows `0x007d8980`, `0x007da160`,
+  and `0x00ef586c`. Use this to aim the next pre-call trace at the owner/list
+  walker or object-directory resolver. Do not treat the owner-table pointer
+  itself as a final skinning equation.
+- 2026-07-05 Rockabill2 owner-node static xrefs and single-hook trace audit:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/rockabill2_owner_type_static_xrefs_20260705.json`
+  statically classifies the owner/list type constants that can reach those
+  rows. The static refs are constructed, not raw embedded pointers:
+  `0x003e50c8` has 38 constructed refs, `0x003e3b70` has 85,
+  `0x003e82e8` has 2, and `0x003e7eb0` has 35. The strongest runtime check is
+  summarized in
+  `rockabill2_owner_node_single_trace_audit_20260705.json`. Clean one-site
+  PCSX2 traces used a zeroed original ELF stub window at `0x003df000`,
+  filtered `a0`/`a1`/`a2`/`a3` for `0x007da158`, `0x007d8968`,
+  `0x00f0eaa0`, and `0x00ef5860`, reached live Rockabill2 strings including
+  `rockabill2`, `hair.mesh`, and `current_shot`, kept
+  `enable_word_after_trace=0x00000001`, and recorded `0` calls for
+  `owner82_1c712c`, `owner7e_1bd688`, `owner7e_1bfa0c`, and
+  `owner7e_1c70ac`. `owner82_3d3ae0` is weak evidence only: it reached the
+  strings but the enable word fell to `0x00000000` by the end of the trace.
+  Multi-hook zero-call batches are explicitly rejected as consumer evidence:
+  one used non-slack stub bytes at `0x00370000`, and two did not reach live
+  Rockabill2/hair terms. These traces bound off several owner/list setup refs
+  as direct consumers of the known owner-table or palette-pair pointers, but
+  they still do not identify the draw/skin consumer. Do not change native
+  Rockabill2 hair, teeth, or eye skinning from this evidence; keep isolating the
+  remaining list-copy refs one at a time or hook the later draw/skin consumer
+  with a clean pre-call stub.
+- 2026-07-05 Rockabill2 high owner/list-copy single-hook audit:
+  `codex_artifacts/guitarist_fidelity/hair_goal_20260705_continue/rockabill2_owner_listcopy_single_trace_audit_20260705.json`
+  continues the single-hook PCSX2 method for the high `0x003e7eb0`
+  list-copy refs. Each target used the verified clean `0x003df000` stub window,
+  patched only one site, waited for live `rockabill2`, `hair.mesh`, and
+  `current_shot` terms, and deleted the generated ISO after preserving JSON/log
+  evidence. All 15 high refs reached the live terms, kept
+  `enable_word_after_trace=0x00000001`, and recorded `0` filtered calls for the
+  known owner-table/palette pointers `0x007da158`, `0x007d8968`,
+  `0x00f0eaa0`, and `0x00ef5860`: `owner7e_3b8060`,
+  `owner7e_3b80dc`, `owner7e_3b8214`, `owner7e_3b826c`,
+  `owner7e_3b8408`, `owner7e_3b848c`, `owner7e_3b84b0`,
+  `owner7e_3b8518`, `owner7e_3b8960`, `owner7e_3b95a0`,
+  `owner7e_3b97d0`, `owner7e_3b9d6c`, `owner7e_3bec88`,
+  `owner7e_3bf020`, and `owner7e_3bf384`. This bounds off the observed high
+  owner/list-copy refs as direct runtime consumers of the known Rockabill2
+  owner/palette pointers in the loaded state. It is still negative evidence,
+  not a skinning equation. Do not promote this into a Rockabill2 hair, teeth, or
+  eye fix; the remaining source-backed work is to trace any untested lower
+  `0x003e7eb0` refs or move later to a clean pre-call draw/skin consumer hook.
 
 Glam1 eyes / look-at:
 
 - `eye-L.mesh` and `eye-R.mesh` are empty-palette render meshes under
-  `bone_head.mesh`, but their visible socket basis is not the generic
-  `mesh_world()` / empty-palette path. The accepted PS2 trace says eye motion
-  flows through source eye rows plus the shared `CharEyes.eyes`/look-at child
-  graph; native now mirrors that by composing the eye mesh local row with the
-  authored parent bind row, then applying the parent bind-to-current
-  model-space delta.
-- Renderer and `CharLookAt` now share the same `Character` attachment basis:
-  `attachment_parent_world()` and `mesh_attachment_world()`. Validation:
+  `bone_head.mesh`. The accepted PS2 trace says eye motion flows through source
+  eye rows plus the shared `CharEyes.eyes`/look-at child graph; do not replace
+  that path with a synthetic inset or per-character offset. The 2026-07-05
+  Rockabill2 face trace above proves additional eye object rows exist, but the
+  native direct Mesh-row draw attempt detached the eye spheres. Keep the
+  attachment-basis eye renderer until the PS2 draw consumer for those object
+  rows is traced.
+- Historical validation for the former shared attachment basis:
   `engine/out/native_song_20260614/glam1_lookat_shared_eye_basis_y314_f20.log`
   shows `[face] eye` and `[eye-world]` rows staying in the same socket/lash
   cluster after look-at runs, instead of splitting between face and shoulder.
   The in-song validation
   `engine/out/native_song_20260614/shout_glam1_shared_lookat_basis_f900.log`
   shows the transformed eye rows aligned with `lashes.mesh` and
-  `hair-front.mesh` in the venue performer path.
+  `hair-front.mesh` in the venue performer path. Keep those artifacts as
+  regression context for CharEyes/look-at, not as permission to ignore a later
+  direct PCSX2 Mesh-row trace.
 - Do not add a synthetic eye inset from vertex bounds. The authored eye mesh
   local row plus the parent attachment basis already seats the textured eyeball;
   the old automatic inset buried the visible eye surface behind the face shell.
@@ -1194,68 +1883,56 @@ Glam1 eyes / look-at:
   The accepted row evidence still says the eye meshes match the PS2
   head-relative rows; the visible issue remains eyelid/lash/coverage state
   unless a new trace proves the eyeball rows themselves are wrong.
-- 2026-06-16 native/trace bridge update:
-  gameplay now consumes `FaceFxEyeProperties` from
-  `apply_character_controllers(character, ...)` and feeds them into FaceFX
-  servo registers. The export no longer keys left/right eye registers to exact
-  `eye-L.mesh` / `eye-R.mesh` names; it derives the side from the decoded
-  `CharLookAt` record names and their target/driven mesh names so alternate
-  PS2 spellings such as `l-eye.mesh`, `L-eye.mesh`, and `goth*_EyeL.mesh`
-  remain connected through the same shared path. The accepted PS2 row evidence
-  is not a loose eye offset: `pcsx2_hair_eye_active_rows_20260611.json` shows
+- 2026-06-16 historical native/trace eye-register trial:
+  a removed path consumed `FaceFxEyeProperties` from
+  `apply_character_controllers(character, ...)` and fed them into FaceFX servo
+  registers. Current source-backed native code clears those properties and does
+  not publish synthetic eye runtime rows. Keep the captured evidence as trace
+  context only: `pcsx2_hair_eye_active_rows_20260611.json` shows
   `CharEyes.eyes`, its pivot/child row, both per-side look-at rows, and both
   source eye rows moving together. A stock-state rerun from state 1 did not
   exercise the look-at update in the captured window (`0x0017d690` zero-hit
   while the Trans writer heartbeat fired), and patching the older
   `0x0017d658` address killed the heartbeat, so do not use that rerun as
-  negative eye evidence. Continue implementing the `CharEyes` bridge only from
-  accepted rows that show the full resident/pivot/source-eye chain.
-  Validation:
+  negative eye evidence. A future `CharEyes` port must come from accepted rows
+  that show the full resident/pivot/source-eye chain and from ihatecompvir
+  `CharEyes`/`CharLookAt` source, not from the removed register bridge.
+  Historical validation:
   `engine/out/codex_goal_20260616_eye_side_resolver/goth2_eye_side_v2.stderr.log`
-  shows `goth2_EyeL.mesh` and `goth2_EyeR.mesh` resolving to left/right
-  FaceFX eye registers without any character-specific branch.
-- 2026-06-28 native CharEyes runtime-row bridge:
-  `apply_character_controllers()` now submits a per-frame runtime world row for
-  each decoded `CharEyes.eyes` child look-at controller before the look-at pass.
-  The submitted `l-eye.lookat` / `r-eye.lookat` rows are sourced from the
-  decoded driven/target eye mesh attachment rows and exposed through the shared
-  `runtime_world_overrides` resolver. This matches the accepted PS2 evidence
-  that self-sourced `CharLookAt` updates resolve through source eye rows owned
-  by the resident `CharEyes`/pivot graph; it does not move authored eye meshes
-  or add per-character offsets. The bridge also submits a resident
-  `CharEyes.eyes` pivot row using the shared eye parent basis plus the averaged
-  source-eye position so future controller consumers can resolve the resident
-  row by name. Validation: guarded real Ninja build of `ghogx_character` passed
-  after compiling `char_clip.cpp`, and `ctest -R
-  ghogx_character_eye_bridge_contract_test --output-on-failure` passed.
-- 2026-06-28 alternate eye-name attachment resolver:
-  `transform_world()` / `transform_local_chain_world()` now classify alternate
-  PS2 eye mesh spellings (`L-eye.mesh`, `R-eye.mesh`, `goth*_EyeL.mesh`,
-  `goth*_EyeR.mesh`, etc.) with the same attachment-basis path as
-  `eye-L.mesh` / `eye-R.mesh`. This keeps the 2026-06-16 side-resolver
-  coverage aligned with the transform path used by `CharLookAt` and
-  `CharEyes`, instead of silently falling back to generic mesh-world
-  composition for non-classic names. Validation: guarded real Ninja build of
-  `ghogx_character` plus `ghogx_character_eye_bridge_contract_test`, followed
-  by `ctest -R ghogx_character_eye_bridge_contract_test --output-on-failure`,
-  passed.
-- 2026-06-15 native FaceFX graph/register bridge:
-  native now loads the referenced `guitarist.fac` graph through each
-  `FaceFxLipSyncServo`, parses `FxCombinerNode` / `FxBonePoseNode` graph input
-  links, publishes the decoded servo register targets (`L-eyeZ`, `R-eyeZ`,
-  `L-eyeX`, `R-eyeX`) from the live `CharLookAt` eye properties, and applies
-  the authored `EyesClosed` pose as a delta from authored `Neutral` according
-  to the evaluated graph weight. The implementation follows the local object
-  schema where `FaceFxLipSyncServo` maps FaceFX registers to `Trans` objects
-  and ops; it does not manually offset eyes or lids.
+  showed alternate eye spellings resolving without a character-specific branch
+  in that trial.
+- 2026-06-28 removed native CharEyes runtime-row bridge:
+  an old `apply_character_controllers()` experiment submitted per-frame runtime
+  world rows for decoded `CharEyes.eyes` child look-at controllers and a
+  resident pivot row through `runtime_world_overrides`. This is no longer
+  current behavior. ihatecompvir source proves GH2-era `CharEyes` rows are a
+  look-at reference list plus trailing old transformable, and `CharEyes`
+  delegates poll children to `CharLookAt`; it does not prove a native bridge
+  that copies eye mesh world rows into ad-hoc controller overrides. Keep this
+  as removed trial evidence until a direct source-backed `CharEyes`/`CharLookAt`
+  poll port exists.
+- 2026-06-28 removed alternate eye-name attachment resolver:
+  a prior `transform_world()` / `transform_local_chain_world()` path classified
+  alternate PS2 eye mesh spellings (`L-eye.mesh`, `R-eye.mesh`,
+  `goth*_EyeL.mesh`, `goth*_EyeR.mesh`, etc.) into the same attachment-basis
+  path as `eye-L.mesh` / `eye-R.mesh`. Current source-backed code keeps
+  alternate names available for diagnostics but does not special-case local
+  chain lookup to eye attachment rows.
+- 2026-06-15 historical FaceFX eye-register graph trial:
+  a removed bridge loaded the referenced `guitarist.fac` graph through each
+  `FaceFxLipSyncServo`, parsed `FxCombinerNode` / `FxBonePoseNode` graph input
+  links, published decoded servo register targets (`L-eyeZ`, `R-eyeZ`,
+  `L-eyeX`, `R-eyeX`) from live `CharLookAt` eye properties, and applied the
+  authored `EyesClosed` pose as a delta from authored `Neutral`. Current native
+  keeps FaceFX FAC/pose/animation decoding as bounded GH2 compatibility, but
+  it does not use `CharLookAt` eye properties as a source-backed face-controller
+  runtime bridge.
   `engine/out/codex_resume_20260615/facefx_eye_graph_glam1_f900_zsign/raw.log`
-  proves `char/guitarist.fac` loaded with 25 nodes / 11 poses and the in-song
+  showed `char/guitarist.fac` loaded with 25 nodes / 11 poses and the in-song
   Glam1 path evaluated `EyeZCombiner=0.1000` with `EyesClosed=applied` from
-  four decoded servo registers. The matching screenshot
+  four decoded servo registers in that trial. The matching screenshot
   `glam1_facefx_eye_graph_zsign_f900.bmp` stays stable in the full venue
-  frame. This closes the missing servo-to-FaceFX graph consumption path for
-  normal guitarist eyes, but it is not final close-shot parity for all eyelid,
-  lash, and hair occlusion states.
+  frame, but this is not current source authority for eye/lid runtime rows.
 - 2026-06-15 `FaceFxLipSyncServo` string terminator refinement:
   extracted PS2 `FaceFxLipSyncServo__lip.servo` bodies show the header as
   `version=5`, `unk=0`, tag string, one NUL terminator byte, then the
@@ -1333,10 +2010,12 @@ Rock2 hair:
   mesh-local root-hair predicate and uses per-mesh bind matrices before current
   bone transforms.
 - `rock2` also has `hair_front.hair` and `hair_back.hair` `CharHair`
-  pollables. The common native `CharHair` poller now drives their decoded
-  `bone_hair-front`, `bone_R/L-hair*`, `bone_hair01..04`, and
-  `spot_hairsphere.trans` rows; remaining parity gaps should be fixed through
-  that path, not by hiding hair meshes.
+  pollables. Native currently decodes/logs their `bone_hair-front`,
+  `bone_R/L-hair*`, `bone_hair01..04`, and `spot_hairsphere.trans` rows and
+  runs the checked ihatecompvir source poll/reset/sim state path, but does not
+  publish solved `CharHair` transforms without a resolved source point-collide
+  list. Remaining parity gaps need the source-backed hookup/collide-list
+  consumer path, not hidden hair meshes or a guessed poller.
 - 2026-06-15 lod0 audit: the decoded PS2 `lod0.grp` explicitly includes
   `hair-back.1.mesh` through `hair-back.6.mesh` plus `hair-mid.1.mesh`.
   Therefore the old global "skip numbered hair variants" rule is rejected.
@@ -1597,9 +2276,9 @@ Community metadata Rosetta:
   or finger overlays. `engine/out/ps2_twist_20260614/rockabill_f60_no_twist.bmp`
   still showed the ribbon, while
   `engine/out/ps2_twist_20260614/rockabill_f60_no_ik.bmp` and the guarded
-  default `rockabill_f60_default_guarded.bmp` did not. The generic solver is now
-  opt-in via `GHOGX_ENABLE_ARM_IK=1`; do not re-enable it by default. The next
-  correct implementation is the traced `CharIKHand` path from SLUS
+  default `rockabill_f60_default_guarded.bmp` did not. The generic solver was
+  removed; do not reintroduce it. The next correct implementation is the traced
+  `CharIKHand` path from SLUS
   `0x0017a080`: resolve the two target refs, blend/write the live target vector
   at controller `+0x50..+0x58`, construct the limited local matrix rows, copy
   them through the linked `Trans` rows, and dirty the output row. This is not a
@@ -1659,9 +2338,10 @@ the normal mesh-world route.
   - Restored eye rendering by default; current eye mesh transforms match the
     accepted PS2 head-relative rows, but close-shot eyelid/coverage parity is
     still an active validation item.
-  - Blended weighted hair now draws without depth writes to reduce card
-    self-cutting; remaining shape/attachment issues should be traced through
-    shared hair/render paths, not hidden or offset per character.
+  - Blended weighted hair now follows decoded source `RndMat` z/blend state;
+    the only project-level hair render override is two-sided culling. Remaining
+    shape/attachment issues should be traced through shared source-backed
+    hair/render paths, not hidden or offset per character.
 - `alterna1`
   - Fixed `bootstrap_L.mesh` / `bootstrap_R.mesh` as parent-local ankle
     attachments.
@@ -1672,6 +2352,9 @@ the normal mesh-world route.
   - Hair, eyes, jewelry, sleeves, flares, and hand accessories render coherently
     in viewer idle and active clips.
   - Verified in `badreputation` stage frame.
+  - 2026-07-04 close-up recheck confirms the earlier broken hair/coat read is
+    fixed by the shared palette-bone CharHair consumer path; no Funk1-specific
+    transform branch is present.
 - `classic`
   - Fixed MILO body-boundary parsing so `classic.29.mesh` no longer shifts all
     later Mesh/Trans bodies.
@@ -1696,14 +2379,21 @@ the normal mesh-world route.
     no `char/rock2/anims/gen/rock2_main.milo_ps2` in the PS2 ARK.
   - Fixed `hair-mid.mesh`/`hair-back.mesh` as weighted root-parented hair.
   - Fixed `hair-back.mesh` (`rock2_hair2.mat`) with mesh-bind skinning.
-  - Verified viewer idle, viewer `stand_medium_01`, and `monkeywrench` stage
-    frame with `rock2` resolved as `guitarist0`.
+  - Earlier viewer and `monkeywrench` stage-frame checks remain useful normal
+    camera evidence, but 2026-07-04 close-ups show disconnected hair cards.
+    Rock2 close-up hair parity is reopened; do not treat this outfit as closed
+    until the remaining controller/card consumption path is trace-backed.
 - `rockabill1`
   - Fixed arm pieces as mesh-local skinned geometry under `L-arm.mesh` and
     `R-arm.mesh`.
   - Fixed `hair.mesh` and `hair 2.mesh` as weighted root-parented hair.
-  - Verified viewer idle, viewer `stand_medium_01`, and `psychobilly` stage
-    frame with `rockabill1` resolved as `guitarist0`.
+  - Earlier viewer and `psychobilly` stage-frame checks remain useful normal
+    camera evidence. 2026-07-04 Rockabill2 close-ups still show suspicious
+    forward strands. The no-focus PCSX2 snapshot disambiguates the clean
+    `hair.mesh` / `hair 2.mesh` matrix-object rows as static while
+    `bone_hair.mesh` moves, so the remaining question is the live/card
+    consumer path, not a source-backed static mesh offset. Treat close-up
+    Rockabilly hair parity as reopened until that consumer path is matched.
 - `deathmetal1`
   - No new attachment, parser, or skinning overrides needed.
   - Hair, mask/face, belts, spikes, cuffs, hands, and boots render coherently
@@ -1755,25 +2445,19 @@ Useful environment flags:
   no-clip bind pose is unexpectedly non-identity.
 - `GHOGX_SKIN_MATRIX_MODE=<mode>`: diagnostic matrix override. Keep unset for
   normal rendering.
-- `GHOGX_DEBUG_CHAR_HAIR=1`: logs each native `CharHair` point solve, including
-  hair object name, point bone, root, collision ref, mode, anchor, live row,
-  solved row, length, and dt.
-- `GHOGX_DISABLE_CHAR_HAIR=1`: disables the default native `CharHair` poller
-  for A/B validation.
-- `GHOGX_ENABLE_ARM_IK=1`: enables the old native free two-bone arm solver.
-  Leave unset for normal rendering; validation showed it causes visible arm
-  ribboning/spaghetti.
-- `GHOGX_DISABLE_PS2_IK_HANDS=1`: disables the traced-shape `CharIKHand`
-  default path for A/B validation against the old detached-hand baseline. The
-  normal path follows the SLUS `0x0017a080` hand/fore/upper dataflow.
-- `GHOGX_ENABLE_PS2_IK_HAND_POS=1`: diagnostic only. The traced experiment
-  already writes final hand rows when `orientation` or `stretch` are set.
-- `GHOGX_DISABLE_PS2_IK_HAND_FINAL=1`: disables the traced final hand Trans
-  write for A/B validation.
-- `GHOGX_PS2_IK_POSTMULTIPLY_SWING=1` /
-  `GHOGX_PS2_IK_TRANSPOSE_SWING=1`: diagnostic upper-swing matrix-order
-  variants. Leave unset unless comparing a specific native mismatch. The
-  traced-shape `CharIKHand` path uses premultiply row order by default.
+- `GHOGX_DEBUG_CHAR_HAIR=1`: logs decoded native `CharHair` source rows,
+  including hair object name, strand root, point bone, legacy inline collision
+  ref/type, length/radius/side fields, `unk5c`, and the
+  `runtimeWriteback=0` source-boundary reason.
+- `GHOGX_DISABLE_CHAR_HAIR=1`: historical only; the unsupported native
+  `CharHair` poller gate was removed when ihatecompvir's `CharHair.cpp`
+  became the active source authority.
+- Historical PS2 hand-IK A/B toggles such as `GHOGX_DISABLE_PS2_IK_HANDS`,
+  `GHOGX_ENABLE_PS2_IK_HAND_POS`, `GHOGX_DISABLE_PS2_IK_HAND_FINAL`,
+  `GHOGX_PS2_IK_POSTMULTIPLY_SWING`, and `GHOGX_PS2_IK_TRANSPOSE_SWING` have
+  been removed from the current source-backed hand path. The normal path now
+  follows the decoded `CharIKHand`, `CharForeTwist`, and `CharUpperTwist`
+  controller rows directly; do not reintroduce those gates as a hidden fix.
 
 2026-06-14 arm/hand IK validation:
 
@@ -1782,8 +2466,8 @@ Useful environment flags:
   vector/quaternion helpers `0x002dad00` and `0x002daa30`, writes a local
   bend-like row into the hand parent, and dirties Trans rows through
   `0x001dd7b8`/`0x001dd748`.
-- Native validation proved the legacy generic reach solver is unsafe:
-  `GHOGX_ENABLE_ARM_IK=1` recreated the severe arm ribbons.
+- Native validation proved the legacy generic reach solver is unsafe and it has
+  been removed; reintroducing it is not source-backed.
 - Directly copying the target Trans to `bone_R-hand.mesh` /
   `bone_L-hand.mesh` also failed in-song, because the PS2 path solves the
   intermediate forearm/upper-arm rows before the final dirty write.
@@ -1795,9 +2479,37 @@ Useful environment flags:
   returns, the left and right hand Trans world rows and positions match their
   destination Trans rows/positions, so native performs that final hand write in
   the default `CharIKHand` path.
-- The corrected cosine-law bend uses
-  `(dist^2 - upper_len^2 - fore_len^2) / (2 * upper_len * fore_len)` with the
-  sampled PS2 Z-bend row layout `[cos, -sin; sin, cos]`.
+- The source-backed bend scalar uses
+  `(dist^2 - upper_len^2 - fore_len^2) / (2 * upper_len * fore_len)`, but
+  native no longer writes the old cos/sin Z-rotation. ihatecompvir's
+  `CharIKHand::IKElbow` writes the parent bend matrix as
+  `DirtyLocalXfm().m.Set(0,0,0,-sqrted,0,0,sqrted,0,1)`, and native now
+  mirrors that visible source row shape. `PullShoulder` remains fenced until a
+  reviewable source body exists.
+- 2026-07-14 direct-app proof after the source elbow-row correction:
+  `engine/out/visual_proofs/ik_elbow_source_row_20260714/` covers
+  Rockabill2, Rock1, and Rock2; the roster extension in
+  `engine/out/visual_proofs/ik_elbow_source_row_roster_20260714/` covers
+  Glam1, Metal1, Punk1, Goth1, Deathmetal1, and Alterna1. All sampled
+  `special_02` frame-70 release poses log active `ik-source`,
+  `twist-fore-source`, and `twist-upper-source` rows and no longer show the
+  earlier boxy upper-arm collapse. Keep this as sampled proof only; it is not
+  all-frame/all-character signoff.
+- 2026-07-14 in-game proof after the same source elbow-row correction:
+  `engine/out/visual_proofs/ik_elbow_source_row_ingame_20260714/` captures
+  Trogdor Expert in `small2` through the real gameplay renderer with
+  `GHOGX_HIDE_HIGHWAY=1`, diagnostic autoplay, and authored
+  `flr_near_lft03` camera-shot routing. The Rockabill2, Rock1, and Rock2 logs
+  prove hidden-window gameplay startup, per-character overrides, selected
+  decoded camera shot, and active `ik-source`, `twist-fore-source`, and
+  `twist-upper-source` rows. These frames are current in-game proof of the
+  corrected controller path, not visual signoff: Rockabill2/Rock1/Rock2 still
+  show a long strip/chain-like artifact class that needs its own source-backed
+  investigation.
+- Same in-game review also flags a separate neck-controller/clip-blend issue:
+  neck motion can snap back instead of sliding. Do not hide this with native
+  smoothing until the source path through clip blending, `CharNeckTwist`, and
+  poll order has been checked.
 - `pcsx2_arm_ik_twist_trans_rows_20260611.json` and
   `pcsx2_sample_foretwist_refs_20260608.json` show the driven local-X twist row
   layout as `row1.z = -sin`, `row2.y = +sin`. Native now uses that sign in the
@@ -1994,13 +2706,36 @@ Useful environment flags:
   applied the incoming clip at partial weight onto already-mutated locals,
   which is not equivalent to PS2 lane accumulation. Validation:
   `engine/out/native_song_20260614/shout_f1300_descriptor_blend.bmp`.
+- In-game arm/neck proof can diverge from the standalone viewer because
+  gameplay runs the source-style performer stack, clip transitions, hand
+  overlays, IK rows, and release/attach state together. A viewer frame mostly
+  proves decode and skinning for one sampled pose. Native transition mixing now
+  treats rows that exist on only one side of a transition as weighted rows
+  through the neutral channel value: incoming-only rows fade in from neutral,
+  and outgoing-only rows fade out to neutral. This is bounded to transition set
+  blending and follows the source weighting shape from `AnimTask::Poll`,
+  `RndTransAnim::SetFrame(frame, blend)`, and `CharBonesSamples::ScaleAddSample`
+  instead of inventing a new IK correction.
+- 2026-07-14 viewer-vs-game proof:
+  `engine/out/visual_proofs/transition_identity_vs_game_20260714/` captures a
+  readable Rockabill2 viewer `special_02` frame 70 and a small2/Trogdor
+  gameplay closeup. The viewer log applies the forced clip frame and then logs
+  both hand IK rows skipped with `solveWeight=0.000`. The gameplay log instead
+  runs `stand_fast_03`, `strum_open`, and `finger_powerchord_1` together, logs
+  `left_hand.ik` and `right_hand.ik` at `solveWeight=1.000`, and then shows
+  degenerate forearm solve rows such as `bone_L-foreArm.mesh local_r0=[0 0 0]`
+  / `bone_R-foreArm.mesh local_r0=[0 0 0]`. The visible in-game arm spike is
+  therefore still an IK/twist solve or publish issue in the full performer
+  stack, not proof that the viewer's single sampled-pose path is correct.
 - Lower-body A/B captures on 2026-06-14 prove the remaining wide/crossed leg
   problem is not a safe thigh-only toggle. `GHOGX_RELATIVE_THIGH_QUAT=1`,
   `GHOGX_PRE_RELATIVE_THIGH_QUAT=1`, `GHOGX_TRANSPOSE_CLIP_QUAT=1`,
   `GHOGX_SWAP_THIGH_QUATS=1`, and `GHOGX_INVERT_THIGH_QUATS=1` each produce
   visibly wrong poses in `engine/out/native_song_20260614/glam1_stance_*.bmp`.
-  The trace-backed next step is the final clip-output-to-Trans bridge for the
-  visible `.mesh` rows, not promoting any of those diagnostics.
+  These runtime toggles were later removed so they cannot be mistaken for
+  source-backed options. The trace-backed next step is the final
+  clip-output-to-Trans bridge for the visible `.mesh` rows, not promoting any
+  of those diagnostics.
 - Native clips now decode and retain animation-side `CharBone` output records
   from the same animation MILO as each `CharClipSamples` entry. This is
   trace-backed by the accepted GH2 bridge evidence where `0x00168320` changes
@@ -2236,11 +2971,11 @@ Useful environment flags:
   Rockabill1 and Deathmetal1 f620 stress frames are bit-identical to the
   previous default frames, so this is a trace-backed combiner correctness fix,
   not a claim that the remaining visible arm issues are closed.
-- `GHOGX_DISABLE_AXIS_ROT_CHANNELS=1` remains a rejected diagnostic for arm
-  cleanup. `engine/out/codex_goal_20260619_axis_channel_ab/` shows Rockabill1
-  detaching from the guitar when scalar channels are removed, confirming the
-  scalar lane is required; the fix is how those rows are blended/applied, not
-  dropping them.
+- The old `GHOGX_DISABLE_AXIS_ROT_CHANNELS=1` arm-cleanup diagnostic is
+  rejected and removed. `engine/out/codex_goal_20260619_axis_channel_ab/`
+  shows Rockabill1 detaching from the guitar when scalar channels are removed,
+  confirming the scalar lane is required; the fix is how those rows are
+  blended/applied, not dropping them.
 - `GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER=1` was rechecked after the hand/world and
   overlay-lane fixes in
   `engine/out/codex_goal_20260619_full_output_recheck/`. It no longer explodes
@@ -2382,10 +3117,11 @@ Useful environment flags:
   relationship instead of matching the accepted PS2 scheduler/output route.
   Keep the descriptor-accumulation mixer as the default until f-register/source
   weight evidence proves a different combiner.
-- Native `CharHair` now runs through a shared default poller instead of the
-  rejected authored-position snap probe. Validation:
-  `woman_rock2_charhair_debug.log` shows `hairPoll=on` plus the accepted
-  rock2 `hair_front.hair` / `hair_back.hair` controller graph and solved rows
+- Historical native `CharHair` shared-poller trial: the authored-position snap
+  probe was rejected, but the later source audit also rejected promoting this
+  shared poller as current behavior. The old validation
+  `woman_rock2_charhair_debug.log` showed `hairPoll=on` plus the rock2
+  `hair_front.hair` / `hair_back.hair` controller graph and trial solved rows
   for `bone_hair-front.mesh`, `bone_R-hair01/02.mesh`,
   `bone_L-hair01/02.mesh`, and `bone_hair01..04.mesh` using
   `spot_hairsphere.trans` as a collision ref. A/B screenshots:
@@ -2393,22 +3129,21 @@ Useful environment flags:
   `E412C6FF8087891C9B2CD9CED8B12DB9E81A2441EA9B066FB4DD9DB9391A3663`)
   vs `woman_rock2_close_charhair_off.bmp` (hash
   `BF31710D18B24B87C82A83765C8A16C59430F49B8618DC6553C5D8D95E36EC4F`)
-  remove the rigid back-hair sheet from the disabled path. Glam1 close A/B
+  were evidence for that trial, not current source-faithful writeback. Glam1
+  close A/B
   `shout_glam1_close_charhair_on.bmp` and
   `shout_glam1_close_charhair_off.bmp` hash identically at
   `91670FB51ECF517D250F9C57C3BD3FFBF87BF946CC373D1363A9B50922A6E574`,
-  so the shared poller does not regress that one-point `hair.hair` frame.
-- Native `CharHair` collision mode 3 is now implemented as the community DTA
-  `kCollideCylinder` mode instead of falling through as no collision. The
-  collision object row supplies the cylinder axis and center, while
-  `distance`/`point.radius` supplies the cylinder radius. Validation
+  so that trial did not visibly regress Glam1's one-point `hair.hair` frame.
+- Historical collision mode 3 trial: the community DTA `kCollideCylinder`
+  mapping was tested with the collision object row as cylinder axis/center and
+  `distance`/`point.radius` as cylinder radius. Validation
   `engine/out/native_song_20260614/woman_rock2_charhair_cylinder_debug.log`
-  proves Rock2 `hair_front.hair` points use `bone_neck.mesh` with
-  `mode=3`, `radius=3.000`, and the shared poller now evaluates that mode.
-  The matching screenshot hash stayed identical to the previous default Rock2
-  close frame (`E412C6FF8087891C9B2CD9CED8B12DB9E81A2441EA9B066FB4DD9DB9391A3663`),
-  so this is a format-coverage fix, not proof that the remaining front-hair
-  visual issue is solved.
+  showed Rock2 `hair_front.hair` points using `bone_neck.mesh` with `mode=3`
+  and `radius=3.000`, but later ihatecompvir source review showed GH2 legacy
+  inline collision rows are not a resolved runtime `ObjPtrList<CharCollide>`.
+  Keep this as rejected trial evidence unless the missing source hookup path is
+  ported.
 - 2026-06-15 rejected local-hair bind-cancel probe:
   `engine/out/codex_resume_20260615/glam1_hair_bindcancel_patch/` changed the
   weighted local hair sheet equation to cancel controller rows against the
@@ -2472,25 +3207,80 @@ Useful environment flags:
   and the final leg-row widths are unchanged (`Glam1 toe2D=25.061`,
   `Rockabill1 foot2D=24.603 / toe2D=16.209`), which confirms the root-row
   ownership fix did not regress the current lower-body route.
-- `GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT=1` disables that promoted lower
-  bridge for A/B comparisons. `GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER=1` remains the
-  opt-in full output-layer experiment, and
-  `GHOGX_CHARBONE_OUTPUT_LOWER_BODY_ONLY=1` still forces the old diagnostic
-  lower-only mode when full output is explicitly enabled. Do not promote the
-  full bridge until the packed output/work-buffer-to-visible-Trans copy is
-  mapped.
+- Historical lower-body CharBone output trial: the old default-on experiment
+  routed `bone_facing`, pelvis, thigh/knee/ankle/foot/toe rows through decoded
+  output records for A/B review. Current source-truth removes broad lower-body
+  output live writes; the old lower-body/full/face enable switches are not
+  runtime routes anymore. Broad CharBone output may still be logged for
+  comparison, but do not promote a full bridge until the packed
+  output/work-buffer-to-visible-Trans copy is mapped from source-backed
+  evidence.
 - 2026-06-28 lower-body contract guard:
-  `ghogx_character_left_hand_contract_test` now explicitly pins the promoted
-  lower-body bridge to default-on `CharBone` output rows for `bone_facing`,
-  `bone_pelvis`, thigh/knee/ankle/foot/toe, and keeps the
-  `GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT` A/B switch visible. This guards the
-  accepted split where hand overlays do not own root/lower-body rows while the
-  full output layer remains rejected/opt-in.
-- 2026-06-15 Glam1 wrist isolate promoted a narrow render-path correction:
+  `ghogx_character_left_hand_contract_test` now pins the split where hand
+  overlays do not own root/lower-body rows, while broad lower-body `CharBone`
+  output rows are compare-only for `bone_facing`, `bone_pelvis`, and
+  thigh/knee/ankle/foot/toe. This keeps selected hand output independent from
+  broad body, face, lower-body, and full output-layer live writes.
+- 2026-07-14 viewer/gameplay overlay parity guard:
+  shared clip-layer appenders strip those same lower-body rows from hand-overlay
+  layers. This removes the old viewer-local opt-in filter and keeps strum/fret
+  overlays from publishing root, pelvis, leg, or toe channels before the source
+  `CharBones` pose publisher is fully understood.
+- 2026-07-14 terminal lower-body overlay contract:
+  `ghogx_character_clip_driver_flags_test` now seeds `bone_facing`,
+  `bone_pelvis`, and both-side thigh/knee/ankle/foot/toe rows through player,
+  fixed-frame, batch, and performer overlay helpers, then asserts those rows are
+  stripped from overlays. Fresh direct-app proof in
+  `engine/out/visual_proofs/overlay_terminal_lower_body_contract_20260714/`
+  shows Rockabill2 `special_02` frame 70 and Rock1 `special_01` frame 80 still
+  logging decoded lower-body output rows as compare-only `driven=1 live=0`;
+  this guards against the leg/feet overlay leak without claiming the source
+  body-pose publisher is complete.
+- 2026-07-14 Character runtime dump boundary:
+  `source_character_runtime_dump_evidence` records RB2 dump ranges for
+  `Character::Poll`, `BoneServo`, `ConvertBonesToTranses`, and `SyncObjects`.
+  Those entries prove the runtime functions and locals exist, but they are
+  range/local metadata, not statement bodies. Do not use them to promote broad
+  body, lower-body, face, or full pose publishing; keep the visible leg/foot
+  special-pose issue on the source `CharBones` / `PoseMeshes` publisher track.
+- 2026-07-14 `FracToSample` source fence:
+  ihatecompvir source declares `CharBonesSamples::FracToSample(float*) const`
+  and the RB2 dump maps its range/locals, but there is no statement body in the
+  checked source. Native `sampled_pose_layers` can mirror
+  `ScaleAddSample` once it has a sample index and fraction, but its current
+  uniform-frame diagnostic selector is not source-proven `FracToSample`.
+- 2026-07-14 `CharBonesSamples` raw-data mirror:
+  ihatecompvir source `Set` allocates `mRawData` to `AllocateSize()` and
+  `Clone` copies that byte span before frames. Native
+  `SourceCharBonesSamplesState` now carries a matching `raw_data` vector through
+  `source_char_bones_samples_set` and `source_char_bones_samples_clone`. This is
+  storage/copy parity only; it is not the missing body-pose publisher.
+- 2026-07-14 `CharBonesSamples` wrapper call labels:
+  native sample-step helpers now preserve which source call each selected
+  `mRawData[mTotalSize * sample]` row would dispatch to:
+  `CharBones::RotateBy`, `CharBones::RotateTo`, or `CharBones::ScaleAdd`.
+  These labels are audit data for the future publisher path, not replacement
+  transform math.
+- 2026-07-14 `CharFaceServo::ScaleAdd` handoff:
+  native `source_char_face_servo_scale_add_blink` now records the accepted
+  source handoff to `clip->ScaleAdd(*this, weight, f2, f3)` after the
+  relative-clip gate, `TryScaleDown`, and blink-weight clamp branch. This is
+  `CharFaceServo` call-flow evidence only; GH2 `FaceFxLipSyncServo` placement
+  remains fenced unless a matching source body is found.
+- 2026-07-14 `CharClip::PoseMeshes` call order:
+  native `source_char_clip_pose_meshes_steps` now carries the ordered concrete
+  source sequence: construct `CharBonesMeshes`, `SetName`, `StuffBones`,
+  `ScaleDown`, `ScaleAdd`, then `meshes.PoseMeshes`. The target is explicitly
+  `meshes` for each pose handoff, while actual mesh transform publication
+  remains fenced behind the incomplete `CharBonesMeshes::PoseMeshes` body.
+- 2026-06-15 historical Glam1 wrist render-path trial:
   numeric meshes can be hair draw members by material, not only by mesh name.
-  `glam1.73.mesh` is named numerically but uses `glam1_hair.mat`, blends, and
-  must sort/draw with hair render state. Native now treats hair-material meshes
-  as hair for draw ordering and blended depth-write disable only. Validation:
+  `glam1.73.mesh` is named numerically but uses `glam1_hair.mat` and blends.
+  The old branch treated hair-material meshes as hair for draw ordering and
+  blended depth-write disable. Current source-truth no longer keeps a
+  `hairRender` branch: decoded material fields drive alpha/z/wrap state, source
+  group/draw-order rows drive ordering, and the project override for hair is
+  two-sided culling only. Historical validation:
   `engine/out/native_song_20260615/glam1_hair_render_material_after_bc1dba6/glam1_hair_render_f900.log`
   shows `glam1.73.mesh mat=glam1_hair.mat hairRender=1 blend=1 zwrite=0`.
   Its skin and attachment path intentionally remains `lbs-local-chain` /
@@ -3362,6 +4152,649 @@ Useful environment flags:
 
 Every outfit audit should capture:
 
+- 2026-07-09 ihatecompvir glTFMilo/MiloLib sample pass:
+  `analysis/ihatecompvir_milo_samples/` builds an in-repo reference helper
+  against ihatecompvir `glTFMilo` commit `6c54acb` and its `MiloEditor`
+  submodule commit `8835146`. The stock GH2 PS2 `rock1`, `rock2`,
+  `rockabill2`, `funk1`, `grim`, `rockabill1`, and `deathmetal1`
+  BandCharacter MILOs were extracted from
+  `gh2_ps2_hybrid_assets/gen/main.hdr` and parsed through MiloLib. Direct
+  `MiloglTF` executable attempts are recorded under
+  `analysis/ihatecompvir_milo_samples/gltf_tool_runs/`: `.milo_ps2` is rejected
+  by the top-level extension gate, and extension-probed `.milo_xbox` outputs
+  are 136-byte empty GLB shells because the current MILO-to-GLTF path only
+  exports lights. The direct executable rerun
+  `gltf_tool_runs/rerun_20260709/` repeats this for `rockabill2`, `rock1`, and
+  `funk1`. The usable visual evidence therefore comes from the shared MiloLib
+  parser plus glTFMilo's writer convention.
+- The helper renders `raw`, stored object `world`, and `skin_bind` views. The
+  `skin_bind` mode follows glTFMilo's source equation: `RndMesh.boneTransforms`
+  are written as `inverse(jointNode.WorldMatrix) * node.WorldMatrix`, and GH2
+  mesh version 28 has no explicit per-vertex bone-index stream in MiloLib, so
+  weight slots consume the palette rows in order. This matches the native
+  interpretation that the decoded mesh bind rows are palette slot rows, not
+  generic per-character offsets. A temporary helper variant that consumed the
+  shared `Vertex.bone0..bone3` fields as indices is rejected for GH2 PS2:
+  MiloLib only fills those fields for revision 33 and newer, while every stock
+  GH2 PS2 sample in this pass logged `rev=28 indexedBones=0`.
+- Several full-size visual samples are retained individually:
+  `renders_rebuilt_20260709_ps2slot/rock1_hair_face_skin_bind_front.png`,
+  `renders_rebuilt_20260709_ps2slot/rock2_hair_face_skin_bind_front.png`,
+  `renders_rebuilt_20260709_ps2slot/rockabill2_hair_face_skin_bind_front.png`,
+  and
+  `renders_rebuilt_20260709_ps2slot/rockabill2_hair_face_skin_bind_side.png`.
+  The matching log is
+  `renders_rebuilt_20260709_ps2slot/milo_preview_samples.log`. Rockabill2's
+  rigid eyes, tongue, and
+  teeth have zero decoded palette rows and coherent stored `world` bounds
+  (`top-teeth.mesh` and `lower-teeth.mesh` remain around the head/jaw object
+  rows), while `hair.mesh` and `hair 2.mesh` are two-slot weighted consumers of
+  `bone_head.mesh` and `bone_hair.mesh`. Treat this as source-backed format
+  evidence for rigid face detail object transforms plus weighted hair-card
+  palette consumption. By itself, this does not prove the live Rockabill2 draw
+  consumer or authorize native hair skinning changes without a matching runtime
+  trace.
+- 2026-07-09 native Rockabill2 rigid face row compare:
+  `analysis/ihatecompvir_milo_samples/native_compare/rockabill2_*.txt`
+  reruns the native decoder on the same extracted stock PS2 MILO and prints
+  `storedWorld`, `meshWorld`, `bindLocalChain`, and `attachmentWorld` for
+  individual detail meshes. For `r-eye.mesh`, `l-eye.mesh`,
+  `top-teeth.mesh`, `lower-teeth.mesh`, and `tounge.mesh`, the decoded
+  `meshWorld` row matches the MiloLib stored object row while the attachment
+  and local-chain rows can be several units away in the head/jaw band. The
+  renderer and clip-space lookup therefore use `Character::mesh_world(m)` for
+  these zero-palette rigid face detail rows. This is not a hair physics change:
+  `hair.mesh` and `hair 2.mesh` remain two-slot weighted cards consuming
+  `bone_head.mesh` and `bone_hair.mesh` palette rows until the live draw
+  consumer for Rockabill2/Rock1 hair is proven.
+- The rebuilt 2026-07-09 glTFMilo/MiloLib pass was rerun after building both
+  `ihatecompvir-public-milo-sources/glTFMilo/MiloGLTFUtils.sln` and the local
+  `MiloPreviewBatch` helper. Superseded intermediate render directories,
+  including the invalid indexed-bone detour, were removed to avoid analysis
+  bloat. The corrected material-aware PS2 slot-order sample set is
+  `analysis/ihatecompvir_milo_samples/renders_rebuilt_20260709_ps2slot/`. It
+  classifies hair by mesh name or material name, which is required for
+  `funk1.37.mesh` with `funk1_hair.mat`, and classifies Grim/Sand Time Keeper
+  hood, wing, glass, hour-glass, shadow, and `grim_head` pieces as accessory
+  samples for review. The individual samples
+  `rockabill2_hair_face_world_front.png`,
+  `rockabill2_hair_face_skin_bind_front.png`,
+  `rock1_hair_face_skin_bind_front.png`, and
+  `rock2_hair_face_skin_bind_front.png` are source-parser visual evidence, not
+  native runtime proof. The regenerated log again identifies Rockabill2
+  `hair.mesh` and `hair 2.mesh` as separate RndMesh objects with palette rows
+  `[0:bone_head.mesh,1:bone_hair.mesh]`; they are not children embedded in the
+  face/body mesh and should not be repaired with a static card offset. This
+  sample pass is a guardrail, not a promoted native fix: do not change native
+  GH2 PS2 skinning to indexed-bone consumption from this evidence.
+- 2026-07-10 source-preview rerun:
+  `analysis/ihatecompvir_milo_samples/source_preview_rerun_20260710/` rebuilds
+  `MiloGLTFUtils.sln`, rebuilds the local `MiloPreviewBatch` helper against
+  ihatecompvir `MiloLib`, then regenerates full-size `raw`, stored `world`, and
+  `skin_bind` front/side images for `rock1`, `rock2`, `rockabill2`,
+  `rockabill1`, `funk1`, `grim`, and `deathmetal1`. The direct
+  `MiloGLTFUtils` front-end is still not a useful stock GH2 PS2 visualizer:
+  `.milo_ps2` is rejected by the dispatcher, `.milo` is not dispatched to the
+  MILO-to-GLTF path, and a `.milo_xbox` probe copy writes only a 136-byte GLB
+  shell. The useful visual samples therefore remain the MiloLib-backed helper
+  images plus `milo_preview_samples.log`. The rerun again logs every sampled
+  stock GH2 PS2 mesh as `rev=28 indexedBones=0`; Rockabill2 `hair.mesh` and
+  `hair 2.mesh` are separate weighted RndMesh objects with palette rows
+  `[0:bone_head.mesh,1:bone_hair.mesh]`, while `r-eye.mesh`, `l-eye.mesh`,
+  `top-teeth.mesh`, `lower-teeth.mesh`, and `tounge.mesh` have zero palette
+  rows and coherent stored `world` bounds in the head/jaw band. This confirms
+  the current source-backed direction to keep using slot-order palette rows and
+  rigid mesh-world rows, but still does not authorize a native Rock1/Rockabill2
+  hair fix without the live PS2 consumer equation.
+- The same pass drove a hidden native Rockabill2 A/B under
+  `analysis/ihatecompvir_milo_samples/native_hair_debug_after/`:
+  `rockabill2_hair_runtime_default.png`,
+  `rockabill2_hair_static_no_charhair.png`,
+  `rockabill2_hair_singlepoint_diag.png`, and
+  `rockabill2_hair_no_local_attachment.png`. The logs show the default path
+  writing a `hair.hair` follow row for `bone_hair.mesh` and consuming it with
+  `hairOverride=1`. Disabling `CharHair` makes the front card separate upward,
+  and enabling `GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE` pushes the card
+  sideways. Therefore neither static hair nor the old single-point diagnostic is
+  an evidence-backed Rockabill2 fix; the remaining work is still the real
+  controller/list/draw consumer, not a per-character offset.
+- `rockabill2_hair_base_root_audit.txt`, `rock1_hair_base_root_audit.txt`, and
+  `rock2_hair_base_root_audit.txt` expose both decoded `CharHair` matrix tails
+  as `baseMatR*` and `rootMatR*`. Rockabill2's visible `hair.hair` has identical
+  base/root rows, and Rock2's visible hair groups also match base/root in this
+  stock audit. Rock1's multi-point front/back groups can differ between
+  base/root rows, so keep that distinction available for future Rock1 tracing.
+  This bounds off a simple Rockabill2 "use rootMat instead of baseMat" fix.
+- Hidden native viewer proof for this specific row change is in
+  `analysis/ihatecompvir_milo_samples/native_visual_after/`. The full-size
+  captures `rockabill2_face_opposite.png`,
+  `rockabill2_face_profile_l.png`, and `rockabill2_face_profile_r.png` were
+  taken from `ghogx_app --char` with `GHOGX_DEBUG_MESH_MODE` and
+  `GHOGX_DEBUG_FACE_ROWS` enabled. Their logs show `r-eye.mesh` and
+  `l-eye.mesh` using `world=mesh-world`, while `top-teeth.mesh` and
+  `lower-teeth.mesh` use `world=rigid-mouth-mesh-world`; the teeth render in
+  the mouth band instead of the collar band. These screenshots do not close
+  Rockabill2 hair or eye parity: the rear hair card still needs the real hair
+  consumer proof, and the eye read still needs comparison against a source or
+  PS2 close-up before signoff.
+- 2026-07-10 native after-glTFMilo static/moving A/B proof is in
+  `analysis/ihatecompvir_milo_samples/native_current_after_gltfmilo_20260710/`.
+  The full-size captures `rockabill2_current_profile_far.png`,
+  `rock1_current_profile_far.png`, and `rock2_current_profile_far.png` preserve
+  the current moving-CharHair state after the rebuilt glTFMilo/MiloLib sample
+  pass. `rockabill2_static_no_charhair_profile_far.png` and
+  `rock1_static_no_charhair_profile_far.png` rerun the same pulled-back profile
+  cameras with `GHOGX_DISABLE_CHAR_HAIR=1`. Rock1 remains visibly wrong with
+  static hair, so the remaining Rock1 problem is not simply explosive CharHair
+  motion. Rockabill2 changes only modestly in this profile, so do not promote
+  static hair as a Rockabill2 fix either.
+- The same directory contains `rock1_static_alpha_diag_profile_far.log` from a
+  static Rock1 run with `GHOGX_DEBUG_TEXTURE_ALPHA=1`. The log shows the
+  decoded material path is already active for Rock1 hair cards:
+  `hair-front1.mesh`, `hair-front2.mesh`, `hair-side*`, `hair-sides*`,
+  `hair-top_back*`, and `Hair-lower*` draw as legacy
+  `hairRender=1 blend=3 zwrite=0`
+  with source/destination blend factors from the decoded `Mat.blend`. Texture
+  sampling also does not support a simple missing-alpha fix: large card classes
+  still have mostly opaque triangle-centroid samples under the decoded UVs
+  (for example `Hair-lower.2.mesh` logs `tris=48 ... opaque=48`, while
+  `hair-side2.mesh` logs `tris=56 ... a<96=0 opaque=53`). Some front/sides
+  cards have authored transparent samples, but this evidence matches the older
+  Rock1/Glam1 alpha diagnostics: cull/alpha/static offsets are bounded off,
+  and the unresolved slice remains the PS2 controller/list/draw consumer for
+  weighted hair cards.
+- 2026-07-10 glTFMilo build/test rerun evidence is in
+  `analysis/ihatecompvir_milo_samples/native_rerun_20260710_gltfmilo_test/`.
+  After rebuilding the in-repo glTFMilo source reference and local
+  `MiloPreviewBatch`, the native app and focused hair/eye contract tests were
+  rebuilt/run again. The fresh hidden native viewer captures
+  `rockabill2_profile_far_rerun.png`, `rock1_profile_far_rerun.png`, and
+  `rock2_profile_far_rerun.png` use the same source-backed renderer path and
+  retain per-capture logs with `GHOGX_DEBUG_MESH_MODE`,
+  `GHOGX_DEBUG_SKIN_MATRIX`, `GHOGX_DEBUG_HAIR_SPACE`,
+  `GHOGX_DEBUG_FACE_ROWS`, and `GHOGX_DEBUG_TEXTURE_ALPHA` enabled. This rerun
+  confirms the current code is built and tested against the glTFMilo/MiloLib
+  source knowledge, but it does not close Rock1/Rock2/Rockabill2 hair parity:
+  the source-preview wireframes remain format evidence for rev28 slot-order
+  palettes and per-slot rows, not visual proof of the final GH2 draw consumer.
+- 2026-07-10 extra glTFMilo/MiloLib build-test pass is in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_buildtest_20260710a/`,
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_weightstats_20260710a/`,
+  and `analysis/ihatecompvir_milo_samples/native_gltfmilo_goes_20260710a/`.
+  The in-repo glTFMilo source reference and `MiloPreviewBatch` build cleanly;
+  the helper generated 84 individual source-preview PNGs for the broad set and
+  a second Rock1/Rock2/Rockabill2 source pass with per-slot weight statistics.
+  The critical empty palette rows sampled here are not the hair bug:
+  Rockabill2 `hair.mesh` / `hair 2.mesh`, Rock2 `hair-front1.mesh`, and the
+  Rock1/Rock2 rows with trailing empty palette entries all log slot 2/3 weight
+  counts and sums as zero. Native was then tested in several source-backed
+  consumer modes: current, `GHOGX_DISABLE_CHAR_HAIR=1`,
+  `GHOGX_LOCAL_HAIR_WORLD_MODE=identity`, and
+  `GHOGX_LOCAL_HAIR_WORLD_MODE=parent`. Rock1 current/identity/parent captures
+  are pixel-identical in this profile shot, while no-CharHair differs but is
+  still not a parity fix. Rock2 identity differs from current but remains
+  visibly off. This bounds the glTFMilo source pass before returning to PS2
+  runtime tracing: the unresolved path is the live CharHair/controller draw
+  consumer, not a fabricated static offset, alpha/cull tweak, or lost empty
+  palette slot.
+- 2026-07-10 fresh glTFMilo/MiloLib problem-hair source-preview is in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_fresh_problem_hair_20260710b/`
+  and the rebuilt follow-up batch
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_fresh_problem_hair_20260710c/`.
+  It was regenerated after rebuilding both `MiloGLTFUtils.sln` and the local
+  `MiloPreviewBatch` helper, then converted to individual full-size PNGs for
+  `rock1`, `rock2`, and `rockabill2`. The focused source samples again show
+  revision-28 ordered palette slots and logged per-slot weights for the
+  problematic hair/face meshes. They are evidence for the mesh/skin format and
+  a boundary against blind indexed-bone or static-offset fixes; they are not
+  sufficient by themselves to change native live CharHair placement.
+- 2026-07-10 glTFMilo-guided native skin trials are in
+  `analysis/ihatecompvir_milo_samples/native_gltfmilo_guided_trials_20260710e/`.
+  The local glTFMilo/MiloLib source path shows `skin_bind` as
+  vertex -> RndMesh per-slot `BoneTransform` -> stored/current bone world, so a
+  diagnostic-only renderer hook
+  `GHOGX_FORCE_GLTFMILO_SLOT_STORED_SKIN=<mesh-or-material-substring>` was
+  added to force that equation and log `mode=gltfmilo-slot-stored-env` without
+  changing default behavior. Current vs forced profile shots were captured for
+  Rock1, Rock2, and Rockabill2, plus a Rock1 forced-static
+  (`GHOGX_DISABLE_CHAR_HAIR=1`) profile. The results are bounded, not a final
+  fix: Rock1/Rock2 visibly change and prove the source skin equation reaches
+  the renderer; Rockabill2 hair-only forcing detaches the pompadour card to the
+  side, and forcing `rockabill2_head.mat` is explicitly rejected because it also
+  routes non-hair face pieces. Weight-stat probes in
+  `rock1_weight_stats_probe.log`, `rock2_weight_stats_probe.log`, and
+  `rockabill2_weight_stats_probe.log` show all sampled problem hair vertices
+  already sum to `1.000..1.000`, so glTFMilo's preview-side weight
+  normalization does not explain the current hair failures. This closes the
+  first source-guided native pass and points back to the live CharHair
+  controller row/consumer path rather than a static mesh-bind, weight, cull, or
+  alpha patch.
+- 2026-07-10 no-focus Rock1 PCSX2 hair writer-callsite trace is in
+  `analysis/ps2_trace_current/hair_consumer_20260710/rock1_hair_writer_callsite_full_nofocus.json`,
+  with direct app screenshots beside it. The trace patches the `0x00177924`
+  callsite (`lw a0,72(s0)` / `jal 0x001dd7f8` / delay-slot
+  `sq v0,48(s0)`) and records 2460 calls without focus forcing or input
+  injection. The retained ring covers 10 unique point-state objects, matching
+  Rock1's decoded CharHair point count. At the callsite, `a0` equals the
+  point's `s0+0x48` writer target and `a1` equals `sp`, proving the stack block
+  is the submitted Trans row payload. For every retained point, stack row 1 is
+  the normalized vector from submitted/root position `sp+0x30` to solved point
+  `s0+0x00`; stack row 0 and row 2 remain roll/basis rows not yet matched by
+  native's current preserve-roll aiming rule. Treat this as proof of the PS2
+  submitted-position/aim-axis contract, not as authorization for an invented
+  roll fix.
+- 2026-07-10 current-ELF Rock1 no-focus PCSX2 vector/writer traces are in
+  `analysis/ps2_trace_current/hair_consumer_20260710/rock1_hair_vectorblock_nofocus.json`,
+  `analysis/ps2_trace_current/hair_consumer_20260710/rock1_hair_pre_writer_current_nofocus.json`,
+  and
+  `analysis/ps2_trace_current/hair_consumer_20260710/rock1_hair_store_writer_pair_current_nofocus.json`,
+  with direct app screenshots beside each trace. The current Rock1 trace ELF
+  has the same writer sequence at `0x001778ec` that the GHDX snippet labels at
+  `0x00177924` in the older address window, so address selection must come from
+  the loaded ELF bytes for each trace pass. The less invasive pre-writer probe
+  at `0x001778e8` records 2590 calls, 10 unique point-state objects, `a0 ==
+  s0+0x48`, and `a1 == sp`. Its row 1 matches the normalized vector from
+  submitted/root position `sp+0x30` to solved point `s0+0x00` with dot
+  `0.998..1.000`. The paired `0x001778e0`/`0x001778e8` trace records 2670/2660
+  calls in the same execution and shows those two probe points agree: row 1 is
+  unit length, while row 0 and row 2 can carry matching non-unit scale before
+  the writer call. The direct writer-callsite stub at `0x001778ec` recorded only
+  one call in this pass, so keep it as sparse/perturbing evidence and prefer the
+  pre-writer paired trace for the current ELF. This still does not authorize a
+  native hair change until the source row and endpoint selection are matched
+  against a current native capture.
+- 2026-07-10 current Rock1 native comparator is in
+  `analysis/ps2_trace_current/hair_consumer_20260710/native_current_compare_20260710a/rock1_native_profile_current.png`
+  with `rock1_native_profile_current.log`. It was captured from the current
+  native app with `GHOGX_DEBUG_CHAR_HAIR`, `GHOGX_DEBUG_HAIR_SPACE`,
+  `GHOGX_DEBUG_MESH_MODE`, and `GHOGX_DEBUG_SKIN_MATRIX` enabled. The screenshot
+  keeps the broken front hair sheets visible in profile. The native
+  `charhair-ps2chain` rows for Rock1 submit unit-length row 0/1/2 for every
+  sampled chain point, while the current PS2 pre-writer traces keep row 1 unit
+  and allow row 0/2 to carry non-unit scale. The follow-up no-focus trace
+  `rock1_hair_pre_writer_current_s4_nofocus.json` records the saved registers
+  plus the `s4` group block: Rock1's two live hair groups use distinct `s4`
+  rows (`0x00eb5dd0` and `0x00eb7cb0`) with group constants such as
+  `s4+0x14`, `s4+0x1c`, and `s4+0x28`, but those constants alone do not explain
+  the per-point row0/row2 scale. This evidence points at missing live source-row
+  scale or endpoint/source selection, not a safe hard-coded scale factor.
+- 2026-07-10 glTFMilo-guided build/test pass plus direct-app Rockabill2 row
+  traces refined the native CharHair chain row contract. The source-preview
+  images in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_fresh_problem_hair_20260710c/`
+  remain the mesh/bind baseline; the accepted native change is not a static
+  mesh offset or alternate glTFMilo skin equation. Direct PCSX2 app captures in
+  `analysis/ps2_trace_current/hair_consumer_20260710/rockabill2_hair_step_1778cc_extstack_nofocus_iso.json`
+  and
+  `analysis/ps2_trace_current/hair_consumer_20260710/rockabill2_hair_step_1778e4_extstack_nofocus_iso.json`
+  both record `focus_forcing=false` and `input_sent=false`, with screenshots
+  beside the JSON files. The `0x001778e4` trace records 968 calls; for the
+  Rockabill2 multi-point chain, row0 matches `row1 x cachedRow` at the final
+  row-write boundary, while later chain segments' submitted row2 matches the
+  prior point's cached row with median error about `0.02` in the retained ring.
+  A native raw/prior-point row2 trial in
+  `analysis/ps2_trace_current/hair_consumer_20260710/native_prior_cache_hair_20260710b/`
+  proved the debug plumbing but is superseded by the stronger public-source
+  direction below; do not resurrect it as the final algorithm.
+- 2026-07-10 ihatecompvir RB3 source cross-check found actual Harmonix
+  `CharHair::SimulateInternal` code in
+  `../ihatecompvir-public-milo-sources/rb3/src/system/char/CharHair.cpp`.
+  Treat this as lineage/source direction, with GH2 PS2 traces as the authority:
+  `Point::lastZ` is the persistent cached roll row, `mTorsion` blends `lastZ`
+  toward the current segment row2, row1 is the constrained point direction,
+  row0 is normalized from `row1 x blendedZ`, row2 is rebuilt from
+  `row0 x row1`, `lastZ` is updated to that row2, and the submitted row2 is
+  carried forward as the next segment's roll target before `SetWorldXfm`.
+  Native now follows that source-shaped path for multi-point chain rows and
+  logs `rollTarget=`, `torsion=`, and compact `rnorm=` values in
+  `[charhair-ps2chain]` lines. Validation: `ghogx_app` and
+  `ghogx_character_hair_contract_test` built in
+  `engine/out/build/win-amd64-debug`, and
+  `ctest -R ghogx_character_hair_contract_test` passed. Fresh native proof is
+  in
+  `analysis/ps2_trace_current/hair_consumer_20260710/native_source_lastz_hair_20260710c/`
+  for Rock1, Rock2, and Rockabill2. The regenerated logs prove the source path
+  ran (`rockabill2`: 124 base / 248 strand roll targets, torsion `0.1`;
+  `rock2`: 496 base / 620 strand roll targets, torsion `0.2` and `0.4`;
+  `rock1`: 372 base / 868 strand roll targets, torsion `0.1`) and submit unit
+  row bases. This is still bounded partial evidence: Rockabill2 face/mouth/eye
+  placement, Rock2's small loose jaw/neck pieces, and Rock1/Rock2 silhouette
+  parity against direct PS2 closeups are not solved by this chain-row update.
+- 2026-07-10 Rockabill2 post-state no-focus PCSX2 check is in
+  `analysis/ps2_trace_current/hair_consumer_20260710/rockabill2_hair_post_state_177960_extstack_nofocus_iso.json`,
+  again with a direct app screenshot beside it. The trace records 1040 calls at
+  the later point-state update boundary and confirms the cache-store side of
+  the writer path: after the preserved original instructions at this boundary,
+  `s0+0x30` matches the submitted `sp+0x20` row exactly in the retained
+  records (`min/median/max error 0.0`). This supports the current native choice
+  to store the submitted row2 into the persistent point orientation state, but
+  it does not explain the remaining PS2-vs-native row magnitude mismatch. The
+  next source-backed investigation should stay upstream in the
+  `0x00177878..0x001778e4` row-construction block and its source work rows,
+  not in renderer skinning, static mesh offsets, or the cache-store tail.
+- 2026-07-10 glTFMilo/MiloLib source-tool build/test pass:
+  `../ihatecompvir-public-milo-sources/glTFMilo/MiloGLTFUtils.sln` and the
+  local `analysis/ihatecompvir_milo_samples/MiloPreviewBatch` helper both
+  built successfully. Fresh source-tool samples are in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_tool_samples_20260710f/`.
+  These samples prove the stock GH2 PS2 Rock1/Rock2/Rockabill2 hair and face
+  meshes decode as rev28 slot-order palettes with no explicit indexed-bone
+  stream, and that Rock2/Rockabill2 static skin-bind/world samples are sane
+  enough to use as format evidence. They are not live CharHair proof.
+- 2026-07-10 source-guided native tries from that evidence are in
+  `analysis/ihatecompvir_milo_samples/native_source_tool_goes_20260710f/`.
+  Go 4 (`*_go4_source_charhair_sim_profile.png`) added a gated
+  `GHOGX_ENABLE_SOURCE_CHAR_HAIR_SIM` path that mirrors the RB3 source's
+  `Point::force`, `Point::lastFriction`, source gravity step
+  `mGravity * (1/60) * -3.858268`, length correction, friction, and inertia.
+  The logs include `sim=source-rb3`, nonzero `force=`, and
+  `lastFriction=` values on active frames, proving it ran. It is not
+  promotable: Rock2 remains visibly broken and Rockabill2 top hair still
+  floats.
+- Go 5 (`*_go5_source_charhair_authored_init_profile.png`) kept the same
+  source simulation but seeded reset state from decoded `CharHairPoint::pos`
+  through the named collision/parent row (`GHOGX_SOURCE_CHAR_HAIR_AUTHORED_INIT`).
+  This tested the RB3 `DoReset` direction without inventing offsets. It did
+  not materially improve Rock2/Rockabill2.
+- Go 6 (`*_go6_source_charhair_rootmat_basis_profile.png`) added a gated
+  `GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_BASIS` trial using decoded
+  `CharHairGroup::rootMat` rows for the first segment basis and the previous
+  submitted segment row for later segments, matching the shape of RB3's
+  `RootMat()` / `t100` loop more closely. This improved Rock2's rear mass
+  compared with go 4/5, but it over-changed Rock1 and did not fix
+  Rockabill2's top-card issue.
+- Go 7 (`*_go7_rootmat_basis_existing_predictor_profile.png`) isolated that
+  source rootMat/previous-segment basis from the new force solver by running
+  it with the existing native predictor. Rock2 is the best of the source-tool
+  attempts, with the rear hair seated rather than exploded, but Rock1 and
+  Rockabill2 are still not safe. Therefore none of go 4 through go 7 should be
+  promoted as default behavior without a PS2 trace at the upstream
+  row-construction block proving the root basis/segment inheritance contract
+  per character. The gated hooks remain diagnostic only.
+- 2026-07-10 `g` rerun before returning to deeper RE: both the local
+  ihatecompvir `glTFMilo` solution and `MiloPreviewBatch` helper still build
+  cleanly. Fresh source-tool samples are in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_tool_samples_20260710g/`
+  for Rock1/Rock2/Rockabill2, converted from the helper's full-size BMP output
+  to individual PNGs for inspection. A fresh native head-profile matrix is in
+  `analysis/ihatecompvir_milo_samples/native_source_tool_goes_20260710g/`,
+  covering current, source CharHair sim, authored-init, source rootMat basis,
+  and rootMat basis with the existing predictor for the same three characters.
+  The logs prove the intended gates (`sim=source-rb3`, `basis=source-rootmat`,
+  and `sim=native-predict`) but the visuals still reject promotion: the
+  source-backed attempts are informative diagnostics, not a complete native
+  fix.
+- 2026-07-10 trace correction after the glTFMilo/source-guided matrix: fresh
+  direct-app, no-focus PCSX2 traces for Rock1, Rock2, and Rockabill2 are in
+  `analysis/ps2_trace_current/hair_consumer_20260710/rock1_hair_matrix_steps_extstack_nofocus_iso_20260710g.json`,
+  `analysis/ps2_trace_current/hair_consumer_20260710/rock2_hair_matrix_steps_extstack_nofocus_iso_20260710g.json`,
+  and
+  `analysis/ps2_trace_current/hair_consumer_20260710/rockabill2_hair_matrix_steps_extstack_nofocus_iso_20260710g.json`,
+  with direct app screenshots beside each JSON. All three record
+  `focus_forcing=false` and `input_sent=false`. Counts are Rock1
+  `step_177874=96, step_177898=482, step_1778ac=482, step_1778cc=2410,
+  step_1778e4=2420`, Rock2 `step_177874=268, step_177898=984,
+  step_1778ac=988, step_1778cc=2223, step_1778e4=2223`, and Rockabill2
+  `step_177874=43, step_177898=412, step_1778ac=665, step_1778cc=1012,
+  step_1778e4=1012`. The current construction hooks use orig
+  `0xfae40000, 0xdae40000` at `0x001778cc` and `0xdbc40000, 0x4bc4216a` at
+  `0x001778e4`; this supersedes the older shifted Rockabill2 store-window
+  reading that saw `0x7ba20020, 0x03a0282d` at a later stack-store window.
+  Fresh `step_1778e4` row-length checks are mostly unit at the construction
+  point, and
+  `analysis/ps2_trace_current/hair_consumer_20260710/hair_group_decode_audit_20260710g/`
+  decodes unit-length baseMat/rootMat rows for the sampled Rock1, Rock2, and
+  Rockabill2 hair/chain groups. Therefore a raw row-scale/no-normalize native
+  change is not source-backed or authorized from this evidence; next RE should
+  target row direction, source endpoint, or attachment consumption.
+- 2026-07-10 `h` source-rootMat live-position diagnostic: the RB3
+  `CharHair::SimulateInternal` source sets `t100.v` from
+  `Root()->WorldXfm().v` while composing `RootMat()` with the root parent's
+  world orientation. Native now has a gated
+  `GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_LIVE_POS` trial that only affects the
+  existing `GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_BASIS` diagnostic path by taking the
+  first rootMat-submitted translation from the live root world instead of the
+  authored root world. Fresh screenshots/logs are in
+  `analysis/ihatecompvir_milo_samples/native_source_tool_goes_20260710h/`:
+  `rock1_go8_rootmat_livepos_head_profile.png`,
+  `rock2_go8_rootmat_livepos_head_profile.png`, and
+  `rockabill2_go8_rootmat_livepos_head_profile.png`. The logs prove
+  `basis=source-rootmat-livepos` and `sim=native-predict`. Visual result:
+  Rock2 is calmer than the earlier source-rootMat diagnostic, but Rock1 still
+  has bad side/back cards and Rockabill2 remains unresolved. Keep this off by
+  default until PS2 traces prove the live-root-position contract across the
+  problem characters.
+- 2026-07-10 `i` glTFMilo direct-world build/test pass: the local
+  `../ihatecompvir-public-milo-sources/glTFMilo/MiloGLTFUtils.sln` and
+  `analysis/ihatecompvir_milo_samples/MiloPreviewBatch` helper were rebuilt
+  again before changing native behavior. Fresh ihatecompvir/MiloLib source-tool
+  samples are in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_direct_build_20260710i/`.
+  The batch produced 60 individual PNGs for `rock1`, `rock2`,
+  `rockabill2`, `funk1`, and `grim`, including hair/face and accessory
+  material samples. The source evidence is unchanged: GH2 PS2 meshes in these
+  samples are rev28 slot-order palette consumers, with no rev33 indexed-bone
+  stream, and `skin_bind` is vertex -> per-slot `BoneTransform` -> current or
+  stored controller world.
+- Native tested that exact preview-side consumer with a diagnostic-only
+  `GHOGX_GLTFMILO_DIRECT_WORLD_SKIN=<mesh-or-material-substring>` gate. When
+  matched, the renderer logs `mode=gltfmilo-direct-world-env`, skins with
+  `slot_bind * curr_world`, and draws with `world=gltfmilo-direct-world-env`
+  identity world because the diagnostic output is already in world space. This
+  gate is intentionally not default behavior.
+- Fresh native profiles are in
+  `analysis/ihatecompvir_milo_samples/native_gltfmilo_direct_world_20260710i/`.
+  The directory contains 15 individual PNGs: current calibration shots for
+  Rock1/Rock2/Rockabill2 plus go 10 direct-world, go 11 direct-world plus
+  `GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_BASIS=1` and
+  `GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_LIVE_POS=1`, go 12 direct-world plus the
+  source CharHair sim/authored-init/rootMat-livepos stack, and go 13
+  direct-world with `GHOGX_DISABLE_CHAR_HAIR=1`.
+- Results are negative evidence, not a fix. Go 10 proves the glTFMilo
+  direct-world consumer reaches native but does not improve Rock1, Rock2, or
+  Rockabill2. Go 11/go 12 materially change Rock2's silhouette but still leave
+  disconnected chunks and over-change Rock1; Rockabill2's flying card remains.
+  Go 13 shows that disabling CharHair can calm Rock2/Rockabill2, but static
+  hair is still not clean and Rock1 remains wrong. Do not promote the
+  glTFMilo-direct-world, rootMat-livepos, source-sim, or static-no-CharHair
+  gates as a native fix. The next evidence-backed path remains upstream
+  controller/source endpoint selection or attachment consumption, not another
+  renderer-side preview equation.
+- 2026-07-10 `j` focused static/native A/B and source-tool problem-card pass:
+  fresh hidden native profiles are in `analysis/hair_static_ab_20260710j/`.
+  The pass captured current and `GHOGX_DISABLE_CHAR_HAIR=1` static profiles
+  for `rock1`, `rock2`, and `rockabill2` with the same stock GH2 PS2 assets
+  and without focus forcing. The paired images are
+  `rock1_current_profile.png`, `rock1_static_no_charhair_profile.png`,
+  `rock2_current_profile.png`, `rock2_static_no_charhair_profile.png`,
+  `rockabill2_current_profile.png`, and
+  `rockabill2_static_no_charhair_profile.png`.
+- The current logs record Rock1 `1275` CharHair / `630` ps2chain / `189`
+  hairOverride rows, Rock2 `1149` / `567` / `63`, and Rockabill2 `449` /
+  `189` / `63`. The static runs record zero CharHair/ps2chain/hairOverride
+  rows while still exercising the same mesh skin paths: Rock1 remains
+  `mode=mesh-local-bind` plus `world=identity-skinned`, and Rock2/Rockabill2
+  remain `mode=local-attachment` plus `world=local-hair-mesh-local`.
+  Static/no-CharHair is not a fix. It calms Rock2/Rockabill2 and helps Rock1,
+  but none are clean; Rockabill2's major failure is live controller motion,
+  while Rock1 remains partly card/decode/consumer even static.
+- The local ihatecompvir/MiloLib helper now emits `[render-focus]`
+  problem-card samples for `rock1`, `rock2`, `rockabill2`, `funk1`, and
+  `grim`. Fresh output is in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_focused_problem_cards_20260710j/`,
+  with `105` PNGs and `45` `*problem*.png` focused views. The focused source
+  samples preserve rev28 slot-order evidence for Rock1 `hair-front1.mesh`,
+  Rock2 `hair-front1.mesh`, Rockabill2 `hair.mesh` / `hair 2.mesh`, Funk1
+  `funk1.37.mesh`, and Grim accessory meshes. These renders are format
+  evidence only, not a direct player-view parity reference or authorization for
+  a static offset.
+- 2026-07-10 `k` Rockabill2 source-single-chain diagnostic:
+  Rockabill2 `hair.hair` is a source-plausible special case: one group,
+  `root=bone_hair.mesh`, one point, empty collision object, collide type `0`,
+  zero radius/align distance, and length `5.0`. Native now keeps a gated
+  `GHOGX_ENABLE_SOURCE_SINGLE_POINT_CHAIN=1` diagnostic that lets this pattern
+  run through the chain writer as `reason=source-single-point`; default
+  behavior remains follow-only for this case.
+- Fresh proof is in `analysis/hair_source_single_chain_20260710k/`.
+  `rockabill2_default_restored_profile.png` and log prove the default path
+  still records `[charhair-follow-ps2]` for `bone_hair.mesh` and consumes
+  `hairOverride=1` in the existing `local-attachment` renderer path.
+  `rockabill2_source_single_chain_gated_profile.png` and log prove the gated
+  path records `[charhair-ps2chain]` with `reason=source-single-point` and
+  changes the `bone_hair.mesh` skin rows. Visual result rejects promotion: the
+  gated path moves the bad top card forward into the face area instead of
+  seating it on the pompadour. Keep this diagnostic off by default; the
+  remaining Rockabill2 issue is still live row/source endpoint or weighted-card
+  consumption, not a simple source-single-chain promotion.
+- 2026-07-10 `l` glTFMilo source-helper checkpoint:
+  Rebuilt `analysis/ihatecompvir_milo_samples/MiloPreviewBatch` against the
+  in-repo ihatecompvir `MiloLib` reference and reran the source parser on
+  Rock1, Rock2, and Rockabill2 into
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_checkpoint_20260710l/`.
+  The helper produced fresh BMP renders; the bulky BMP intermediates were
+  removed after conversion, leaving 27 focused `*problem*.png` samples and the
+  helper log. The individual source-tool samples
+  `rock1_problem_skin_bind_side.png`,
+  `rock2_problem_skin_bind_side.png`, and
+  `rockabill2_problem_skin_bind_side.png` preserve the current source-decode
+  evidence for problematic hair cards. This checkpoint is still format evidence
+  only: it supports the hair/accessory slot and skin/bind investigation, but it
+  does not authorize promoting the rejected source-single-chain diagnostic or
+  adding a static native offset.
+- 2026-07-10 `m` glTFMilo/native bind-row comparison:
+  `MiloPreviewBatch` now logs each MiloLib `RndMesh.boneTransforms` slot row as
+  `[mesh-slot]`. The fresh source-tool run in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_bindrows_20260710m/`
+  retains 27 focused `*problem*.png` samples and the enhanced
+  `milo_preview_samples.log` after deleting bulky BMP intermediates. The
+  matching native bind-audit logs are
+  `analysis/ihatecompvir_milo_samples/native_bind_compare_20260710m_hairfront1.log`,
+  `native_bind_compare_20260710m_rockabill2_hair.log`, and
+  `native_bind_compare_20260710m_rockabill2_hair2.log`.
+  For active weighted slots, MiloLib and native agree to rounding:
+  Rock1 `hair-front1.mesh` slots are
+  `bone_head.mesh` pos `(3.447,3.571,-2.098)` and
+  `bone_R-hair01/02/03.mesh` positions `(1.653,3.330,1.205)`,
+  `(1.653,-1.434,1.205)`, and `(1.653,-6.175,1.205)`;
+  Rock2 `hair-front1.mesh` slots are `bone_head.mesh`
+  `(6.230,2.521,0.130)` and `bone_hair-front.mesh`
+  `(0.107,0.239,0.588)`; Rockabill2 `hair.mesh` slots are
+  `bone_head.mesh` `(7.887,3.154,-0.820)` and `bone_hair.mesh`
+  `(-0.820,-0.549,3.500)`; and Rockabill2 `hair 2.mesh` slots are
+  `bone_head.mesh` `(7.268,4.509,2.278)` and `bone_hair.mesh`
+  `(2.278,-1.371,4.742)`.
+  MiloLib keeps four slot records for rev28 meshes, including unnamed trailing
+  slots with junk-looking rows; the same source log records slot 2/3 weights as
+  zero for the sampled Rock2/Rockabill2 problem cards, while native trims the
+  real palette to the named active slots. This bounds off a palette-order or
+  missing-extra-slot decoder fix for the current problem cards. The remaining
+  issue is live controller/draw-consumer behavior, not the static slot row
+  decode.
+- 2026-07-10 `n` glTFMilo CharHair row comparison and Rockabill2
+  collisionless one-point fix: `MiloPreviewBatch` now logs MiloLib `CharHair`
+  objects as `[source-charhair]`, `[source-charhair-strand]`, and
+  `[source-charhair-point]` rows in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_charhair_20260710n/`.
+  The matching native audit is
+  `analysis/ihatecompvir_milo_samples/native_hair_compare_20260710n.log`.
+  The two readers agree on the sampled Rock1/Rock2/Rockabill2 hair rows, so the
+  current problem is not a shifted CharHair byte decode. Rockabill2 `hair.hair`
+  is revision 2, `root=bone_hair.mesh`, one point, `point=bone_hair.mesh`,
+  empty legacy/collision symbol, mode `0`, radius `0`, outer radius `0`, and
+  length `5`. The available Harmonix-era source writes point bone world rows in
+  the collision-backed branch, so native now treats that exact collisionless
+  one-point source row as static by default: it logs `[charhair-static-source]`
+  with `reason=source-collisionless-one-point noOverride=1`, does not submit
+  `runtime_world_overrides`, and leaves `RuntimeHairPoint::has_world=false` so
+  the renderer cannot consume it as a CharHair override. The old
+  source-single-chain diagnostic remains gated and off by default. Proof inputs
+  are
+  `engine/out/gltfmilo_charhair_20260710n/rockabill2_current_side_try1.png`
+  and `rockabill2_nocharhair_side_try1.png`; the after-fix shot/log should be
+  captured in the same folder before treating Rockabill2 as visually reviewed.
+- 2026-07-10 `o` glTFMilo material-state build/test pass:
+  the local helper is built against
+  `../ihatecompvir-public-milo-sources/glTFMilo/external/MiloEditor/MiloLib`,
+  whose `RndMat` reader consumes GH2-era material flags as `useEnviron` then
+  `preLit`. `MiloPreviewBatch` logs these rows as `[source-mat]` in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_materials_20260710o/`,
+  and the raw extracted PS2 material bodies in
+  `analysis/ihatecompvir_milo_samples/mat_raw_20260710o/` confirm the byte
+  order: Rock1 `rocker1_hair.mat`, Rock1 `rock1_hair2.mat`, Rock2
+  `rock2_hair.mat`, Grim `grim_wings.mat`, and Funk1 `funk1_hair.mat` all have
+  flag bytes `01 00` followed by z-mode `01 00 00 00`, matching
+  `useEnviron=1/preLit=0`; Rock2 `rock2_hair2.mat` has `01 01` and therefore
+  both flags set. Native now decodes the two bytes in that source-backed order.
+  This is a material/render-state decode fix, not proof that Rock1/Rock2
+  controller/card placement is solved. The same helper images and native
+  diagnostics show sampled Rock1/Rock2 `hair-front1.mesh` static bboxes already
+  agree with MiloLib skin-bind output, so do not promote another static
+  transform equation from this pass.
+- 2026-07-10 `r` glTFMilo draw-order/render-state pass:
+  `../ihatecompvir-public-milo-sources/glTFMilo/MiloGLTFUtils.sln` and the
+  local `analysis/ihatecompvir_milo_samples/MiloPreviewBatch` helper were
+  rebuilt before changing native rendering. The helper now logs
+  `RndDrawable.draw.showing`, `RndDrawable.draw.drawOrder`, and source `RndMat`
+  rows in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_draworder_after_20260710r/`.
+  Distilled source rows are in
+  `analysis/ihatecompvir_milo_samples/source_draworder_rows_20260710r.txt`.
+  Native now decodes `SkinnedMesh::draw_order` from the Draw base immediately
+  after `showing` and the 16-byte sphere, matching ihatecompvir's MiloLib
+  reader, and `char_renderer` sorts the full submitted mesh list by decoded
+  source LOD group rank and `RndDrawable.drawOrder` without a name-based hair
+  sorting path.
+  The app capture logs print the submitted hair/material state including
+  `drawOrder`; distilled native rows are in
+  `analysis/ihatecompvir_milo_samples/native_render_draworder_rows_unique_20260710r.txt`
+  and
+  `analysis/ihatecompvir_milo_samples/native_material_draworder_rows_20260710r.txt`.
+  Full-size native proof images are in
+  `engine/out/gltfmilo_draworder_native_20260710r/`:
+  `rock1_draworder_after_side.png`, `rock2_draworder_after_side.png`, and
+  `rockabill2_draworder_after_side.png`. This is not a final placement fix:
+  Rock2 still has visibly wrong hair placement/layering in the side proof, and
+  Rockabill2 still needs separate face/hair review.
+- 2026-07-10 `s` glTFMilo group/controller pass:
+  the local helper now logs MiloLib-decoded `RndGroup.objects` rows as
+  `[source-group]`. Fresh source output is in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_groups_20260710s/`,
+  with distilled rows in
+  `analysis/ihatecompvir_milo_samples/source_group_rows_20260710s.txt`.
+  Source-exact `rock2` `lod0.grp` includes `hair-back.6.mesh`,
+  `hair-back.2.mesh`, `hair-back.5.mesh`, `hair-mid.1.mesh`,
+  `hair-back.1.mesh`, `hair-back.mesh`, `hair-mid.mesh`, `hair-top.mesh`,
+  `hair-back.3.mesh`, `hair-back.4.mesh`, and `hair-front1.mesh`; these are
+  authored draw members, not loose decoded objects. Do not hide these Rock2
+  hair meshes as a fix. The same pass records Rock2 source `CharHair` rows and
+  mesh palette slots in
+  `analysis/ihatecompvir_milo_samples/source_rock2_hair_controller_rows_20260710s.txt`.
+  Two bounded native trials were captured in
+  `engine/out/gltfmilo_rock2_source_goes_20260710s/`:
+  `rock2_slot_stored_side.png` forces the MiloLib slot/stored skin equation and
+  is visually worse behind the head, while `rock2_direct_world_side.png` is
+  closer but still leaves the back/neck hair mass wrong. Their skin-mode proof
+  rows are in
+  `analysis/ihatecompvir_milo_samples/native_rock2_source_go_skinmodes_unique_20260710s.txt`.
+  Neither trial should be promoted.
+- 2026-07-10 `t` Harmonix CharHair source pass:
+  ihatecompvir's RB3 source tree contains
+  `../ihatecompvir-public-milo-sources/rb3/src/system/char/CharHair.cpp` and
+  `CharHair.h`. The source shows `CharHair::Poll` re-hooking during character
+  sync, resetting after teleport/LOD changes, then calling `SimulateLoops` or
+  `SimulateZeroTime`. `Strand::SetRoot` rebuilds strand points from the root
+  transform child chain and caches `mBaseMat`; `Strand::SetAngle` computes
+  `mRootMat` from an X-axis angle rotation times `mBaseMat`. In
+  `SimulateInternal`, the root transform's world position and
+  `RootMat * root_parent_world_rotation` seed the working transform, and each
+  point updates its target bone through `SetWorldXfm`. This source pass supports
+  continuing toward exact CharHair controller/collision hookup and reset
+  behavior. It does not justify hiding Rock2 hair cards or promoting the
+  failed glTFMilo static skin-equation trials: GH2 PS2 revision-2 CharHair rows
+  have the legacy collision symbol/radius fields but not the later revision
+  `unk5c` freeze rows, so the RB3 reset path must be ported carefully from
+  source and PS2 evidence rather than transplanted as-is.
+
 1. Bind or idle viewer screenshot.
 2. Active viewer screenshot using the main performance clip.
 3. Stage screenshot with the outfit loaded as guitarist.
@@ -3437,3 +4870,402 @@ Viewer hand-overlay validation:
   playing `BAND BASS` cues. Keep bass coverage on the accepted body/prop
   animation route unless a future accepted PS2 trace proves a bass-owned MIDI
   hand-driver graph.
+
+2026-07-10 glTFMilo source-build rerun before deeper hair RE:
+
+- Rebuilt `../ihatecompvir-public-milo-sources/glTFMilo/MiloGLTFUtils.sln` and
+  the local `analysis/ihatecompvir_milo_samples/MiloPreviewBatch` helper before
+  changing any native assumptions. Fresh full-size ihatecompvir/MiloLib source
+  samples are in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_fresh_20260710u/`
+  for Rock1, Rock2, Rockabill2, Grim, and Funk1. The helper again confirms GH2
+  PS2 `RndMesh` revision 28 uses ordered four-slot palettes for these hair and
+  face meshes, not explicit per-vertex bone indices.
+- Rebuilt the native app/test targets and ran the focused deterministic tests:
+  `ghogx_milo_scene_test`, `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_character_hair_contract_test` all passed. Current-build native
+  screenshots/logs are in
+  `analysis/ihatecompvir_milo_samples/native_current_gltfmilo_goes_20260710u/`.
+  The matrix covers current, `GHOGX_DISABLE_CHAR_HAIR=1`,
+  `GHOGX_LOCAL_HAIR_WORLD_MODE=identity`, `GHOGX_LOCAL_HAIR_WORLD_MODE=parent`,
+  `GHOGX_GLTFMILO_DIRECT_WORLD_SKIN=hair`, and
+  `GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_BASIS=1` plus
+  `GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_LIVE_POS=1` for Rock1, Rock2, and
+  Rockabill2.
+- Results are bounded negative evidence, not a fix. Static CharHair calms Rock2
+  but still masks face/ear regions, and Rockabill2's lifted hair card remains
+  with CharHair disabled, so the bug is not just explosive physics. The
+ glTFMilo direct-world consumer logs `gltfmilo-direct-world-env` and reaches
+  native rendering, but it does not improve placement. The source-rootMat
+  live-position diagnostic gives the best Rock2 silhouette in this batch, but
+  it still over-changes Rock1 and leaves Rockabill2 unresolved. Do not promote
+  any of these gated trials as default native behavior; the next investigation
+  still needs the live hair-card/controller consumer evidence, not a static
+  offset, alpha/cull tweak, or guessed renderer equation.
+
+2026-07-10 glTFMilo collision-row and native authored-point correction pass:
+
+- Extended the local `analysis/ihatecompvir_milo_samples/MiloPreviewBatch`
+  helper to log `[source-charcollide]` rows from MiloLib's `CharCollide`
+  decoder and regenerated source samples in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_collision_rows_20260710v/`.
+  Rock1, Rock2, Rockabill2, Grim, and Funk1 produced CharHair rows but no
+  separate CharCollide rows in this batch. For these GH2 PS2 character MILOs,
+  the CharHair point `legacyInt`/`legacySym` values are the visible legacy
+  collision/hookup fields available from the source tools; do not reinterpret
+  the symbol as an authored transform parent.
+- Corrected the native source-guided authored reset helper accordingly:
+  `authored_hair_point_world` now uses the decoded CharHair point `pos`
+  directly instead of multiplying it by the legacy collision symbol's local
+  chain. This is a source-backed diagnostic/controller correction, not a visual
+  sign-off. Rebuilt `ghogx_app`, `ghogx_milo_scene_test`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_character_hair_contract_test`; the three focused tests passed.
+- Native visual/log goes after the correction are in
+  `analysis/ihatecompvir_milo_samples/native_after_authored_point_fix_20260710w/`.
+  The set contains current, corrected `GHOGX_ENABLE_SOURCE_CHAR_HAIR_SIM=1`
+  plus `GHOGX_SOURCE_CHAR_HAIR_AUTHORED_INIT=1`, and corrected authored-init
+  plus `GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_BASIS=1` /
+  `GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_LIVE_POS=1` captures for Rock1, Rock2, and
+  Rockabill2. The app runs all exited 0 with per-capture CharHair, mesh-mode,
+  skin-matrix, and hair-space logs.
+- Results remain bounded negative evidence. Rock2's corrected authored-init
+  path consumes the source rows (`solved` starts from the decoded point
+  positions), but the profile still shows wrong hair card layering around the
+  ear/neck. Rock1 remains visibly wrong, and the rootMat live-position trial
+  over-bends the large hair mass. Rockabill2's collisionless one-point
+  `hair.hair` source row is logged as `pos=(-2.1165 5.5541 74.8063)`, but the
+  current native path intentionally leaves it static (`source-collisionless-
+  one-point noOverride=1`); forcing the existing
+  `GHOGX_ENABLE_SOURCE_SINGLE_POINT_CHAIN=1` trial makes the pompadour float
+  forward/down and is rejected.
+- Next source-backed work should stay on the visible mesh/controller consumer
+  side, not another broad physics guess. The older Rock2 local-attachment trace
+  remains valid evidence for `world=local-hair-mesh-local`; this pass does not
+  overturn that rule. Instead, use the glTFMilo rev28 palette rows and any
+  needed original submitted-matrix trace to explain the target-specific cases
+ that still lack proof: especially Rockabill2's collisionless one-point
+ `hair.hair`, and Rock1/Rock2 card layering that still looks wrong even after
+ the decoded source rows are consumed. Do not remove the local-attachment path
+ or add a character offset without matching source/trace evidence.
+
+2026-07-10 glTFMilo rebuild plus Rockabill2 source-controller rejection pass:
+
+- Rebuilt the local ihatecompvir source reference again before making any new
+  native assumptions: `../ihatecompvir-public-milo-sources/glTFMilo/
+  MiloGLTFUtils.sln` builds `MiloLib` and `MiloGLTFUtils` cleanly, and
+  `analysis/ihatecompvir_milo_samples/MiloPreviewBatch` rebuilds against that
+  source project reference. Fresh full-size source-preview samples are in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_native_goes_20260710y2/`
+  for Rock1, Rock2, and Rockabill2. The PNG side views include both stored
+  world and `skin_bind` interpretations for the problem mesh sets.
+- The fresh source rows keep Rockabill2 `hair.hair` as the same collisionless
+  one-point controller: `root=bone_hair.mesh`, `point=bone_hair.mesh`,
+  `pos=(-2.116,5.554,74.806)`, `length=5`, `legacyInt=0`, empty
+  `legacySym`, and zero radius fields. The paired mesh rows keep
+  `hair.mesh` and `hair 2.mesh` as two-slot sheets using `bone_head.mesh` plus
+  `bone_hair.mesh`; glTFMilo/MiloLib therefore gives no evidence for an added
+  collision, hardcoded offset, or alternate four-slot consumer for this case.
+- Fresh native source-controller A/B captures are in
+  `analysis/ihatecompvir_milo_samples/native_rockabill2_source_controller_goes_20260710z2/`.
+  The matrix covers current, `GHOGX_DISABLE_CHAR_HAIR=1`,
+  `GHOGX_ENABLE_SOURCE_CHAR_HAIR_SIM=1`,
+  `GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE=1`, and
+  `GHOGX_ENABLE_SOURCE_SINGLE_POINT_CHAIN=1`. Current/source-sim/old
+  single-point-state all keep the source-backed
+  `reason=source-collisionless-one-point noOverride=1` path. Disabling all
+  CharHair barely changes the pompadour/loose-card profile, so this pose is
+  not primarily a hair-physics explosion. Forcing the source single-point
+  chain does publish a live `bone_hair.mesh` row and visibly drags the
+  pompadour card forward/down; keep that diagnostic rejected and gated.
+- This pass does not promote a visual fix. It narrows Rockabill2: the
+  collisionless `hair.hair` controller should not be made live by default, and
+  the remaining problem must be explained through the static sheet/render
+  consumer, material/alpha/cull state, mesh membership, or a future original
+  submitted-matrix trace. Stay on source-backed consumers before returning to
+ broad RE.
+
+2026-07-10 glTFMilo RndMat render-state slice:
+
+- Built against ihatecompvir/glTFMilo again before changing native behavior:
+  `../ihatecompvir-public-milo-sources/glTFMilo/MiloGLTFUtils.sln`,
+  the in-repo `analysis/ihatecompvir_milo_samples/MiloPreviewBatch` helper,
+  `ghogx_app`, `ghogx_milo_scene_test`, and
+  `ghogx_character_hair_contract_test` all build. Focused tests
+  `ghogx_milo_scene_test` and `ghogx_character_hair_contract_test` pass.
+- MiloLib's GH2-rev `RndMat` reader is source-backed field order for this
+  slice: `blend`, color, `useEnviron`, `preLit`, `zMode`, `alphaCut`,
+  optional later-rev `alphaThreshold`, `alphaWrite`, `texGen`, `texWrap`,
+  12-float `texXfm`, diffuse texture, next pass, `intensify`, and `cull`. Native
+  `milo_scene::MatObj` now decodes those render-state fields directly from the
+  source cursor instead of scanning forward for a filename-shaped texture row.
+  The hermetic
+  `ghogx_milo_scene_test` now pins a GH2-v27 material byte layout with
+  `alphaCut`, `zMode`, `texWrap`, and `texXfm`.
+- Fresh ihatecompvir/MiloLib visual/source samples are in
+  `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_matstate_20260710aa/`.
+  Source material rows show Rock1/Rock2 hair materials are `alphaCut=0`,
+  `zMode=1`, `texWrap=1`; Rock2's main `rock2_hair.mat` is also `cull=0`.
+  Rockabill2's `rockabill2_head.mat`, used by `hair.mesh`, `hair 2.mesh`,
+  and the teeth meshes, is `blend=3`, `zMode=1`, `alphaCut=1`,
+  `alphaThreshold=0` by default, `texWrap=1`, and `cull=0`.
+- Native renderer now honors the decoded source material alpha state by
+  default: `alphaCut=1` enables alpha test with `alphaRef=alphaThreshold`
+  (0 for GH2-v27 when no threshold is serialized), while `alphaCut=0`
+  disables alpha testing for that material. `GHOGX_DISABLE_SOURCE_MAT_ALPHA_STATE=1`
+  is retained only as a diagnostic fallback to the older global alpha-ref-96
+  path. The renderer also maps decoded `texWrap` to the D3D sampler address
+  mode and logs `alphaTest`, `alphaCut`, `alphaRef`, `zMode`, and `texWrap`
+  per mesh.
+- Native A/B captures and raw logs are in
+  `analysis/ihatecompvir_milo_samples/native_matstate_goes_20260710ac/`.
+  Rockabill2 legacy alpha logs:
+  `hair.mesh ... alphaTest=1 alphaCut=1 alphaRef=96 zMode=1 texWrap=1`.
+  Source material alpha logs:
+  `hair.mesh ... alphaTest=1 alphaCut=1 alphaRef=0 zMode=1 texWrap=1`.
+  The paired texture-alpha logs prove the head texture actually contains
+  transparent/semi-transparent texels in the hair UV ranges
+  (`hair.mesh verts a0=10 a<96=15`; `hair 2.mesh verts a0=1 a<96=3`).
+- Visual result is bounded positive evidence, now user-signed-off for
+  Rockabill2 in this slice. Rockabill2 hair cutout behavior follows the
+  material data and the source-alpha close profile looks less harsh than the
+  legacy alpha-ref-96 path. After reviewing the farther and close native
+  profile/three-quarter screenshots, the user signed off on Rockabill2 on
+  2026-07-10. Do not keep iterating on Rockabill2 for the current hair slice
+  unless new source evidence or a fresh user report reopens it.
+
+2026-07-10 source zMode-depth-write A/B evidence:
+
+- MiloLib's `RndMat.ZMode` enum records `kZModeNormal=1`,
+  `kZModeTransparent=2`, `kZModeForce=3`, and `kZModeDecal=4`. The fresh
+  source material rows above show the sampled Rock1, Rock2, and Rockabill2
+  hair materials use `blend=3` plus `zMode=1`. Native now lets decoded
+  source material `zMode` drive `D3DRS_ZWRITEENABLE`: normal/force write
+  depth, while disable/transparent/decal do not. The previous behavior is
+  retained only as a diagnostic fallback with
+  `GHOGX_DISABLE_SOURCE_MAT_ZMODE_DEPTH=1`.
+- Native A/B captures and logs are in
+  `analysis/ps2_trace_current/hair_consumer_20260710/native_zmode_depth_candidate_20260710ai/`.
+  The set includes `rock1_zmode_depth_f120.png`,
+  `rock1_legacy_nozwrite_f120.png`, `rock2_zmode_depth_f120.png`, and
+  `rock2_legacy_nozwrite_f120.png`, plus the signed-off Rockabill2 guard pair
+  `rockabill2_zmode_depth_profile.png` and
+  `rockabill2_legacy_nozwrite_profile.png`.
+- Runtime logs prove the same source material rows are used on both sides of
+  the A/B. For example, Rock1 `hair-front1.mesh` changes from legacy
+  `hairRender=1 blend=3 zwrite=0 ... zMode=1 texWrap=1` to source-zMode
+  `hairRender=1 blend=3 zwrite=1 ... zMode=1 texWrap=1`; Rock2
+  `hair-front1.mesh` and Rockabill2 `hair.mesh` show the same zwrite switch
+  for `zMode=1`.
+- Visual result is a bounded render-state correction, not a placement fix for
+  Rock1/Rock2. Rock2 still has a detached lower/back chunk, and Rock1 still
+  needs the real mesh/controller/placement consumer explained from source
+  rows or traces. Rockabill2 remains signed off in this slice; use it only as
+  a regression guard for shared renderer changes.
+
+2026-07-10 source SetAngle/rootMat and legacy collision audit:
+
+- Fresh native bind-audit output is in
+  `analysis/ihatecompvir_milo_samples/native_source_loop_20260710_rootmat_audit/hair_rows_with_collision.txt`.
+  It compares decoded GH2 `rootMat` rows with the RB3 source
+  `Strand::SetAngle` formula (`RotateAboutX(angle) * baseMat`). The sampled
+  Rock1/Rock2/Rockabill2 rows match within trace noise (`setAngleRootErr`
+  max about `0.000074`), so current evidence does not point at broad
+  root/base matrix decode failure.
+- The same audit shows GH2 v2 legacy collision rows are populated and resolve
+  to real Trans rows. Rock1/Rock2 use `spot_hairsphere.trans`, `bone_head.mesh`,
+  and upper-twist targets with source schema fields `collide_type`,
+  `collision`, `radius`/`distance`, and `outer_radius`/`align_dist`.
+  Rockabill2's visible `hair.hair` remains collisionless, while its chain
+  rows use thigh cylinder targets.
+- `grim/core/grim/src/scene/char_hair/io.rs`,
+  `re-notes/templates/milo/char_hair.bt`, and MiloLib `CharHair.cs` agree that
+  GH2 revision-2 points store those inline legacy collision rows. Native can
+  consume them only through the decoded schema fields and must keep logging
+  `[hair-collision-detail]`/`[charhair-legacy-collision]`; do not revive the
+  older collision-as-authored-parent mistake or replace it with character
+  offsets.
+- This is not visual signoff. The next proof has to show full-size direct-app
+  top/profile shots with the collision path active, plus logs proving which
+  rows moved. If the visuals get worse, the collision consumer remains a
+  rejected source-backed trial rather than a promoted fix.
+
+2026-07-10 source writeback-gate adoption:
+
+- After checkpoint `2c961aa`, native CharHair was tightened toward the visible
+  ihatecompvir `CharHair::SimulateInternal` loop: the runtime writeback/force
+  update now requires a resolved collision row. Collisionless GH2 v2 rows log
+  `noCollidesNoWriteback=1` instead of publishing a guessed runtime transform.
+  This removes the old native assumption that every decoded point should drive
+  its target bone.
+- The collision helper now uses source names `radius` and `outerRadius` in the
+  log (`[charhair-legacy-collision] ... radius=... outer=...`) and uses
+  `max(radius, outerRadius)`/`outerRadius - radius` for the source-style
+  outside push/roll behavior. GH2 v2 still supplies the inline target from
+  Grim/re-notes/MiloLib schema rows; RB3 source does not provide a complete
+  GH2 legacy `Hookup` body, so this is a source-aligned bridge, not a claimed
+  byte-for-byte Hookup port.
+- Focused build/tests passed after the change:
+  `ghogx_character_hair_contract_test`, `ghogx_character_eye_bridge_contract_test`,
+  and `ghogx_milo_scene_test`. Full-size direct-app top proof is in
+  `analysis/ihatecompvir_milo_samples/native_source_loop_20260710_writeback_gate/`.
+  The individual PNGs `rock1_top_oblique_visible_crown_writeback_gate.png`,
+  `rock2_top_oblique_visible_crown_writeback_gate.png`, and
+  `rockabill2_top_oblique_visible_crown_writeback_gate.png` show the crowns.
+- Visual result: this is a correctness cleanup, not the Rock1/Rock2 placement
+  fix. Rock1 and Rock2 remain visibly wrong from the crown angle, so the next
+  source-backed target should be visible mesh consumer/group/draw membership or
+  a direct PS2 submitted-row comparison, not another physics parameter tweak.
+
+2026-07-10 legacy CharHair bridge default rollback and full-body proof standard:
+
+- Rechecked ihatecompvir/Harmonix source after the writeback-gate pass.
+  `rb3/src/system/char/CharHair.cpp` reads GH2-era revision-2 point legacy
+  `int + symbol` fields but then clears `pt.collides`; runtime writeback in
+  `SimulateInternal` is gated on `thisPoint.collides.size() != 0`.
+  `Hookup()` gathers real `CharCollide` objects, but the public source does
+  not include a complete legacy GH2 `Hookup(ObjPtrList<CharCollide>&)` body,
+  and the local MiloLib/glTFMilo source samples did not find separate
+  `CharCollide` rows in the sampled GH2 PS2 Rock1/Rock2/Rockabill2/Funk1/Grim
+  character MILOs.
+- Native therefore no longer treats the GH2 revision-2 legacy fields as a
+  proven live collision list by default. The inferred bridge remains available
+  only for diagnostics via `GHOGX_ENABLE_LEGACY_CHAR_HAIR_BRIDGE=1`; default
+  debug output logs `legacyBridge=0 noDecodedCollideListNoWriteback=1` after
+  decoded CharHair rows are inventoried. This is a source-evidence rollback of
+  unsupported native glue, not a final hair-placement signoff.
+- Focused build/tests passed after the gate:
+  `ghogx_character_hair_contract_test`,
+  `ghogx_character_eye_bridge_contract_test`, and `ghogx_milo_scene_test`.
+- User feedback on the top-oblique crown shots established the proof framing
+  rule for this slice: diagnostic screenshots should keep the whole body
+  visible unless a closeup is explicitly supplemental. New direct-app full-body
+  captures are in
+  `analysis/ihatecompvir_milo_samples/native_fullbody_visibility_20260710/`.
+  The pair `rock1_fullbody_back_threequarter.png` /
+  `rock1_fullbody_profile.png` and the pair
+  `rock2_fullbody_back_threequarter.png` / `rock2_fullbody_profile.png` keep
+  the head, hair, neck, shoulders, guitar, limbs, and stance in frame.
+- The old bridge can still be compared from the same full-body cameras in
+  `analysis/ihatecompvir_milo_samples/native_fullbody_legacy_bridge_compare_20260710/`.
+  These A/B captures are evidence for the default rollback, but they do not
+  close Rock1/Rock2 hair fidelity. The remaining work is still to prove the
+  actual GH2 runtime consumer path from source or traces rather than reusing
+  inferred collision behavior.
+
+2026-07-10 Rock1/Rock2 arm regression recheck:
+
+- After user feedback that the latest view looked like a Rock1/Rock2 arm
+  regression, rebuilt `ghogx_app` and captured fresh direct-app full-body front
+  shots from the current binary with stock GH2 PS2 assets, guitar attached, and
+  viewer hand overlays active. The individual proof PNGs are
+  `engine/out/rock_regression_fresh_20260710/rock1_front_current.png` and
+  `engine/out/rock_regression_fresh_20260710/rock2_front_current.png`.
+- The matching logs in `engine/out/rock_regression_fresh_20260710/` show active
+  left-hand weight `1.000`, `CharIKHand` solving `bone_L-hand.mesh` to
+  `bone_fret_hand.mesh`, then `foreTwist_L.ik`, then the decode-only CharHair
+  gate, then `upperTwist_L.ik` for both Rock1 and Rock2. This preserves the
+  accepted source-backed cadence from checkpoint `96f64b5`.
+- Focused guards passed in the same recheck:
+  `ghogx_character_no_named_fix_test`,
+  `ghogx_character_left_hand_contract_test`, and
+  `ghogx_character_source_truth_contract_test`.
+- No runtime code changed in this recheck. The remaining Rock1/Rock2 work is
+  still hair/card placement and GH2 runtime consumer proof, not a named
+  character posture patch.
+
+2026-07-10 Rock1/Rock2 current regression double-check:
+
+- Rebuilt the current debug app and captured fresh direct-app Rock1/Rock2
+  full-body front shots after the later source-truth documentation commits.
+  The first no-guitar diagnostic pair in
+  `engine/out/rock_regression_recheck_20260710_current/` is visibly misleading:
+  it leaves viewer hand IK solving to guitar hand targets while the authored
+  guitar prop is absent.
+- The matching attached-guitar pair,
+  `rock1_current_front_fullbody_guitar.png` and
+  `rock2_current_front_fullbody_guitar.png`, keeps the authored prop anchor
+  path active. Logs show `bone_fret_hand.mesh` resolving from the `xplorer`
+  prop, then live `CharIKHand`, `CharForeTwist`, decode-only `CharHair`, and
+  `CharUpperTwist` in the accepted source-backed cadence. No post-`96f64b5`
+  runtime arm-solver change was found.
+- This recheck does not sign off Rock1/Rock2 hair/card placement or side-profile
+  arm/neck posture. It only records that the front attached-guitar path did not
+  expose a post-`96f64b5` runtime arm-solver change.
+- Follow-up user review rejected the visual premise above: the latest debug
+  full-body captures did read as a Rock1/Rock2 head/neck posture regression
+  compared with the earlier front set. The root cause found on recheck was the
+  character-viewer capture harness, not a mesh/arm solver change:
+  `--fixed-dt` was parsed by the app but not passed into `run_char_mode`, so
+  verbose `GHOGX_DEBUG_IK=1` logging could advance real-time clip playback to a
+  later pose by screenshot frame 30. The fix is a tiny diagnostic hook: character
+  mode now honors `--fixed-dt` and logs `[char] fixed dt enabled`.
+- Fresh direct-app proof in `engine/out/rock_regression_fixeddt_20260710/`
+  uses stock PS2 assets, attached `xplorer`, full-body front framing, and
+  `--fixed-dt 0.0166667`. `rock1_fixed_front.png` and
+  `rock1_fixed_debugik_front.png` are byte-identical; `rock2_fixed_front.png`
+  and `rock2_fixed_debugik_front.png` are byte-identical. The debug logs still
+  show live `CharIKHand`, `CharForeTwist`, and `CharUpperTwist` rows. This
+  only proves debug/no-debug determinism. It does not prove that the fixed
+  frame is the reviewed Rock1/Rock2 posture, and it does not sign off remaining
+  hair/card placement.
+- The follow-up explicit-frame recheck in
+  `engine/out/rock_regression_clipframe_recheck_20260710/` fixes that evidence
+  gap by forcing authored main-clip frames 15, 30, 60, 90, and 120 for both
+  Rock1 and Rock2 with the guitar attached and the full body visible. The
+  frame-15 pair matches the earlier accepted stance much more closely, while
+  later frames deliberately show the authored idle pose leaning and raising the
+  head. Treat the neck/shoulder read as clip-frame dependent until an original
+  GH2 runtime capture chooses the exact review frame. No post-`96f64b5`
+  runtime arm-solver change was found in this recheck.
+- The direct-app side-profile recheck in
+  `analysis/rock_regression_recheck_20260710/` still reads as a Rock1/Rock2
+  forward-neck/arm posture problem in the active main-clip pose. The bind-pose
+  control pair in the same folder is upright, so the visible issue is introduced
+  by the clip/controller stack rather than static mesh decode. A direct
+  ihatecompvir `CharUpperTwist.cpp` comparison found the native upper-twist
+  row/position behavior already matches that source file, so no twist patch was
+  promoted from that July 10 pass. The July 14 Rockabill2 isolation below
+  supersedes that conclusion for live stock-GH2 twist playback.
+  Do not sign off Rock1/Rock2 side-profile arm/neck
+  posture until the `CharClipSamples` / `CharBonesSamples` / driver sample path
+  has fresh direct-app proof or an original GH2 runtime capture proving the
+  exact reviewed frame.
+- The 2026-07-14 Rockabill2 star-power recheck reopened the twist output
+  problem with a clearer isolation point: direct-app logs for `special_02`
+  frame 70 show both left and right hand IK skipped because their source solve
+  weights are zero, while standalone fore/upper twist controllers still run and
+  produce the visible shoulder/forearm folding. The local-row trace route was
+  not sufficient for that reviewed frame. The live stock-GH2 runtime now follows
+  ihatecompvir's world-row `CharForeTwist::Poll` and `CharUpperTwist::Poll`
+  bodies, then converts the returned `SetWorldXfm` matrices back to local rows
+  through each driven bone's current parent. For `CharUpperTwist`, native keeps
+  the source sequence by rereading the second output's current world position
+  after applying the first output row.
+- The 2026-07-14 Rockabill2 soft-green camera scout in
+  `engine/out/visual_proofs/rockabill2_green_camera_scout_20260714/` uses
+  direct-app `special_02` frame 70 captures on the soft green background. The
+  readable `yaw-90_pitch0.png` front proof keeps the whole body visible and
+  still shows an unresolved upper/lower arm twist/publisher read. The readable
+  `yaw90_pitch0.png` side proof shows the belt chain floating. Its log decodes
+  `chain.hair` with `bone_chain01.mesh` through `bone_chain03.mesh`, legacy
+  inline collision rows aimed at `bone_R-thigh.mesh`, and
+  `runtimeWriteback=0` / `resolvedPointCollides=0`; newer debug logs also
+  distinguish BandCharacter-managed hookup, `dirCollides`, and legacy inline
+  points, then report `missingHookupOverloadBody=1`. Keep this as a CharHair
+  hookup/writeback source gap, not a static chain-offset fix.
+- The character viewer now has an explicit `--char-reference-base` diagnostic
+  for angle-read checks. It draws a translucent bind-floor square plus X/Y axis
+  strips in the character's world before the model pass. This is a proof aid
+  for separating camera/framing tilt from authored/root pose tilt; it does not
+  change pose math, gameplay, source controller behavior, or renderer material
+  state.
+- The existing `--cam-yaw` / `--cam-pitch` options are radians. Use
+  `--cam-yaw-deg` / `--cam-pitch-deg` for visual proof captures that are
+  described in degrees. Earlier proof commands that passed values like `-90`
+  through `--cam-yaw` were not true cardinal-degree shots.
+- Character proof logs now include the concrete source animation MILO for each
+  loaded `CharClip`. For `rockabill2` body/star-power proofs, request the
+  `rockabill2` main role and let the source driver fallback resolve to
+  `char/rockabill1/anims/gen/rockabill1_main.milo_ps2`; do not hard-code
+  `rock1_main` as a substitute. `rockabill2` still keeps its local fret row set.

@@ -1,0 +1,416 @@
+{
+  "bones": [
+    "bone_L-thigh",
+    "bone_L-knee",
+    "bone_L-ankle",
+    "bone_L-toe",
+    "bone_R-thigh",
+    "bone_R-knee",
+    "bone_R-ankle",
+    "bone_R-toe"
+  ],
+  "cases": [
+    {
+      "label": "rockabill2_stand_fast03_f70_front_output_gap",
+      "log": "../engine/out/visual_proofs/standard_leg_pose_check_20260714/rockabill2_stand_fast03_f070_front_fullbody.log",
+      "require_contains": [
+        "[char] loaded 'rockabill2'",
+        "[clip] 'stand_fast_03'",
+        "clip-frame override enabled: 70",
+        "source_publisher=fenced",
+        "missing=CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes",
+        "bone_L-foot            missing",
+        "bone_R-foot            missing"
+      ],
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 3.0,
+        "bone_R-toe": 2.0
+      }
+    },
+    {
+      "label": "rockabill2_stand_fast03_f70_side_output_gap",
+      "log": "../engine/out/visual_proofs/standard_leg_pose_check_20260714/rockabill2_stand_fast03_f070_side_fullbody.log",
+      "require_contains": [
+        "[char] loaded 'rockabill2'",
+        "[clip] 'stand_fast_03'",
+        "clip-frame override enabled: 70",
+        "source_publisher=fenced",
+        "missing=CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes",
+        "bone_L-foot            missing",
+        "bone_R-foot            missing"
+      ],
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 3.0,
+        "bone_R-toe": 2.0
+      }
+    },
+    {
+      "label": "rockabill2_legw_f70_front_forward_output_gap",
+      "log": "../engine/out/visual_proofs/lower_body_legw_20260715/rockabill2_stand_fast03_f070_front_legw.log",
+      "tag": "clip",
+      "require_contains": [
+        "[char] loaded 'rockabill2'",
+        "[clip] 'stand_fast_03'",
+        "reference base enabled",
+        "clip-frame override enabled: 70",
+        "[legw] c=rockabill2 t=clip b=bone_L-toe",
+        "source_publisher=fenced"
+      ],
+      "visible_minus_output_y_min": {
+        "bone_L-ankle": 6.0,
+        "bone_L-toe": 7.0,
+        "bone_R-ankle": 6.0,
+        "bone_R-toe": 8.0
+      },
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 3.0,
+        "bone_R-toe": 2.0
+      }
+    },
+    {
+      "label": "rockabill2_legw_f70_side_forward_output_gap",
+      "log": "../engine/out/visual_proofs/lower_body_legw_20260715/rockabill2_stand_fast03_f070_side_legw.log",
+      "tag": "clip",
+      "require_contains": [
+        "[char] loaded 'rockabill2'",
+        "[clip] 'stand_fast_03'",
+        "reference base enabled",
+        "clip-frame override enabled: 70",
+        "[legw] c=rockabill2 t=clip b=bone_L-toe",
+        "source_publisher=fenced"
+      ],
+      "visible_minus_output_y_min": {
+        "bone_L-ankle": 6.0,
+        "bone_L-toe": 7.0,
+        "bone_R-ankle": 6.0,
+        "bone_R-toe": 8.0
+      },
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 3.0,
+        "bone_R-toe": 2.0
+      }
+    },
+    {
+      "label": "rock1_stand_fast03_f70_front_output_gap",
+      "log": "../engine/out/visual_proofs/standard_leg_crosschar_20260714/rock1_stand_fast03_f070_front_fullbody.log",
+      "character": "rock1",
+      "require_contains": [
+        "[char] loaded 'rock1'",
+        "[clip] 'stand_fast_03' from char/rock1/anims/gen/rock1_main.milo_ps2",
+        "clip-frame override enabled: 70",
+        "source_publisher=fenced",
+        "missing=CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes",
+        "bone_L-foot            missing",
+        "bone_R-foot            missing"
+      ],
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 1.0,
+        "bone_R-toe": 2.0
+      }
+    },
+    {
+      "label": "rock1_stand_fast03_f70_side_output_gap",
+      "log": "../engine/out/visual_proofs/standard_leg_crosschar_20260714/rock1_stand_fast03_f070_side_fullbody.log",
+      "character": "rock1",
+      "require_contains": [
+        "[char] loaded 'rock1'",
+        "[clip] 'stand_fast_03' from char/rock1/anims/gen/rock1_main.milo_ps2",
+        "clip-frame override enabled: 70",
+        "source_publisher=fenced",
+        "missing=CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes",
+        "bone_L-foot            missing",
+        "bone_R-foot            missing"
+      ],
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 1.0,
+        "bone_R-toe": 2.0
+      }
+    },
+    {
+      "label": "rock2_stand_fast03_f70_front_output_gap",
+      "log": "../engine/out/visual_proofs/standard_leg_crosschar_20260714/rock2_stand_fast03_f070_front_fullbody.log",
+      "character": "rock2",
+      "require_contains": [
+        "[char] loaded 'rock2'",
+        "[clip] 'stand_fast_03' from char/rock1/anims/gen/rock1_main.milo_ps2",
+        "clip-frame override enabled: 70",
+        "source_publisher=fenced",
+        "missing=CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes",
+        "bone_L-foot            missing",
+        "bone_R-foot            missing"
+      ],
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 1.0,
+        "bone_R-toe": 2.0
+      }
+    },
+    {
+      "label": "rock2_stand_fast03_f70_side_output_gap",
+      "log": "../engine/out/visual_proofs/standard_leg_crosschar_20260714/rock2_stand_fast03_f070_side_fullbody.log",
+      "character": "rock2",
+      "require_contains": [
+        "[char] loaded 'rock2'",
+        "[clip] 'stand_fast_03' from char/rock1/anims/gen/rock1_main.milo_ps2",
+        "clip-frame override enabled: 70",
+        "source_publisher=fenced",
+        "missing=CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes",
+        "bone_L-foot            missing",
+        "bone_R-foot            missing"
+      ],
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 1.0,
+        "bone_R-toe": 2.0
+      }
+    },
+    {
+      "label": "glam1_stand_fast03_f70_front_output_gap",
+      "log": "../engine/out/visual_proofs/standard_leg_crosschar_20260714/glam1_stand_fast03_f070_front_fullbody.log",
+      "character": "glam1",
+      "require_contains": [
+        "[char] loaded 'glam1'",
+        "[clip] 'stand_fast_03' from char/glam1/anims/gen/glam1_main.milo_ps2",
+        "clip-frame override enabled: 70",
+        "source_publisher=fenced",
+        "missing=CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes",
+        "bone_L-foot            missing",
+        "bone_R-foot            missing"
+      ],
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 2.0,
+        "bone_R-toe": 1.0
+      }
+    },
+    {
+      "label": "glam1_stand_fast03_f70_side_output_gap",
+      "log": "../engine/out/visual_proofs/standard_leg_crosschar_20260714/glam1_stand_fast03_f070_side_fullbody.log",
+      "character": "glam1",
+      "require_contains": [
+        "[char] loaded 'glam1'",
+        "[clip] 'stand_fast_03' from char/glam1/anims/gen/glam1_main.milo_ps2",
+        "clip-frame override enabled: 70",
+        "source_publisher=fenced",
+        "missing=CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|CharBonesMeshes::PoseMeshes",
+        "bone_L-foot            missing",
+        "bone_R-foot            missing"
+      ],
+      "visible_minus_output_z_min": {
+        "bone_L-toe": 2.0,
+        "bone_R-toe": 1.0
+      }
+    },
+    {
+      "label": "rockabill2_output_bridge_f70_front_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_output_bridge_20260715/rockabill2_stand_fast03_f070_front_output_bridge.log",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'rockabill2'",
+        "[clip] 'stand_fast_03' from char/rockabill1/anims/gen/rockabill1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "rockabill2_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_output_bridge_20260715/rockabill2_stand_fast03_f070_side_output_bridge.log",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'rockabill2'",
+        "[clip] 'stand_fast_03' from char/rockabill1/anims/gen/rockabill1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "punk_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_crosschar_bridge_20260715/punk1_stand_fast03_f070_side_output_bridge.log",
+      "character": "punk",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'punk'",
+        "[clip] 'stand_fast_03' from char/punk1/anims/gen/punk1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "goth2_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_crosschar_bridge_20260715/goth2_stand_fast03_f070_side_output_bridge.log",
+      "character": "goth2",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'goth2'",
+        "[clip] 'stand_fast_03' from char/goth1/anims/gen/goth1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "metal1_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_crosschar_bridge_20260715/metal1_stand_fast03_f070_side_output_bridge.log",
+      "character": "metal1",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'metal1'",
+        "[clip] 'stand_fast_03' from char/metal1/anims/gen/metal1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "funk1_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_crosschar_bridge_20260715/funk1_stand_fast03_f070_side_output_bridge.log",
+      "character": "funk1",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'funk1'",
+        "[clip] 'stand_fast_03' from char/funk1/anims/gen/funk1_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "classic_output_bridge_f70_side_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_crosschar_bridge_20260715/classic_stand_fast03_f070_side_output_bridge.log",
+      "character": "classic",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'classic'",
+        "[clip] 'stand_fast_03' from char/classic/anims/gen/classic_main.milo_ps2",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "female_singer_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/female_singer/viewer_female_singer_f070_lower_body.log",
+      "character": "female_singer",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'female_singer'",
+        "[clip] 'singer_idle' from char/female_singer/anims/gen/singer_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "grim_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/grim/viewer_grim_f070_lower_body.log",
+      "character": "grim",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'grim'",
+        "[clip] 'stand_fast_03' from char/grim/anims/gen/grim_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "metal_bass_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/metal_bass/viewer_metal_bass_f070_lower_body.log",
+      "character": "metal_bass",
+      "tag": "lower-output",
+      "bones": [
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-foot",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-foot",
+        "bone_R-toe"
+      ],
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'metal_bass'",
+        "[clip] 'bassist_idle_medium_01' from char/metal_bass/anims/gen/bass_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70",
+        "[out-map] bone_L-foot",
+        "[out-map] bone_R-foot"
+      ]
+    },
+    {
+      "label": "metal_drummer_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/metal_drummer/viewer_metal_drummer_f070_lower_body.log",
+      "character": "metal_drummer",
+      "tag": "lower-output",
+      "bones": [
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe0",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe0"
+      ],
+      "visible_bone_aliases": {
+        "bone_L-toe0": "bone_L-toe",
+        "bone_R-toe0": "bone_R-toe"
+      },
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'metal_drummer'",
+        "[clip] 'drummer_idle' from char/metal_drummer/anims/gen/drummer_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70",
+        "[out-map] bone_L-toe0",
+        "[out-map] bone_R-toe0"
+      ]
+    },
+    {
+      "label": "metal_keyboard_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/metal_keyboard/viewer_metal_keyboard_f070_lower_body.log",
+      "character": "metal_keyboard",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'metal_keyboard'",
+        "[clip] 'keyboard_idle' from char/metal_keyboard/anims/gen/keyboard_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    },
+    {
+      "label": "metal_singer_support_lower_body_f70_live_match",
+      "log": "../engine/out/visual_proofs/lower_body_support_stock_20260715/metal_singer/viewer_metal_singer_f070_lower_body.log",
+      "character": "metal_singer",
+      "tag": "lower-output",
+      "require_live": true,
+      "max_abs_xyz_gap": 0.001,
+      "require_contains": [
+        "[char] loaded 'metal_singer'",
+        "[clip] 'singer_idle_medium_01' from char/metal_singer/anims/gen/singer_main.milo_ps2",
+        "character controllers disabled for diagnostic capture",
+        "reference base enabled",
+        "clip-frame override enabled: 70"
+      ]
+    }
+  ]
+}

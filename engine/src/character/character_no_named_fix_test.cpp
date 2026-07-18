@@ -92,6 +92,27 @@ std::string lowercase(std::string s) {
   return s;
 }
 
+std::string erase_function_body(std::string source,
+                                const std::string& function_name) {
+  const size_t name_pos = source.find(function_name);
+  if (name_pos == std::string::npos) return source;
+  const size_t open = source.find('{', name_pos);
+  if (open == std::string::npos) return source;
+  int depth = 0;
+  for (size_t i = open; i < source.size(); ++i) {
+    if (source[i] == '{') {
+      ++depth;
+    } else if (source[i] == '}') {
+      --depth;
+      if (depth == 0) {
+        source.erase(name_pos, i - name_pos + 1);
+        return source;
+      }
+    }
+  }
+  return source;
+}
+
 }  // namespace
 
 int main() {
@@ -104,12 +125,22 @@ int main() {
   const std::vector<std::string> forbidden = {
       "glam1",       "rock2",     "metal_bass", "deathmetal1",
       "deathmetal",  "rockabill1", "rockabill",  "goth3",
+      "terminal_leg_overlay_duplicate",
+      "ankle_toe_palette",
+      "hidden_numbered_hair_variant",
+      "hair_numbered_variant",
   };
 
   bool ok = true;
   for (const auto& rel : files) {
     const auto path = source_dir / rel;
-    const std::string scanned = lowercase(strip_comments_keep_strings(read_file(path)));
+    std::string source = read_file(path);
+    if (rel == std::filesystem::path("char_clip.cpp")) {
+      source = erase_function_body(
+          std::move(source),
+          "source_problem_character_clip_raw_axis_audit_20260714");
+    }
+    const std::string scanned = lowercase(strip_comments_keep_strings(source));
     for (const auto& token : forbidden) {
       if (scanned.find(token) == std::string::npos) continue;
       std::cerr << "Forbidden character-specific runtime token '" << token
@@ -117,9 +148,45 @@ int main() {
       ok = false;
     }
   }
+  const auto char_clip_path = source_dir / "char_clip.cpp";
+  const std::string char_clip =
+      lowercase(strip_comments_keep_strings(read_file(char_clip_path)));
+  const std::vector<std::string> forbidden_default_on_switches = {
+      "ghogx_disable_charbone_lower_body_output",
+      "ghogx_disable_charbone_output_layer",
+      "ghogx_disable_charbone_face_output",
+      "ghogx_enable_charbone_lower_body_output",
+      "ghogx_enable_charbone_output_layer",
+      "ghogx_enable_charbone_face_output",
+  };
+  for (const auto& token : forbidden_default_on_switches) {
+    if (char_clip.find(token) == std::string::npos) continue;
+    std::cerr << "Forbidden default-on CharBone output switch '" << token
+              << "' in " << char_clip_path.string() << "\n";
+    ok = false;
+  }
+
+  const std::vector<std::string> forbidden_removed_scaffold = {
+      "apply_ps2_ik_hand_targets",
+      "ps2_ordered_ik_hands",
+      "classify_ps2_ik_poll_role",
+      "source_instrument_hand_rank",
+      "ps2ikpollrole",
+      "ps2_ik_hand_position_enabled",
+      "ps2_ik_hand_final_disabled",
+      "fore_twists_applied",
+  };
+  for (const auto& token : forbidden_removed_scaffold) {
+    if (char_clip.find(token) == std::string::npos) continue;
+    std::cerr << "Forbidden removed hand/IK scaffold token '" << token
+              << "' in " << char_clip_path.string() << "\n";
+    ok = false;
+  }
+
   if (!ok) {
-    std::cerr << "Broken outfits must drive shared format fixes, not named "
-                 "runtime branches.\n";
+    std::cerr << "Broken outfits and broad CharBone output must stay on shared "
+                 "source-backed paths, not named branches or promoted "
+                 "diagnostic scaffolding.\n";
     return 1;
   }
   return 0;

@@ -39,6 +39,46 @@ struct SVtx {
 constexpr DWORD kFVF =
     D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1;
 
+enum MiloBlend : uint8_t {
+  kBlendDest = 0,
+  kBlendSrc = 1,
+  kBlendAdd = 2,
+  kBlendSrcAlpha = 3,
+  kBlendSrcAlphaAdd = 4,
+  kBlendSubtract = 5,
+  kBlendMultiply = 6,
+};
+
+struct BlendState {
+  DWORD src = D3DBLEND_SRCALPHA;
+  DWORD dest = D3DBLEND_INVSRCALPHA;
+  DWORD op = D3DBLENDOP_ADD;
+  bool additive = false;
+};
+
+BlendState character_blend_state_for(uint8_t blend) {
+  switch (blend) {
+    case kBlendDest:
+      return {D3DBLEND_ZERO, D3DBLEND_ONE, D3DBLENDOP_ADD, false};
+    case kBlendSrc:
+      return {D3DBLEND_ONE, D3DBLEND_ZERO, D3DBLENDOP_ADD, false};
+    case kBlendAdd:
+      return {D3DBLEND_ONE, D3DBLEND_ONE, D3DBLENDOP_ADD, true};
+    case kBlendSrcAlpha:
+      return {D3DBLEND_SRCALPHA, D3DBLEND_INVSRCALPHA, D3DBLENDOP_ADD,
+              false};
+    case kBlendSrcAlphaAdd:
+      return {D3DBLEND_SRCALPHA, D3DBLEND_ONE, D3DBLENDOP_ADD, true};
+    case kBlendSubtract:
+      return {D3DBLEND_SRCALPHA, D3DBLEND_ONE, D3DBLENDOP_REVSUBTRACT,
+              true};
+    case kBlendMultiply:
+      return {D3DBLEND_DESTCOLOR, D3DBLEND_ZERO, D3DBLENDOP_ADD, false};
+    default:
+      return {};
+  }
+}
+
 bool char_env_enabled(const char* name) {
   char* value = nullptr;
   size_t len = 0;
@@ -46,6 +86,50 @@ bool char_env_enabled(const char* name) {
   const bool enabled = value[0] && value[0] != '0';
   std::free(value);
   return enabled;
+}
+
+bool source_material_alpha_state_enabled() {
+  return !char_env_enabled("GHOGX_DISABLE_SOURCE_MAT_ALPHA_STATE");
+}
+
+bool source_material_zmode_depth_enabled() {
+  return !char_env_enabled("GHOGX_DISABLE_SOURCE_MAT_ZMODE_DEPTH");
+}
+
+bool source_group_draw_order_enabled() {
+  return !char_env_enabled("GHOGX_DISABLE_SOURCE_GROUP_DRAW_ORDER");
+}
+
+bool material_depth_write_enabled(const milo_scene::MatObj* material) {
+  if (material && material->has_render_state &&
+      source_material_zmode_depth_enabled()) {
+    switch (material->z_mode) {
+      case 1:  // kZModeNormal
+      case 3:  // kZModeForce
+        return true;
+      case 0:  // kZModeDisable
+      case 2:  // kZModeTransparent
+      case 4:  // kZModeDecal
+      default:
+        return false;
+    }
+  }
+  // RB3 RndMat defaults to kNormal z mode. If an older/partial material row
+  // does not expose zMode, keep that source default instead of deriving render
+  // state from mesh or material names.
+  return true;
+}
+
+DWORD texture_address_for_wrap(uint8_t tex_wrap) {
+  switch (tex_wrap) {
+    case 0:  // kTexWrapClamp
+      return D3DTADDRESS_CLAMP;
+    case 4:  // kTexWrapMirror
+      return D3DTADDRESS_MIRROR;
+    case 1:  // kTexWrapRepeat
+    default:
+      return D3DTADDRESS_WRAP;
+  }
 }
 
 float char_env_float_or(const char* name, float fallback, float min_value,
@@ -59,6 +143,13 @@ float char_env_float_or(const char* name, float fallback, float min_value,
   if (end == value || !std::isfinite(parsed)) return fallback;
   if (parsed < min_value || parsed > max_value) return fallback;
   return parsed;
+}
+
+D3DCOLOR character_clear_color() {
+  if (char_env_enabled("GHOGX_CHARACTER_SOFT_GREEN_BG")) {
+    return D3DCOLOR_XRGB(116, 151, 124);
+  }
+  return D3DCOLOR_XRGB(24, 26, 38);
 }
 
 struct Bounds3 {
@@ -238,19 +329,31 @@ MeshSurfaceClosest closest_mesh_surface(const milo_scene::MeshObj& mesh,
 // with "shadow". Skipping it keeps the character clean against the backdrop.
 bool is_shadow(const std::string& n) { return n.rfind("shadow", 0) == 0; }
 
-// "_lod1" meshes are lower-quality duplicate body parts drawn alongside the full
-// quality mesh. Drawing both causes z-fighting / garbling. Skip LOD1 entirely —
-// the bind-pose viewer always uses the highest-quality geometry.
-bool is_lod1(const std::string& n) {
-  return n.find("_lod1") != std::string::npos || n.rfind("lod_", 0) == 0;
-}
-
 const milo_scene::GroupObj* find_character_group(const Character& character,
                                                  const std::string& name) {
   for (const auto& group : character.groups) {
     if (group.name == name) return &group;
   }
   return nullptr;
+}
+
+int character_direct_group_rank(const Character& character,
+                                const std::string& group_name,
+                                const std::string& mesh_name) {
+  const milo_scene::GroupObj* group = find_character_group(character, group_name);
+  if (!group) return -1;
+  for (size_t i = 0; i < group->children.size(); ++i) {
+    if (group->children[i] == mesh_name) return static_cast<int>(i);
+  }
+  return -1;
+}
+
+int character_active_lod_group_rank(const Character& character,
+                                    const std::string& mesh_name,
+                                    int min_lod) {
+  return character_direct_group_rank(character,
+                                     min_lod >= 1 ? "lod1.grp" : "lod0.grp",
+                                     mesh_name);
 }
 
 bool character_group_contains_mesh(const Character& character,
@@ -287,68 +390,37 @@ bool is_hidden_by_character_lod_selection(const Character& character,
   if (min_lod >= 1 && has_lod1) {
     return !character_group_contains_mesh(character, "lod1.grp", mesh.name);
   }
-  if (is_lod1(mesh.name)) return true;
   return is_hidden_by_character_lod_group(character, mesh);
 }
 
-// Numbered dot-variant hair meshes can be real draw members. Rock2's decoded
-// PS2 lod0.grp includes hair-back.1.mesh through hair-back.6.mesh, so a global
-// "numbered hair is hidden" rule drops authored visible hair. Keep the name
-// detector only as a fallback for meshes not explicitly selected by lod0.grp.
-bool is_hair_numbered_variant(const std::string& n) {
-  if (n.find("hair") == std::string::npos &&
-      n.find("Hair") == std::string::npos) {
-    return false;
-  }
-  // Look for ".<digit>." in the name (not at position 0).
-  for (size_t i = 1; i + 3 <= n.size(); ++i) {
-    if (n[i] == '.' && std::isdigit(static_cast<unsigned char>(n[i+1])) && n[i+2] == '.') {
+bool is_guitar_strings_prop_mesh(const std::string& name) {
+  return name == "guitar_strings.mesh";
+}
+
+std::string lower_copy(std::string text) {
+  std::transform(text.begin(), text.end(), text.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return text;
+}
+
+bool has_hair_token(const std::string& text) {
+  return lower_copy(text).find("hair") != std::string::npos;
+}
+
+bool is_hair_two_sided_surface(
+    const Character& character,
+    const SkinnedMesh* mesh,
+    const ghogx::milo_scene::MatObj* material = nullptr) {
+  if (mesh) {
+    if (character_mesh_uses_char_hair_point_bone(character, *mesh)) {
+      return true;
+    }
+    if (has_hair_token(mesh->name) || has_hair_token(mesh->material)) {
       return true;
     }
   }
-  return false;
-}
-
-bool is_hidden_numbered_hair_variant(const Character& character,
-                                     const SkinnedMesh& mesh) {
-  if (!is_hair_numbered_variant(mesh.name)) return false;
-  const bool has_lod0 = find_character_group(character, "lod0.grp") != nullptr;
-  if (!has_lod0) return true;
-  return !character_group_contains_mesh(character, "lod0.grp", mesh.name);
-}
-
-bool is_hair_mesh_name(const std::string& n) {
-  std::string lower = n;
-  std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return (char)std::tolower(c); });
-  return lower.find("hair") != std::string::npos;
-}
-
-bool is_hair_material_name(const std::string& n) {
-  std::string lower = n;
-  std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return (char)std::tolower(c); });
-  return lower.find("hair") != std::string::npos;
-}
-
-bool is_hair_render_mesh(const SkinnedMesh& m) {
-  return is_hair_mesh_name(m.name) || is_hair_material_name(m.material);
-}
-
-bool is_bone_parent_name(const std::string& n) {
-  return n.rfind("bone_", 0) == 0 || n.rfind("spot_", 0) == 0 ||
-         n.find(".mesh") != std::string::npos ||
-         n.find(".trans") != std::string::npos;
-}
-
-bool is_root_parent_hair_piece(const SkinnedMesh& m) {
-  return is_hair_mesh_name(m.name) && !m.bone_palette.empty() &&
-         !is_bone_parent_name(m.parent);
-}
-
-bool is_unsupported_dynamic_hair(const std::string& n) {
-  (void)n;
-  return false;
+  return material && (has_hair_token(material->name) ||
+                      has_hair_token(material->diffuse_tex));
 }
 
 bool debug_meshes_enabled() {
@@ -384,7 +456,8 @@ bool debug_texture_alpha_enabled() {
 #endif
 }
 
-DWORD character_cull_mode(const SkinnedMesh* mesh = nullptr) {
+DWORD character_cull_mode(
+    const ghogx::milo_scene::MatObj* material = nullptr) {
 #ifdef _MSC_VER
   char* value = nullptr;
   size_t len = 0;
@@ -401,35 +474,10 @@ DWORD character_cull_mode(const SkinnedMesh* mesh = nullptr) {
   if (mode == "cw") return D3DCULL_CW;
   if (mode == "ccw") return D3DCULL_CCW;
   if (mode == "none") return D3DCULL_NONE;
-  if (mesh) {
-    std::string name = mesh->name;
-    std::string material = mesh->material;
-    std::transform(name.begin(), name.end(), name.begin(),
-                   [](unsigned char c) { return (char)std::tolower(c); });
-    std::transform(material.begin(), material.end(), material.begin(),
-                   [](unsigned char c) { return (char)std::tolower(c); });
-    if (name.find("eye") != std::string::npos ||
-        name == "lashes.mesh" ||
-        material.find("eye") != std::string::npos) {
-      return D3DCULL_NONE;
-    }
+  if (material && material->has_cull && !material->cull) {
+    return D3DCULL_NONE;
   }
   return D3DCULL_CW;
-}
-
-bool disable_mesh_local_arm_skin_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_MESH_LOCAL_ARM_SKIN") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_MESH_LOCAL_ARM_SKIN");
-  return value && value[0];
-#endif
 }
 
 bool debug_bones_enabled() {
@@ -606,82 +654,6 @@ bool debug_mesh_mode_enabled(const std::string& mesh) {
   return false;
 }
 
-bool raw_mesh_enabled(const std::string& mesh) {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool has =
-      _dupenv_s(&value, &len, "GHOGX_RAW_MESH") == 0 && value && value[0];
-  std::string spec = has ? value : "";
-  std::free(value);
-#else
-  const char* raw = std::getenv("GHOGX_RAW_MESH");
-  std::string spec = raw ? raw : "";
-#endif
-  if (spec.empty()) return false;
-  size_t start = 0;
-  while (start <= spec.size()) {
-    const size_t comma = spec.find(',', start);
-    std::string needle = spec.substr(
-        start, comma == std::string::npos ? std::string::npos : comma - start);
-    if (!needle.empty() && mesh.find(needle) != std::string::npos) return true;
-    if (comma == std::string::npos) break;
-    start = comma + 1;
-  }
-  return false;
-}
-
-bool is_terminal_lower_leg_palette(const SkinnedMesh& m) {
-  if (m.bone_palette.size() != 3) return false;
-  const bool left = m.bone_palette[0] == "bone_L-knee.mesh" &&
-                    m.bone_palette[1] == "bone_L-ankle.mesh" &&
-                    m.bone_palette[2] == "bone_L-toe.mesh";
-  const bool right = m.bone_palette[0] == "bone_R-knee.mesh" &&
-                     m.bone_palette[1] == "bone_R-ankle.mesh" &&
-                     m.bone_palette[2] == "bone_R-toe.mesh";
-  return left || right;
-}
-
-bool is_mesh_local_terminal_lower_leg_piece(const SkinnedMesh& m) {
-  if (m.bone_palette.empty() || m.bind.empty()) return false;
-  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
-  if (!is_terminal_lower_leg_palette(m)) return false;
-  return m.bb_max[2] < -25.0f;
-}
-
-bool is_weighted_root_parent_hair_piece(const SkinnedMesh& m) {
-  return is_root_parent_hair_piece(m) && !m.bone_palette.empty();
-}
-
-bool is_mesh_local_bind_space_piece(const SkinnedMesh& m) {
-  if (!m.mesh_local_bind_space || m.bone_palette.empty() || m.bind.empty()) {
-    return false;
-  }
-  if (is_shadow(m.name)) return false;
-  return true;
-}
-
-bool has_compact_authored_bounds_near_origin(const SkinnedMesh& m,
-                                             float limit = 25.0f) {
-  for (int axis = 0; axis < 3; ++axis) {
-    if (std::max(std::fabs(m.bb_min[axis]), std::fabs(m.bb_max[axis])) >
-        limit) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool is_mesh_local_root_hair_piece(const SkinnedMesh& m) {
-  return is_weighted_root_parent_hair_piece(m) && !m.bind.empty() &&
-         has_compact_authored_bounds_near_origin(m);
-}
-
-bool has_suffix(const std::string& n, const char* suffix) {
-  const size_t len = std::strlen(suffix);
-  return n.size() >= len && n.compare(n.size() - len, len, suffix) == 0;
-}
-
 bool contains_case_insensitive(const std::string& n, const char* needle) {
   std::string lower = n;
   std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -692,141 +664,6 @@ bool contains_case_insensitive(const std::string& n, const char* needle) {
                  [](unsigned char c) { return (char)std::tolower(c); });
   return !lower_needle.empty() &&
          lower.find(lower_needle) != std::string::npos;
-}
-
-bool is_ankle_toe_palette(const SkinnedMesh& m) {
-  if (m.bone_palette.size() != 2) return false;
-  const bool left = m.bone_palette[0] == "bone_L-ankle.mesh" &&
-                    m.bone_palette[1] == "bone_L-toe.mesh";
-  const bool right = m.bone_palette[0] == "bone_R-ankle.mesh" &&
-                     m.bone_palette[1] == "bone_R-toe.mesh";
-  return left || right;
-}
-
-bool is_terminal_leg_overlay_duplicate(const SkinnedMesh& m) {
-  if (m.bone_palette.empty() || m.bind.empty()) return false;
-  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
-  if (!is_ankle_toe_palette(m)) return false;
-  if (!has_suffix(m.parent, ".mesh")) return false;
-  return contains_case_insensitive(m.name, "leg") &&
-         contains_case_insensitive(m.parent, "leg") &&
-         contains_case_insensitive(m.material, "leg");
-}
-
-bool contains_arm_token(const std::string& n) {
-  std::string lower = n;
-  std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return (char)std::tolower(c); });
-  return lower.find("arm") != std::string::npos;
-}
-
-bool palette_contains(const SkinnedMesh& m, const char* fragment) {
-  for (const auto& bone : m.bone_palette) {
-    if (bone.find(fragment) != std::string::npos) return true;
-  }
-  return false;
-}
-
-bool is_mesh_local_arm_piece(const SkinnedMesh& m) {
-  if (m.bone_palette.empty() || m.bind.empty()) return false;
-  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
-  if (!has_compact_authored_bounds_near_origin(m)) return false;
-  return contains_arm_token(m.material) &&
-         (contains_arm_token(m.name) || contains_arm_token(m.parent));
-}
-
-bool is_far_negative_mesh_parented_arm_piece(const SkinnedMesh& m) {
-  if (m.bone_palette.empty()) return false;
-  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
-  if (!has_suffix(m.parent, ".mesh")) return false;
-  if (contains_arm_token(m.parent)) return false;
-  if (!contains_arm_token(m.material)) return false;
-  if (!(m.bb_min[2] < -10.0f && m.bb_max[2] < -4.0f)) return false;
-  return palette_contains(m, "clavicle") ||
-         palette_contains(m, "upperArm") ||
-         palette_contains(m, "foreArm") ||
-         palette_contains(m, "hand") ||
-         palette_contains(m, "upperTwist");
-}
-
-bool is_compact_mesh_parented_head_detail_piece(const SkinnedMesh& m) {
-  if (m.bone_palette.size() != 3) return false;
-  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
-  if (!has_suffix(m.parent, ".mesh")) return false;
-  if (!has_compact_authored_bounds_near_origin(m, 8.0f)) return false;
-  return palette_contains(m, "bone_neck.mesh") &&
-         palette_contains(m, "bone_head.mesh");
-}
-
-bool is_raw_mesh_world_authored_piece(const SkinnedMesh& m) {
-  return is_far_negative_mesh_parented_arm_piece(m) ||
-         is_compact_mesh_parented_head_detail_piece(m);
-}
-
-bool is_parent_local_ankle_attachment(const SkinnedMesh& m) {
-  if (!m.bone_palette.empty()) return false;
-  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) {
-    return false;
-  }
-  std::string material = m.material;
-  std::transform(material.begin(), material.end(), material.begin(),
-                 [](unsigned char c) { return (char)std::tolower(c); });
-  const bool ankle_parent = m.parent == "bone_L-ankle.mesh" ||
-                            m.parent == "bone_R-ankle.mesh";
-  return ankle_parent && material.find("leg") != std::string::npos;
-}
-
-bool is_head_attachment_mesh(const SkinnedMesh& m) {
-  return m.name == "lashes.mesh" && m.bone_palette.empty();
-}
-
-bool is_model_space_head_hair_attachment(const SkinnedMesh& m) {
-  if (!is_hair_mesh_name(m.name) || !m.bone_palette.empty()) return false;
-  if (m.parent != "bone_head.mesh") return false;
-  return m.bb_min[0] > -25.0f && m.bb_max[0] < 25.0f &&
-         m.bb_min[1] > -25.0f && m.bb_max[1] < 25.0f &&
-         m.bb_min[2] > 30.0f;
-}
-
-bool is_local_space_head_hair_attachment(const SkinnedMesh& m) {
-  if (!is_hair_mesh_name(m.name) || !m.bone_palette.empty()) return false;
-  if (m.parent != "bone_head.mesh") return false;
-  float mn[3] = {0, 0, 0};
-  float mx[3] = {0, 0, 0};
-  bool first = true;
-  for (int xi = 0; xi < 2; ++xi) {
-    for (int yi = 0; yi < 2; ++yi) {
-      for (int zi = 0; zi < 2; ++zi) {
-        const float x = xi ? m.bb_max[0] : m.bb_min[0];
-        const float y = yi ? m.bb_max[1] : m.bb_min[1];
-        const float z = zi ? m.bb_max[2] : m.bb_min[2];
-        const float p[3] = {
-            x * m.local.rot[0][0] + y * m.local.rot[1][0] +
-                z * m.local.rot[2][0] + m.local.pos[0],
-            x * m.local.rot[0][1] + y * m.local.rot[1][1] +
-                z * m.local.rot[2][1] + m.local.pos[1],
-            x * m.local.rot[0][2] + y * m.local.rot[1][2] +
-                z * m.local.rot[2][2] + m.local.pos[2],
-        };
-        if (first) {
-          for (int i = 0; i < 3; ++i) mn[i] = mx[i] = p[i];
-          first = false;
-        } else {
-          for (int i = 0; i < 3; ++i) {
-            mn[i] = std::min(mn[i], p[i]);
-            mx[i] = std::max(mx[i], p[i]);
-          }
-        }
-      }
-    }
-  }
-  const float cx = (mn[0] + mx[0]) * 0.5f;
-  const float cy = (mn[1] + mx[1]) * 0.5f;
-  const float cz = (mn[2] + mx[2]) * 0.5f;
-  return mn[0] > -25.0f && mx[0] < 25.0f &&
-         mn[1] > -25.0f && mx[1] < 25.0f &&
-         mn[2] > -25.0f && mx[2] < 25.0f &&
-         (cx * cx + cy * cy + cz * cz) < (25.0f * 25.0f);
 }
 
 bool debug_skin_bounds_enabled() {
@@ -841,6 +678,16 @@ bool debug_skin_bounds_enabled() {
   const char* value = std::getenv("GHOGX_DEBUG_SKIN_BOUNDS");
   return value && value[0];
 #endif
+}
+
+bool debug_face_rows_enabled() {
+  return char_env_enabled("GHOGX_DEBUG_FACE_ROWS");
+}
+
+bool is_mouth_probe_mesh(const SkinnedMesh& m) {
+  return contains_case_insensitive(m.name, "teeth") ||
+         contains_case_insensitive(m.name, "tounge") ||
+         contains_case_insensitive(m.name, "tongue");
 }
 
 bool debug_weight_stats_enabled() {
@@ -901,147 +748,6 @@ bool debug_surface_contact_enabled() {
 #endif
 }
 
-bool debug_hair_space_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DEBUG_HAIR_SPACE") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DEBUG_HAIR_SPACE");
-  return value && value[0];
-#endif
-}
-
-bool use_mesh_bind_material_enabled(const std::string& material) {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool has =
-      _dupenv_s(&value, &len, "GHOGX_USE_MESH_BIND_MATERIAL") == 0 && value && value[0];
-  std::string needle = has ? value : "";
-  std::free(value);
-#else
-  const char* raw = std::getenv("GHOGX_USE_MESH_BIND_MATERIAL");
-  std::string needle = raw ? raw : "";
-#endif
-  if (needle.empty()) return false;
-  return material.find(needle) != std::string::npos;
-}
-
-bool use_mesh_bind_inverse_material_enabled(const std::string& material) {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool has =
-      _dupenv_s(&value, &len, "GHOGX_USE_MESH_BIND_INVERSE_MATERIAL") == 0 && value && value[0];
-  std::string needle = has ? value : "";
-  std::free(value);
-#else
-  const char* raw = std::getenv("GHOGX_USE_MESH_BIND_INVERSE_MATERIAL");
-  std::string needle = raw ? raw : "";
-#endif
-  if (needle.empty()) return false;
-  return material.find(needle) != std::string::npos;
-}
-
-bool disable_local_hair_attachment_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_LOCAL_HAIR_ATTACHMENT") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_LOCAL_HAIR_ATTACHMENT");
-  return value && value[0];
-#endif
-}
-
-bool reverse_skin_weight_slots_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_REVERSE_SKIN_WEIGHT_SLOTS") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_REVERSE_SKIN_WEIGHT_SLOTS");
-  return value && value[0];
-#endif
-}
-
-std::string skin_matrix_mode() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool has =
-      _dupenv_s(&value, &len, "GHOGX_SKIN_MATRIX_MODE") == 0 && value && value[0];
-  std::string mode = has ? value : "";
-  std::free(value);
-  return mode;
-#else
-  const char* raw = std::getenv("GHOGX_SKIN_MATRIX_MODE");
-  return raw ? raw : "";
-#endif
-}
-
-std::string local_hair_skin_matrix_mode() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool has =
-      _dupenv_s(&value, &len, "GHOGX_LOCAL_HAIR_SKIN_MATRIX_MODE") == 0 &&
-      value && value[0];
-  std::string mode = has ? value : "";
-  std::free(value);
-  return mode;
-#else
-  const char* raw = std::getenv("GHOGX_LOCAL_HAIR_SKIN_MATRIX_MODE");
-  return raw ? raw : "";
-#endif
-}
-
-std::string local_hair_world_mode() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool has =
-      _dupenv_s(&value, &len, "GHOGX_LOCAL_HAIR_WORLD_MODE") == 0 &&
-      value && value[0];
-  std::string mode = has ? value : "";
-  std::free(value);
-  return mode;
-#else
-  const char* raw = std::getenv("GHOGX_LOCAL_HAIR_WORLD_MODE");
-  return raw ? raw : "";
-#endif
-}
-
-bool env_eye_inset(float& out) {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool found =
-      _dupenv_s(&value, &len, "GHOGX_EYE_INSET") == 0 && value && value[0];
-  if (found)
-    out = std::strtof(value, nullptr);
-  std::free(value);
-  return found;
-#else
-  const char* value = std::getenv("GHOGX_EYE_INSET");
-  if (!value || !value[0]) return false;
-  out = std::strtof(value, nullptr);
-  return true;
-#endif
-}
-
 bool is_eye_mesh(const std::string& n) {
   std::string lower = n;
   std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -1054,52 +760,27 @@ bool is_eye_mesh(const std::string& n) {
          lower.find("eyer.") != std::string::npos;
 }
 
-float eye_surface_inset(const SkinnedMesh& m) {
-  (void)m;
-  float override_inset = 0.0f;
-  if (env_eye_inset(override_inset)) return override_inset;
-  return 0.0f;
-}
-
-bool is_front_hair_mesh(const std::string& n) {
-  return n.rfind("hair_front", 0) == 0 || n.rfind("Hair_front", 0) == 0;
-}
-
-bool uses_local_attachment_skin(const SkinnedMesh& m) {
-  if (disable_local_hair_attachment_enabled()) return false;
-  if (!is_hair_mesh_name(m.name) || m.bone_palette.empty()) return false;
-
-  if (m.parent != "bone_head.mesh") return false;
-
-  // CharHair pieces are authored as head-local attachments. Some are stored in
-  // a compact head-local range around the origin; others are offset farther out
-  // in the same parent space. Body-space hair should stay on normal LBS.
-  const bool compact_head_local =
-      m.bb_min[0] > -25.0f && m.bb_max[0] < 25.0f &&
-      m.bb_min[1] > -25.0f && m.bb_max[1] < 25.0f &&
-      m.bb_min[2] > -25.0f && m.bb_max[2] < 25.0f;
-  const bool offset_head_local =
-      m.bb_max[0] > 20.0f && m.bb_min[2] > -25.0f && m.bb_max[2] < 25.0f;
-  return compact_head_local || offset_head_local;
-}
-
-bool runtime_hair_world_override(const Character& character,
-                                 const std::string& bone_name,
-                                 std::array<float, 16>& out) {
-  for (const auto& point : character.runtime_hair.points) {
-    if (!point.initialized || !point.has_world) continue;
-    if (point.mesh != bone_name) continue;
-    out = point.world;
-    return true;
-  }
-  return false;
-}
-
 int character_bone_index(const Character& character, const std::string& name) {
   for (size_t i = 0; i < character.bones.size(); ++i) {
     if (character.bones[i].name == name) return static_cast<int>(i);
   }
   return -1;
+}
+
+std::optional<float> current_toe_reference_z(const Character& character) {
+  static constexpr const char* kToeBones[] = {
+      "bone_L-toe.mesh", "bone_R-toe.mesh",
+      "bone_L-toe0.mesh", "bone_R-toe0.mesh",
+      "bone_L-foot.mesh", "bone_R-foot.mesh",
+  };
+  std::optional<float> min_z;
+  for (const char* name : kToeBones) {
+    if (character_bone_index(character, name) < 0) continue;
+    const auto world = character.bone_world_local_chain(name);
+    if (!std::isfinite(world[14])) continue;
+    min_z = min_z ? std::min(*min_z, world[14]) : world[14];
+  }
+  return min_z;
 }
 
 const milo_scene::TransObj* scene_trans(
@@ -1117,12 +798,16 @@ void reconcile_instrument_anchor(Character& character,
                                  const std::string& attach_bone,
                                  const char* anchor_name) {
   const auto* prop_anchor = scene_trans(prop_scene, anchor_name);
-  if (!prop_anchor || prop_anchor->parent != attach_bone) return;
+  if (!prop_anchor) return;
 
   const int bone_i = character_bone_index(character, anchor_name);
   if (bone_i < 0) return;
   auto& bone = character.bones[static_cast<size_t>(bone_i)];
-  if (bone.parent != attach_bone) return;
+  if (bone.parent != prop_anchor->parent) return;
+  if (prop_anchor->parent != attach_bone &&
+      character_bone_index(character, prop_anchor->parent) < 0) {
+    return;
+  }
 
   const auto old = bone.local;
   bone.local = prop_anchor->local;
@@ -1134,18 +819,29 @@ void reconcile_instrument_anchor(Character& character,
 
   std::fprintf(stderr,
                "[char3d] instrument anchor %s from prop '%s': "
-               "local=(%.4f %.4f %.4f) was=(%.4f %.4f %.4f)\n",
+               "parent=%s local=(%.4f %.4f %.4f) "
+               "was=(%.4f %.4f %.4f) source=prop-asset\n",
                anchor_name, prop_scene.dir_name.c_str(),
-               prop_anchor->local.pos[0], prop_anchor->local.pos[1],
-               prop_anchor->local.pos[2], old.pos[0], old.pos[1], old.pos[2]);
+               prop_anchor->parent.c_str(), prop_anchor->local.pos[0],
+               prop_anchor->local.pos[1], prop_anchor->local.pos[2],
+               old.pos[0], old.pos[1], old.pos[2]);
+}
+
+void reconcile_instrument_fret_targets(
+    Character& character, std::vector<milo_scene::Xfm>& original_locals,
+    const milo_scene::Scene& prop_scene, const std::string& attach_bone) {
+  char anchor[32];
+  for (int fret = 1; fret <= 20; ++fret) {
+    std::snprintf(anchor, sizeof(anchor), "spot_neck_fret%02d.mesh", fret);
+    reconcile_instrument_anchor(character, original_locals, prop_scene,
+                                attach_bone, anchor);
+  }
 }
 
 std::array<float, 16> mul16(const std::array<float, 16>& a,
                             const std::array<float, 16>& b);
 std::array<float, 16> affine_inverse(const std::array<float, 16>& m);
 std::array<float, 16> xfm16(const milo_scene::Xfm& x);
-std::array<float, 16> raw_current_world(const Character& character,
-                                        const std::string& name);
 std::array<float, 16> scene_object_world(const milo_scene::Scene& scene,
                                          const std::string& name);
 std::optional<std::array<float, 16>> scene_object_stored_world(
@@ -1160,23 +856,6 @@ std::array<float, 16> prop_attach_world(const Character& character,
   return character.bone_world_local_chain(attach_bone);
 }
 
-void log_matrix_row(const char* tag,
-                    const std::string& mesh,
-                    const std::string& bone,
-                    const std::array<float, 16>& m) {
-  std::fprintf(stderr,
-               "[hair-space] %-12s mesh=%-16s bone=%-20s "
-               "r0=(%.4f %.4f %.4f %.4f) "
-               "r1=(%.4f %.4f %.4f %.4f) "
-               "r2=(%.4f %.4f %.4f %.4f) "
-               "pos=(%.4f %.4f %.4f %.4f)\n",
-               tag, mesh.c_str(), bone.c_str(),
-               m[0], m[1], m[2], m[3],
-               m[4], m[5], m[6], m[7],
-               m[8], m[9], m[10], m[11],
-               m[12], m[13], m[14], m[15]);
-}
-
 void log_compact_matrix_rows(const char* tag,
                              const std::string& mesh,
                              const std::string& bone,
@@ -1188,6 +867,13 @@ void log_compact_matrix_rows(const char* tag,
                  tag, mesh.c_str(), bone.c_str(), row, m[row * 4 + 0],
                  m[row * 4 + 1], m[row * 4 + 2], m[row * 4 + 3]);
   }
+}
+
+std::array<float, 3> transform_point(const std::array<float, 3>& p,
+                                     const std::array<float, 16>& m) {
+  return {p[0] * m[0] + p[1] * m[4] + p[2] * m[8] + m[12],
+          p[0] * m[1] + p[1] * m[5] + p[2] * m[9] + m[13],
+          p[0] * m[2] + p[1] * m[6] + p[2] * m[10] + m[14]};
 }
 
 int wrapped_texel_coord(float uv, int size) {
@@ -1337,6 +1023,68 @@ void log_texture_alpha_stats(const SkinnedMesh& mesh,
                mesh.name.c_str(), tri_lt96, tri_opaque, c96, co, m96, mo);
 }
 
+void log_prop_texture_alpha_stats(const milo_scene::MeshObj& mesh,
+                                  const milo_scene::MatObj* material,
+                                  const ghogx::asset::Image* image,
+                                  bool texture_alpha_enabled) {
+  if (!image || !image->valid() || mesh.verts.empty()) return;
+  int vert_zero = 0;
+  int vert_lt32 = 0;
+  int vert_lt96 = 0;
+  int vert_opaque = 0;
+  for (const auto& vert : mesh.verts) {
+    const uint8_t alpha = sample_alpha(*image, vert.u, vert.v);
+    if (alpha == 0) ++vert_zero;
+    if (alpha < 32) ++vert_lt32;
+    if (alpha < 96) ++vert_lt96;
+    if (alpha >= 250) ++vert_opaque;
+  }
+
+  int tri_zero = 0;
+  int tri_lt32 = 0;
+  int tri_lt96 = 0;
+  int tri_opaque = 0;
+  int tri_samples = 0;
+  for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+    const uint16_t ia = mesh.indices[i + 0];
+    const uint16_t ib = mesh.indices[i + 1];
+    const uint16_t ic = mesh.indices[i + 2];
+    if (ia >= mesh.verts.size() || ib >= mesh.verts.size() ||
+        ic >= mesh.verts.size()) {
+      continue;
+    }
+    const auto& a = mesh.verts[ia];
+    const auto& b = mesh.verts[ib];
+    const auto& c = mesh.verts[ic];
+    const float u = (a.u + b.u + c.u) / 3.0f;
+    const float v = (a.v + b.v + c.v) / 3.0f;
+    const uint8_t alpha = sample_alpha(*image, u, v);
+    ++tri_samples;
+    if (alpha == 0) ++tri_zero;
+    if (alpha < 32) ++tri_lt32;
+    if (alpha < 96) ++tri_lt96;
+    if (alpha >= 250) ++tri_opaque;
+  }
+
+  std::fprintf(stderr,
+               "[prop-alpha] mesh=%s mat=%s tex=%s size=%dx%d "
+               "textureAlpha=%d verts=%u a0=%d a<32=%d a<96=%d opaque=%d "
+               "tris=%d a0=%d a<32=%d a<96=%d opaque=%d\n",
+               mesh.name.c_str(), mesh.material.c_str(),
+               material ? material->diffuse_tex.c_str() : "", image->width,
+               image->height, texture_alpha_enabled ? 1 : 0,
+               static_cast<unsigned>(mesh.verts.size()), vert_zero, vert_lt32,
+               vert_lt96, vert_opaque, tri_samples, tri_zero, tri_lt32,
+               tri_lt96, tri_opaque);
+  std::fprintf(stderr,
+               "[prop-alpha-counts] mesh=%s vertZero=%d vertLt32=%d "
+               "vertLt96=%d vertOpaque=%d triSamples=%d triZero=%d "
+               "triLt32=%d triLt96=%d triOpaque=%d\n",
+               mesh.name.c_str(), vert_zero, vert_lt32, vert_lt96,
+               vert_opaque, tri_samples, tri_zero, tri_lt32, tri_lt96,
+               tri_opaque);
+}
+
 void log_vertex_float_stats(const SkinnedMesh& mesh) {
   if (mesh.verts.empty()) return;
   float mn[4] = {mesh.verts[0].w[0], mesh.verts[0].w[1], mesh.verts[0].w[2],
@@ -1376,6 +1124,8 @@ struct CharRenderer::Impl {
   std::set<std::string> logged_texture_alpha_meshes;
   milo_scene::Scene prop_scene;
   std::map<std::string, IDirect3DTexture9*> prop_tex;
+  std::map<std::string, ghogx::asset::Image> prop_tex_images;
+  std::set<std::string> logged_prop_texture_alpha_meshes;
   std::string prop_attach_bone;
   bool has_prop = false;
   bool logged_prop_debug = false;
@@ -1387,6 +1137,7 @@ struct CharRenderer::Impl {
                                            0, 0, 1, 0, 0, 0, 0, 1};
   int min_lod = 0;
   bool use_scene_lighting = false;
+  bool reference_base = false;
   float color_mod[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
   // Procedural idle animation time (seconds).
@@ -1436,6 +1187,10 @@ void CharRenderer::set_min_lod(int min_lod) {
 
 void CharRenderer::set_use_scene_lighting(bool enabled) {
   impl_->use_scene_lighting = enabled;
+}
+
+void CharRenderer::set_reference_base(bool enabled) {
+  impl_->reference_base = enabled;
 }
 
 void CharRenderer::set_color_modulation(float r, float g, float b, float a) {
@@ -1643,12 +1398,21 @@ void CharRenderer::set_attached_prop(
   for (auto& kv : impl_->prop_tex)
     if (kv.second) kv.second->Release();
   impl_->prop_tex.clear();
+  impl_->prop_tex_images = textures;
+  impl_->logged_prop_texture_alpha_meshes.clear();
   impl_->prop_scene = std::move(scene);
   impl_->prop_attach_bone = attach_bone;
   impl_->has_prop = true;
   reconcile_instrument_anchor(impl_->character, impl_->original_bone_local,
                               impl_->prop_scene, impl_->prop_attach_bone,
                               "bone_fret.mesh");
+  reconcile_instrument_anchor(impl_->character, impl_->original_bone_local,
+                              impl_->prop_scene, impl_->prop_attach_bone,
+                              "bone_fret_hand.mesh");
+  reconcile_instrument_fret_targets(impl_->character,
+                                    impl_->original_bone_local,
+                                    impl_->prop_scene,
+                                    impl_->prop_attach_bone);
   for (const auto& kv : textures) {
     IDirect3DTexture9* t = upload(kv.second);
     if (t) impl_->prop_tex[kv.first] = t;
@@ -1664,11 +1428,7 @@ void CharRenderer::frame_camera() {
   for (const auto& m : impl_->character.meshes) {
     if (!m.decoded || !m.showing || m.verts.empty() || is_shadow(m.name) ||
         is_hidden_by_character_lod_selection(impl_->character, m,
-                                             impl_->min_lod) ||
-        (impl_->min_lod < 1 &&
-         is_hidden_numbered_hair_variant(impl_->character, m)) ||
-        is_unsupported_dynamic_hair(m.name) ||
-        is_terminal_leg_overlay_duplicate(m)) continue;
+                                             impl_->min_lod)) continue;
     for (const auto& v : m.verts) {
       const float p[3] = {v.px, v.py, v.pz};
       if (!impl_->have_bounds) {
@@ -1766,7 +1526,7 @@ void CharRenderer::draw_impl(bool clear_target) {
 
   if (clear_target) {
     dev->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-               D3DCOLOR_XRGB(24, 26, 38), 1.0f, 0);
+               character_clear_color(), 1.0f, 0);
   }
   dev->BeginScene();
 
@@ -1824,19 +1584,89 @@ void CharRenderer::draw_impl(bool clear_target) {
   dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
   dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 
+  if (impl.reference_base && impl.have_bounds) {
+    const float cx = 0.5f * (impl.bb_min[0] + impl.bb_max[0]);
+    const float cy = 0.5f * (impl.bb_min[1] + impl.bb_max[1]);
+    const float radius =
+        std::max({40.0f, impl.bb_max[0] - impl.bb_min[0],
+                  impl.bb_max[1] - impl.bb_min[1]}) *
+            0.75f +
+        18.0f;
+    const float z =
+        current_toe_reference_z(impl.character).value_or(impl.bb_min[2]) -
+        0.25f;
+    const float axis_w = 0.75f;
+    const float axis_z = z + 0.05f;
+    auto v = [](float x, float y, float z, D3DCOLOR color) {
+      return SVtx{x, y, z, 0.0f, 0.0f, 1.0f, color, 0.0f, 0.0f};
+    };
+    std::vector<SVtx> base;
+    base.reserve(18);
+    const D3DCOLOR floor_color = D3DCOLOR_ARGB(92, 224, 226, 224);
+    const float x0 = cx - radius, x1 = cx + radius;
+    const float y0 = cy - radius, y1 = cy + radius;
+    base.push_back(v(x0, y0, z, floor_color));
+    base.push_back(v(x1, y0, z, floor_color));
+    base.push_back(v(x1, y1, z, floor_color));
+    base.push_back(v(x0, y0, z, floor_color));
+    base.push_back(v(x1, y1, z, floor_color));
+    base.push_back(v(x0, y1, z, floor_color));
+    const D3DCOLOR x_color = D3DCOLOR_ARGB(220, 236, 70, 70);
+    base.push_back(v(x0, cy - axis_w, axis_z, x_color));
+    base.push_back(v(x1, cy - axis_w, axis_z, x_color));
+    base.push_back(v(x1, cy + axis_w, axis_z, x_color));
+    base.push_back(v(x0, cy - axis_w, axis_z, x_color));
+    base.push_back(v(x1, cy + axis_w, axis_z, x_color));
+    base.push_back(v(x0, cy + axis_w, axis_z, x_color));
+    const D3DCOLOR y_color = D3DCOLOR_ARGB(220, 64, 180, 86);
+    base.push_back(v(cx - axis_w, y0, axis_z, y_color));
+    base.push_back(v(cx + axis_w, y0, axis_z, y_color));
+    base.push_back(v(cx + axis_w, y1, axis_z, y_color));
+    base.push_back(v(cx - axis_w, y0, axis_z, y_color));
+    base.push_back(v(cx + axis_w, y1, axis_z, y_color));
+    base.push_back(v(cx - axis_w, y1, axis_z, y_color));
+
+    D3DMATRIX base_world;
+    std::memcpy(&base_world, impl.world_transform.data(), 64);
+    dev->SetTransform(D3DTS_WORLD, &base_world);
+    dev->SetTexture(0, nullptr);
+    dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+    dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+    dev->SetRenderState(D3DRS_ZENABLE, TRUE);
+    dev->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+    dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+    dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+    dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+    dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
+                         static_cast<UINT>(base.size() / 3), base.data(),
+                         sizeof(SVtx));
+  }
+
   std::vector<SVtx> vb;
   std::vector<std::array<float, 3>> spos, snrm;
   std::vector<const SkinnedMesh*> draw_meshes;
   draw_meshes.reserve(impl.character.meshes.size());
   for (const auto& m : impl.character.meshes) draw_meshes.push_back(&m);
+  const bool use_source_group_order = source_group_draw_order_enabled();
   std::stable_sort(draw_meshes.begin(), draw_meshes.end(),
-                   [](const SkinnedMesh* a, const SkinnedMesh* b) {
-                     const bool a_eye = is_eye_mesh(a->name);
-                     const bool b_eye = is_eye_mesh(b->name);
-                     if (a_eye != b_eye) return a_eye;
-                     const bool a_hair = is_hair_render_mesh(*a);
-                     const bool b_hair = is_hair_render_mesh(*b);
-                     if (a_hair != b_hair) return !a_hair;
+                   [&](const SkinnedMesh* a, const SkinnedMesh* b) {
+                     if (use_source_group_order) {
+                       const int ar = character_active_lod_group_rank(
+                           impl.character, a->name, impl.min_lod);
+                       const int br = character_active_lod_group_rank(
+                           impl.character, b->name, impl.min_lod);
+                       if (ar >= 0 && br >= 0 && ar != br) return ar < br;
+                       if ((ar >= 0) != (br >= 0)) return ar >= 0;
+                     }
+                     if (std::fabs(a->draw_order - b->draw_order) >
+                             1.0e-5f) {
+                       return a->draw_order < b->draw_order;
+                     }
                      return false;
                    });
 
@@ -1854,17 +1684,19 @@ void CharRenderer::draw_impl(bool clear_target) {
     }
     if (is_shadow(m.name) ||
         is_hidden_by_character_lod_selection(impl.character, m,
-                                             impl.min_lod) ||
-        (impl.min_lod < 1 &&
-         is_hidden_numbered_hair_variant(impl.character, m)) ||
-        is_unsupported_dynamic_hair(m.name) ||
-        is_terminal_leg_overlay_duplicate(m)) continue;
+                                             impl.min_lod)) continue;
     const bool eye_mesh = is_eye_mesh(m.name);
     const milo_scene::MatObj* material = impl.character.find_mat(m.material);
     const bool scene_lit_mesh =
         !eye_mesh &&
         (!impl.use_scene_lighting || (material && material->use_environ));
-    dev->SetRenderState(D3DRS_CULLMODE, character_cull_mode(&m));
+    const bool hair_point_bone =
+        character_mesh_uses_char_hair_point_bone(impl.character, m);
+    const bool hair_two_sided =
+        is_hair_two_sided_surface(impl.character, &m, material);
+    const DWORD mesh_cull_mode =
+        hair_two_sided ? D3DCULL_NONE : character_cull_mode(material);
+    dev->SetRenderState(D3DRS_CULLMODE, mesh_cull_mode);
     dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
     dev->SetRenderState(D3DRS_LIGHTING, scene_lit_mesh ? TRUE : FALSE);
     if (debug_lighting_enabled()) {
@@ -1890,76 +1722,87 @@ void CharRenderer::draw_impl(bool clear_target) {
     // Skin the mesh using linear-blend skinning.
     skin_to_pose(m, impl.character, spos, snrm);
 
-    // Local attachment hair is authored in its parent-bone space; normal body
-    // and singer hair meshes are authored in skinned character space.
-    const bool draw_hair_as_attachment =
-        is_hair_mesh_name(m.name) &&
-        (m.bone_palette.empty() || uses_local_attachment_skin(m));
-    const bool root_parent_hair_bypass =
-        is_root_parent_hair_piece(m) &&
-        !is_weighted_root_parent_hair_piece(m);
     const char* world_mode = "identity";
     std::array<float, 16> mw{};
-    if (is_head_attachment_mesh(m) || is_model_space_head_hair_attachment(m)) {
-      world_mode = "head-model-delta";
-      mw = impl.character.model_space_parent_delta("bone_head.mesh");
-    } else if (is_local_space_head_hair_attachment(m)) {
-      world_mode = "head-local-attachment";
-      mw = impl.character.mesh_attachment_world(m, false);
-    } else if (is_parent_local_ankle_attachment(m)) {
-      world_mode = "parent-local-chain";
-      mw = impl.character.bone_world_local_chain(m.parent);
-    } else if (eye_mesh) {
-      world_mode = "mesh-attachment";
-      mw = impl.character.mesh_attachment_world(m, false);
-    } else if (uses_local_attachment_skin(m) &&
-               local_hair_world_mode() == "identity") {
-      world_mode = "local-hair-identity-env";
-      mw = {1, 0, 0, 0, 0, 1, 0, 0,
-            0, 0, 1, 0, 0, 0, 0, 1};
-    } else if (uses_local_attachment_skin(m) &&
-               local_hair_world_mode() == "parent") {
-      world_mode = "local-hair-parent-env";
-      mw = impl.character.bone_world_local_chain(m.parent);
-    } else if (uses_local_attachment_skin(m) &&
-               local_hair_world_mode() == "attachment_parent") {
-      world_mode = "local-hair-attachment-parent-env";
-      mw = impl.character.attachment_parent_world(m.parent);
-    } else if (m.bone_palette.empty() || draw_hair_as_attachment ||
-               raw_mesh_enabled(m.name) || root_parent_hair_bypass ||
-               is_mesh_local_arm_piece(m) ||
-               is_raw_mesh_world_authored_piece(m)) {
-      world_mode = "mesh-world";
+    if (m.bone_palette.empty()) {
+      world_mode = "source-trans-world";
       mw = impl.character.mesh_world(m);
     } else {
-      world_mode = "identity-skinned";
+      world_mode = "identity-source-skinned";
       mw = {1, 0, 0, 0, 0, 1, 0, 0,
             0, 0, 1, 0, 0, 0, 0, 1};
     }
-    if (eye_mesh) {
-      const float inset = eye_surface_inset(m);
-      if (inset != 0.0f) {
-        mw[12] -= mw[4] * inset;
-        mw[13] -= mw[5] * inset;
-        mw[14] -= mw[6] * inset;
+    mw = mul16(mw, impl.world_transform);
+    if (debug_face_rows_enabled() && (is_mouth_probe_mesh(m) || eye_mesh) &&
+        !spos.empty()) {
+      auto log_candidate = [&](const char* candidate,
+                               std::array<float, 16> row) {
+        row = mul16(row, impl.world_transform);
+        Bounds3 b;
+        for (const auto& p : spos) add_bounds(b, transform_point(p, row));
+        std::fprintf(
+            stderr,
+            "[face-row-candidate] mesh=%s parent=%s mat=%s candidate=%s "
+            "pos=(%.3f %.3f %.3f) bbox=(%.3f %.3f %.3f)..(%.3f %.3f %.3f) "
+            "rows=[%.3f %.3f %.3f|%.3f %.3f %.3f|%.3f %.3f %.3f]\n",
+            m.name.c_str(), m.parent.c_str(), m.material.c_str(), candidate,
+            row[12], row[13], row[14], b.mn[0], b.mn[1], b.mn[2], b.mx[0],
+            b.mx[1], b.mx[2], row[0], row[1], row[2], row[4], row[5],
+            row[6], row[8], row[9], row[10]);
+      };
+      log_candidate("source-world", impl.character.mesh_world(m));
+      log_candidate("source-bind-world",
+                    impl.character.bone_world_bind_local_chain(m.name));
+      log_candidate("stored-world", xfm16(m.world_stored));
+      if (!m.parent.empty()) {
+        log_candidate("parent-source-world",
+                      impl.character.bone_world_local_chain(m.parent));
+        log_candidate("local-parent-source-world",
+                      mul16(xfm16(m.local),
+                            impl.character.bone_world_local_chain(m.parent)));
+        log_candidate("local-parent-bind-world",
+                      mul16(xfm16(m.local),
+                            impl.character.bone_world_bind_local_chain(
+                                m.parent)));
       }
     }
-    mw = mul16(mw, impl.world_transform);
     if (debug_mesh_mode_enabled(m.name)) {
       std::fprintf(stderr,
                    "[mesh-mode] %-24s parent=%-18s mat=%-18s palette=%zu "
-                   "world=%s hairAttach=%d rootBypass=%d localAttach=%d "
-                   "headModel=%d raw=%d pos=(%.3f %.3f %.3f)\n",
+                   "world=%s constraint=%u target=%s pos=(%.3f %.3f %.3f)\n",
                    m.name.c_str(), m.parent.c_str(), m.material.c_str(),
                    m.bone_palette.size(), world_mode,
-                   draw_hair_as_attachment ? 1 : 0,
-                   root_parent_hair_bypass ? 1 : 0,
-                   uses_local_attachment_skin(m) ? 1 : 0,
-                   (is_model_space_head_hair_attachment(m) ||
-                    is_local_space_head_hair_attachment(m))
-                       ? 1
-                       : 0,
-                   raw_mesh_enabled(m.name) ? 1 : 0, mw[12], mw[13], mw[14]);
+                   m.constraint, m.target.empty() ? "<none>" : m.target.c_str(),
+                   mw[12], mw[13], mw[14]);
+      if (!spos.empty()) {
+        size_t min_z_i = 0;
+        size_t max_z_i = 0;
+        std::array<float, 3> mn = transform_point(spos[0], mw);
+        std::array<float, 3> mx = mn;
+        for (size_t vi = 1; vi < spos.size(); ++vi) {
+          const auto wp = transform_point(spos[vi], mw);
+          if (wp[2] < transform_point(spos[min_z_i], mw)[2]) min_z_i = vi;
+          if (wp[2] > transform_point(spos[max_z_i], mw)[2]) max_z_i = vi;
+          mn[0] = std::min(mn[0], wp[0]);
+          mn[1] = std::min(mn[1], wp[1]);
+          mn[2] = std::min(mn[2], wp[2]);
+          mx[0] = std::max(mx[0], wp[0]);
+          mx[1] = std::max(mx[1], wp[1]);
+          mx[2] = std::max(mx[2], wp[2]);
+        }
+        const auto v0 = transform_point(spos[0], mw);
+        const auto min_z = transform_point(spos[min_z_i], mw);
+        const auto max_z = transform_point(spos[max_z_i], mw);
+        std::fprintf(stderr,
+                     "[mesh-world-verts] mesh=%s v0=(%.4f %.4f %.4f) "
+                     "bbox=(%.4f %.4f %.4f)..(%.4f %.4f %.4f) "
+                     "minZ_i=%zu minZ=(%.4f %.4f %.4f) "
+                     "maxZ_i=%zu maxZ=(%.4f %.4f %.4f)\n",
+                     m.name.c_str(), v0[0], v0[1], v0[2], mn[0], mn[1],
+                     mn[2], mx[0], mx[1], mx[2], min_z_i, min_z[0],
+                     min_z[1], min_z[2], max_z_i, max_z[0], max_z[1],
+                     max_z[2]);
+      }
     }
     if (eye_mesh && debug_skin_bounds_enabled()) {
       std::fprintf(stderr,
@@ -2160,33 +2003,86 @@ void CharRenderer::draw_impl(bool clear_target) {
       return i < 0 ? 0 : (i > 255 ? 255 : i);
     };
     const bool highlight_mesh = highlight_mesh_enabled(m.name);
-    const bool blended_hair =
-        material && material->blend != 0 && is_hair_render_mesh(m);
-    dev->SetRenderState(D3DRS_ZWRITEENABLE, blended_hair ? FALSE : TRUE);
+    uint8_t material_blend =
+        material ? material->blend : static_cast<uint8_t>(kBlendSrcAlpha);
+    if (highlight_mesh) material_blend = kBlendSrc;
+    const BlendState blend_state = character_blend_state_for(material_blend);
+    const bool use_source_alpha =
+        material && material->has_render_state &&
+        source_material_alpha_state_enabled();
+    const bool alpha_test = use_source_alpha ? material->alpha_cut : true;
+    const DWORD alpha_ref =
+        use_source_alpha
+            ? static_cast<DWORD>(
+                  std::clamp(material->alpha_threshold, 0, 255))
+            : 96u;
+    const bool depth_write = material_depth_write_enabled(material);
+    dev->SetRenderState(D3DRS_BLENDOP, blend_state.op);
+    dev->SetRenderState(D3DRS_SRCBLEND, blend_state.src);
+    dev->SetRenderState(D3DRS_DESTBLEND, blend_state.dest);
+    dev->SetRenderState(D3DRS_ZWRITEENABLE, depth_write ? TRUE : FALSE);
+    dev->SetRenderState(D3DRS_ALPHATESTENABLE, alpha_test ? TRUE : FALSE);
+    dev->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+    dev->SetRenderState(D3DRS_ALPHAREF, alpha_ref);
+    const DWORD tex_address =
+        material && material->has_render_state
+            ? texture_address_for_wrap(material->tex_wrap)
+            : D3DTADDRESS_WRAP;
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSU, tex_address);
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSV, tex_address);
     if (debug_mesh_mode_enabled(m.name)) {
+      const int group_rank = character_active_lod_group_rank(
+          impl.character, m.name, impl.min_lod);
       std::fprintf(stderr,
-                   "[mesh-render] %-24s mat=%-18s hairRender=%d blend=%d "
-                   "zwrite=%d\n",
+                   "[mesh-render] %-24s mat=%-18s blend=%d "
+                   "zwrite=%d ngCull=%d cullMode=%lu src=%lu dst=%lu "
+                   "op=%lu drawOrder=%.3f groupRank=%d alphaTest=%d alphaCut=%d "
+                   "alphaRef=%lu zMode=%u texWrap=%u hairTwoSided=%d "
+                   "hairPointBone=%d\n",
                    m.name.c_str(), m.material.c_str(),
-                   is_hair_render_mesh(m) ? 1 : 0,
-                   material ? material->blend : 0,
-                   blended_hair ? 0 : 1);
+                    static_cast<int>(material_blend),
+                    depth_write ? 1 : 0,
+                   material && material->has_cull ? (material->cull ? 1 : 0)
+                                                   : -1,
+                   static_cast<unsigned long>(mesh_cull_mode),
+                   static_cast<unsigned long>(blend_state.src),
+                   static_cast<unsigned long>(blend_state.dest),
+                   static_cast<unsigned long>(blend_state.op),
+                   m.draw_order, group_rank, alpha_test ? 1 : 0,
+                   material && material->has_render_state &&
+                           material->alpha_cut
+                       ? 1
+                       : 0,
+                   static_cast<unsigned long>(alpha_ref),
+                   material && material->has_render_state
+                       ? static_cast<unsigned>(material->z_mode)
+                       : 0,
+                   material && material->has_render_state
+                       ? static_cast<unsigned>(material->tex_wrap)
+                       : 1,
+                   hair_two_sided ? 1 : 0, hair_point_bone ? 1 : 0);
+    }
+    float mesh_alpha =
+        material ? material->color[3] * impl.color_mod[3] : impl.color_mod[3];
+    float mesh_r =
+        material ? material->color[0] * impl.color_mod[0] : impl.color_mod[0];
+    float mesh_g =
+        material ? material->color[1] * impl.color_mod[1] : impl.color_mod[1];
+    float mesh_b =
+        material ? material->color[2] * impl.color_mod[2] : impl.color_mod[2];
+    if (material_blend == kBlendAdd && mesh_alpha < 0.999f) {
+      // ONE/ONE additive blending ignores vertex alpha; GH2 Mat alpha acts as
+      // intensity for faded additive surfaces in the general MILO path.
+      mesh_r *= mesh_alpha;
+      mesh_g *= mesh_alpha;
+      mesh_b *= mesh_alpha;
+      mesh_alpha = 1.0f;
     }
     const D3DCOLOR mesh_color =
         highlight_mesh
             ? D3DCOLOR_ARGB(255, 255, 0, 255)
-            : material ? D3DCOLOR_ARGB(color_byte(material->color[3] *
-                                                  impl.color_mod[3]),
-                                       color_byte(material->color[0] *
-                                                  impl.color_mod[0]),
-                                       color_byte(material->color[1] *
-                                                  impl.color_mod[1]),
-                                       color_byte(material->color[2] *
-                                                  impl.color_mod[2]))
-                       : D3DCOLOR_ARGB(color_byte(impl.color_mod[3]),
-                                       color_byte(impl.color_mod[0]),
-                                       color_byte(impl.color_mod[1]),
-                                       color_byte(impl.color_mod[2]));
+            : D3DCOLOR_ARGB(color_byte(mesh_alpha), color_byte(mesh_r),
+                             color_byte(mesh_g), color_byte(mesh_b));
 
     IDirect3DTexture9* texture = nullptr;
     const ghogx::asset::Image* texture_image = nullptr;
@@ -2235,16 +2131,19 @@ void CharRenderer::draw_impl(bool clear_target) {
         D3DFMT_INDEX16, vb.data(), sizeof(SVtx));
   }
   dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+  dev->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+  dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+  dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 
   if (impl.has_prop && !impl.prop_attach_bone.empty() &&
       !hide_attached_props_enabled()) {
-    // Instrument textures are authored as opaque props in this path. Some PS2
-    // prop texture alpha decodes as low/zero, so carrying the character alpha
-    // test into prop drawing can discard a correctly loaded guitar entirely.
+    // Most instrument prop surfaces are opaque, but the authored string card is
+    // a texture-alpha cutout and must keep its diffuse texture alpha.
     dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
     dev->SetRenderState(D3DRS_LIGHTING, TRUE);
     dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
     dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+    dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
     dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
     dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 
@@ -2350,17 +2249,47 @@ void CharRenderer::draw_impl(bool clear_target) {
         }
       }
       IDirect3DTexture9* texture = nullptr;
+      const ghogx::asset::Image* texture_image = nullptr;
       if (prop_material) {
         auto it = impl.prop_tex.find(prop_material->diffuse_tex);
         if (it != impl.prop_tex.end()) texture = it->second;
+        auto image_it =
+            impl.prop_tex_images.find(prop_material->diffuse_tex);
+        if (image_it != impl.prop_tex_images.end())
+          texture_image = &image_it->second;
+      }
+
+      const bool string_texture_alpha =
+          texture && is_guitar_strings_prop_mesh(m.name);
+      if (debug_texture_alpha_enabled() &&
+          impl.logged_prop_texture_alpha_meshes.insert(m.name).second) {
+        log_prop_texture_alpha_stats(m, prop_material, texture_image,
+                                     string_texture_alpha);
       }
       if (texture) {
         dev->SetTexture(0, texture);
         dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-        dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
-        dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+        if (string_texture_alpha) {
+          dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+          dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+          dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+          dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+          dev->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+          dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+          dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+          dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+        } else {
+          dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+          dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+          dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+          dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+          dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+        }
       } else {
         dev->SetTexture(0, nullptr);
+        dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+        dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+        dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
         dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
         dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
         dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
@@ -2398,6 +2327,7 @@ void CharRenderer::draw_impl(bool clear_target) {
   }
 
   dev->SetTexture(0, nullptr);
+  dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
   dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
   dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
   dev->EndScene();
@@ -2457,56 +2387,6 @@ std::array<float, 16> xfm16(const milo_scene::Xfm& x) {
     for (int c = 0; c < 3; ++c) m[r * 4 + c] = x.rot[r][c];
   m[12] = x.pos[0]; m[13] = x.pos[1]; m[14] = x.pos[2]; m[15] = 1.0f;
   return m;
-}
-
-std::array<float, 16> transpose_xfm_rotation(const milo_scene::Xfm& x) {
-  auto m = xfm16(x);
-  for (int r = 0; r < 3; ++r) {
-    for (int c = r + 1; c < 3; ++c) {
-      std::swap(m[r * 4 + c], m[c * 4 + r]);
-    }
-  }
-  return m;
-}
-
-std::array<float, 16> raw_current_world(const Character& character,
-                                        const std::string& name) {
-  auto find_xfm = [&](const std::string& object_name,
-                      const milo_scene::Xfm*& xfm,
-                      std::string& parent) -> bool {
-    for (const auto& b : character.bones) {
-      if (b.name == object_name) {
-        xfm = &b.local;
-        parent = b.parent;
-        return true;
-      }
-    }
-    for (const auto& m : character.meshes) {
-      if (m.name == object_name) {
-        xfm = &m.local;
-        parent = m.parent;
-        return true;
-      }
-    }
-    return false;
-  };
-
-  const milo_scene::Xfm* xfm = nullptr;
-  std::string parent;
-  if (!find_xfm(name, xfm, parent)) {
-    return {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-  }
-
-  std::array<float, 16> world = xfm16(*xfm);
-  int guard = 0;
-  while (!parent.empty() && guard++ < 128) {
-    const milo_scene::Xfm* parent_xfm = nullptr;
-    std::string next_parent;
-    if (!find_xfm(parent, parent_xfm, next_parent)) break;
-    world = mul16(world, xfm16(*parent_xfm));
-    parent = next_parent;
-  }
-  return world;
 }
 
 std::array<float, 16> scene_object_world(const milo_scene::Scene& scene,
@@ -2569,41 +2449,10 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
   out_pos.assign(mesh.verts.size(), {0, 0, 0});
   out_nrm.assign(mesh.verts.size(), {0, 0, 0});
   const size_t nb = mesh.bone_palette.size();
-  if (is_eye_mesh(mesh.name)) {
+  if (nb == 0) {
     if (debug_mesh_mode_enabled(mesh.name)) {
       std::fprintf(stderr,
-                   "[skin-mode] %-24s mat=%-18s palette=%zu bind=%zu mode=eye-raw-local\n",
-                   mesh.name.c_str(), mesh.material.c_str(), nb,
-                   mesh.bind.size());
-    }
-    for (size_t vi = 0; vi < mesh.verts.size(); ++vi) {
-      const SkinVertex& v = mesh.verts[vi];
-      out_pos[vi] = {v.px, v.py, v.pz};
-      out_nrm[vi] = {v.nx, v.ny, v.nz};
-    }
-    return;
-  }
-  if (is_hair_mesh_name(mesh.name) && mesh.bone_palette.empty()) {
-    if (debug_mesh_mode_enabled(mesh.name)) {
-      std::fprintf(stderr,
-                   "[skin-mode] %-24s mat=%-18s palette=%zu bind=%zu mode=hair-raw-local\n",
-                   mesh.name.c_str(), mesh.material.c_str(), nb,
-                   mesh.bind.size());
-    }
-    for (size_t vi = 0; vi < mesh.verts.size(); ++vi) {
-      const SkinVertex& v = mesh.verts[vi];
-      out_pos[vi] = {v.px, v.py, v.pz};
-      out_nrm[vi] = {v.nx, v.ny, v.nz};
-    }
-    return;
-  }
-  if (raw_mesh_enabled(mesh.name) || is_head_attachment_mesh(mesh) ||
-      (is_root_parent_hair_piece(mesh) &&
-       !is_weighted_root_parent_hair_piece(mesh)) ||
-      is_raw_mesh_world_authored_piece(mesh)) {
-    if (debug_mesh_mode_enabled(mesh.name)) {
-      std::fprintf(stderr,
-                   "[skin-mode] %-24s mat=%-18s palette=%zu bind=%zu mode=raw-bypass\n",
+                   "[skin-mode] %-24s mat=%-18s palette=%zu bind=%zu mode=unskinned-source-trans\n",
                    mesh.name.c_str(), mesh.material.c_str(), nb,
                    mesh.bind.size());
     }
@@ -2615,9 +2464,8 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
     return;
   }
 
-  // Per-palette-bone skinning matrix. Character vertices are authored in the
-  // raw local-chain skeleton basis, so bind and current matrices must both use
-  // that basis.
+  // RndMesh::SetBone stores mesh WorldXfm * inverse(bone WorldXfm). Skinning
+  // consumes that decoded offset directly: vertex * offset * currentBoneWorld.
   if (debug_weight_stats_enabled()) {
     float min_sum = 999999.0f;
     float max_sum = -999999.0f;
@@ -2644,159 +2492,42 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                  nonzero_counts[3], nonzero_counts[4]);
   }
   std::vector<std::array<float, 16>> skin(nb);
-  const bool use_stored_mesh_bind =
-      use_mesh_bind_material_enabled(mesh.material) &&
-      !is_mesh_local_terminal_lower_leg_piece(mesh) &&
-      mesh.bind.size() >= nb;
-  const bool use_mesh_local_bind =
-      (is_mesh_local_root_hair_piece(mesh) ||
-       is_mesh_local_bind_space_piece(mesh)) &&
-      !is_mesh_local_terminal_lower_leg_piece(mesh) &&
-      mesh.bind.size() >= nb;
-  const bool use_mesh_bind_inverse =
-      use_mesh_bind_inverse_material_enabled(mesh.material) &&
-      mesh.bind.size() >= nb;
-  const std::string matrix_mode = skin_matrix_mode();
-  const std::string local_hair_matrix_mode =
-      uses_local_attachment_skin(mesh) ? local_hair_skin_matrix_mode()
-                                       : std::string{};
-  const char* skin_mode = "lbs-local-chain";
-  if (is_mesh_local_terminal_lower_leg_piece(mesh)) {
-    skin_mode = "mesh-local-terminal-lower-leg";
-  } else if (is_mesh_local_arm_piece(mesh) &&
-             !disable_mesh_local_arm_skin_enabled()) {
-    skin_mode = "mesh-local-arm-space";
-  } else if (uses_local_attachment_skin(mesh) && mesh.bind.size() >= nb) {
-    skin_mode = local_hair_matrix_mode.empty()
-                    ? "local-attachment"
-                    : local_hair_matrix_mode.c_str();
-  } else if (use_mesh_local_bind) {
-    skin_mode = "mesh-local-bind";
-  } else if (use_stored_mesh_bind) {
-    skin_mode = "mesh-bind";
-  } else if (use_mesh_bind_inverse) {
-    skin_mode = "mesh-bind-inverse";
-  } else if (matrix_mode == "stored_bind") {
-    skin_mode = "stored-bind";
-  } else if (matrix_mode == "curr_invbind") {
-    skin_mode = "curr-invbind";
-  } else if (matrix_mode == "meshbind_local" && mesh.bind.size() >= nb) {
-    skin_mode = "meshbind-local-env";
-  } else if (matrix_mode == "meshbind_stored" && mesh.bind.size() >= nb) {
-    skin_mode = "meshbind-stored-env";
+  const bool has_source_bone_transforms = mesh.bind.size() >= nb;
+  if (!has_source_bone_transforms) {
+    if (debug_mesh_mode_enabled(mesh.name)) {
+      std::fprintf(stderr,
+                   "[skin-mode] %-24s mat=%-18s palette=%zu bind=%zu "
+                   "mode=missing-source-offset-unsupported\n",
+                   mesh.name.c_str(), mesh.material.c_str(), nb,
+                   mesh.bind.size());
+    }
+    for (size_t vi = 0; vi < mesh.verts.size(); ++vi) {
+      const SkinVertex& v = mesh.verts[vi];
+      out_pos[vi] = {v.px, v.py, v.pz};
+      out_nrm[vi] = {v.nx, v.ny, v.nz};
+    }
+    return;
   }
+  const char* skin_mode = "source-offset";
   if (debug_mesh_mode_enabled(mesh.name)) {
     std::fprintf(stderr,
-                 "[skin-mode] %-24s mat=%-18s palette=%zu bind=%zu mode=%s "
-                 "matrixEnv=%s\n",
+                 "[skin-mode] %-24s mat=%-18s palette=%zu bind=%zu mode=%s\n",
                  mesh.name.c_str(), mesh.material.c_str(), nb,
-                 mesh.bind.size(), skin_mode,
-                 local_hair_matrix_mode.empty() ? matrix_mode.c_str()
-                                                : local_hair_matrix_mode.c_str());
+                 mesh.bind.size(), skin_mode);
   }
   for (size_t i = 0; i < nb; ++i) {
-    std::array<float, 16> curr_world =
-        character.bone_world_local_chain(mesh.bone_palette[i]);
-    const std::array<float, 16> raw_curr_world = curr_world;
-    std::array<float, 16> hair_override{};
-    const bool has_hair_override =
-        is_hair_mesh_name(mesh.name) &&
-        runtime_hair_world_override(character, mesh.bone_palette[i],
-                                    hair_override);
-    if (has_hair_override) curr_world = hair_override;
-    if (is_mesh_local_terminal_lower_leg_piece(mesh)) {
-      const std::array<float, 16> mesh_bind =
-          character.bone_world_bind_local_chain(mesh.name);
-      const std::array<float, 16> bone_bind =
-          character.bone_world_bind_local_chain(mesh.bone_palette[i]);
-      skin[i] = mul16(mul16(mesh_bind, affine_inverse(bone_bind)), curr_world);
-    } else if (is_mesh_local_arm_piece(mesh) &&
-               !disable_mesh_local_arm_skin_enabled()) {
-      const std::array<float, 16> mesh_world =
-          character.bone_world_local_chain(mesh.name);
-      const std::array<float, 16> inv_mesh_world = affine_inverse(mesh_world);
-      skin[i] = mul16(mul16(xfm16(mesh.bind[i]), curr_world),
-                      inv_mesh_world);
-    } else if (uses_local_attachment_skin(mesh) && i < mesh.bind.size()) {
-      const bool log_hair_space =
-          debug_hair_space_enabled() &&
-          (i == 0 || debug_mesh_mode_enabled(mesh.name));
-      if (local_hair_matrix_mode == "meshbind_local") {
-        skin[i] = mul16(xfm16(mesh.bind[i]), curr_world);
-      } else if (local_hair_matrix_mode == "meshbind_transpose_invmesh") {
-        const std::array<float, 16> mesh_world =
-            character.bone_world_local_chain(mesh.name);
-        skin[i] = mul16(mul16(transpose_xfm_rotation(mesh.bind[i]),
-                              curr_world),
-                        affine_inverse(mesh_world));
-      } else if (local_hair_matrix_mode == "meshbind_stored") {
-        const auto stored_curr = character.bone_world(mesh.bone_palette[i]);
-        skin[i] = mul16(xfm16(mesh.bind[i]), stored_curr);
-      } else if (local_hair_matrix_mode == "stored_bind") {
-        const auto stored_curr = character.bone_world(mesh.bone_palette[i]);
-        const auto stored_bind = character.bone_world_bind(mesh.bone_palette[i]);
-        skin[i] = mul16(affine_inverse(stored_bind), stored_curr);
-      } else if (local_hair_matrix_mode == "curr_invbind") {
-        const auto bone_bind =
-            character.bone_world_bind_local_chain(mesh.bone_palette[i]);
-        skin[i] = mul16(curr_world, affine_inverse(bone_bind));
-      } else {
-        const std::array<float, 16> mesh_bind =
-            character.bone_world_bind_local_chain(mesh.name);
-        const std::array<float, 16> mesh_world =
-            character.bone_world_local_chain(mesh.name);
-        const std::array<float, 16> bone_bind =
-            character.bone_world_bind_local_chain(mesh.bone_palette[i]);
-        skin[i] = mul16(mul16(mul16(mesh_bind, affine_inverse(bone_bind)),
-                              curr_world),
-                        affine_inverse(mesh_world));
-        if (log_hair_space) {
-          if (has_hair_override) {
-            log_matrix_row("raw_current", mesh.name, mesh.bone_palette[i],
-                           raw_curr_world);
-          }
-          log_matrix_row("mesh_bind", mesh.name, mesh.bone_palette[i],
-                         mesh_bind);
-          log_matrix_row("bone_bind", mesh.name, mesh.bone_palette[i],
-                         bone_bind);
-          log_matrix_row("curr_world", mesh.name, mesh.bone_palette[i],
-                         curr_world);
-          log_matrix_row("mesh_world", mesh.name, mesh.bone_palette[i],
-                         mesh_world);
-        }
+    const std::string& bone_name = mesh.bone_palette[i];
+    if (bone_name.empty() || !character.has_transform(bone_name)) {
+      if (debug_skin_matrix_enabled() && debug_mesh_mode_enabled(mesh.name)) {
+        std::fprintf(stderr,
+                     "[skin-slot-skip] %-24s slot=%zu bone=%s reason=unresolved\n",
+                     mesh.name.c_str(), i, bone_name.c_str());
       }
-      if (log_hair_space) {
-        log_matrix_row("mesh_bind_i", mesh.name, mesh.bone_palette[i],
-                       xfm16(mesh.bind[i]));
-        log_matrix_row("skin", mesh.name, mesh.bone_palette[i], skin[i]);
-      }
-    } else if ((use_mesh_local_bind || use_stored_mesh_bind) &&
-               i < mesh.bind.size()) {
-      if (use_stored_mesh_bind)
-        curr_world = character.bone_world(mesh.bone_palette[i]);
-      skin[i] = mul16(xfm16(mesh.bind[i]), curr_world);
-    } else if (use_mesh_bind_inverse && i < mesh.bind.size()) {
-      skin[i] = mul16(affine_inverse(xfm16(mesh.bind[i])), curr_world);
-    } else if (matrix_mode == "stored_bind") {
-      curr_world = character.bone_world(mesh.bone_palette[i]);
-      const std::array<float, 16> bind_world =
-          character.bone_world_bind(mesh.bone_palette[i]);
-      skin[i] = mul16(affine_inverse(bind_world), curr_world);
-    } else if (matrix_mode == "curr_invbind") {
-      std::array<float, 16> bind_world =
-          character.bone_world_bind_local_chain(mesh.bone_palette[i]);
-      skin[i] = mul16(curr_world, affine_inverse(bind_world));
-    } else if (matrix_mode == "meshbind_local" && i < mesh.bind.size()) {
-      skin[i] = mul16(xfm16(mesh.bind[i]), curr_world);
-    } else if (matrix_mode == "meshbind_stored" && i < mesh.bind.size()) {
-      curr_world = character.bone_world(mesh.bone_palette[i]);
-      skin[i] = mul16(xfm16(mesh.bind[i]), curr_world);
-    } else {
-      std::array<float, 16> bind_world =
-          character.bone_world_bind_local_chain(mesh.bone_palette[i]);
-      const std::array<float, 16> inv_bind = affine_inverse(bind_world);
-      skin[i] = mul16(inv_bind, curr_world);
+      continue;
     }
+    const std::array<float, 16> curr_world =
+        character.bone_world_local_chain(bone_name);
+    skin[i] = mul16(xfm16(mesh.bind[i]), curr_world);
     const bool debug_this_skin =
         debug_skin_matrix_enabled() &&
         (debug_skin_matrix_all_enabled() || debug_mesh_mode_enabled(mesh.name));
@@ -2804,39 +2535,34 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
       const auto& s = skin[i];
       std::fprintf(stderr,
                    "[skin-matrix] %-24s bone=%-24s mode=%s "
-                   "hairOverride=%d diag=(%.3f %.3f %.3f) "
-                   "pos=(%.3f %.3f %.3f)\n",
-                   mesh.name.c_str(), mesh.bone_palette[i].c_str(),
-                   skin_mode, has_hair_override ? 1 : 0, s[0],
-                   s[5], s[10], s[12], s[13], s[14]);
+                   "diag=(%.3f %.3f %.3f) pos=(%.3f %.3f %.3f)\n",
+                   mesh.name.c_str(), bone_name.c_str(), skin_mode,
+                   s[0], s[5], s[10], s[12], s[13], s[14]);
       if (debug_mesh_mode_enabled(mesh.name)) {
         const auto bind_lc =
-            character.bone_world_bind_local_chain(mesh.bone_palette[i]);
+            character.bone_world_bind_local_chain(bone_name);
         const auto curr_lc =
-            character.bone_world_local_chain(mesh.bone_palette[i]);
-        const auto bind_stored = character.bone_world_bind(mesh.bone_palette[i]);
-        const auto curr_stored = character.bone_world(mesh.bone_palette[i]);
+            character.bone_world_local_chain(bone_name);
+        const auto bind_stored = character.bone_world_bind(bone_name);
+        const auto curr_stored = character.bone_world(bone_name);
         const auto mesh_lc = character.bone_world_local_chain(mesh.name);
-        log_compact_matrix_rows("bind-lc", mesh.name, mesh.bone_palette[i],
-                                bind_lc);
-        log_compact_matrix_rows("curr-lc", mesh.name, mesh.bone_palette[i],
-                                curr_lc);
-        log_compact_matrix_rows("bind-stored", mesh.name, mesh.bone_palette[i],
+        log_compact_matrix_rows("bind-lc", mesh.name, bone_name, bind_lc);
+        log_compact_matrix_rows("curr-lc", mesh.name, bone_name, curr_lc);
+        log_compact_matrix_rows("bind-stored", mesh.name, bone_name,
                                 bind_stored);
-        log_compact_matrix_rows("curr-stored", mesh.name, mesh.bone_palette[i],
+        log_compact_matrix_rows("curr-stored", mesh.name, bone_name,
                                 curr_stored);
-        log_compact_matrix_rows("mesh-lc", mesh.name, mesh.bone_palette[i],
-                                mesh_lc);
+        log_compact_matrix_rows("mesh-lc", mesh.name, bone_name, mesh_lc);
         std::fprintf(stderr,
                      "[skin-matrix-row] %-24s bone=%-24s "
                      "r0=(%.4f %.4f %.4f %.4f) "
                      "r1=(%.4f %.4f %.4f %.4f) "
                      "r2=(%.4f %.4f %.4f %.4f) "
                      "pos=(%.4f %.4f %.4f %.4f)\n",
-                     mesh.name.c_str(), mesh.bone_palette[i].c_str(),
+                     mesh.name.c_str(), bone_name.c_str(),
                      s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
                      s[8], s[9], s[10], s[11], s[12], s[13], s[14], s[15]);
-        log_compact_matrix_rows("skin", mesh.name, mesh.bone_palette[i], s);
+        log_compact_matrix_rows("skin", mesh.name, bone_name, s);
       }
     }
   }
@@ -2846,12 +2572,12 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
     std::array<float, 3> p{0, 0, 0}, n{0, 0, 0};
     bool any = false;
     for (size_t i = 0; i < nb && i < 4; ++i) {
-      const bool reverse_slots =
-          reverse_skin_weight_slots_enabled() ||
-          is_mesh_local_terminal_lower_leg_piece(mesh);
-      const size_t wi = reverse_slots ? (std::min<size_t>(nb, 4) - 1 - i) : i;
-      const float wgt = v.w[wi];
+      const float wgt = v.w[i];
       if (wgt == 0.0f) continue;
+      if (i >= skin.size() || mesh.bone_palette[i].empty() ||
+          !character.has_transform(mesh.bone_palette[i])) {
+        continue;
+      }
       const auto& s = skin[i];
       p[0] += wgt * (v.px * s[0] + v.py * s[4] + v.pz * s[8] + s[12]);
       p[1] += wgt * (v.px * s[1] + v.py * s[5] + v.pz * s[9] + s[13]);

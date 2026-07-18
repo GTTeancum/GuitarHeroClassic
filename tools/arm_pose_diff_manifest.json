@@ -1,0 +1,924 @@
+{
+  "character": "rockabill2",
+  "tag": "post",
+  "tolerance": 0.0006,
+  "cases": [
+    {
+      "label": "rockabill2_live_target_filtered_match",
+      "expect": "match",
+      "ingame_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/ingame_rockabill2_t060_flr_near_rt01_armfiltered.log",
+      "viewer_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/viewer_rockabill2_live_stack_handtiming_armfiltered_fret11.log",
+      "require_ingame_contains": [
+        "[fretpos] role=guitarist0 tick=61980 spot=spot_neck_fret11.mesh index=11",
+        "source_publisher=fenced",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_01@4.000",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "source_publisher=fenced",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_01@4.000",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000"
+      ]
+    },
+    {
+      "label": "rockabill2_live_target_handmap_match",
+      "expect": "match",
+      "ingame_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/ingame_rockabill2_t060_flr_near_rt01_armshort_handmap.log",
+      "viewer_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/viewer_rockabill2_live_stack_handtiming_armshort_fret11.log",
+      "require_ingame_contains": [
+        "[fretpos] role=guitarist0 tick=61980 spot=spot_neck_fret11.mesh index=11",
+        "source_publisher=fenced",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_01@4.000",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "source_publisher=fenced",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_01@4.000",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000"
+      ]
+    },
+    {
+      "label": "rockabill2_live_target_fullbody_match",
+      "expect": "match",
+      "ingame_log": "../engine/out/visual_proofs/leg_viewer_ingame_20260714/ingame_rockabill2_t060_flr_near_rt01_legfull_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/leg_viewer_ingame_20260714/viewer_rockabill2_live_stack_legfull_fret11_yaw0.log",
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe",
+        "bone_spine1",
+        "bone_spine2",
+        "bone_spine3",
+        "bone_neck",
+        "bone_head",
+        "bone_L-clavicle",
+        "bone_L-upperArm",
+        "bone_L-upperTwist1",
+        "bone_L-upperTwist2",
+        "bone_L-foreArm",
+        "bone_L-foreTwist1",
+        "bone_L-foreTwist2",
+        "bone_L-hand",
+        "bone_R-clavicle",
+        "bone_R-upperArm",
+        "bone_R-upperTwist1",
+        "bone_R-upperTwist2",
+        "bone_R-foreArm",
+        "bone_R-foreTwist1",
+        "bone_R-foreTwist2",
+        "bone_R-hand"
+      ],
+      "require_ingame_contains": [
+        "[fretpos] role=guitarist0 tick=61980 spot=spot_neck_fret11.mesh index=11",
+        "source_publisher=fenced",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_01@4.000",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=rockabill2 t=post b=bone_L-thigh",
+        "[armw] c=rockabill2 t=post b=bone_L-ankle",
+        "[armpose] char=rockabill2 controllers-post bone_L-foot            missing",
+        "[armw] c=rockabill2 t=post b=bone_R-ankle",
+        "[armpose] char=rockabill2 controllers-post bone_R-foot            missing",
+        "[armw] c=rockabill2 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "source_publisher=fenced",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_01@4.000",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=rockabill2 t=post b=bone_L-thigh",
+        "[armw] c=rockabill2 t=post b=bone_L-ankle",
+        "[armpose] char=rockabill2 controllers-post bone_L-foot            missing",
+        "[armw] c=rockabill2 t=post b=bone_R-ankle",
+        "[armpose] char=rockabill2 controllers-post bone_R-foot            missing",
+        "[armw] c=rockabill2 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "rockabill2_current_lower_body_live_stack_match",
+      "expect": "match",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_ingame_current_20260715/ingame_rockabill2_t060_flr_near_rt01_leg_f8_current_autostart.log",
+      "ingame_png": "../engine/out/visual_proofs/lower_body_ingame_current_20260715/ingame_rockabill2_t060_flr_near_rt01_leg_f8_current.png",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_ingame_current_20260715/viewer_rockabill2_live_stack_leg_f8_current.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=rockabill2 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=rockabill2 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "rock1_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "rock1",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715/rock1/ingame_rock1_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715/rock1/viewer_rock1_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=rock1 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=rock1 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "rock2_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "rock2",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715/rock2/ingame_rock2_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715/rock2/viewer_rock2_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=rock2 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "[clip] resolved shared driver milo: char/rock2/anims/gen/rock2_main.milo_ps2 -> char/rock1/anims/gen/rock1_main.milo_ps2 via main.drv",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=rock2 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "glam1_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "glam1",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715/glam1/ingame_glam1_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715/glam1/viewer_glam1_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=glam1 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=glam1 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "metal1_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "metal1",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715/metal1/ingame_metal1_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715/metal1/viewer_metal1_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_03@4.500",
+        "stand_fast_04@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=metal1 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "stand_fast_03@4.500",
+        "stand_fast_04@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=metal1 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "rockabill1_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "rockabill",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/rockabill1/ingame_rockabill1_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/rockabill1/viewer_rockabill1_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: rockabill1",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=rockabill t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=rockabill t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "goth1_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "goth1",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/goth1/ingame_goth1_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/goth1/viewer_goth1_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: goth1",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=goth1 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=goth1 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "goth2_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "goth2",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/goth2/ingame_goth2_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/goth2/viewer_goth2_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: goth2",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=goth2 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "[clip] resolved shared driver milo: char/goth2/anims/gen/goth2_main.milo_ps2 -> char/goth1/anims/gen/goth1_main.milo_ps2 via main.drv",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=goth2 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "funk1_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "funk1",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/funk1/ingame_funk1_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/funk1/viewer_funk1_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: funk1",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=funk1 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=funk1 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "classic_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "classic",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/classic/ingame_classic_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/classic/viewer_classic_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: classic",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=classic t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=classic t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "deathmetal1_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "deathmetal1",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/deathmetal1/ingame_deathmetal1_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715b/deathmetal1/viewer_deathmetal1_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: deathmetal1",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_04@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=deathmetal1 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "stand_fast_02@4.500",
+        "stand_fast_04@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=deathmetal1 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "alterna1_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "alterna1",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/alterna1/ingame_alterna1_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/alterna1/viewer_alterna1_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: alterna1",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=alterna1 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=alterna1 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "alterna2_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "alterna2",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/alterna2/ingame_alterna2_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/alterna2/viewer_alterna2_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: alterna2",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=alterna2 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "[clip] resolved shared driver milo: char/alterna2/anims/gen/alterna2_main.milo_ps2 -> char/alterna1/anims/gen/alterna1_main.milo_ps2 via main.drv",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=alterna2 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "deathmetal2_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "deathmetal2",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/deathmetal2/ingame_deathmetal2_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/deathmetal2/viewer_deathmetal2_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: deathmetal2",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_04@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=deathmetal2 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "[clip] resolved shared driver milo: char/deathmetal2/anims/gen/deathmetal2_main.milo_ps2 -> char/deathmetal1/anims/gen/deathmetal1_main.milo_ps2 via main.drv",
+        "stand_fast_02@4.500",
+        "stand_fast_04@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=deathmetal2 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "glam2_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "glam2",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/glam2/ingame_glam2_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/glam2/viewer_glam2_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: glam2",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=glam2 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "[clip] resolved shared driver milo: char/glam2/anims/gen/glam2_main.milo_ps2 -> char/glam1/anims/gen/glam1_main.milo_ps2 via main.drv",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=glam2 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "metal2_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "metal2",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/metal2/ingame_metal2_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/metal2/viewer_metal2_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: metal2",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_03@4.500",
+        "stand_fast_04@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=metal2 t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "[clip] resolved shared driver milo: char/metal2/anims/gen/metal2_main.milo_ps2 -> char/metal1/anims/gen/metal1_main.milo_ps2 via main.drv",
+        "stand_fast_03@4.500",
+        "stand_fast_04@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=metal2 t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "punk1_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "punk",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/punk1/ingame_punk1_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/punk1/viewer_punk1_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: punk1",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_01@4.500",
+        "stand_fast_02@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=punk t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "stand_fast_01@4.500",
+        "stand_fast_02@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=punk t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "punk2_current_lower_body_live_stack_match",
+      "expect": "match",
+      "character": "punk",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/punk2/ingame_punk2_t060_flr_near_rt01_leg_f8.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_multichar_ingame_20260715c/punk2/viewer_punk2_live_stack_leg_f8.log",
+      "rows": [
+        "armw"
+      ],
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "require_ingame_contains": [
+        "[ghogx] diagnostic character override: punk2",
+        "[ghogx] diagnostic camera shot: flr_near_rt01",
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "stand_fast_01@4.500",
+        "stand_fast_02@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=punk t=post b=bone_R-toe"
+      ],
+      "require_viewer_contains": [
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] reference base enabled",
+        "[clip] resolved shared driver milo: char/punk2/anims/gen/punk2_main.milo_ps2 -> char/punk1/anims/gen/punk1_main.milo_ps2 via main.drv",
+        "stand_fast_01@4.500",
+        "stand_fast_02@4.500",
+        "strum_short_02@0.000",
+        "finger_hold_ring_hi@f4:w=1.000",
+        "finger_hold_ring_hi@f5:w=0.000",
+        "[armw] c=punk t=post b=bone_R-toe"
+      ]
+    },
+    {
+      "label": "rockabill2_missing_midi_target_control",
+      "expect": "mismatch",
+      "proof_role": "diagnostic_control",
+      "known_control_reason": "viewer log intentionally omits --midi-fret-target spot_neck_fret11.mesh; this stale-viewer case is not current pose proof",
+      "ingame_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/ingame_rockabill2_t060_flr_near_rt01_armfiltered.log",
+      "viewer_log": "../engine/out/visual_proofs/viewer_ingame_diff_20260714/viewer_rockabill2_live_stack_handtiming_armshort.log",
+      "require_ingame_contains": [
+        "[fretpos] role=guitarist0 tick=61980 spot=spot_neck_fret11.mesh index=11",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500"
+      ],
+      "require_viewer_contains": [
+        "source_publisher=fenced",
+        "stand_fast_02@4.500",
+        "stand_fast_03@4.500"
+      ]
+    }
+  ]
+}

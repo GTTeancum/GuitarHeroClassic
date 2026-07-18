@@ -32,6 +32,7 @@
 //   ghogx_app --diagnostic-character <c>
 //                                      route guitarist/highway art through character c
 //   ghogx_app --diagnostic-venue <v>   route capture through another GH2 venue
+//   ghogx_app --diagnostic-character <c>
 //   ghogx_app --diagnostic-venue-event <event>
 //                                      force one persistent venue event after load
 //   ghogx_app --diagnostic-camera-shot <shot>
@@ -92,6 +93,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
+#include <cctype>
 #include <cstring>
 #include <cstdlib>
 #include <filesystem>
@@ -281,6 +283,20 @@ std::optional<DiagnosticChartScriptWindow> parse_diagnostic_chart_script_window(
                                      std::nullopt};
 }
 
+bool diagnostic_hide_hud_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_HIDE_HUD") == 0 && value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_HIDE_HUD");
+  return value && value[0];
+#endif
+}
+
 // Engine whose render/present phases drive the window. Plays the splash
 // sequence if set; else shows a single loaded image; else an animated
 // procedural checkerboard (exercises the texture-upload + sampled-draw path).
@@ -406,11 +422,20 @@ class AppEngine : public ghogx::Engine {
     if (state_ == AppState::Playing || state_ == AppState::Failed ||
         state_ == AppState::Finished) {
       gameplay_.draw(*win_);
-      draw_gameplay_hud();
-      if (state_ == AppState::Failed) {
-        draw_fail_overlay();
-      } else if (state_ == AppState::Finished) {
-        draw_finish_overlay();
+      if (!diagnostic_hide_hud_enabled()) {
+        draw_gameplay_hud();
+        if (state_ == AppState::Failed) {
+          draw_fail_overlay();
+        } else if (state_ == AppState::Finished) {
+          draw_finish_overlay();
+        }
+      } else {
+        static bool logged_hide_hud = false;
+        if (!logged_hide_hud) {
+          logged_hide_hud = true;
+          std::fprintf(stderr,
+                       "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw\n");
+        }
       }
       return;
     }
@@ -723,6 +748,10 @@ class AppEngine : public ghogx::Engine {
 
   void set_diagnostic_venue_override(const std::string& venue) {
     gameplay_.set_diagnostic_venue_override(venue);
+  }
+
+  void set_diagnostic_guitar_override(const std::string& guitar) {
+    gameplay_.set_diagnostic_guitar_override(guitar);
   }
 
   void set_diagnostic_venue_event(const std::string& event_name) {
@@ -1131,6 +1160,25 @@ std::vector<std::string> driver_milo_candidates(
   return out;
 }
 
+std::string animation_milo_role(std::string path) {
+  path = normalize_milo_path(std::move(path));
+  const size_t slash = path.find_last_of('/');
+  std::string name =
+      slash == std::string::npos ? path : path.substr(slash + 1);
+  if (name.size() >= 9 &&
+      name.compare(name.size() - 9, 9, ".milo_ps2") == 0) {
+    name.resize(name.size() - 9);
+  } else if (name.size() >= 5 &&
+             name.compare(name.size() - 5, 5, ".milo") == 0) {
+    name.resize(name.size() - 5);
+  }
+  const size_t underscore = name.find_last_of('_');
+  if (underscore == std::string::npos || underscore + 1 >= name.size()) {
+    return {};
+  }
+  return name.substr(underscore + 1);
+}
+
 bool facefx_neutral_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -1143,6 +1191,126 @@ bool facefx_neutral_enabled() {
   const char* value = std::getenv("GHOGX_FACEFX_NEUTRAL");
   return value && value[0];
 #endif
+}
+
+bool face_debug_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_DEBUG_FACE") == 0 && value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_FACE");
+  return value && value[0];
+#endif
+}
+
+void dump_facefx_lip_sync_servos(
+    const ghogx::character::Character& character) {
+  if (!face_debug_enabled()) return;
+  std::fprintf(stderr,
+               "[facefx-servo] stock FaceFxLipSyncServo rows=%zu "
+               "source=GH2-compat decoder boundary=not-CharFaceServo\n",
+               character.lip_sync_servos.size());
+  for (size_t i = 0; i < character.lip_sync_servos.size(); ++i) {
+    const auto& servo = character.lip_sync_servos[i];
+    std::fprintf(stderr,
+                 "[facefx-servo] row=%zu name=%s facefx=%s viseme_milo=%s "
+                 "targets=%zu\n",
+                 i, servo.name.c_str(), servo.facefx_path.c_str(),
+                 servo.viseme_milo.c_str(), servo.targets.size());
+    for (size_t t = 0; t < servo.targets.size(); ++t) {
+      const auto& target = servo.targets[t];
+      std::fprintf(stderr,
+                   "[facefx-servo]   target=%zu object=%s prop_type=%d "
+                   "property=%s\n",
+                   t, target.object.c_str(), target.prop_type,
+                   target.property.c_str());
+    }
+  }
+}
+
+std::string lower_ascii(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(),
+                 [](unsigned char c) { return (char)std::tolower(c); });
+  return s;
+}
+
+bool is_face_asset_name(const std::string& name) {
+  const std::string lower = lower_ascii(name);
+  return lower.find("mouth") != std::string::npos ||
+         lower.find("lip") != std::string::npos ||
+         lower.find("jaw") != std::string::npos ||
+         lower.find("teeth") != std::string::npos ||
+         lower.find("tongue") != std::string::npos ||
+         lower.find("tounge") != std::string::npos ||
+         lower.find("eye") != std::string::npos ||
+         lower.find("lid") != std::string::npos ||
+         lower.find("brow") != std::string::npos;
+}
+
+void dump_face_asset_inventory(
+    const ghogx::character::Character& character) {
+  if (!face_debug_enabled()) return;
+  std::fprintf(stderr,
+               "[face-inventory] character=%s bones=%zu meshes=%zu "
+               "source=stock-milo decoded-runtime\n",
+               character.dir_name.c_str(), character.bones.size(),
+               character.meshes.size());
+  for (const auto& b : character.bones) {
+    if (!is_face_asset_name(b.name)) continue;
+    std::fprintf(stderr,
+                 "[face-inventory] bone=%s parent=%s local=(%.3f %.3f %.3f)\n",
+                 b.name.c_str(), b.parent.empty() ? "<none>" : b.parent.c_str(),
+                 b.local.pos[0], b.local.pos[1], b.local.pos[2]);
+  }
+  for (const auto& m : character.meshes) {
+    if (!is_face_asset_name(m.name) && !is_face_asset_name(m.parent)) continue;
+    std::fprintf(stderr,
+                 "[face-inventory] mesh=%s parent=%s material=%s palette=%zu "
+                 "local=(%.3f %.3f %.3f)\n",
+                 m.name.c_str(), m.parent.empty() ? "<none>" : m.parent.c_str(),
+                 m.material.empty() ? "<none>" : m.material.c_str(),
+                 m.bone_palette.size(), m.local.pos[0], m.local.pos[1],
+                 m.local.pos[2]);
+  }
+}
+
+void dump_face_clip_inventory(const char* label,
+                              const ghogx::character::CharClip& clip) {
+  if (!face_debug_enabled() || !clip.loaded) return;
+  size_t channels = 0;
+  std::unordered_set<std::string> face_rows;
+  for (const auto& frame : clip.frames) {
+    channels += frame.size();
+    for (const auto& ch : frame) {
+      if (is_face_asset_name(ch.bone_name)) face_rows.insert(ch.bone_name);
+    }
+  }
+  size_t face_output_bones = 0;
+  for (const auto& out : clip.output_bones) {
+    if (is_face_asset_name(out.name)) ++face_output_bones;
+  }
+  std::fprintf(stderr,
+               "[face-clip] label=%s clip=%s frames=%zu channels=%zu "
+               "faceRows=%zu outputBones=%zu faceOutputBones=%zu "
+               "relative=%d source=CharClip decoded from stock MILO\n",
+               label, clip.name.c_str(), clip.frames.size(), channels,
+               face_rows.size(), clip.output_bones.size(), face_output_bones,
+               clip.relative ? 1 : 0);
+  for (const auto& out : clip.output_bones) {
+    if (!is_face_asset_name(out.name)) continue;
+    std::fprintf(stderr,
+                 "[face-clip]   output=%s parent=%s local=(%.3f %.3f %.3f) "
+                 "worldStored=(%.3f %.3f %.3f)\n",
+                 out.name.c_str(),
+                 out.parent.empty() ? "<none>" : out.parent.c_str(),
+                 out.local.pos[0], out.local.pos[1], out.local.pos[2],
+                 out.world_stored.pos[0], out.world_stored.pos[1],
+                 out.world_stored.pos[2]);
+  }
 }
 
 std::optional<int> env_int(const char* name) {
@@ -1181,12 +1349,23 @@ bool is_face_channel_name(const std::string& name) {
   std::string lower = name;
   std::transform(lower.begin(), lower.end(), lower.begin(),
                  [](unsigned char c) { return (char)std::tolower(c); });
-  return lower.find("lip") != std::string::npos ||
+  return lower.find("face") != std::string::npos ||
+         lower.find("mouth") != std::string::npos ||
+         lower.find("lip") != std::string::npos ||
          lower.find("brow") != std::string::npos ||
-         lower.find("cheek") != std::string::npos ||
          lower.find("jaw") != std::string::npos ||
          lower.find("lid") != std::string::npos ||
          lower.find("eye") != std::string::npos;
+}
+
+bool is_lower_body_clip_name(const std::string& name) {
+  return name == "bone_facing" ||
+         name.find("pelvis") != std::string::npos ||
+         name.find("-thigh") != std::string::npos ||
+         name.find("-knee") != std::string::npos ||
+         name.find("-ankle") != std::string::npos ||
+         name.find("-foot") != std::string::npos ||
+         name.find("-toe") != std::string::npos;
 }
 
 void keep_face_channels_only(ghogx::character::CharClip& clip) {
@@ -1202,20 +1381,17 @@ void keep_face_channels_only(ghogx::character::CharClip& clip) {
                 frame.end());
     kept += frame.size();
   }
+  clip.output_bones.erase(
+      std::remove_if(clip.output_bones.begin(), clip.output_bones.end(),
+                     [](const ghogx::character::CharClip::OutputBone& bone) {
+                       return !is_face_channel_name(bone.name);
+                     }),
+      clip.output_bones.end());
   std::fprintf(stderr, "[char] face-filtered '%s': kept %zu/%zu channels\n",
                clip.name.c_str(), kept, total);
 }
 
-bool is_lower_body_channel_name(const std::string& name) {
-  return name.find("pelvis") != std::string::npos ||
-         name.find("-thigh") != std::string::npos ||
-         name.find("-knee") != std::string::npos ||
-         name.find("-ankle") != std::string::npos ||
-         name.find("-foot") != std::string::npos ||
-         name.find("-toe") != std::string::npos;
-}
-
-void remove_lower_body_channels(ghogx::character::CharClip& clip) {
+void keep_hand_overlay_channels_only(ghogx::character::CharClip& clip) {
   if (!clip.loaded) return;
   size_t kept = 0;
   size_t total = 0;
@@ -1223,28 +1399,20 @@ void remove_lower_body_channels(ghogx::character::CharClip& clip) {
     total += frame.size();
     frame.erase(std::remove_if(frame.begin(), frame.end(),
                                [](const ghogx::character::ClipChannel& ch) {
-                                 return is_lower_body_channel_name(ch.bone_name);
+                                 return is_lower_body_clip_name(ch.bone_name);
                                }),
                 frame.end());
     kept += frame.size();
   }
-  std::fprintf(stderr, "[char] lower-body-filtered '%s': kept %zu/%zu channels\n",
+  clip.output_bones.erase(
+      std::remove_if(clip.output_bones.begin(), clip.output_bones.end(),
+                     [](const ghogx::character::CharClip::OutputBone& bone) {
+                       return is_lower_body_clip_name(bone.name);
+                     }),
+      clip.output_bones.end());
+  std::fprintf(stderr,
+               "[char] hand-overlay filtered '%s': kept %zu/%zu channels\n",
                clip.name.c_str(), kept, total);
-}
-
-bool filter_overlay_lower_body_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_FILTER_OVERLAY_LOWER_BODY") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_FILTER_OVERLAY_LOWER_BODY");
-  return value && value[0];
-#endif
 }
 
 bool viewer_auto_hand_overlays_enabled() {
@@ -1258,6 +1426,29 @@ bool viewer_auto_hand_overlays_enabled() {
   return enabled;
 #else
   const char* value = std::getenv("GHOGX_VIEWER_AUTO_HAND_OVERLAYS");
+  return value && value[0];
+#endif
+}
+
+bool controller_audit_env_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_AUDIT_CHARACTER_GRAPH") == 0 &&
+      value && value[0];
+  std::free(value);
+  value = nullptr;
+  len = 0;
+  enabled = enabled ||
+            (_dupenv_s(&value, &len, "GHOGX_CONTROLLER_AUDIT") == 0 &&
+             value && value[0]);
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_AUDIT_CHARACTER_GRAPH");
+  if (value && value[0]) return true;
+  value = std::getenv("GHOGX_CONTROLLER_AUDIT");
   return value && value[0];
 #endif
 }
@@ -1554,6 +1745,58 @@ int run_hud_test_mode(const std::string& hdr, const std::string& ark,
 // user can move. The LOD1 duplicates and shadow decals are skipped; a
 // screenshot is taken if --screenshot is supplied.
 // ---------------------------------------------------------------------------
+struct ViewerClipStackOptions {
+  std::string prev_clip_arg;
+  std::string prev_strum_clip_arg;
+  std::string prev_fret_clip_arg;
+  int clip_start_frame = -1;
+  int strum_start_frame = -1;
+  int fret_start_frame = -1;
+  int clip_transition_frame = -1;
+  int strum_transition_frame = -1;
+  int fret_transition_frame = -1;
+  float clip_blend_seconds = 0.25f;
+  float hand_blend_seconds = 0.08f;
+};
+
+struct CharSelectPlacer {
+  int player = -1;
+  const char* name = "";
+  std::array<float, 16> matrix = {1, 0, 0, 0, 0, 1, 0, 0,
+                                  0, 0, 1, 0, 0, 0, 0, 1};
+};
+
+std::optional<CharSelectPlacer> two_player_select_placer(int player) {
+  if (player == 0) {
+    return CharSelectPlacer{
+        0,
+        "char_multi0.placer",
+        {-0.8189f, -0.5734f, 0.0f, 0.0f,
+          0.5734f, -0.8189f, 0.0f, 0.0f,
+          0.0f,     0.0f,    1.0f, 0.0f,
+         -35.0f,  -30.0f,    0.0f, 1.0f}};
+  }
+  if (player == 1) {
+    return CharSelectPlacer{
+        1,
+        "char_multi1.placer",
+        {-0.8190f,  0.5734f, 0.0f, 0.0f,
+         -0.5734f, -0.8190f, 0.0f, 0.0f,
+          0.0f,     0.0f,    1.0f, 0.0f,
+          35.0f,  -30.0f,    0.0f, 1.0f}};
+  }
+  return std::nullopt;
+}
+
+std::array<float, 3> transform_point(const std::array<float, 16>& m,
+                                     const std::array<float, 3>& p) {
+  return {
+      p[0] * m[0] + p[1] * m[4] + p[2] * m[8] + m[12],
+      p[0] * m[1] + p[1] * m[5] + p[2] * m[9] + m[13],
+      p[0] * m[2] + p[1] * m[6] + p[2] * m[10] + m[14],
+  };
+}
+
 int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& milo_path,
                   const std::string& screenshot_path, int screenshot_frame,
@@ -1565,7 +1808,14 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& fret_clip_arg = "",
                   const std::string& face_clip_arg = "",
                   const std::string& char_scene_milo = "",
-                  const std::array<float, 3>& char_offset = {0.0f, 0.0f, 0.0f}) {
+                  const std::array<float, 3>& char_offset = {0.0f, 0.0f, 0.0f},
+                  int two_player_select_placer_player = -1,
+                  const std::string& two_player_select_event = "animate",
+                  float fixed_dt = 0.0f,
+                  bool character_controllers = true,
+                  bool reference_base = false,
+                  const std::string& midi_fret_target = "",
+                  const ViewerClipStackOptions& clip_stack_options = {}) {
   ghogx::character::Character character;
   if (!ghogx::character::load_character(hdr, ark, milo_path, character)) {
     std::fprintf(stderr, "[char] failed to load %s\n", milo_path.c_str());
@@ -1579,6 +1829,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   if (facefx_neutral_loaded) {
     ghogx::character::apply_facefx_pose(*facefx_neutral, 1.0f, character);
   }
+  dump_facefx_lip_sync_servos(character);
+  dump_face_asset_inventory(character);
   const std::vector<std::string> facefx_viseme_milos =
       facefx_viseme_milo_candidates(milo_path, character);
   const std::vector<ghogx::character::CharDriver> character_drivers =
@@ -1621,6 +1873,49 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   ghogx::character::CharRenderer renderer(*win);
   renderer.set_character(std::move(character), textures);
   renderer.set_world_offset(char_offset[0], char_offset[1], char_offset[2]);
+  if (two_player_select_placer_player >= 0) {
+    const auto placer = two_player_select_placer(two_player_select_placer_player);
+    if (!placer) {
+      std::fprintf(stderr,
+                   "[char] invalid --char-2p-select-placer value %d "
+                   "(expected 0 or 1)\n",
+                   two_player_select_placer_player);
+      return 2;
+    }
+    if (two_player_select_event != "animate" &&
+        two_player_select_event != "select") {
+      std::fprintf(stderr,
+                   "[char] invalid --char-2p-select-event value %s "
+                   "(expected animate or select)\n",
+                   two_player_select_event.c_str());
+      return 2;
+    }
+    auto& cam = renderer.camera();
+    const std::array<float, 3> old_target = {
+        cam.target[0], cam.target[1], cam.target[2]};
+    const auto new_target = transform_point(placer->matrix, old_target);
+    renderer.set_world_transform(placer->matrix);
+    cam.target[0] = new_target[0];
+    cam.target[1] = new_target[1];
+    cam.target[2] = new_target[2];
+    std::fprintf(stderr,
+                 "[2p-select] applied_placer=%s player=%d matrix=matrix0 "
+                 "source=ui/gen/multi_sel_character.milo_ps2 "
+                 "owner=multi_sel_character_panel target=spot_ui.mesh "
+                 "translation=(%.1f %.1f %.1f)\n",
+                 placer->name, placer->player, placer->matrix[12],
+                 placer->matrix[13], placer->matrix[14]);
+    std::fprintf(stderr,
+                 "[2p-select] script=ui/gen/multiplayer.dtb "
+                 "screen=multi_sel_character_screen panel=char_multi "
+                 "event=%s clip=ui_loop skips_ui_enter=true "
+                 "char_objects=char/gen/char_objects.dtb "
+                 "reset_hair=%s "
+                 "placers=char_multi0.placer,char_multi1.placer\n",
+                 two_player_select_event.c_str(),
+                 two_player_select_event == "animate" ? "true" : "false");
+  }
+  renderer.set_reference_base(reference_base);
 
   std::optional<ghogx::render::MiloSceneRenderer> scene_renderer;
   if (!char_scene_milo.empty()) {
@@ -1665,8 +1960,11 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
 
   // If a --clip was specified, load ALL frames for real-time playback.
   ghogx::character::CharClip loaded_clip;
+  ghogx::character::CharClip prev_clip;
   ghogx::character::CharClip strum_clip;
+  ghogx::character::CharClip prev_strum_clip;
   ghogx::character::CharClip fret_clip;
+  ghogx::character::CharClip prev_fret_clip;
   ghogx::character::CharClip face_base_clip;
   ghogx::character::CharClip facefx_viseme_clip;
   ghogx::character::CharClip face_clip;
@@ -1683,6 +1981,31 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       std::string clip_milo = spec.substr(0, colon);
       std::string clip_name = spec.substr(colon + 1);
       clip = ghogx::character::load_clip(hdr, ark, clip_milo, clip_name);
+      if (clip.loaded) return clip;
+
+      const std::string requested_role = animation_milo_role(clip_milo);
+      if (!requested_role.empty()) {
+        const std::string requested_milo = normalize_milo_path(clip_milo);
+        for (const auto& driver : character_drivers) {
+          if (driver.clip_milo.empty()) continue;
+          for (const auto& candidate :
+               driver_milo_candidates(milo_path, driver.clip_milo)) {
+            if (candidate == requested_milo ||
+                animation_milo_role(candidate) != requested_role) {
+              continue;
+            }
+            clip = ghogx::character::load_clip(hdr, ark, candidate, clip_name);
+            if (clip.loaded) {
+              std::fprintf(stderr,
+                           "[clip] resolved shared driver milo: %s -> %s "
+                           "via %s\n",
+                           requested_milo.c_str(), candidate.c_str(),
+                           driver.name.c_str());
+              return clip;
+            }
+          }
+        }
+      }
     }
     return clip;
   };
@@ -1729,6 +2052,9 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   if (!clip_arg.empty()) {
     loaded_clip = load_clip_spec(clip_arg);
   }
+  if (!clip_stack_options.prev_clip_arg.empty()) {
+    prev_clip = load_clip_spec(clip_stack_options.prev_clip_arg);
+  }
   std::string resolved_strum_clip_arg = strum_clip_arg;
   std::string resolved_fret_clip_arg = fret_clip_arg;
   std::string resolved_face_clip_arg = face_clip_arg;
@@ -1772,6 +2098,16 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   }
   if (!resolved_strum_clip_arg.empty()) strum_clip = load_clip_spec(resolved_strum_clip_arg);
   if (!resolved_fret_clip_arg.empty()) fret_clip = load_clip_spec(resolved_fret_clip_arg);
+  if (!clip_stack_options.prev_strum_clip_arg.empty()) {
+    prev_strum_clip = load_clip_spec(clip_stack_options.prev_strum_clip_arg);
+  }
+  if (!clip_stack_options.prev_fret_clip_arg.empty()) {
+    prev_fret_clip = load_clip_spec(clip_stack_options.prev_fret_clip_arg);
+  }
+  keep_hand_overlay_channels_only(strum_clip);
+  keep_hand_overlay_channels_only(fret_clip);
+  keep_hand_overlay_channels_only(prev_strum_clip);
+  keep_hand_overlay_channels_only(prev_fret_clip);
   if (clip_arg.empty()) {
     const std::string default_main_clip = default_main_clip_name();
     loaded_clip = load_driver_clip("main.drv", default_main_clip);
@@ -1812,33 +2148,78 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   keep_face_channels_only(face_base_clip);
   keep_face_channels_only(face_clip);
   keep_face_channels_only(facefx_viseme_clip);
-  if (filter_overlay_lower_body_enabled()) {
-    remove_lower_body_channels(strum_clip);
-    remove_lower_body_channels(fret_clip);
-  }
-  if (!guitar_milo.empty() && guitar_milo != "none") {
-    if (!right_hand_weight_override && strum_clip.loaded) right_hand_weight = 1.0f;
-    if (!left_hand_weight_override && fret_clip.loaded) left_hand_weight = 1.0f;
-  }
+  dump_face_clip_inventory("face_base", face_base_clip);
+  dump_face_clip_inventory("face", face_clip);
+  dump_face_clip_inventory("facefx_visemes", facefx_viseme_clip);
   const bool viewer_hand_ik_weights_active =
       right_hand_weight_override || left_hand_weight_override ||
       ((!guitar_milo.empty() && guitar_milo != "none") &&
        (strum_clip.loaded || fret_clip.loaded));
-  if (loaded_clip.loaded) {
-    main_player.play(loaded_clip,
-                     ghogx::character::kCharPlayLoop |
-                         ghogx::character::kCharPlayNoBlend);
-  }
-  if (strum_clip.loaded) {
-    strum_player.play(strum_clip,
-                      ghogx::character::kCharPlayLoop |
-                          ghogx::character::kCharPlayNoBlend);
+  const bool viewer_hand_ik_manual_override_active =
+      right_hand_weight_override || left_hand_weight_override;
+  auto play_viewer_stack =
+      [](ghogx::character::CharClipPlayer& player,
+         const ghogx::character::CharClip& current,
+         const ghogx::character::CharClip& previous, int transition_frame,
+         int start_frame, float blend_seconds, uint32_t fallback_flags,
+         const char* label) {
+        if (start_frame >= 0) {
+          std::fprintf(stderr,
+                       "[char] viewer stack %s: delayed start frame=%d "
+                       "prev=%s current=%s blend=%.3f transition_frame=%d\n",
+                       label, start_frame,
+                       previous.loaded ? previous.name.c_str() : "<none>",
+                       current.loaded ? current.name.c_str() : "<none>",
+                       blend_seconds, transition_frame);
+          return;
+        }
+        if (previous.loaded) {
+          player.play(previous, ghogx::character::kCharPlayNoLoop);
+          if (current.loaded && transition_frame < 0) {
+            player.play(current, ghogx::character::kCharPlayNoLoop,
+                        blend_seconds);
+            std::fprintf(stderr,
+                         "[char] viewer stack %s: prev=%s current=%s "
+                         "blend=%.3f immediate\n",
+                         label, previous.name.c_str(), current.name.c_str(),
+                         blend_seconds);
+          } else {
+            std::fprintf(stderr,
+                         "[char] viewer stack %s: prev=%s current=%s "
+                         "blend=%.3f transition_frame=%d\n",
+                         label, previous.name.c_str(),
+                         current.loaded ? current.name.c_str() : "<none>",
+                         blend_seconds, transition_frame);
+          }
+        } else if (current.loaded) {
+          player.play(current, fallback_flags);
+        }
+      };
+  play_viewer_stack(main_player, loaded_clip, prev_clip,
+                    clip_stack_options.clip_transition_frame,
+                    clip_stack_options.clip_start_frame,
+                    clip_stack_options.clip_blend_seconds,
+                    ghogx::character::kCharPlayLoop |
+                        ghogx::character::kCharPlayNoBlend,
+                    "main");
+  play_viewer_stack(strum_player, strum_clip, prev_strum_clip,
+                    clip_stack_options.strum_transition_frame,
+                    clip_stack_options.strum_start_frame,
+                    clip_stack_options.hand_blend_seconds,
+                    ghogx::character::kCharPlayLoop |
+                        ghogx::character::kCharPlayNoBlend,
+                    "strum");
+  if (strum_clip.loaded || prev_strum_clip.loaded) {
     std::fprintf(stderr, "[char] right.weight = %.3f\n", right_hand_weight);
   }
-  if (fret_clip.loaded) {
-    fret_player.play(fret_clip,
-                     ghogx::character::kCharPlayLoop |
-                         ghogx::character::kCharPlayNoBlend);
+  play_viewer_stack(fret_player, fret_clip, prev_fret_clip,
+                    clip_stack_options.fret_transition_frame,
+                    clip_stack_options.fret_start_frame,
+                    clip_stack_options.hand_blend_seconds,
+                    ghogx::character::kCharPlayLoop |
+                        ghogx::character::kCharPlayNoBlend,
+                    "fret");
+  if (fret_clip.loaded || prev_fret_clip.loaded) {
     std::fprintf(stderr, "[char] left.weight = %.3f\n", left_hand_weight);
   }
   if (face_base_clip.loaded) {
@@ -1870,6 +2251,53 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   uint64_t frame = 0;
   if (!screenshot_path.empty() && max_frames == 0)
     max_frames = screenshot_frame + 3;
+  if (fixed_dt > 0.0f) {
+    std::fprintf(stderr, "[char] fixed dt enabled: %.6f\n", fixed_dt);
+  }
+  if (!character_controllers) {
+    std::fprintf(stderr, "[char] character controllers disabled for diagnostic capture\n");
+  }
+  if (reference_base) {
+    std::fprintf(stderr, "[char] reference base enabled\n");
+  }
+  if (!midi_fret_target.empty()) {
+    std::fprintf(stderr, "[char] midi fret target: %s\n",
+                 midi_fret_target.c_str());
+  }
+  if (clip_frame_override >= 0) {
+    std::fprintf(stderr, "[char] clip-frame override enabled: %d\n",
+                 clip_frame_override);
+  }
+
+  auto evaluate_viewer_main_driver_hand_weights =
+      [&]() -> ghogx::character::SourceCharMainDriverHandWeights {
+    ghogx::character::SourceCharMainDriverHandWeights result;
+    result.left = left_hand_weight;
+    result.right = right_hand_weight;
+    if (viewer_hand_ik_manual_override_active) return result;
+    if (clip_frame_override >= 0 && loaded_clip.loaded) {
+      return ghogx::character::source_char_main_driver_hand_weights_from_clip_flags(
+          renderer.character(), loaded_clip.flags, left_hand_weight,
+          right_hand_weight);
+    }
+    return ghogx::character::source_char_main_driver_hand_weights_from_player(
+        renderer.character(), main_player.active() ? &main_player : nullptr,
+        left_hand_weight, right_hand_weight);
+  };
+  auto log_viewer_main_driver_flags =
+      [&](const ghogx::character::SourceCharMainDriverHandWeights& weights) {
+    for (const auto& flag : weights.driver_flags) {
+      if (controller_audit_env_enabled()) {
+        std::fprintf(stderr,
+                     "[driver-flags] %s flags=0x%08x weight=%.5f "
+                     "clipFlags=0x%08x source=%s\n",
+                     flag.driver.c_str(), flag.flags, flag.weight,
+                     loaded_clip.loaded ? loaded_clip.flags : 0u,
+                     clip_frame_override >= 0 ? "frame-override"
+                                              : "player");
+      }
+    }
+  };
 
   while (!win->should_close()) {
     win->pump();
@@ -1878,6 +2306,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     auto now = clock::now();
     float dt = std::chrono::duration<float>(now - last).count();
     last = now;
+    if (fixed_dt > 0.0f) dt = fixed_dt;
     if (dt > 0.1f) dt = 0.1f;
     pose_time += dt;
 
@@ -1896,65 +2325,168 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     if (cam.distance < 8.0f) cam.distance = 8.0f;
 
     renderer.update(dt);
-    ghogx::character::clear_runtime_trans_worlds(renderer.character());
     // Real-time clip playback through a viewer-side CharDriver play stack.
+    ghogx::character::SourceCharMainDriverHandWeights frame_hand_weights;
+    ghogx::character::ClipChannelLayerStack pose_stack;
+    pose_stack.debug_label = "viewer";
     if (clip_frame_override >= 0) {
-      if (face_base_clip.loaded && !face_base_clip.frames.empty()) {
-        ghogx::character::apply_clip_frame(face_base_clip, clip_frame_override,
-                                           renderer.character());
-      }
-      if (loaded_clip.loaded && !loaded_clip.frames.empty()) {
-        ghogx::character::apply_clip_frame(loaded_clip, clip_frame_override,
-                                           renderer.character());
-      }
-      if (strum_clip.loaded && !strum_clip.frames.empty()) {
-        ghogx::character::apply_clip_frame_weighted(strum_clip,
-                                                    clip_frame_override,
-                                                    right_hand_weight,
-                                                    renderer.character());
-      }
-      if (fret_clip.loaded && !fret_clip.frames.empty()) {
-        ghogx::character::apply_clip_frame_weighted(fret_clip,
-                                                    clip_frame_override,
-                                                    left_hand_weight,
-                                                    renderer.character());
-      }
-      if (face_clip.loaded && !face_clip.frames.empty()) {
-        ghogx::character::apply_clip_frame(face_clip, clip_frame_override,
-                                           renderer.character());
-      }
+      frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
+      ghogx::character::CharacterPoseFrameLayerBuildSources frame_inputs;
+      frame_inputs.main = &loaded_clip;
+      frame_inputs.face_base = &face_base_clip;
+      frame_inputs.strum = &strum_clip;
+      frame_inputs.fret = &fret_clip;
+      frame_inputs.face = &face_clip;
+      frame_inputs.hand_weights = &frame_hand_weights;
+      frame_inputs.frame_idx = clip_frame_override;
+      const ghogx::character::CharacterPoseFrameLayerSources frame_layers =
+          ghogx::character::make_character_pose_frame_layer_sources(
+              frame_inputs);
+      ghogx::character::append_character_pose_frame_layers(pose_stack,
+                                                           frame_layers);
     } else {
       main_player.advance(dt);
       strum_player.advance(dt);
       fret_player.advance(dt);
       face_base_player.advance(dt);
       face_player.advance(dt);
-      face_base_player.apply(renderer.character());
-      main_player.apply(renderer.character());
-      strum_player.apply(renderer.character(), right_hand_weight);
-      fret_player.apply(renderer.character(), left_hand_weight);
-      face_player.apply(renderer.character());
+      auto start_scheduled_viewer_stack =
+          [&](ghogx::character::CharClipPlayer& player,
+              const ghogx::character::CharClip& current,
+              const ghogx::character::CharClip& previous, int start_frame,
+              int transition_frame, float blend_seconds,
+              uint32_t fallback_flags, const char* label) {
+            if (start_frame < 0 ||
+                frame != static_cast<uint64_t>(start_frame)) {
+              return;
+            }
+            if (previous.loaded) {
+              player.play(previous, ghogx::character::kCharPlayNoLoop);
+              if (current.loaded && transition_frame < 0) {
+                player.play(current, ghogx::character::kCharPlayNoLoop,
+                            blend_seconds);
+                std::fprintf(stderr,
+                             "[char] viewer stack %s: start prev=%s "
+                             "current=%s blend=%.3f frame=%llu\n",
+                             label, previous.name.c_str(), current.name.c_str(),
+                             blend_seconds, (unsigned long long)frame);
+              } else {
+                std::fprintf(stderr,
+                             "[char] viewer stack %s: start prev=%s "
+                             "current=%s blend=%.3f frame=%llu "
+                             "transition_frame=%d\n",
+                             label, previous.name.c_str(),
+                             current.loaded ? current.name.c_str() : "<none>",
+                             blend_seconds, (unsigned long long)frame,
+                             transition_frame);
+              }
+            } else if (current.loaded) {
+              player.play(current, fallback_flags);
+              std::fprintf(stderr,
+                           "[char] viewer stack %s: start current=%s "
+                           "flags=0x%08x frame=%llu\n",
+                           label, current.name.c_str(), fallback_flags,
+                           (unsigned long long)frame);
+            }
+          };
+      auto trigger_scheduled_viewer_stack =
+          [&](ghogx::character::CharClipPlayer& player,
+              const ghogx::character::CharClip& clip, int transition_frame,
+              float blend_seconds, const char* label) {
+            if (!clip.loaded || transition_frame < 0 ||
+                frame != static_cast<uint64_t>(transition_frame)) {
+              return;
+            }
+            player.play(clip, ghogx::character::kCharPlayNoLoop,
+                        blend_seconds);
+            std::fprintf(stderr,
+                         "[char] viewer stack %s: trigger current=%s "
+                         "blend=%.3f frame=%llu\n",
+                         label, clip.name.c_str(), blend_seconds,
+                         (unsigned long long)frame);
+          };
+      start_scheduled_viewer_stack(
+          main_player, loaded_clip, prev_clip, clip_stack_options.clip_start_frame,
+          clip_stack_options.clip_transition_frame,
+          clip_stack_options.clip_blend_seconds,
+          ghogx::character::kCharPlayLoop |
+              ghogx::character::kCharPlayNoBlend,
+          "main");
+      start_scheduled_viewer_stack(
+          strum_player, strum_clip, prev_strum_clip,
+          clip_stack_options.strum_start_frame,
+          clip_stack_options.strum_transition_frame,
+          clip_stack_options.hand_blend_seconds,
+          ghogx::character::kCharPlayLoop |
+              ghogx::character::kCharPlayNoBlend,
+          "strum");
+      start_scheduled_viewer_stack(
+          fret_player, fret_clip, prev_fret_clip,
+          clip_stack_options.fret_start_frame,
+          clip_stack_options.fret_transition_frame,
+          clip_stack_options.hand_blend_seconds,
+          ghogx::character::kCharPlayLoop |
+              ghogx::character::kCharPlayNoBlend,
+          "fret");
+      trigger_scheduled_viewer_stack(
+          main_player, loaded_clip, clip_stack_options.clip_transition_frame,
+          clip_stack_options.clip_blend_seconds, "main");
+      trigger_scheduled_viewer_stack(
+          strum_player, strum_clip, clip_stack_options.strum_transition_frame,
+          clip_stack_options.hand_blend_seconds, "strum");
+      trigger_scheduled_viewer_stack(
+          fret_player, fret_clip, clip_stack_options.fret_transition_frame,
+          clip_stack_options.hand_blend_seconds, "fret");
+      frame_hand_weights = evaluate_viewer_main_driver_hand_weights();
+      ghogx::character::CharacterPosePlayerLayerBuildSources player_inputs;
+      player_inputs.main = &main_player;
+      player_inputs.face_base = &face_base_player;
+      player_inputs.strum = &strum_player;
+      player_inputs.fret = &fret_player;
+      player_inputs.face = &face_player;
+      player_inputs.hand_weights = &frame_hand_weights;
+      const ghogx::character::CharacterPosePlayerLayerSources player_layers =
+          ghogx::character::make_character_pose_player_layer_sources(
+              player_inputs);
+      ghogx::character::append_character_pose_player_layers(pose_stack,
+                                                            player_layers);
     }
     // Apply decoded controller data after sampled clip layers. Do not apply
     // FaceFX graph names as pose-bank frame indices: RE shows Good*/Bad*,
     // EyesClosed, Blink, and EyeZCombiner are graph scalar channels, not
     // standalone transform poses.
-    if (viewer_hand_ik_weights_active) {
-      ghogx::character::clear_runtime_ik_weights(renderer.character());
-      if (right_hand_weight_override || strum_clip.loaded) {
-        ghogx::character::set_runtime_ik_weight(renderer.character(),
-                                                "right.weight",
-                                                right_hand_weight);
-      }
-      if (left_hand_weight_override || fret_clip.loaded) {
-        ghogx::character::set_runtime_ik_weight(renderer.character(),
-                                                "left.weight",
-                                                left_hand_weight);
+    std::optional<ghogx::character::SourceCharMainDriverHandWeights>
+        controller_hand_weights;
+    std::vector<ghogx::character::CharacterRuntimeIkWeight>
+        fallback_ik_weights;
+    if (character_controllers) {
+      controller_hand_weights = evaluate_viewer_main_driver_hand_weights();
+      log_viewer_main_driver_flags(*controller_hand_weights);
+      if (viewer_hand_ik_weights_active) {
+        if (right_hand_weight_override ||
+            (strum_clip.loaded && !controller_hand_weights->right_source)) {
+          fallback_ik_weights.push_back({"right.weight",
+                                         frame_hand_weights.right});
+        }
+        if (left_hand_weight_override ||
+            (fret_clip.loaded && !controller_hand_weights->left_source)) {
+          fallback_ik_weights.push_back({"left.weight",
+                                         frame_hand_weights.left});
+        }
       }
     }
-    ghogx::character::FaceFxEyeProperties eye_props;
-    ghogx::character::apply_character_controllers(
-        renderer.character(), static_cast<float>(pose_time), &eye_props);
+    ghogx::character::CharacterPoseControllerFrameSources controller_sources;
+    controller_sources.pose_stack = &pose_stack;
+    controller_sources.driver_weights =
+        controller_hand_weights ? &*controller_hand_weights : nullptr;
+    controller_sources.fallback_ik_weights = std::move(fallback_ik_weights);
+    controller_sources.time_seconds = static_cast<float>(pose_time);
+    controller_sources.controllers_enabled = character_controllers;
+    controller_sources.midi_fret_target = midi_fret_target;
+    controller_sources.midi_fret_target_enabled =
+        !midi_fret_target.empty();
+    ghogx::character::apply_character_pose_controller_frame(
+        renderer.character(), controller_sources);
 
     if (const auto viseme_frame = env_int("GHOGX_FACEFX_VISEME_FRAME")) {
       const float viseme_weight =
@@ -2007,8 +2539,14 @@ int main(int argc, char** argv) {
   std::string strum_clip_arg;
   std::string fret_clip_arg;
   std::string face_clip_arg;
+  std::string midi_fret_target;
+  ViewerClipStackOptions viewer_clip_stack;
   std::array<float, 3> char_offset = {0.0f, 0.0f, 0.0f};
+  int char_2p_select_placer_player = -1;
+  std::string char_2p_select_event = "animate";
   int clip_frame_override = -1;  // --clip-frame N: force anim frame N (no time playback)
+  bool character_controllers = true;
+  bool char_reference_base = false;
   bool hud_test = false;   // --hud-test: draw the in-song HUD overlay only
   HudTestOptions hud_test_options;
   bool hud_options_requested = false;
@@ -2031,6 +2569,7 @@ int main(int argc, char** argv) {
   bool debug_note_counter = false;
   std::string diagnostic_character;
   std::string diagnostic_venue;
+  std::string diagnostic_guitar;
   std::string diagnostic_venue_event;
   std::string diagnostic_camera_shot;
   double diagnostic_camera_path_offset_frames = 0.0;
@@ -2140,6 +2679,12 @@ int main(int argc, char** argv) {
       diagnostic_character = argv[++i];
     } else if (std::strcmp(argv[i], "--diagnostic-venue") == 0 && i + 1 < argc) {
       diagnostic_venue = argv[++i];
+    } else if (std::strcmp(argv[i], "--diagnostic-character") == 0 &&
+               i + 1 < argc) {
+      diagnostic_character = argv[++i];
+    } else if (std::strcmp(argv[i], "--diagnostic-guitar") == 0 &&
+               i + 1 < argc) {
+      diagnostic_guitar = argv[++i];
     } else if (std::strcmp(argv[i], "--diagnostic-venue-event") == 0 &&
                i + 1 < argc) {
       diagnostic_venue_event = argv[++i];
@@ -2185,20 +2730,72 @@ int main(int argc, char** argv) {
       // Overrides the procedural idle sway for a screenshot of real game animation data.
       // (Stored as a pair in char_clip_arg below; parsed after ARK paths are resolved.)
       char_clip_arg = argv[++i];
+    } else if (std::strcmp(argv[i], "--prev-clip") == 0 && i + 1 < argc) {
+      viewer_clip_stack.prev_clip_arg = argv[++i];
     } else if (std::strcmp(argv[i], "--clip-frame") == 0 && i + 1 < argc) {
       clip_frame_override = std::atoi(argv[++i]);  // force a specific anim frame (no playback)
     } else if (std::strcmp(argv[i], "--guitar") == 0 && i + 1 < argc) {
       guitar_milo = argv[++i];
     } else if (std::strcmp(argv[i], "--strum-clip") == 0 && i + 1 < argc) {
       strum_clip_arg = argv[++i];
+    } else if (std::strcmp(argv[i], "--prev-strum-clip") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.prev_strum_clip_arg = argv[++i];
     } else if (std::strcmp(argv[i], "--fret-clip") == 0 && i + 1 < argc) {
       fret_clip_arg = argv[++i];
+    } else if (std::strcmp(argv[i], "--prev-fret-clip") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.prev_fret_clip_arg = argv[++i];
     } else if (std::strcmp(argv[i], "--face-clip") == 0 && i + 1 < argc) {
       face_clip_arg = argv[++i];
+    } else if (std::strcmp(argv[i], "--midi-fret-target") == 0 &&
+               i + 1 < argc) {
+      midi_fret_target = argv[++i];
+    } else if (std::strcmp(argv[i], "--clip-start-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.clip_start_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--strum-start-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.strum_start_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--fret-start-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.fret_start_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--clip-transition-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.clip_transition_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--strum-transition-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.strum_transition_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--fret-transition-frame") == 0 &&
+               i + 1 < argc) {
+      viewer_clip_stack.fret_transition_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--clip-blend") == 0 && i + 1 < argc) {
+      viewer_clip_stack.clip_blend_seconds =
+          static_cast<float>(std::atof(argv[++i]));
+    } else if (std::strcmp(argv[i], "--hand-blend") == 0 && i + 1 < argc) {
+      viewer_clip_stack.hand_blend_seconds =
+          static_cast<float>(std::atof(argv[++i]));
     } else if (std::strcmp(argv[i], "--char-offset") == 0 && i + 3 < argc) {
       char_offset[0] = static_cast<float>(std::atof(argv[++i]));
       char_offset[1] = static_cast<float>(std::atof(argv[++i]));
       char_offset[2] = static_cast<float>(std::atof(argv[++i]));
+    } else if (std::strcmp(argv[i], "--char-2p-select-placer") == 0 &&
+               i + 1 < argc) {
+      const char* value = argv[++i];
+      if (std::strcmp(value, "p1") == 0 ||
+          std::strcmp(value, "player1") == 0 ||
+          std::strcmp(value, "char_multi0.placer") == 0) {
+        char_2p_select_placer_player = 0;
+      } else if (std::strcmp(value, "p2") == 0 ||
+                 std::strcmp(value, "player2") == 0 ||
+                 std::strcmp(value, "char_multi1.placer") == 0) {
+        char_2p_select_placer_player = 1;
+      } else {
+        char_2p_select_placer_player = std::atoi(value);
+      }
+    } else if (std::strcmp(argv[i], "--char-2p-select-event") == 0 &&
+               i + 1 < argc) {
+      char_2p_select_event = argv[++i];
     } else if (std::strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) {
       screenshot_path = argv[++i];
     } else if (std::strcmp(argv[i], "--screenshot-frame") == 0 && i + 1 < argc) {
@@ -2211,10 +2808,22 @@ int main(int argc, char** argv) {
       sparse_screenshots = true;
     } else if (std::strcmp(argv[i], "--fixed-dt") == 0 && i + 1 < argc) {
       fixed_dt = static_cast<float>(std::atof(argv[++i]));
+    } else if (std::strcmp(argv[i], "--no-character-controllers") == 0) {
+      character_controllers = false;
+    } else if (std::strcmp(argv[i], "--char-reference-base") == 0) {
+      char_reference_base = true;
     } else if (std::strcmp(argv[i], "--cam-yaw") == 0 && i + 1 < argc) {
       cam_ovr.yaw = static_cast<float>(std::atof(argv[++i])); cam_ovr.has_yaw = true;
+    } else if (std::strcmp(argv[i], "--cam-yaw-deg") == 0 && i + 1 < argc) {
+      cam_ovr.yaw =
+          static_cast<float>(std::atof(argv[++i]) * 3.14159265358979323846 / 180.0);
+      cam_ovr.has_yaw = true;
     } else if (std::strcmp(argv[i], "--cam-pitch") == 0 && i + 1 < argc) {
       cam_ovr.pitch = static_cast<float>(std::atof(argv[++i])); cam_ovr.has_pitch = true;
+    } else if (std::strcmp(argv[i], "--cam-pitch-deg") == 0 && i + 1 < argc) {
+      cam_ovr.pitch =
+          static_cast<float>(std::atof(argv[++i]) * 3.14159265358979323846 / 180.0);
+      cam_ovr.has_pitch = true;
     } else if (std::strcmp(argv[i], "--cam-dist") == 0 && i + 1 < argc) {
       cam_ovr.dist = static_cast<float>(std::atof(argv[++i])); cam_ovr.has_dist = true;
     } else if (std::strcmp(argv[i], "--cam-target") == 0 && i + 3 < argc) {
@@ -2301,7 +2910,10 @@ int main(int argc, char** argv) {
                          screenshot_frame, max_frames, cam_ovr, char_clip_arg,
                          clip_frame_override, guitar_milo, strum_clip_arg,
                          fret_clip_arg, face_clip_arg, char_scene_milo,
-                         char_offset);
+                         char_offset, char_2p_select_placer_player,
+                         char_2p_select_event, fixed_dt,
+                         character_controllers, char_reference_base, midi_fret_target,
+                         viewer_clip_stack);
   }
 
   // --hud-test: dedicated in-song HUD overlay preview (own window + loop).
@@ -2355,6 +2967,16 @@ int main(int argc, char** argv) {
     engine.set_diagnostic_venue_override(diagnostic_venue);
     std::fprintf(stderr, "[ghogx] diagnostic venue override: %s\n",
                  diagnostic_venue.c_str());
+  }
+  if (!diagnostic_character.empty()) {
+    engine.set_diagnostic_character_override(diagnostic_character);
+    std::fprintf(stderr, "[ghogx] diagnostic character override: %s\n",
+                 diagnostic_character.c_str());
+  }
+  if (!diagnostic_guitar.empty()) {
+    engine.set_diagnostic_guitar_override(diagnostic_guitar);
+    std::fprintf(stderr, "[ghogx] diagnostic guitar override: %s\n",
+                 diagnostic_guitar.c_str());
   }
   if (!diagnostic_venue_event.empty()) {
     engine.set_diagnostic_venue_event(diagnostic_venue_event);

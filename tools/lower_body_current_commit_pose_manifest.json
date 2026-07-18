@@ -1,0 +1,78 @@
+{
+  "tolerance": 0.0006,
+  "tag": "post",
+  "cases": [
+    {
+      "label": "rockabill2_current_commit_lower_body_match",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_current_commit_20260715/rockabill2/ingame_rockabill2_t060_flr_near_rt01_leg_f8_commit005c86f.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_current_commit_20260715/rockabill2/viewer_rockabill2_live_stack_leg_f8_commit800f03a.log",
+      "character": "rockabill2",
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "rows": [
+        "armw",
+        "armr0",
+        "armr1",
+        "armr2"
+      ],
+      "require_ingame_contains": [
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "source_publisher=fenced",
+        "layers_used=0:stand_fast_03"
+      ],
+      "require_viewer_contains": [
+        "[char] reference base enabled",
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] viewer stack main: prev=stand_fast_02 current=stand_fast_03 blend=0.250 immediate",
+        "source_publisher=fenced",
+        "layers_used=0:stand_fast_03"
+      ]
+    },
+    {
+      "label": "rock2_current_commit_lower_body_match",
+      "ingame_log": "../engine/out/visual_proofs/lower_body_current_commit_20260715/rock2/ingame_rock2_t060_flr_near_rt01_leg_f8_commit005c86f.log",
+      "viewer_log": "../engine/out/visual_proofs/lower_body_current_commit_20260715/rock2/viewer_rock2_live_stack_leg_f8_commit800f03a.log",
+      "character": "rock2",
+      "bones": [
+        "bone_pelvis",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe"
+      ],
+      "rows": [
+        "armw",
+        "armr0",
+        "armr1",
+        "armr2"
+      ],
+      "require_ingame_contains": [
+        "[diagnostic-highway] hidden mode=over_scene",
+        "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw",
+        "source_publisher=fenced",
+        "layers_used=0:stand_fast_03"
+      ],
+      "require_viewer_contains": [
+        "[char] reference base enabled",
+        "[char] midi fret target: spot_neck_fret11.mesh",
+        "[char] viewer stack main: prev=stand_fast_02 current=stand_fast_03 blend=0.250 immediate",
+        "source_publisher=fenced",
+        "layers_used=0:stand_fast_03"
+      ]
+    }
+  ]
+}

@@ -1,19 +1,12 @@
 // engine/src/character/char_renderer.h
 //
-// CharRenderer — draw a decoded GH2 band Character in 3-D via D3D9.
+// Draw a decoded GH2 band Character in 3-D via D3D9.
 //
 // Sibling to render::MiloSceneRenderer, specialised for skinned characters:
-//   * the 4 per-vertex floats are BONE WEIGHTS, not colour, so meshes draw
-//     lit-white * texture (never weight-tinted);
-//   * texture is chosen per mesh from its material's diffuse Tex (face / skin /
-//     outfit / hair);
-//   * the orbit camera frames the character and faces the FRONT by default;
-//   * meshes named "shadow*" (the flat blob-shadow decal) are skipped.
-//
-// Pose: renders the BIND POSE by drawing the stored bind-pose-model-space
-// vertices (which form a recognizable standing character — see char_mesh.h).
-// A linear-blend-skinning path (skin_to_pose) is provided for the animation
-// stretch goal; it is not used by the default bind-pose draw.
+//   * the 4 per-vertex floats are bone weights, not colour;
+//   * texture is chosen per mesh from its material's diffuse Tex;
+//   * the orbit camera frames the character and faces the front by default;
+//   * meshes named "shadow*" are skipped.
 
 #pragma once
 
@@ -63,6 +56,7 @@ class CharRenderer {
   void set_world_transform(const std::array<float, 16>& m);
   void set_min_lod(int min_lod);
   void set_use_scene_lighting(bool enabled);
+  void set_reference_base(bool enabled);
   void set_color_modulation(float r, float g, float b, float a = 1.0f);
   std::optional<std::array<float, 16>> attached_prop_world(
       std::string_view object_name) const;
@@ -91,12 +85,12 @@ class CharRenderer {
   Impl* impl_;
 };
 
-// Linear-blend skinning of one mesh into world space.
-// Formula: skinned = sum_i w_i * (v * inv(bone_world_bind_i) * bone_world_curr_i)
-// At bind pose bone_world_curr == bone_world_bind → skin == I → skinned == v.
-// The stored Mesh bind_inv is NOT used here (it was authored in a different space).
-// At the bind pose bone_world_i == bind_i so skinned == v (identity), which is
-// why the stored vertices already render as the bind pose.
+// Linear-blend skinning of one mesh into world space. Source RndMesh rows are
+// consumed as RB3 runtime-authored offsets:
+// offset_i = mesh_world_bind * inverse(bone_world_bind_i). The native path uses
+// skinned = sum_i w_i * (v * offset_i * bone_world_curr_i). Raw MILO palette
+// rows stay on SkinnedMesh for audit; active skinning uses the source runtime
+// palette after null/unresolved rows are trimmed.
 void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                   std::vector<std::array<float, 3>>& out_pos,
                   std::vector<std::array<float, 3>>& out_nrm);

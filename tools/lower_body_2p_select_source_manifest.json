@@ -1,0 +1,51 @@
+{
+  "source": "stock GH2 PS2 assets",
+  "screen_script": "ui/gen/multiplayer.dtb",
+  "screen": "multi_sel_character_screen",
+  "panel": "char_multi",
+  "screen_milo": "ui/gen/multi_sel_character.milo_ps2",
+  "character_panel_milo": "ui/gen/char_multi.milo_ps2",
+  "scroll_event": "{char_multi char_event $playerNum animate}",
+  "outfit_focus_event": "{char_multi char_event [player_num] select}",
+  "char_objects_source": "char/gen/char_objects.dtb",
+  "transition_placers": [
+    "{char_multi set_placer 0 {multi_sel_character_panel find char_multi0.placer}}",
+    "{char_multi set_placer 1 {multi_sel_character_panel find char_multi1.placer}}"
+  ],
+  "char_objects_rule": {
+    "animate_event": "animate",
+    "multiplayer_animate": "reset_hair, then play ui_loop | kPlayLast kPlayGraphLoop",
+    "single_player_animate": "reset_hair, then play ui_enter kPlayNoBlend, then play ui_loop | kPlayLast kPlayGraphLoop",
+    "select_event": "select",
+    "select": "play ui_loop | kPlayLast kPlayGraphLoop"
+  },
+  "placers": {
+    "char_multi0.placer": {
+      "matrix0": [-0.8189, -0.5734, 0.0, 0.5734, -0.8189, 0.0, 0.0, 0.0, 1.0, -35.0, -30.0, 0.0],
+      "matrix1": [-0.8189, -0.5734, 0.0, 0.5734, -0.8189, 0.0, 0.0, 0.0, 1.0, -35.0, -636.0, -47.5],
+      "owner": "multi_sel_character_panel",
+      "target_group": "mgs_camerafix.grp",
+      "target_mesh": "spot_ui.mesh"
+    },
+    "char_multi1.placer": {
+      "matrix0": [-0.8190, 0.5734, 0.0, -0.5734, -0.8190, 0.0, 0.0, 0.0, 1.0, 35.0, -30.0, 0.0],
+      "matrix1": [-0.8190, 0.5734, 0.0, -0.5734, -0.8190, 0.0, 0.0, 0.0, 1.0, 35.0, -636.0, -47.5],
+      "owner": "multi_sel_character_panel",
+      "target_group": "mgs_camerafix.grp",
+      "target_mesh": "spot_ui.mesh"
+    }
+  },
+  "proof_capture": {
+    "mode": "ghogx_app character proof mode",
+    "diagnostic_option": "--char-2p-select-placer",
+    "diagnostic_event_option": "--char-2p-select-event animate",
+    "event": "animate",
+    "reference_base": "live toe-row floor when toe bones exist",
+    "cases": {
+      "glam1": "char_multi0.placer",
+      "metal1": "char_multi1.placer"
+    }
+  },
+  "proof_event_rationale": "The stock 2P character-select screen displays characters through {char_multi char_event $playerNum animate}; the select event is only the outfit focus/load path. Proof captures therefore use animate and must log reset_hair=true.",
+  "isolated_ui_clip_caveat": "char/*/anims/gen/*_ui.milo_ps2:ui_loop is the clip used by both 2P animate and 2P select events, but isolated viewer captures are not complete 2P select proof unless paired with char_multi script, the animate event, char_objects event evidence, and placer evidence."
+}

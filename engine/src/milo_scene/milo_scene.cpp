@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -67,6 +68,20 @@ struct Reader {
     return s;
   }
 
+  std::string utf8_z() {
+    const size_t start = pos;
+    while (pos < n && p[pos] != 0) ++pos;
+    if (pos >= n) {
+      throw std::runtime_error("milo_scene: unterminated UTF-8 string");
+    }
+    if (pos - start > (1u << 20)) {
+      throw std::runtime_error("milo_scene: implausible UTF-8 string length");
+    }
+    std::string s(reinterpret_cast<const char*>(p + start), pos - start);
+    ++pos;
+    return s;
+  }
+
   // Read a Harmonix 3x4 matrix: 9 rotation floats (row-major) + 3 translation.
   Xfm matrix() {
     Xfm m;
@@ -116,6 +131,45 @@ bool debug_particle_decode_enabled() {
 #endif
 }
 
+// Legacy spotlight parsing below still uses the observed empty ObjectFields byte
+// count because that entry stores its Trans metadata in a nonstandard position.
+void read_dtb_node(Reader& r);
+
+void read_dtb_array_parent(Reader& r) {
+  const uint16_t child_count = r.u16();
+  (void)r.u32();  // id
+  for (uint16_t i = 0; i < child_count; ++i) read_dtb_node(r);
+}
+
+void read_dtb_parent(Reader& r) {
+  const bool has_tree = r.u8() != 0;
+  if (!has_tree) return;
+  read_dtb_array_parent(r);
+}
+
+void read_dtb_node(Reader& r) {
+  const uint32_t type = r.u32();
+  const SourceMiloEditorDtbNodePayloadPlan plan =
+      source_milo_editor_dtb_node_payload_plan(static_cast<int32_t>(type));
+  if (plan.reads_uint32) {
+    (void)r.u32();
+  } else if (plan.reads_float) {
+    (void)r.f32();
+  } else if (plan.reads_symbol) {
+    (void)r.str();
+  } else if (plan.reads_array_parent) {
+    read_dtb_array_parent(r);
+  }
+}
+
+void read_object_fields(Reader& r) {
+  const uint32_t combined_revision = r.u32();
+  const uint16_t revision = static_cast<uint16_t>(combined_revision & 0xffffu);
+  (void)r.str();
+  read_dtb_parent(r);
+  if (revision > 0) (void)r.str();
+}
+
 bool is_environ_light_ref(std::string_view ref) {
   if (ref.empty()) return false;
   if (ref.size() >= 4 && ref.compare(ref.size() - 4, 4, ".lit") == 0)
@@ -147,6 +201,100 @@ void read_trans_block(Reader& r, Xfm& local, Xfm& world, uint32_t& constraint,
   target = r.str();          // target name; empty in the GH2 venue props seen
   preserve_scale = r.u8() != 0;
   parent = r.str();          // parent / target name
+}
+
+struct TransFields {
+  Xfm local;
+  Xfm world;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
+  std::string parent;
+};
+
+// MiloLib RndTrans.Read order:
+// combined revision, optional Hmx::Object fields, local/world matrices, legacy
+// child list for rev < 9, constraint, target, preserve-scale, parent.
+// Standalone Trans entries carry Object fields; embedded Trans bases
+// (Mesh/Group/etc.) do not.
+TransFields read_trans_block(Reader& r,
+                             bool standalone,
+                             int32_t parent_dir_revision) {
+  TransFields out;
+  const uint32_t combined_revision = r.u32();
+  const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
+  const SourceRndTransLoadPlan plan =
+      source_rndtrans_load_plan(ver, parent_dir_revision, standalone);
+  if (plan.reads_object_fields) {
+    read_object_fields(r);
+  }
+  out.local = r.matrix();    // matrix 1 (local)
+  out.world = r.matrix();    // matrix 2 (world as stored)
+  if (plan.reads_old_child_list) {
+    const uint32_t trans_count = r.u32();
+    for (uint32_t i = 0; i < trans_count; ++i) {
+      if (plan.old_child_list_is_null_terminated_strings) {
+        (void)r.utf8_z();
+      } else {
+        (void)r.str();
+      }
+    }
+  }
+  if (plan.reads_constraint) out.constraint = r.u32();
+  if (plan.reads_target) out.target = r.str();
+  if (plan.reads_preserve_scale) out.preserve_scale = r.u8() != 0;
+  out.parent = r.str();
+  return out;
+}
+
+void read_animatable_block(Reader& r) {
+  const uint32_t combined_revision = r.u32();
+  const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
+  if (ver > 1) (void)r.f32();
+  if (ver < 4) {
+    if (ver > 2) (void)r.u8();
+  } else {
+    (void)r.u32();
+    return;
+  }
+  if (ver < 1) {
+    const uint32_t anim_entry_count = r.u32();
+    for (uint32_t i = 0; i < anim_entry_count; ++i) {
+      (void)r.str();
+      (void)r.f32();
+      (void)r.f32();
+    }
+    const uint32_t anim_count = r.u32();
+    for (uint32_t i = 0; i < anim_count; ++i) (void)r.str();
+  }
+}
+
+void read_drawable_block(Reader& r, int32_t parent_dir_revision,
+                         bool& showing, float& draw_order) {
+  const uint32_t combined_revision = r.u32();
+  const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
+  const SourceRndDrawableLoadPlan plan =
+      source_rnddrawable_load_plan(ver, parent_dir_revision);
+  if (!plan.accepted_revision) {
+    throw std::runtime_error("milo_scene: RndDrawable revision outside source range");
+  }
+  if (plan.reads_showing) showing = r.u8() != 0;
+  if (plan.reads_old_drawable_list) {
+    const uint32_t drawable_count = r.u32();
+    for (uint32_t i = 0; i < drawable_count; ++i) {
+      if (plan.old_list_is_null_terminated_strings) {
+        (void)r.utf8_z();
+      } else {
+        (void)r.str();
+      }
+    }
+  }
+  if (plan.reads_sphere) r.skip(16);
+  if (plan.reads_draw_order) draw_order = r.f32();
+  if (plan.reads_clip_planes) {
+    const uint32_t clip_plane_count = r.u32();
+    for (uint32_t i = 0; i < clip_plane_count; ++i) r.str();
+  }
 }
 
 void read_spotlight_trans_block(Reader& r, Xfm& local, Xfm& world,
@@ -200,6 +348,30 @@ std::string read_string_at(const std::vector<uint8_t>& body, size_t& offset) {
   return s;
 }
 
+std::vector<std::string> scan_strings(const std::vector<uint8_t>& body) {
+  std::vector<std::string> out;
+  for (size_t o = 0; o + 4 <= body.size(); ++o) {
+    uint32_t len;
+    std::memcpy(&len, body.data() + o, 4);
+    if (len == 0 || len > 96 || o + 4 + len > body.size()) continue;
+    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
+    bool printable = true;
+    bool has_alpha = false;
+    for (uint32_t k = 0; k < len; ++k) {
+      char c = s[k];
+      if (c < 0x20 || c >= 0x7f) {
+        printable = false;
+        break;
+      }
+      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) has_alpha = true;
+    }
+    if (!printable || !has_alpha) continue;
+    std::string value(s, len);
+    if (out.empty() || out.back() != value) out.push_back(std::move(value));
+    o += 3 + len;
+  }
+  return out;
+}
 struct ScannedString {
   size_t offset = 0;
   std::string value;
@@ -843,13 +1015,1322 @@ bool decode_spotlight_source_order(const std::vector<uint8_t>& body,
 
 }  // namespace
 
+SourceMiloEditorDtbNodePayloadPlan
+source_milo_editor_dtb_node_payload_plan(int32_t node_type) {
+  SourceMiloEditorDtbNodePayloadPlan plan;
+  plan.node_type = node_type;
+  switch (node_type) {
+    case 0x00:
+      plan.node_type_name = "Int";
+      plan.known_node_type = true;
+      plan.reads_uint32 = true;
+      break;
+    case 0x01:
+      plan.node_type_name = "Float";
+      plan.known_node_type = true;
+      plan.reads_float = true;
+      break;
+    case 0x02:
+      plan.node_type_name = "Variable";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x03:
+      plan.node_type_name = "Func";
+      plan.known_node_type = true;
+      plan.consumes_no_payload = true;
+      break;
+    case 0x04:
+      plan.node_type_name = "Object";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x05:
+      plan.node_type_name = "Symbol";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x06:
+      plan.node_type_name = "Unhandled";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x07:
+      plan.node_type_name = "IfDef";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x08:
+      plan.node_type_name = "Else";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x09:
+      plan.node_type_name = "EndIf";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x10:
+      plan.node_type_name = "Array";
+      plan.known_node_type = true;
+      plan.reads_array_parent = true;
+      break;
+    case 0x11:
+      plan.node_type_name = "Command";
+      plan.known_node_type = true;
+      plan.reads_array_parent = true;
+      break;
+    case 0x12:
+      plan.node_type_name = "String";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x13:
+      plan.node_type_name = "Property";
+      plan.known_node_type = true;
+      plan.reads_array_parent = true;
+      break;
+    case 0x20:
+      plan.node_type_name = "Define";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x21:
+      plan.node_type_name = "Include";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x22:
+      plan.node_type_name = "Merge";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x23:
+      plan.node_type_name = "IfNDef";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x24:
+      plan.node_type_name = "Autorun";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    case 0x25:
+      plan.node_type_name = "Undef";
+      plan.known_node_type = true;
+      plan.reads_symbol = true;
+      break;
+    default:
+      plan.node_type_name = "Unknown";
+      plan.consumes_no_payload = true;
+      break;
+  }
+  return plan;
+}
+
+SourceRndTransLoadPlan source_rndtrans_load_plan(
+    int32_t revision,
+    int32_t parent_revision,
+    bool standalone) {
+  SourceRndTransLoadPlan plan;
+  plan.revision = revision;
+  plan.parent_revision = parent_revision;
+  plan.standalone = standalone;
+  plan.reads_object_fields = standalone;
+  plan.reads_old_child_list = revision < 9;
+  plan.old_child_list_is_null_terminated_strings =
+      plan.reads_old_child_list && parent_revision <= 6;
+  plan.old_child_list_is_symbols =
+      plan.reads_old_child_list && parent_revision > 6;
+  plan.reads_constraint = revision > 6;
+  plan.reads_target = revision > 5;
+  plan.reads_preserve_scale = revision > 6;
+  return plan;
+}
+
+SourceMiloEditorRndTransNewPlan source_milo_editor_rndtrans_new_plan(
+    int32_t revision,
+    int32_t alt_revision) {
+  SourceMiloEditorRndTransNewPlan plan;
+  plan.revision = revision;
+  plan.alt_revision = alt_revision;
+  plan.local_xfm = Xfm{};
+  plan.world_xfm = Xfm{};
+  return plan;
+}
+
+SourceRndTransformableCppLoadPlan source_rndtransformable_cpp_load_plan(
+    int32_t revision,
+    bool loading_proxy_from_disk,
+    bool class_is_static) {
+  SourceRndTransformableCppLoadPlan plan;
+  plan.revision = revision;
+  plan.loading_proxy_from_disk = loading_proxy_from_disk;
+  plan.class_is_static = class_is_static;
+  plan.accepted_revision = revision >= 0 && revision <= 9;
+  if (!plan.accepted_revision) return plan;
+
+  plan.reads_object_fields_for_static_class = class_is_static;
+  plan.reads_proxy_temp_transforms = loading_proxy_from_disk;
+  plan.reads_stored_local_world = !loading_proxy_from_disk;
+  plan.reads_old_child_list = revision < 9;
+  plan.old_child_list_sets_parent = revision < 9;
+  plan.rev6_reads_constraint = revision == 6;
+  plan.rev6_preserve_scale_from_target_world = revision == 6;
+  plan.reads_legacy_assert_vector = revision != 0 && revision < 7;
+  plan.reads_legacy_bool = revision >= 2 && revision <= 4;
+  plan.reads_sphere = revision == 6 || revision == 7;
+  plan.may_set_drawable_sphere = plan.reads_sphere;
+  plan.reads_target = revision > 5;
+  plan.proxy_loads_target_ref = plan.reads_target && loading_proxy_from_disk;
+  plan.reads_preserve_scale = revision > 6;
+  plan.reads_parent = revision > 6;
+  plan.proxy_loads_parent_ref = revision > 8 && loading_proxy_from_disk;
+  plan.parent_sets_trans_parent =
+      revision > 8 ? !loading_proxy_from_disk : revision > 6;
+  plan.rev7_8_parent_sets_constraint_parent_world =
+      revision > 6 && revision <= 8;
+  plan.rev6_parent_from_target_when_constraint_parent_world = revision == 6;
+  return plan;
+}
+
+SourceRndTransformableDefaultState source_rndtransformable_default_state() {
+  return SourceRndTransformableDefaultState{};
+}
+
+SourceRndTransformableSavePlan source_rndtransformable_save_plan() {
+  return SourceRndTransformableSavePlan{};
+}
+
+SourceRndTransformableDirtyPlan source_rndtransformable_set_dirty_plan(
+    bool cache_already_dirty,
+    bool has_children) {
+  SourceRndTransformableDirtyPlan plan;
+  plan.cache_already_dirty = cache_already_dirty;
+  plan.set_dirty_force = !cache_already_dirty;
+  plan.sets_last_bit = !cache_already_dirty;
+  plan.propagates_to_children = !cache_already_dirty && has_children;
+  return plan;
+}
+
+SourceRndTransformableParentPlan source_rndtransformable_set_parent_plan(
+    bool same_parent,
+    bool preserve_world,
+    bool had_old_parent,
+    bool has_new_parent) {
+  SourceRndTransformableParentPlan plan;
+  plan.same_parent = same_parent;
+  plan.preserve_world = preserve_world;
+  plan.had_old_parent = had_old_parent;
+  plan.has_new_parent = has_new_parent;
+  if (same_parent) {
+    plan.same_parent_sets_dirty = true;
+    plan.calls_set_dirty = true;
+    return plan;
+  }
+  plan.computes_reparent_delta = preserve_world;
+  plan.transforms_local_xfm = preserve_world;
+  plan.transforms_trans_anims = preserve_world;
+  plan.removes_from_old_parent = had_old_parent;
+  plan.assigns_parent = true;
+  plan.cache_set_to_new_parent_or_zero = true;
+  plan.adds_to_new_parent_children = has_new_parent;
+  plan.calls_set_dirty = true;
+  return plan;
+}
+
+SourceRndTransformableWorldWritePlan
+source_rndtransformable_world_write_plan(
+    const std::string& setter,
+    bool has_children) {
+  SourceRndTransformableWorldWritePlan plan;
+  plan.setter = setter;
+  if (setter == "SetWorldXfm") {
+    plan.writes_world_xfm = true;
+    plan.clears_cache_dirty_bit = true;
+    plan.calls_updated_world_xfm = true;
+    plan.dirties_children = has_children;
+  } else if (setter == "SetWorldPos") {
+    plan.writes_world_position_only = true;
+    plan.calls_updated_world_xfm = true;
+    plan.dirties_children = has_children;
+  }
+  return plan;
+}
+
+SourceRndTransformableLocalWritePlan
+source_rndtransformable_local_write_plan(const std::string& setter) {
+  SourceRndTransformableLocalWritePlan plan;
+  plan.setter = setter;
+  if (setter == "ResetLocalXfm") {
+    plan.resets_local_xfm = true;
+    plan.calls_set_dirty = true;
+  } else if (setter == "SetLocalXfm") {
+    plan.writes_local_xfm = true;
+    plan.calls_set_dirty = true;
+  } else if (setter == "SetLocalRot") {
+    plan.writes_local_rotation = true;
+    plan.calls_set_dirty = true;
+  } else if (setter == "SetLocalPos") {
+    plan.writes_local_position = true;
+    plan.calls_set_dirty = true;
+  } else if (setter == "DirtyLocalXfm") {
+    plan.calls_set_dirty = true;
+    plan.returns_dirty_local_ref = true;
+  }
+  return plan;
+}
+
+SourceRndTransformableConstraintPlan
+source_rndtransformable_set_constraint_plan(
+    int32_t constraint,
+    const std::string& target,
+    bool preserve_scale) {
+  SourceRndTransformableConstraintPlan plan;
+  plan.constraint = constraint;
+  plan.target = target;
+  plan.preserve_scale = preserve_scale;
+  return plan;
+}
+
+SourceRndTransformableCopyPlan source_rndtransformable_copy_plan() {
+  SourceRndTransformableCopyPlan plan;
+  plan.member_steps = {
+      "COPY_MEMBER(mWorldXfm)",
+      "COPY_MEMBER(mLocalXfm)",
+      "if(ty != kCopyFromMax) COPY_MEMBER(mPreserveScale)",
+      "if(ty != kCopyFromMax) COPY_MEMBER(mConstraint)",
+      "if(ty != kCopyFromMax) COPY_MEMBER(mTarget)",
+      "else if(mConstraint == c->mConstraint) COPY_MEMBER(mTarget)",
+      "SetTransParent(c->mParent, false)",
+  };
+  return plan;
+}
+
+SourceRndTransformableHandlerPlan source_rndtransformable_handler_plan() {
+  SourceRndTransformableHandlerPlan plan;
+  plan.handlers = {
+      "copy_local_to:OnCopyLocalTo",
+      "set_constraint:OnSetTransConstraint",
+      "set_local_rot:OnSetLocalRot",
+      "set_local_rot_index:OnSetLocalRotIndex",
+      "set_local_rot_mat:OnSetLocalRotMat",
+      "set_local_pos:OnSetLocalPos",
+      "set_local_pos_index:OnSetLocalPosIndex",
+      "get_local_rot:OnGetLocalRot",
+      "get_local_rot_index:OnGetLocalRotIndex",
+      "get_local_pos:OnGetLocalPos",
+      "get_local_pos_index:OnGetLocalPosIndex",
+      "set_local_scale:OnSetLocalScale",
+      "set_local_scale_index:OnSetLocalScaleIndex",
+      "get_local_scale:OnGetLocalScale",
+      "get_local_scale_index:OnGetLocalScaleIndex",
+      "get_world_forward:OnGetWorldForward",
+      "get_world_pos:OnGetWorldPos",
+      "get_world_rot:OnGetWorldRot",
+      "get_children:OnGetChildren",
+  };
+  plan.actions = {
+      "normalize_local:Normalize(mLocalXfm.m,mLocalXfm.m)",
+      "set_trans_parent:SetTransParent",
+      "reset_xfm:DirtyLocalXfm().Reset()",
+      "distribute_children:DistributeChildren",
+  };
+  plan.exprs = {"trans_parent:mParent"};
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceRndTransformablePropSyncPlan
+source_rndtransformable_prop_sync_plan() {
+  SourceRndTransformablePropSyncPlan plan;
+  plan.set_properties = {
+      "trans_parent:SetTransParent(_val.Obj<RndTransformable>(0), true)",
+      "trans_constraint:SetTransConstraint((Constraint)_val.Int(0), mTarget, mPreserveScale)",
+      "trans_target:SetTransConstraint((Constraint)mConstraint, _val.Obj<RndTransformable>(0), mPreserveScale)",
+      "preserve_scale:SetTransConstraint((Constraint)mConstraint, mTarget, _val.Int(0))",
+  };
+  return plan;
+}
+
+SourceRndTransformableDistributeChildrenPlan
+source_rndtransformable_distribute_children_plan(
+    bool horizontal,
+    float spacing,
+    const std::vector<SourceRndTransformableChildRow>& children) {
+  SourceRndTransformableDistributeChildrenPlan plan;
+  plan.horizontal = horizontal;
+  plan.spacing = spacing;
+  plan.axis = horizontal ? 0 : 2;
+  std::vector<size_t> order(children.size());
+  for (size_t i = 0; i < children.size(); ++i) order[i] = i;
+  if (children.size() < 2) return plan;
+
+  plan.entered = true;
+  if (horizontal) {
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+      return children[a].local_x < children[b].local_x;
+    });
+  } else {
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+      return children[a].local_z > children[b].local_z;
+    });
+  }
+
+  auto axis_value = [&](size_t index) {
+    return horizontal ? children[index].local_x : children[index].local_z;
+  };
+  plan.base_axis_value = axis_value(order.front());
+  for (size_t sorted_index : order) {
+    plan.sorted_children.push_back(children[sorted_index].name);
+  }
+  for (size_t i = 1; i < order.size(); ++i) {
+    const size_t source_index = order[i];
+    SourceRndTransformableDistributedChild write;
+    write.name = children[source_index].name;
+    write.source_index = static_cast<int32_t>(source_index);
+    write.original_axis_value = axis_value(source_index);
+    write.assigned_axis_value =
+        spacing * static_cast<float>(i) + plan.base_axis_value;
+    plan.writes.push_back(write);
+  }
+  return plan;
+}
+
+SourceRndTransformableCopyLocalToPlan
+source_rndtransformable_copy_local_to_plan(
+    const std::vector<std::string>& targets) {
+  SourceRndTransformableCopyLocalToPlan plan;
+  for (auto it = targets.rbegin(); it != targets.rend(); ++it) {
+    plan.write_order.push_back(*it);
+  }
+  return plan;
+}
+
+SourceRndTransProxyDefaultState source_rndtrans_proxy_default_state() {
+  return SourceRndTransProxyDefaultState{};
+}
+
+SourceRndTransProxyLoadPlan source_rndtrans_proxy_load_plan(int32_t revision) {
+  SourceRndTransProxyLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 1;
+  plan.reads_transformable = revision != 0;
+  return plan;
+}
+
+SourceRndTransProxySyncPlan source_rndtrans_proxy_sync_plan(
+    bool has_proxy,
+    bool part_null,
+    bool proxy_is_transformable,
+    bool part_lookup_found_transformable) {
+  SourceRndTransProxySyncPlan plan;
+  plan.has_proxy = has_proxy;
+  plan.part_null = part_null;
+  plan.attempts_direct_proxy_parent = has_proxy && part_null;
+  plan.uses_direct_proxy_parent =
+      plan.attempts_direct_proxy_parent && proxy_is_transformable;
+  plan.attempts_part_lookup = has_proxy && !plan.uses_direct_proxy_parent;
+  plan.uses_part_lookup_parent =
+      plan.attempts_part_lookup && part_lookup_found_transformable;
+  if (plan.uses_direct_proxy_parent) {
+    plan.clears_parent_final = false;
+    plan.resolved_parent_source = "proxy";
+  } else if (plan.uses_part_lookup_parent) {
+    plan.clears_parent_final = false;
+    plan.resolved_parent_source = "part";
+  }
+  return plan;
+}
+
+SourceRndTransProxySetterPlan source_rndtrans_proxy_setter_plan(
+    bool value_changed) {
+  SourceRndTransProxySetterPlan plan;
+  plan.value_changed = value_changed;
+  plan.assigns_value = value_changed;
+  plan.calls_sync = value_changed;
+  return plan;
+}
+
+SourceRndTransProxySavePlan source_rndtrans_proxy_save_plan() {
+  return SourceRndTransProxySavePlan{};
+}
+
+SourceRndTransProxyCopyPlan source_rndtrans_proxy_copy_plan() {
+  SourceRndTransProxyCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndTransformable"};
+  plan.member_order = {"mProxy", "mPart"};
+  return plan;
+}
+
+SourceRndTransProxyHandlerPlan source_rndtrans_proxy_handler_plan() {
+  SourceRndTransProxyHandlerPlan plan;
+  plan.superclasses = {"RndTransformable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndTransProxyPropSyncPlan source_rndtrans_proxy_prop_sync_plan() {
+  SourceRndTransProxyPropSyncPlan plan;
+  plan.props = {"proxy:Sync", "part:Sync"};
+  plan.superclasses = {"RndTransformable"};
+  return plan;
+}
+
+SourceRndTransAnimDefaultState source_rndtrans_anim_default_state() {
+  return SourceRndTransAnimDefaultState{};
+}
+
+SourceRndTransAnimLoadPlan source_rndtrans_anim_load_plan(int32_t revision) {
+  SourceRndTransAnimLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 7;
+  plan.reads_object_fields = revision > 4;
+  plan.dumps_drawable = revision < 6;
+  plan.reads_rot_and_trans_keys = revision != 2;
+  plan.reads_legacy_int = revision < 3;
+  plan.reads_follow_path = revision > 1;
+  plan.follow_path_from_keys_owner = revision <= 1;
+  plan.reads_rot_slerp = revision > 3;
+  plan.reads_rot_spline = revision > 6;
+  return plan;
+}
+
+SourceRndTransAnimSetKeysOwnerPlan source_rndtrans_anim_set_keys_owner_plan() {
+  return SourceRndTransAnimSetKeysOwnerPlan{};
+}
+
+SourceRndTransAnimReplacePlan source_rndtrans_anim_replace_plan(
+    bool keys_owner_matches_from,
+    bool replacement_null) {
+  SourceRndTransAnimReplacePlan plan;
+  plan.keys_owner_matches_from = keys_owner_matches_from;
+  plan.replacement_null = replacement_null;
+  if (keys_owner_matches_from) {
+    plan.assigns_self = replacement_null;
+    plan.copies_replacement_keys_owner = !replacement_null;
+  }
+  return plan;
+}
+
+SourceRndTransAnimCopyPlan source_rndtrans_anim_copy_plan(
+    bool copy_shallow,
+    bool copy_from_max,
+    bool source_keys_owner_is_self) {
+  SourceRndTransAnimCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable"};
+  plan.copies_keys_owner_ref =
+      copy_shallow || (copy_from_max && !source_keys_owner_is_self);
+  plan.assigns_self_as_keys_owner = !plan.copies_keys_owner_ref;
+  if (plan.assigns_self_as_keys_owner) {
+    plan.copied_owned_members = {"mTransKeys",   "mRotKeys",    "mScaleKeys",
+                                 "mTransSpline", "mRepeatTrans", "mScaleSpline",
+                                 "mFollowPath",  "mRotSlerp",   "mRotSpline"};
+  }
+  return plan;
+}
+
+SourceRndTransAnimFramePlan source_rndtrans_anim_set_frame_plan(bool has_trans) {
+  SourceRndTransAnimFramePlan plan;
+  plan.has_trans = has_trans;
+  plan.make_transform_assert_body_only = true;
+  plan.copies_local_transform = has_trans;
+  plan.calls_make_transform = has_trans;
+  plan.writes_local_transform = has_trans;
+  return plan;
+}
+
+SourceRndTransAnimSetKeyPlan source_rndtrans_anim_set_key_plan(bool has_trans) {
+  SourceRndTransAnimSetKeyPlan plan;
+  plan.has_trans = has_trans;
+  if (has_trans) {
+    plan.operations = {"add_trans_key_from_local_translation",
+                       "normalize_local_matrix",
+                       "add_rot_key_from_quat",
+                       "add_scale_key_from_local_matrix"};
+  }
+  return plan;
+}
+
+SourceRndTransAnimHandlerPlan source_rndtrans_anim_handler_plan() {
+  SourceRndTransAnimHandlerPlan plan;
+  plan.handlers = {"trans",           "splice",
+                   "linearize",       "set_trans",
+                   "remove_rot_keys", "remove_trans_keys",
+                   "num_trans_keys",  "num_rot_keys",
+                   "num_scale_keys",  "add_trans_key",
+                   "add_rot_key",     "add_scale_key",
+                   "set_trans_spline","set_scale_spline",
+                   "set_rot_slerp"};
+  plan.superclasses = {"RndAnimatable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndTransAnimPropSyncPlan source_rndtrans_anim_prop_sync_plan() {
+  SourceRndTransAnimPropSyncPlan plan;
+  plan.props = {"keys_owner:SetKeysOwner"};
+  plan.superclasses = {"RndAnimatable"};
+  return plan;
+}
+
+SourceRndAnimatableDefaultState source_rndanimatable_default_state() {
+  return SourceRndAnimatableDefaultState{};
+}
+
+SourceRndAnimatableLoadPlan source_rndanimatable_load_plan(
+    int32_t revision) {
+  SourceRndAnimatableLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 4;
+  plan.reads_frame = revision > 1;
+  plan.reads_int_rate = revision > 3;
+  plan.reads_legacy_byte_rate = revision > 2 && revision <= 3;
+  plan.reads_legacy_rev0_filter_rows = revision < 1;
+  plan.reads_legacy_rev0_anim_list = revision < 1;
+  return plan;
+}
+
+SourceRndAnimatableRatePlan source_rndanimatable_rate_plan(
+    SourceRndAnimRate rate) {
+  SourceRndAnimatableRatePlan plan;
+  plan.rate = rate;
+  switch (rate) {
+    case kSourceRndAnimRate30Fps:
+      plan.valid_rate = true;
+      plan.task_units = "seconds";
+      plan.frames_per_unit = 30.0f;
+      break;
+    case kSourceRndAnimRate480Fpb:
+      plan.valid_rate = true;
+      plan.task_units = "beats";
+      plan.frames_per_unit = 480.0f;
+      break;
+    case kSourceRndAnimRate30FpsUi:
+      plan.valid_rate = true;
+      plan.task_units = "ui_seconds";
+      plan.frames_per_unit = 30.0f;
+      break;
+    case kSourceRndAnimRate1Fpb:
+      plan.valid_rate = true;
+      plan.task_units = "beats";
+      plan.frames_per_unit = 1.0f;
+      break;
+    case kSourceRndAnimRate30FpsTutorial:
+      plan.valid_rate = true;
+      plan.task_units = "tutorial_seconds";
+      plan.frames_per_unit = 30.0f;
+      break;
+    default:
+      break;
+  }
+  return plan;
+}
+
+SourceRndAnimatableConvertFramesPlan
+source_rndanimatable_convert_frames_plan(
+    SourceRndAnimRate rate,
+    float input_frames) {
+  SourceRndAnimatableConvertFramesPlan plan;
+  plan.rate = rate;
+  plan.input_frames = input_frames;
+  const SourceRndAnimatableRatePlan rate_plan =
+      source_rndanimatable_rate_plan(rate);
+  plan.task_units = rate_plan.task_units;
+  if (rate_plan.frames_per_unit != 0.0f) {
+    plan.output_units = input_frames / rate_plan.frames_per_unit;
+  }
+  plan.returns_converted = rate_plan.task_units != "beats";
+  return plan;
+}
+
+SourceRndAnimatableCopyPlan source_rndanimatable_copy_plan() {
+  return SourceRndAnimatableCopyPlan{};
+}
+
+SourceRndAnimatableHandlerPlan source_rndanimatable_handler_plan() {
+  SourceRndAnimatableHandlerPlan plan;
+  plan.handlers = {"set_frame",      "frame",        "set_key",
+                   "end_frame",      "start_frame",  "animate",
+                   "stop_animation", "is_animating", "convert_frames"};
+  return plan;
+}
+
+SourceRndAnimatablePropSyncPlan source_rndanimatable_prop_sync_plan() {
+  SourceRndAnimatablePropSyncPlan plan;
+  plan.props = {"rate", "frame:SetFrame"};
+  return plan;
+}
+
+SourceRndAnimatableAnimatePlan source_rndanimatable_on_animate_plan() {
+  SourceRndAnimatableAnimatePlan plan;
+  plan.defaults = {"blend=0",       "start=StartFrame",
+                   "end=EndFrame",  "loop=Loop",
+                   "units=Units",   "period=FramesPerUnit",
+                   "delay=0",       "name=null",
+                   "wait=false"};
+  plan.data_keys = {"blend", "delay", "units", "name", "wait"};
+  plan.mode_rows = {"range:start/end/no-loop",
+                    "loop:optional-start/optional-end/loop",
+                    "dest:current-frame-to-dest/no-loop",
+                    "period:abs-end-minus-start-over-period"};
+  return plan;
+}
+
+SourceAnimTaskInitPlan source_anim_task_init_plan(
+    float start,
+    float end,
+    float frames_per_unit,
+    bool loop,
+    float blend_period,
+    bool has_blend_task) {
+  SourceAnimTaskInitPlan plan;
+  plan.start = start;
+  plan.end = end;
+  plan.frames_per_unit = frames_per_unit;
+  plan.loop = loop;
+  plan.blend_period = blend_period;
+  plan.min_frame = std::min(start, end);
+  plan.max_frame = std::max(start, end);
+  if (start < end) {
+    plan.scale = frames_per_unit;
+    plan.offset = plan.min_frame;
+  } else {
+    plan.scale = -frames_per_unit;
+    plan.offset = plan.max_frame;
+  }
+  plan.marks_blend_task_when_blending =
+      blend_period != 0.0f && has_blend_task;
+  return plan;
+}
+
+SourceAnimTaskTimePlan source_anim_task_time_until_end_plan(
+    float min_frame,
+    float max_frame,
+    float current_frame,
+    float frames_per_unit,
+    float scale) {
+  SourceAnimTaskTimePlan plan;
+  plan.min_frame = min_frame;
+  plan.max_frame = max_frame;
+  plan.current_frame = current_frame;
+  plan.frames_per_unit = frames_per_unit;
+  plan.scale = scale;
+  if (frames_per_unit == 0.0f) return plan;
+  if (scale > 0.0f) {
+    plan.time_until_end = (max_frame - current_frame) / frames_per_unit;
+  } else {
+    plan.time_until_end = (current_frame - min_frame) / frames_per_unit;
+  }
+  return plan;
+}
+
+SourceRndPollableHandlerPlan source_rndpollable_handler_plan() {
+  SourceRndPollableHandlerPlan plan;
+  plan.actions = {"enter", "poll"};
+  plan.static_actions = {"exit"};
+  return plan;
+}
+
+SourceRndPollableBasePlan source_rndpollable_base_plan() {
+  return SourceRndPollableBasePlan{};
+}
+
+SourceRndPollAnimDefaultState source_rndpollanim_default_state() {
+  return SourceRndPollAnimDefaultState{};
+}
+
+SourceRndPollAnimEndFramePlan source_rndpollanim_end_frame_plan(
+    const std::vector<float>& child_end_frames) {
+  SourceRndPollAnimEndFramePlan plan;
+  plan.child_end_frames = child_end_frames;
+  for (float child_frame : child_end_frames) {
+    if (plan.result < child_frame) plan.result = child_frame;
+  }
+  return plan;
+}
+
+SourceRndPollAnimChildListPlan source_rndpollanim_child_list_plan(
+    int32_t child_count) {
+  SourceRndPollAnimChildListPlan plan;
+  plan.child_count = child_count;
+  plan.published_children = std::max(0, child_count);
+  return plan;
+}
+
+SourceRndPollAnimLifecyclePlan source_rndpollanim_enter_plan(
+    int32_t child_count) {
+  SourceRndPollAnimLifecyclePlan plan;
+  plan.child_count = child_count;
+  plan.start_anim_calls = std::max(0, child_count);
+  return plan;
+}
+
+SourceRndPollAnimLifecyclePlan source_rndpollanim_exit_plan(
+    int32_t child_count) {
+  SourceRndPollAnimLifecyclePlan plan;
+  plan.child_count = child_count;
+  plan.end_anim_calls = std::max(0, child_count);
+  return plan;
+}
+
+SourceRndPollAnimRateFramePlan source_rndpollanim_rate_frame_plan(
+    SourceRndAnimRate rate,
+    float seconds,
+    float ui_seconds,
+    float tutorial_seconds,
+    float beat) {
+  SourceRndPollAnimRateFramePlan plan;
+  plan.rate = rate;
+  switch (rate) {
+    case kSourceRndAnimRate30Fps:
+      plan.recognized = true;
+      plan.uses_seconds = true;
+      plan.multiplier = 30.0f;
+      plan.frame = 30.0f * seconds;
+      break;
+    case kSourceRndAnimRate480Fpb:
+      plan.recognized = true;
+      plan.uses_beat = true;
+      plan.multiplier = 480.0f;
+      plan.frame = 480.0f * beat;
+      break;
+    case kSourceRndAnimRate30FpsUi:
+      plan.recognized = true;
+      plan.uses_ui_seconds = true;
+      plan.multiplier = 30.0f;
+      plan.frame = 30.0f * ui_seconds;
+      break;
+    case kSourceRndAnimRate1Fpb:
+      plan.recognized = true;
+      plan.uses_beat = true;
+      plan.multiplier = 1.0f;
+      plan.frame = beat;
+      break;
+    case kSourceRndAnimRate30FpsTutorial:
+      plan.recognized = true;
+      plan.uses_tutorial_seconds = true;
+      plan.multiplier = 30.0f;
+      plan.frame = 30.0f * tutorial_seconds;
+      break;
+    case kSourceRndAnimRateUnknown:
+    default:
+      break;
+  }
+  return plan;
+}
+
+SourceRndPollAnimPollPlan source_rndpollanim_poll_plan(int32_t child_count) {
+  SourceRndPollAnimPollPlan plan;
+  plan.child_count = child_count;
+  plan.calls_set_frame = child_count > 0;
+  return plan;
+}
+
+SourceRndPollAnimLoadPlan source_rndpollanim_load_plan(int32_t revision) {
+  SourceRndPollAnimLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision == 0;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable", "RndPollable"};
+  return plan;
+}
+
+SourceRndPollAnimCopyPlan source_rndpollanim_copy_plan() {
+  SourceRndPollAnimCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable", "RndPollable"};
+  return plan;
+}
+
+SourceRndPollAnimEmptyBodyPlan source_rndpollanim_empty_body_plan() {
+  return SourceRndPollAnimEmptyBodyPlan{};
+}
+
+SourceRndPollAnimHandlerPlan source_rndpollanim_handler_plan() {
+  SourceRndPollAnimHandlerPlan plan;
+  plan.superclasses = {"RndAnimatable", "RndPollable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndPollAnimPropSyncPlan source_rndpollanim_prop_sync_plan() {
+  SourceRndPollAnimPropSyncPlan plan;
+  plan.props = {"anims"};
+  plan.superclass_order = {"RndAnimatable", "RndPollable"};
+  return plan;
+}
+
+SourceRndPropAnimDefaultState source_rndpropanim_default_state() {
+  return SourceRndPropAnimDefaultState{};
+}
+
+SourceRndPropAnimLoadPlan source_rndpropanim_load_plan(int32_t revision) {
+  SourceRndPropAnimLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 0xD;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable"};
+  plan.uses_pre7_loader = revision < 7;
+  plan.reads_key_count = revision >= 7;
+  plan.reads_key_type_per_entry = revision >= 7;
+  plan.loads_prop_keys_per_entry = revision >= 7;
+  plan.reads_loop = revision > 0xB;
+  return plan;
+}
+
+SourceRndPropAnimPre7LoadPlan source_rndpropanim_pre7_load_plan(
+    int32_t revision) {
+  SourceRndPropAnimPre7LoadPlan plan;
+  plan.revision = revision;
+  plan.reads_legacy_owner_before_count = revision < 2;
+  plan.reads_owner_per_entry = revision >= 2;
+  plan.reads_symbol_property = revision < 1;
+  plan.reads_dataarray_property = revision >= 1;
+  plan.reads_float_keys_only = revision < 3;
+  plan.reads_anim_type = revision >= 3;
+  plan.reads_color_keys = revision >= 3;
+  plan.reads_object_keys_with_owner_stage = revision > 3;
+  plan.reads_bool_keys = revision > 4;
+  plan.reads_quat_keys = revision > 5;
+  return plan;
+}
+
+SourceRndPropAnimCopyPlan source_rndpropanim_copy_plan() {
+  SourceRndPropAnimCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable"};
+  return plan;
+}
+
+SourceRndPropAnimFrameBoundsPlan source_rndpropanim_start_frame_plan(
+    const std::vector<float>& key_start_frames) {
+  SourceRndPropAnimFrameBoundsPlan plan;
+  plan.key_frames = key_start_frames;
+  for (float frame : key_start_frames) {
+    plan.result = std::min(plan.result, frame);
+  }
+  return plan;
+}
+
+SourceRndPropAnimFrameBoundsPlan source_rndpropanim_end_frame_plan(
+    const std::vector<float>& key_end_frames) {
+  SourceRndPropAnimFrameBoundsPlan plan;
+  plan.key_frames = key_end_frames;
+  for (float frame : key_end_frames) {
+    plan.result = std::max(plan.result, frame);
+  }
+  return plan;
+}
+
+SourceRndPropAnimAdvanceFramePlan source_rndpropanim_advance_frame_plan(
+    bool loop) {
+  SourceRndPropAnimAdvanceFramePlan plan;
+  plan.loop = loop;
+  plan.applies_mod_range = loop;
+  return plan;
+}
+
+SourceRndPropAnimSetFramePlan source_rndpropanim_set_frame_plan(
+    bool already_in_set_frame,
+    int32_t key_count,
+    int32_t dir_event_key_count) {
+  SourceRndPropAnimSetFramePlan plan;
+  plan.already_in_set_frame = already_in_set_frame;
+  plan.key_count = key_count;
+  plan.dir_event_key_count = dir_event_key_count;
+  if (!already_in_set_frame) {
+    plan.enters_set_frame_guard = true;
+    plan.calls_advance_frame = true;
+    plan.scans_dir_event_keys = dir_event_key_count > 0;
+    plan.sets_each_key_frame = key_count > 0;
+    plan.updates_last_frame = true;
+    plan.clears_set_frame_guard = true;
+  }
+  return plan;
+}
+
+SourceRndPropAnimKeyListPlan source_rndpropanim_set_key_plan(
+    int32_t key_count) {
+  SourceRndPropAnimKeyListPlan plan;
+  plan.key_count = key_count;
+  plan.calls = std::max(0, key_count);
+  return plan;
+}
+
+SourceRndPropAnimKeyListPlan source_rndpropanim_start_anim_plan(
+    int32_t key_count) {
+  SourceRndPropAnimKeyListPlan plan;
+  plan.key_count = key_count;
+  plan.calls = std::max(0, key_count);
+  return plan;
+}
+
+SourceRndPropAnimKeyListPlan source_rndpropanim_remove_all_keys_plan(
+    int32_t key_count) {
+  SourceRndPropAnimKeyListPlan plan;
+  plan.key_count = key_count;
+  plan.calls = std::max(0, key_count);
+  return plan;
+}
+
+SourceRndPropAnimFindKeysPlan source_rndpropanim_find_keys_plan(
+    bool property_null,
+    bool target_matches,
+    bool property_matches,
+    bool row_property_null) {
+  SourceRndPropAnimFindKeysPlan plan;
+  plan.property_null = property_null;
+  plan.target_matches = target_matches;
+  plan.property_matches = property_matches;
+  plan.matches_null_property_row = property_null && row_property_null;
+  plan.found =
+      plan.matches_null_property_row || (target_matches && property_matches);
+  return plan;
+}
+
+SourceRndPropAnimChangePropPathPlan source_rndpropanim_change_prop_path_plan(
+    bool new_path_empty,
+    bool found_existing_keys) {
+  SourceRndPropAnimChangePropPathPlan plan;
+  plan.new_path_empty = new_path_empty;
+  plan.calls_remove_keys = new_path_empty;
+  plan.found_existing_keys = found_existing_keys;
+  plan.sets_new_prop = !new_path_empty && found_existing_keys;
+  plan.result = found_existing_keys;
+  return plan;
+}
+
+namespace {
+
+std::string source_propkeys_output_kind(SourcePropKeysAnimKeysType type) {
+  switch (type) {
+    case kSourcePropKeysFloat:
+      return "float";
+    case kSourcePropKeysColor:
+      return "packed_color";
+    case kSourcePropKeysObject:
+      return "object";
+    case kSourcePropKeysBool:
+      return "bool";
+    case kSourcePropKeysQuat:
+      return "quat_array";
+    case kSourcePropKeysVector3:
+      return "vector3_array";
+    case kSourcePropKeysSymbol:
+      return "symbol";
+  }
+  return "zero";
+}
+
+}  // namespace
+
+SourceRndPropAnimValuePlan source_rndpropanim_value_from_index_plan(
+    SourcePropKeysAnimKeysType type,
+    bool has_keys,
+    bool valid_index) {
+  SourceRndPropAnimValuePlan plan;
+  plan.type = type;
+  plan.has_keys = has_keys;
+  plan.valid_index = valid_index;
+  plan.result = has_keys && valid_index;
+  plan.output_kind = plan.result ? source_propkeys_output_kind(type) : "zero";
+  return plan;
+}
+
+SourceRndPropAnimValuePlan source_rndpropanim_value_from_frame_plan(
+    SourcePropKeysAnimKeysType type,
+    bool has_keys) {
+  SourceRndPropAnimValuePlan plan;
+  plan.type = type;
+  plan.has_keys = has_keys;
+  plan.valid_index = has_keys;
+  plan.result = has_keys;
+  plan.output_kind = has_keys ? source_propkeys_output_kind(type) : "index_-1";
+  return plan;
+}
+
+SourceRndPropAnimHandlerPlan source_rndpropanim_handler_plan() {
+  SourceRndPropAnimHandlerPlan plan;
+  plan.expressions = {"remove_keys", "has_keys", "keys_type", "interp_type",
+                      "interp_handler", "change_prop_path"};
+  plan.actions = {"add_keys", "set_key", "set_key_val", "set_interp_type",
+                  "set_interp_handler", "replace_target"};
+  plan.handlers = {"foreach_target",     "forall_keyframes",
+                   "foreach_keyframe",   "foreach_frame",
+                   "replace_keyframe",   "replace_frame",
+                   "index_from_frame",   "frame_from_index",
+                   "value_from_index",   "value_from_frame"};
+  plan.superclasses = {"RndAnimatable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndPropAnimPropSyncPlan source_rndpropanim_prop_sync_plan() {
+  SourceRndPropAnimPropSyncPlan plan;
+  plan.props = {"loop"};
+  plan.superclasses = {"RndAnimatable"};
+  return plan;
+}
+
+SourcePropKeysDefaultState source_propkeys_default_state() {
+  return SourcePropKeysDefaultState{};
+}
+
+SourcePropKeysLoadPlan source_propkeys_load_plan(int32_t revision,
+                                                 int32_t interpolation_row) {
+  SourcePropKeysLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 7;
+  plan.fails_pre7 = revision < 7;
+  if (!plan.accepted_revision) return plan;
+  plan.reads_keys_type = true;
+  plan.reads_target = true;
+  plan.reads_prop = true;
+  plan.reads_interpolation = revision >= 8;
+  plan.derives_legacy_interpolation = revision < 8;
+  plan.legacy_macro_exception_branch =
+      revision < 0xB && interpolation_row == 4;
+  plan.reads_interp_handler = revision > 9;
+  plan.reads_exception_id = revision > 10;
+  plan.reads_last_bit = revision > 0xC;
+  plan.calls_set_prop_exception_id = true;
+  return plan;
+}
+
+SourcePropKeysExceptionPlan source_propkeys_exception_plan(
+    const std::string& property,
+    bool target_is_trans,
+    bool target_is_object_dir) {
+  SourcePropKeysExceptionPlan plan;
+  plan.property = property;
+  plan.target_is_trans = target_is_trans;
+  plan.target_is_object_dir = target_is_object_dir;
+  if (property == "rotation" && target_is_trans) {
+    plan.exception_id = kSourcePropKeysTransQuat;
+  } else if (property == "scale" && target_is_trans) {
+    plan.exception_id = kSourcePropKeysTransScale;
+  } else if (property == "position" && target_is_trans) {
+    plan.exception_id = kSourcePropKeysTransPos;
+  } else if (property == "event" && target_is_object_dir) {
+    plan.exception_id = kSourcePropKeysDirEvent;
+  }
+  return plan;
+}
+
+SourcePropKeysSetPropExceptionPlan source_propkeys_set_prop_exception_plan(
+    bool interp_handler_null,
+    SourcePropKeysExceptionId current_exception,
+    SourcePropKeysExceptionId property_exception) {
+  SourcePropKeysSetPropExceptionPlan plan;
+  plan.interp_handler_null = interp_handler_null;
+  plan.current_exception = current_exception;
+  plan.property_exception = property_exception;
+  if (!interp_handler_null) {
+    plan.result_exception = kSourcePropKeysHandleInterp;
+  } else if (current_exception == kSourcePropKeysMacro) {
+    plan.result_exception = kSourcePropKeysMacro;
+  } else {
+    plan.result_exception = property_exception;
+  }
+  plan.updates_transform_cache =
+      plan.result_exception == kSourcePropKeysTransQuat ||
+      plan.result_exception == kSourcePropKeysTransScale ||
+      plan.result_exception == kSourcePropKeysTransPos;
+  return plan;
+}
+
+SourceRndMeshAnimDefaultState source_rndmeshanim_default_state() {
+  return SourceRndMeshAnimDefaultState{};
+}
+
+SourceRndMeshAnimNumVertsPlan source_rndmeshanim_num_verts_plan(
+    int32_t points_keys,
+    int32_t normals_keys,
+    int32_t texs_keys,
+    int32_t colors_keys) {
+  SourceRndMeshAnimNumVertsPlan plan;
+  plan.points_keys = points_keys;
+  plan.normals_keys = normals_keys;
+  plan.texs_keys = texs_keys;
+  plan.colors_keys = colors_keys;
+  if (points_keys != 0) {
+    plan.result = std::max(plan.result, points_keys);
+    plan.nonempty_sources.push_back("points");
+  }
+  if (normals_keys != 0) {
+    plan.result = std::max(plan.result, normals_keys);
+    plan.nonempty_sources.push_back("normals");
+  }
+  if (texs_keys != 0) {
+    plan.result = std::max(plan.result, texs_keys);
+    plan.nonempty_sources.push_back("texs");
+  }
+  if (colors_keys != 0) {
+    plan.result = std::max(plan.result, colors_keys);
+    plan.nonempty_sources.push_back("colors");
+  }
+  return plan;
+}
+
+SourceRndMeshAnimReplacePlan source_rndmeshanim_replace_plan(
+    bool keys_owner_matches_from,
+    bool replacement_null) {
+  SourceRndMeshAnimReplacePlan plan;
+  plan.keys_owner_matches_from = keys_owner_matches_from;
+  plan.replacement_null = replacement_null;
+  plan.assigns_self = keys_owner_matches_from && replacement_null;
+  plan.copies_replacement_keys_owner =
+      keys_owner_matches_from && !replacement_null;
+  return plan;
+}
+
+SourceRndMeshAnimLoadPlan source_rndmeshanim_load_plan(int32_t revision) {
+  SourceRndMeshAnimLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 2;
+  plan.reads_object_fields = revision != 0;
+  plan.reads_vert_normals_keys = revision > 1;
+  return plan;
+}
+
+SourceRndMeshAnimCopyPlan source_rndmeshanim_copy_plan(
+    bool copy_shallow,
+    bool copy_from_max,
+    bool source_keys_owner_is_self) {
+  SourceRndMeshAnimCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable"};
+  plan.copies_keys_owner_ref =
+      copy_shallow || (copy_from_max && !source_keys_owner_is_self);
+  plan.assigns_self_as_keys_owner = !plan.copies_keys_owner_ref;
+  if (plan.assigns_self_as_keys_owner) {
+    plan.copied_owned_members = {"mVertPointsKeys", "mVertNormalsKeys",
+                                 "mVertTexsKeys", "mVertColorsKeys"};
+  }
+  return plan;
+}
+
+SourceRndMeshAnimEndFramePlan source_rndmeshanim_end_frame_plan(
+    float points_last,
+    float normals_last,
+    float texs_last,
+    float colors_last) {
+  SourceRndMeshAnimEndFramePlan plan;
+  plan.points_last = points_last;
+  plan.normals_last = normals_last;
+  plan.texs_last = texs_last;
+  plan.colors_last = colors_last;
+  plan.result = std::max(std::max(points_last, normals_last),
+                         std::max(texs_last, colors_last));
+  return plan;
+}
+
+SourceRndMeshAnimInterpPlan source_rndmeshanim_interp_plan(
+    float ref,
+    float blend,
+    int32_t source_values,
+    int32_t mesh_verts) {
+  SourceRndMeshAnimInterpPlan plan;
+  plan.ref = ref;
+  plan.blend = blend;
+  plan.source_values = source_values;
+  plan.mesh_verts = mesh_verts;
+  plan.affected_verts = std::max(0, std::min(source_values, mesh_verts));
+  plan.uses_first_key = ref != 1.0f;
+  plan.uses_second_key = ref != 0.0f;
+  plan.interpolates_between_keys = ref != 0.0f && ref != 1.0f;
+  plan.blends_with_existing_vert = blend != 1.0f;
+  return plan;
+}
+
+SourceRndMeshAnimSetFramePlan source_rndmeshanim_set_frame_plan(
+    bool has_mesh,
+    uint32_t mesh_mutable_mask,
+    bool has_points_keys,
+    bool has_normals_keys,
+    bool has_texs_keys,
+    bool has_colors_keys) {
+  SourceRndMeshAnimSetFramePlan plan;
+  plan.has_mesh = has_mesh;
+  plan.mesh_mutable_mask = mesh_mutable_mask;
+  plan.mesh_mutable = (mesh_mutable_mask & 0x1Fu) != 0;
+  plan.notifies_not_mutable = has_mesh && !plan.mesh_mutable;
+  if (has_mesh && plan.mesh_mutable) {
+    plan.evaluates_points = has_points_keys;
+    plan.evaluates_normals = has_normals_keys;
+    plan.evaluates_texs = has_texs_keys;
+    plan.evaluates_colors = has_colors_keys;
+    if (plan.evaluates_points || plan.evaluates_normals ||
+        plan.evaluates_texs || plan.evaluates_colors) {
+      plan.sync_mask = 0x1F;
+      plan.calls_mesh_sync = true;
+    }
+  }
+  return plan;
+}
+
+SourceRndMeshAnimSetKeyPlan source_rndmeshanim_set_key_plan() {
+  return SourceRndMeshAnimSetKeyPlan{};
+}
+
+SourceRndMeshAnimShrinkPlan source_rndmeshanim_shrink_verts_plan(
+    int32_t requested_count,
+    bool points_nonempty,
+    bool normals_nonempty,
+    bool texs_nonempty,
+    bool colors_nonempty) {
+  SourceRndMeshAnimShrinkPlan plan;
+  plan.requested_count = requested_count;
+  plan.points_nonempty = points_nonempty;
+  plan.normals_nonempty = normals_nonempty;
+  plan.texs_nonempty = texs_nonempty;
+  plan.colors_nonempty = colors_nonempty;
+  if (points_nonempty) plan.resized_streams.push_back("points_values");
+  if (normals_nonempty) plan.resized_streams.push_back("normals_values");
+  if (texs_nonempty) plan.resized_streams.push_back("texs_values");
+  if (colors_nonempty) plan.resized_streams.push_back("colors_values");
+  return plan;
+}
+
+SourceRndMeshAnimShrinkPlan source_rndmeshanim_shrink_keys_plan(
+    int32_t requested_count,
+    bool points_nonempty,
+    bool normals_nonempty,
+    bool texs_nonempty,
+    bool colors_nonempty) {
+  SourceRndMeshAnimShrinkPlan plan;
+  plan.requested_count = requested_count;
+  plan.points_nonempty = points_nonempty;
+  plan.normals_nonempty = normals_nonempty;
+  plan.texs_nonempty = texs_nonempty;
+  plan.colors_nonempty = colors_nonempty;
+  if (points_nonempty) plan.resized_streams.push_back("points_keys");
+  if (normals_nonempty) plan.resized_streams.push_back("normals_keys");
+  if (texs_nonempty) plan.resized_streams.push_back("texs_keys");
+  if (colors_nonempty) plan.resized_streams.push_back("colors_keys");
+  return plan;
+}
+
+SourceRndMeshAnimHandlerPlan source_rndmeshanim_handler_plan() {
+  SourceRndMeshAnimHandlerPlan plan;
+  plan.expressions = {"num_verts"};
+  plan.actions = {"shrink_verts", "shrink_keys"};
+  plan.superclasses = {"RndAnimatable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndMeshAnimPropSyncPlan source_rndmeshanim_prop_sync_plan() {
+  SourceRndMeshAnimPropSyncPlan plan;
+  plan.props = {"mesh"};
+  plan.superclasses = {"RndAnimatable"};
+  return plan;
+}
+
 TransObj decode_trans(const std::string& entry_name,
-                      const std::vector<uint8_t>& body) {
+                      const std::vector<uint8_t>& body,
+                      int32_t parent_dir_revision) {
   Reader r(body.data(), body.size());
   TransObj t;
   t.name = entry_name;
-  read_trans_block(r, t.local, t.world_stored, t.constraint, t.target,
-                   t.preserve_scale, t.parent, true);
+  const TransFields trans = read_trans_block(r, true, parent_dir_revision);
+  t.local = trans.local;
+  t.world_stored = trans.world;
+  t.constraint = trans.constraint;
+  t.target = trans.target;
+  t.preserve_scale = trans.preserve_scale;
+  t.parent = trans.parent;
   return t;
 }
 
@@ -1037,7 +2518,7 @@ EnvironObj decode_environ(const std::string& entry_name,
     if (revision != 5) {
       throw std::runtime_error("milo_scene: unsupported Environ version");
     }
-    r.skip(kObjMeta);
+    read_object_fields(r);
     const uint32_t light_count = r.u32();
     if (light_count > 64) {
       throw std::runtime_error("milo_scene: implausible Environ light count");
@@ -1088,14 +2569,735 @@ EnvironObj decode_environ(const std::string& entry_name,
   return env;
 }
 
+GroupObj decode_group(const std::string& entry_name,
+                      const std::vector<uint8_t>& body,
+                      int32_t parent_dir_revision) {
+  GroupObj group;
+  group.name = entry_name;
+  try {
+    Reader r(body.data(), body.size());
+    const uint32_t combined_revision = r.u32();
+    const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
+    if (ver > 7) read_object_fields(r);
+    read_animatable_block(r);
+    const TransFields trans = read_trans_block(r, false, parent_dir_revision);
+    group.local = trans.local;
+    group.world_stored = trans.world;
+    group.constraint = trans.constraint;
+    group.target = trans.target;
+    group.preserve_scale = trans.preserve_scale;
+    group.parent = trans.parent;
+    group.has_transform = true;
+    read_drawable_block(r, parent_dir_revision, group.showing,
+                        group.draw_order);
+
+    if (ver > 10) {
+      const uint32_t object_count = r.u32();
+      if (object_count > 4096) {
+        throw std::runtime_error("milo_scene: implausible RndGroup object count");
+      }
+      group.children.reserve(object_count);
+      for (uint32_t i = 0; i < object_count; ++i) {
+        group.children.push_back(r.str());
+      }
+      if (ver < 16) group.environment_ref = r.str();
+      if (ver > 12) group.draw_only = r.str();
+    }
+
+    if (ver > 11 && ver < 16) {
+      group.lod = r.str();
+      group.lod_screen_size = r.f32();
+    } else if (ver == 4) {
+      (void)r.u32();
+      const uint32_t object_count = r.u32();
+      if (object_count > 4096) {
+        throw std::runtime_error("milo_scene: implausible RndGroup v4 object count");
+      }
+      group.children.reserve(object_count);
+      for (uint32_t i = 0; i < object_count; ++i) {
+        group.children.push_back(r.str());
+      }
+      (void)r.str();
+      (void)r.u32();
+      (void)r.u32();
+    }
+
+    if (ver == 7) {
+      (void)r.str();
+      (void)r.f32();
+      (void)r.f32();
+    }
+    if (ver > 13) group.sort_in_world = r.u8() != 0;
+    group.source_order_decoded = true;
+    group.decoded = true;
+  } catch (const std::exception& ex) {
+    group.error = ex.what();
+  }
+  return group;
+}
+
+SourceRndDrawableLoadPlan source_rnddrawable_load_plan(
+    int32_t revision,
+    int32_t parent_revision) {
+  SourceRndDrawableLoadPlan plan;
+  plan.revision = revision;
+  plan.parent_revision = parent_revision;
+  plan.accepted_revision = revision >= 0 && revision <= 3;
+  if (!plan.accepted_revision) {
+    plan.reads_showing = false;
+    return plan;
+  }
+  plan.reads_old_drawable_list = revision < 2;
+  plan.old_list_is_null_terminated_strings =
+      plan.reads_old_drawable_list && parent_revision <= 6;
+  plan.old_list_is_symbols =
+      plan.reads_old_drawable_list && parent_revision > 6;
+  plan.reads_sphere = revision > 0;
+  plan.reads_draw_order = revision > 2;
+  return plan;
+}
+
+SourceRndDrawableDefaultState source_rnddrawable_default_state() {
+  return SourceRndDrawableDefaultState{};
+}
+
+SourceMiloEditorRndDrawableNewPlan source_milo_editor_rnddrawable_new_plan(
+    int32_t revision,
+    int32_t alt_revision) {
+  SourceMiloEditorRndDrawableNewPlan plan;
+  plan.revision = revision;
+  plan.alt_revision = alt_revision;
+  return plan;
+}
+
+SourceRndDrawableSavePlan source_rnddrawable_save_plan() {
+  return SourceRndDrawableSavePlan{};
+}
+
+SourceRndDrawableDrawPlan source_rnddrawable_draw_plan(
+    bool showing,
+    bool has_world_sphere,
+    bool sphere_culled) {
+  SourceRndDrawableDrawPlan plan;
+  plan.showing = showing;
+  plan.has_world_sphere = has_world_sphere;
+  plan.sphere_culled = sphere_culled;
+  if (!showing) return plan;
+  plan.calls_make_world_sphere = true;
+  plan.calls_draw_showing = !has_world_sphere || !sphere_culled;
+  return plan;
+}
+
+SourceRndDrawableBudgetPlan source_rnddrawable_budget_plan(
+    bool showing,
+    bool has_world_sphere,
+    bool sphere_culled) {
+  SourceRndDrawableBudgetPlan plan;
+  if (!showing) return plan;
+  plan.calls_make_world_sphere = true;
+  plan.calls_draw_showing_budget = !has_world_sphere || !sphere_culled;
+  return plan;
+}
+
+SourceRndDrawableCopyPlan source_rnddrawable_copy_plan(
+    bool copy_from_max,
+    bool dest_sphere_nonzero,
+    bool source_sphere_nonzero) {
+  SourceRndDrawableCopyPlan plan;
+  if (!copy_from_max) {
+    plan.normal_members = {"mShowing", "mOrder", "mSphere"};
+    return plan;
+  }
+  if (dest_sphere_nonzero && source_sphere_nonzero) {
+    plan.from_max_members = {"mSphere"};
+  }
+  return plan;
+}
+
+SourceRndDrawableCollidePlan source_rnddrawable_collide_plan(
+    bool showing,
+    bool has_world_sphere,
+    bool sphere_intersects,
+    float plane_dot,
+    float sphere_radius) {
+  SourceRndDrawableCollidePlan plan;
+  plan.showing = showing;
+  plan.has_world_sphere = has_world_sphere;
+  plan.sphere_intersects = sphere_intersects;
+  if (showing) {
+    plan.collide_sphere_result = !has_world_sphere || sphere_intersects;
+    plan.collide_calls_showing = plan.collide_sphere_result;
+  }
+  if (!showing || !has_world_sphere) {
+    plan.collide_plane_result = -1;
+  } else if (plane_dot >= sphere_radius) {
+    plan.collide_plane_result = 1;
+  } else {
+    plan.collide_plane_result = sphere_radius < -plane_dot ? -1 : 0;
+  }
+  return plan;
+}
+
+SourceRndDrawableHandlerPlan source_rnddrawable_handler_plan() {
+  SourceRndDrawableHandlerPlan plan;
+  plan.handlers = {"set_showing", "showing", "zero_sphere", "update_sphere",
+                   "get_sphere",  "copy_sphere"};
+  plan.check = 0x168;
+  return plan;
+}
+
+SourceRndDrawablePropSyncPlan source_rnddrawable_prop_sync_plan() {
+  SourceRndDrawablePropSyncPlan plan;
+  plan.properties = {"draw_order", "showing", "sphere"};
+  plan.showing_ops = {"set:mShowing=_val.Int(0)!=0",
+                      "get:_val=DataNode(mShowing)"};
+  return plan;
+}
+
+SourceRndGroupLoadPlan source_rndgroup_load_plan(int32_t revision) {
+  SourceRndGroupLoadPlan plan;
+  plan.revision = revision;
+  plan.reads_object_fields = revision > 7;
+  plan.reads_objects = revision > 10;
+  plan.reads_environ = revision > 10 && revision < 16;
+  plan.reads_draw_only = revision > 12;
+  plan.reads_lod = revision > 11 && revision < 16;
+  plan.reads_legacy_rev4_objects = revision == 4;
+  plan.reads_rev7_lod_dimensions = revision == 7;
+  plan.reads_sort_in_world = revision > 13;
+  return plan;
+}
+
+SourceRndGroupDefaultState source_rndgroup_default_state() {
+  return SourceRndGroupDefaultState{};
+}
+
+SourceMiloEditorRndGroupNewPlan source_milo_editor_rndgroup_new_plan(
+    int32_t revision,
+    int32_t alt_revision) {
+  SourceMiloEditorRndGroupNewPlan plan;
+  plan.revision = revision;
+  plan.alt_revision = alt_revision;
+  return plan;
+}
+
+SourceRndGroupSavePlan source_rndgroup_save_plan() {
+  return SourceRndGroupSavePlan{};
+}
+
+SourceRndGroupCopyPlan source_rndgroup_copy_plan() {
+  SourceRndGroupCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndAnimatable", "RndDrawable",
+                       "RndTransformable"};
+  plan.member_order = {"mEnv", "mDrawOnly", "mLod", "mLodScreenSize",
+                       "mSortInWorld", "mObjects"};
+  return plan;
+}
+
+SourceRndGroupReplacePlan source_rndgroup_replace_plan(bool object_found) {
+  SourceRndGroupReplacePlan plan;
+  plan.add_object_when_found = object_found;
+  plan.sets_in_replace_around_remove = object_found;
+  plan.remove_object_when_found = object_found;
+  plan.no_object_no_membership_change = !object_found;
+  return plan;
+}
+
+SourceRndGroupHandlerPlan source_rndgroup_handler_plan() {
+  SourceRndGroupHandlerPlan plan;
+  plan.actions = {"sort_draws", "add_object", "remove_object",
+                  "clear_objects"};
+  plan.queries = {"get_draws", "has_object"};
+  plan.superclasses = {"RndAnimatable", "RndDrawable", "RndTransformable",
+                       "Hmx::Object"};
+  return plan;
+}
+
+SourceRndGroupPropSyncPlan source_rndgroup_prop_sync_plan() {
+  SourceRndGroupPropSyncPlan plan;
+  plan.props = {"objects", "environ", "draw_only", "lod",
+                "lod_screen_size", "sort_in_world"};
+  plan.side_effects = {"objects:Update", "lod:Update",
+                       "lod_screen_size:UpdateLODState"};
+  plan.superclasses = {"RndDrawable", "RndTransformable", "RndAnimatable"};
+  return plan;
+}
+
+SourceRndMeshDeformVertArrayState
+source_rndmesh_deform_vert_array_default_state(bool parent_provided) {
+  SourceRndMeshDeformVertArrayState state;
+  state.parent_set = parent_provided;
+  return state;
+}
+
+SourceRndMeshDeformVertArraySetSizePlan
+source_rndmesh_deform_vert_array_set_size_plan(int32_t old_size,
+                                               int32_t new_size) {
+  SourceRndMeshDeformVertArraySetSizePlan plan;
+  plan.old_size = old_size;
+  plan.new_size = new_size;
+  plan.changes_size = old_size != new_size;
+  plan.frees_existing_data = plan.changes_size;
+  plan.allocates_requested_size = plan.changes_size;
+  return plan;
+}
+
+SourceRndMeshDeformClearPlan source_rndmesh_deform_clear_plan(
+    int32_t old_size) {
+  SourceRndMeshDeformClearPlan plan;
+  plan.changes_size = old_size != 0;
+  return plan;
+}
+
+SourceRndMeshDeformDefaultState source_rndmesh_deform_default_state() {
+  return SourceRndMeshDeformDefaultState{};
+}
+
+SourceRndMeshDeformSetMeshPlan source_rndmesh_deform_set_mesh_plan() {
+  return SourceRndMeshDeformSetMeshPlan{};
+}
+
+SourceRndMeshDeformHandlerPlan source_rndmesh_deform_handler_plan() {
+  SourceRndMeshDeformHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceRndMeshDeformBodyAvailability
+source_rndmesh_deform_body_availability() {
+  return SourceRndMeshDeformBodyAvailability{};
+}
+
+SourceRndMultiMeshDefaultState source_rndmultimesh_default_state() {
+  return SourceRndMultiMeshDefaultState{};
+}
+
+SourceRndMultiMeshInstanceDefaultState
+source_rndmultimesh_instance_default_state() {
+  return SourceRndMultiMeshInstanceDefaultState{};
+}
+
+SourceRndMultiMeshLoadPlan source_rndmultimesh_load_plan(int32_t revision) {
+  SourceRndMultiMeshLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 4;
+  plan.reads_object_fields = revision != 0;
+  plan.reads_legacy_transform_dump_and_returns = revision < 2;
+  plan.reads_instances = revision >= 2;
+  plan.reads_legacy_tail_byte = revision >= 2 && revision < 4;
+  return plan;
+}
+
+SourceRndMultiMeshCopyPlan source_rndmultimesh_copy_plan(
+    bool copy_from_max) {
+  SourceRndMultiMeshCopyPlan plan;
+  plan.superclasses = {"Hmx::Object", "RndDrawable"};
+  plan.copies_mesh = !copy_from_max;
+  return plan;
+}
+
+SourceRndMultiMeshSetMeshPlan source_rndmultimesh_set_mesh_plan() {
+  return SourceRndMultiMeshSetMeshPlan{};
+}
+
+SourceRndMultiMeshHandlerPlan source_rndmultimesh_handler_plan() {
+  SourceRndMultiMeshHandlerPlan plan;
+  plan.handlers = {"move_xfms",  "scale_xfms",  "sort_xfms",
+                   "random_xfms", "scramble_xfms", "distribute",
+                   "get_pos",    "set_pos",     "get_rot",
+                   "set_rot",    "get_scale",   "set_scale",
+                   "mesh",       "add_xfm",     "add_xfms",
+                   "remove_xfm", "num_xfms"};
+  plan.actions = {"set_mesh"};
+  plan.superclasses = {"RndDrawable", "Hmx::Object"};
+  return plan;
+}
+
+SourceRndMultiMeshSetPosPlan source_rndmultimesh_set_pos_plan(
+    int32_t requested_index) {
+  SourceRndMultiMeshSetPosPlan plan;
+  plan.requested_index = requested_index;
+  plan.assignment_order = {"read_z", "read_y", "read_x",
+                           "write_x", "write_y", "write_z"};
+  return plan;
+}
+
+SourceRndMultiMeshPropSyncPlan source_rndmultimesh_prop_sync_plan() {
+  SourceRndMultiMeshPropSyncPlan plan;
+  plan.superclasses = {"RndDrawable"};
+  return plan;
+}
+
+SourceRndMultiMeshProxyDefaultState
+source_rndmultimesh_proxy_default_state() {
+  return SourceRndMultiMeshProxyDefaultState{};
+}
+
+SourceRndMultiMeshProxySetPlan source_rndmultimesh_proxy_set_plan(
+    bool has_mesh) {
+  SourceRndMultiMeshProxySetPlan plan;
+  plan.has_mesh = has_mesh;
+  plan.copies_instance_local_transform = has_mesh;
+  return plan;
+}
+
+SourceRndMultiMeshProxyDrawPlan source_rndmultimesh_proxy_draw_plan(
+    bool has_multimesh,
+    bool has_mesh) {
+  SourceRndMultiMeshProxyDrawPlan plan;
+  plan.has_multimesh = has_multimesh;
+  plan.has_mesh = has_mesh;
+  plan.reads_multimesh_mesh = has_multimesh;
+  plan.sets_mesh_world_from_instance = has_multimesh && has_mesh;
+  plan.draws_mesh = has_multimesh && has_mesh;
+  return plan;
+}
+
+SourceRndMultiMeshProxyUpdatedWorldPlan
+source_rndmultimesh_proxy_updated_world_plan(bool has_multimesh) {
+  SourceRndMultiMeshProxyUpdatedWorldPlan plan;
+  plan.has_multimesh = has_multimesh;
+  plan.writes_instance_from_world = has_multimesh;
+  return plan;
+}
+
+SourceRndMultiMeshProxyFailurePlan
+source_rndmultimesh_proxy_failure_plan() {
+  return SourceRndMultiMeshProxyFailurePlan{};
+}
+
+SourceRndMultiMeshProxyHandlerPlan
+source_rndmultimesh_proxy_handler_plan() {
+  return SourceRndMultiMeshProxyHandlerPlan{};
+}
+
+SourceRndMultiMeshProxyPropSyncPlan
+source_rndmultimesh_proxy_prop_sync_plan() {
+  return SourceRndMultiMeshProxyPropSyncPlan{};
+}
+
+SourceRndWindDefaultState source_rndwind_default_state() {
+  return SourceRndWindDefaultState{};
+}
+
+SourceRndWindSetDefaultsPlan source_rndwind_set_defaults_plan() {
+  return SourceRndWindSetDefaultsPlan{};
+}
+
+SourceRndWindZeroPlan source_rndwind_zero_plan() {
+  return SourceRndWindZeroPlan{};
+}
+
+SourceRndWindLoopRatePlan source_rndwind_sync_loops(float time_loop,
+                                                    float space_loop) {
+  SourceRndWindLoopRatePlan plan;
+  plan.time_loop = time_loop;
+  plan.space_loop = space_loop;
+  const float time_rate = time_loop == 0.0f ? 0.0f : 1.0f / time_loop;
+  const float space_rate = space_loop == 0.0f ? 0.0f : 1.0f / space_loop;
+  plan.time_loop_zero = time_loop == 0.0f;
+  plan.space_loop_zero = space_loop == 0.0f;
+  plan.time_rate[0] = time_rate;
+  plan.time_rate[1] = time_rate * 0.773437f;
+  plan.time_rate[2] = time_rate * 1.38484f;
+  plan.space_rate[0] = space_rate;
+  plan.space_rate[1] = space_rate * 0.773437f;
+  plan.space_rate[2] = space_rate * 1.38484f;
+  return plan;
+}
+
+SourceRndWindSavePlan source_rndwind_save_plan() {
+  return SourceRndWindSavePlan{};
+}
+
+SourceRndWindLoadPlan source_rndwind_load_plan(int32_t revision) {
+  SourceRndWindLoadPlan plan;
+  plan.revision = revision;
+  plan.accepted_revision = revision >= 0 && revision <= 2;
+  plan.reads_wind_owner = revision > 1;
+  plan.calls_set_wind_owner = plan.reads_wind_owner;
+  return plan;
+}
+
+SourceRndWindSetOwnerPlan source_rndwind_set_owner_plan(
+    bool input_owner_present) {
+  SourceRndWindSetOwnerPlan plan;
+  plan.input_owner_present = input_owner_present;
+  plan.assigns_input_owner = input_owner_present;
+  plan.assigns_self = !input_owner_present;
+  return plan;
+}
+
+SourceRndWindCopyPlan source_rndwind_copy_plan(bool copy_shallow) {
+  SourceRndWindCopyPlan plan;
+  plan.copy_shallow = copy_shallow;
+  plan.shallow_copies_wind_owner = copy_shallow;
+  plan.resets_wind_owner_to_self = !copy_shallow;
+  plan.copies_wind_owner = !copy_shallow;
+  plan.copies_prevailing = !copy_shallow;
+  plan.copies_random = !copy_shallow;
+  plan.copies_time_loop = !copy_shallow;
+  plan.copies_space_loop = !copy_shallow;
+  plan.calls_sync_loops = !copy_shallow;
+  return plan;
+}
+
+SourceRndWindReplacePlan source_rndwind_replace_plan(
+    bool wind_owner_matches_from,
+    bool replacement_is_wind) {
+  SourceRndWindReplacePlan plan;
+  plan.wind_owner_matches_from = wind_owner_matches_from;
+  plan.replacement_is_wind = replacement_is_wind;
+  plan.calls_set_wind_owner = wind_owner_matches_from;
+  plan.assigns_replacement_wind =
+      wind_owner_matches_from && replacement_is_wind;
+  plan.assigns_self = wind_owner_matches_from && !replacement_is_wind;
+  return plan;
+}
+
+SourceRndWindRuntimeBoundary source_rndwind_runtime_boundary() {
+  return SourceRndWindRuntimeBoundary{};
+}
+
+SourceRndWindHandlerPlan source_rndwind_handler_plan() {
+  SourceRndWindHandlerPlan plan;
+  plan.actions = {"set_defaults", "set_zero"};
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceRndWindPropSyncPlan source_rndwind_prop_sync_plan() {
+  SourceRndWindPropSyncPlan plan;
+  plan.direct_rows = {"prevailing", "random"};
+  plan.set_rows = {"wind_owner"};
+  plan.modify_rows = {"time_loop", "space_loop"};
+  return plan;
+}
+
+SourceRndMatLoadPlan source_rndmat_load_plan(int32_t revision) {
+  SourceRndMatLoadPlan plan;
+  plan.revision = revision;
+  plan.reads_modern_render_state = revision > 21;
+  plan.reads_use_environ = plan.reads_modern_render_state;
+  plan.reads_prelit = plan.reads_modern_render_state;
+  plan.reads_z_mode = plan.reads_modern_render_state;
+  plan.reads_alpha_cut = plan.reads_modern_render_state;
+  plan.reads_alpha_threshold = revision > 0x25;
+  plan.reads_alpha_write = plan.reads_modern_render_state;
+  plan.reads_tex_gen = plan.reads_modern_render_state;
+  plan.reads_tex_wrap = plan.reads_modern_render_state;
+  plan.reads_tex_xfm = plan.reads_modern_render_state;
+  plan.reads_diffuse_tex = plan.reads_modern_render_state;
+  plan.reads_next_pass = plan.reads_modern_render_state;
+  plan.reads_intensify = plan.reads_modern_render_state;
+  plan.reads_cull = plan.reads_modern_render_state;
+  plan.reads_emissive_multiplier = plan.reads_modern_render_state;
+  plan.gh2_v27_has_no_alpha_threshold =
+      revision == 27 && !plan.reads_alpha_threshold;
+  if (plan.reads_modern_render_state) {
+    plan.modern_order = {
+        "blend",       "color",       "use_environ", "prelit",
+        "z_mode",      "alpha_cut",   "alpha_write", "tex_gen",
+        "tex_wrap",    "tex_xfm",     "diffuse_tex", "next_pass",
+        "intensify",   "cull",        "emissive_multiplier"};
+    if (plan.reads_alpha_threshold) {
+      plan.modern_order.insert(plan.modern_order.begin() + 6,
+                               "alpha_threshold");
+    }
+  }
+  return plan;
+}
+
+SourceRndMatDefaultState source_rndmat_default_state() {
+  return SourceRndMatDefaultState{};
+}
+
+SourceRndMatSavePlan source_rndmat_save_plan() {
+  return SourceRndMatSavePlan{};
+}
+
+SourceMiloEditorRndMatNewPlan source_milo_editor_rndmat_new_plan(
+    int32_t revision,
+    int32_t alt_revision) {
+  SourceMiloEditorRndMatNewPlan plan;
+  plan.revision = revision;
+  plan.alt_revision = alt_revision;
+  return plan;
+}
+
+SourceMatShaderOptionsDefaultState source_mat_shader_options_default_state() {
+  return SourceMatShaderOptionsDefaultState{};
+}
+
+SourceMatPerfSettingsDefaultState source_mat_perf_settings_default_state() {
+  return SourceMatPerfSettingsDefaultState{};
+}
+
+SourceMatPerfSettingsLoadPlan source_mat_perf_settings_load_plan(
+    int32_t revision) {
+  SourceMatPerfSettingsLoadPlan plan;
+  plan.revision = revision;
+  plan.read_order = {"recv_proj_lights", "ps3_force_trilinear"};
+  plan.reads_recv_point_cube_tex = revision > 0x41;
+  if (plan.reads_recv_point_cube_tex) {
+    plan.read_order.push_back("recv_point_cube_tex");
+  }
+  return plan;
+}
+
+SourceRndMatAccessorResult source_rndmat_accessors(const MatObj& mat) {
+  SourceRndMatAccessorResult out;
+  out.blend = mat.blend;
+  out.z_mode = mat.z_mode;
+  out.tex_wrap = mat.tex_wrap;
+  out.diffuse_tex = mat.diffuse_tex;
+  out.next_pass = mat.next_pass;
+  out.alpha = mat.color[3];
+  return out;
+}
+
+SourceRndMatSetterPlan source_rndmat_setter_plan(
+    const std::string& setter) {
+  SourceRndMatSetterPlan plan;
+  plan.setter = setter;
+  if (setter == "SetTexXfm" || setter == "SetZMode" ||
+      setter == "SetDiffuseTex" || setter == "SetUseEnv" ||
+      setter == "SetPreLit" || setter == "SetBlend" ||
+      setter == "SetAlphaCut" || setter == "SetTexWrap" ||
+      setter == "SetPerPixelLit") {
+    plan.writes_member = true;
+    plan.dirty_or_mask = 2;
+  } else if (setter == "SetAlpha") {
+    plan.writes_member = true;
+    plan.writes_alpha_only = true;
+    plan.dirty_or_mask = 1;
+  } else if (setter == "SetColor") {
+    plan.writes_member = true;
+    plan.writes_rgb_only = true;
+    plan.dirty_or_mask = 1;
+  } else if (setter == "SetAlphaThreshold" ||
+             setter == "SetPointLights") {
+    plan.writes_member = true;
+  }
+  return plan;
+}
+
+SourceRndMatColorModPlan source_rndmat_set_color_mod_plan(int32_t index) {
+  SourceRndMatColorModPlan plan;
+  plan.index = index;
+  plan.assertion_would_fail = index < 0 || index >= 3;
+  if (!plan.assertion_would_fail) {
+    plan.writes_color_mod = true;
+    plan.dirty_or_mask = 2;
+  }
+  return plan;
+}
+
+SourceRndMatRefractEnabledPlan source_rndmat_get_refract_enabled_plan(
+    bool refract_enabled,
+    float refract_strength,
+    bool has_refract_normal_map,
+    bool allow_without_current_frame_tex,
+    bool has_current_frame_tex) {
+  SourceRndMatRefractEnabledPlan plan;
+  plan.refract_enabled = refract_enabled;
+  plan.refract_strength = refract_strength;
+  plan.has_refract_normal_map = has_refract_normal_map;
+  plan.allow_without_current_frame_tex = allow_without_current_frame_tex;
+  plan.has_current_frame_tex = has_current_frame_tex;
+  plan.base_gate =
+      refract_enabled && refract_strength > 0.0f && has_refract_normal_map;
+  plan.frame_gate = allow_without_current_frame_tex || has_current_frame_tex;
+  plan.result = plan.base_gate && plan.frame_gate;
+  return plan;
+}
+
+SourceRndMatRefractAccessorPlan source_rndmat_refract_accessor_plan() {
+  return SourceRndMatRefractAccessorPlan{};
+}
+
+SourceRndMatIsNextPassPlan source_rndmat_is_next_pass_plan(
+    const std::vector<std::string>& next_pass_chain,
+    const std::string& candidate) {
+  SourceRndMatIsNextPassPlan plan;
+  plan.candidate = candidate;
+  plan.chain = next_pass_chain;
+  plan.found =
+      std::find(next_pass_chain.begin(), next_pass_chain.end(), candidate) !=
+      next_pass_chain.end();
+  return plan;
+}
+
+SourceRndMatAllowedNextPassPlan source_rndmat_allowed_next_pass_plan(
+    const std::vector<std::string>& directory_mats,
+    const std::string& current_next_pass,
+    const std::vector<std::string>& recursive_next_passes) {
+  SourceRndMatAllowedNextPassPlan plan;
+  plan.mat_count = static_cast<int32_t>(directory_mats.size());
+  plan.allocated_node_count = plan.mat_count + 2;
+  plan.allowed_order.push_back("<null>");
+  if (!current_next_pass.empty()) {
+    plan.preserves_current_next_pass = true;
+    plan.allowed_order.push_back(current_next_pass);
+  }
+
+  for (const std::string& mat : directory_mats) {
+    const SourceRndMatIsNextPassPlan next_pass =
+        source_rndmat_is_next_pass_plan(recursive_next_passes, mat);
+    if (!next_pass.found) {
+      plan.allowed_order.push_back(mat);
+    }
+  }
+  plan.resized_node_count = static_cast<int32_t>(plan.allowed_order.size());
+  return plan;
+}
+
+SourceRndMatAllowedNormalMapPlan source_rndmat_allowed_normal_map_plan() {
+  return SourceRndMatAllowedNormalMapPlan{};
+}
+
+SourceRndMatHandlerPlan source_rndmat_handler_plan() {
+  SourceRndMatHandlerPlan plan;
+  plan.handlers = {"allowed_next_pass", "allowed_normal_map"};
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceRndMatCopyPlan source_rndmat_copy_plan(bool copy_from_max) {
+  SourceRndMatCopyPlan plan;
+  plan.copy_from_max = copy_from_max;
+  plan.copies_diffuse_tex = copy_from_max;
+  return plan;
+}
+
+SourceRndMatPropSyncPlan source_rndmat_prop_sync_plan() {
+  SourceRndMatPropSyncPlan plan;
+  plan.dirty_color_rows = {"color", "alpha"};
+  plan.dirty_render_rows = {
+      "intensify",       "use_environ",      "blend",
+      "z_mode",          "stencil_mode",     "tex_gen",
+      "tex_wrap",        "shader_variation", "tex_xfm",
+      "diffuse_tex",     "prelit",           "alpha_cut",
+      "alpha_threshold", "alpha_write",      "cull",
+      "per_pixel_lit",   "emissive_multiplier",
+      "emissive_map",    "refract_enabled",  "refract_strength",
+      "refract_normal_map", "screen_aligned"};
+  plan.direct_no_dirty_rows = {"next_pass", "point_lights", "fog",
+                               "fade_out", "color_adjust"};
+  plan.perf_setting_rows = {"recv_proj_lights", "recv_point_cube_tex",
+                            "ps3_force_trilinear"};
+  return plan;
+}
+
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
   MatObj m;
   m.name = entry_name;
-  const uint16_t ver = low_revision(r.u32());  // = 27 in GH2 PS2 venues
-  r.skip(kObjMeta);          // base metadata
-  const uint32_t blend = r.u32();
+  const int32_t ver = r.i32();     // = 27 for GH2 PS2 stock character mats.
+  const SourceRndMatLoadPlan plan = source_rndmat_load_plan(ver);
+  read_object_fields(r);     // base metadata
+  const uint32_t blend = plan.reads_blend ? r.u32() : 0;
   if (blend <= 6) {
     // macros.dta BLEND_ENUM. This precedes colour in real GH2 PS2 Mat entries:
     // kBlendDest/Src/Add/SrcAlpha/SrcAlphaAdd/Subtract/Multiply.
@@ -1106,118 +3308,74 @@ MatObj decode_mat(const std::string& entry_name,
   m.color[2] = r.f32();
   m.color[3] = r.f32();
   const size_t flag_pos = r.pos;
-  const size_t mat_state_bytes = (ver > 0x25) ? 20u : 16u;
-  auto read_i32_field = [&](size_t offset) {
-    int32_t value = 0;
-    std::memcpy(&value, body.data() + offset, sizeof(value));
-    return value;
-  };
-  if (ver > 21 && flag_pos + mat_state_bytes <= body.size()) {
-    size_t state = flag_pos;
-    m.use_environ = body[state++] != 0;
-    m.prelit = body[state++] != 0;
-    const int32_t z_mode = read_i32_field(state);
-    state += 4;
-    if (z_mode >= 0 && z_mode <= 4) m.z_mode = static_cast<uint8_t>(z_mode);
-    m.alpha_cut = body[state++] != 0;
-    if (ver > 0x25) state += 4;  // alpha threshold, absent in GH2 rev 27
-    m.alpha_write = body[state++] != 0;
-    const int32_t tex_gen = read_i32_field(state);
-    state += 4;
-    if (tex_gen >= 0 && tex_gen <= 5) m.tex_gen = static_cast<uint8_t>(tex_gen);
-    const int32_t tex_wrap = read_i32_field(state);
-    if (tex_wrap >= 0 && tex_wrap <= 4) {
-      m.tex_wrap = static_cast<uint8_t>(tex_wrap);
-    }
-  } else if (flag_pos + 2 <= body.size()) {
-    m.use_environ = body[flag_pos] != 0;
-    m.prelit = body[flag_pos + 1] != 0;
-  }
   // Diffuse texcoord transform: 16 bytes of flags, then a 12-float source
   // matrix block. Renderers consume the 2-D UV rows as [u v 1] * a 3x3 matrix;
   // the source third-axis slot can carry non-UV scale, so force homogeneous
   // [2][2] to one instead of rejecting the authored UV transform.
-  {
-    const size_t txf = r.pos + mat_state_bytes;
-    auto rf = [&](size_t o) { float f; std::memcpy(&f, body.data() + o, 4); return f; };
-    if (txf + 48 <= body.size()) {
-      float xfm[3][3] = {};
-      bool sane = true;
-      for (int row = 0; row < 3; ++row) {
-        for (int col = 0; col < 3; ++col) {
-          const float value =
-              rf(txf + static_cast<size_t>(row * 3 + col) * 4);
-          xfm[row][col] = value;
-          if (!std::isfinite(value) || std::fabs(value) > 128.0f) sane = false;
-        }
-      }
-      if (sane) {
-        m.tex_xfm[0][0] = xfm[0][0];
-        m.tex_xfm[0][1] = xfm[0][1];
-        m.tex_xfm[0][2] = 0.0f;
-        m.tex_xfm[1][0] = xfm[1][0];
-        m.tex_xfm[1][1] = xfm[1][1];
-        m.tex_xfm[1][2] = 0.0f;
-        m.tex_xfm[2][0] = xfm[2][0];
-        m.tex_xfm[2][1] = xfm[2][1];
-        m.tex_xfm[2][2] = 1.0f;
-        m.tex_scale[0] = m.tex_xfm[0][0];
-        m.tex_scale[1] = m.tex_xfm[1][1];
-        m.tex_offset[0] = m.tex_xfm[2][0];
-        m.tex_offset[1] = m.tex_xfm[2][1];
-      }
-    }
-  }
   // The flag / texture-state bytes follow the colour. We don't need their exact split
   // to draw; the diffuse texture name is the load-bearing field. Scan forward
   // from here for the first length-prefixed ".tex" string — robust against the
   // version-specific flag block between colour and the texture reference.
-  size_t start = r.pos;
-  for (size_t o = start; o + 4 <= body.size(); ++o) {
-    uint32_t len;
-    std::memcpy(&len, body.data() + o, 4);
-    if (len < 4 || len > 64 || o + 4 + len > body.size()) continue;
-    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
-    // Must be printable and end in ".tex".
-    bool printable = true;
-    for (uint32_t k = 0; k < len; ++k) {
-      char c = s[k];
-      if (c < 0x20 || c >= 0x7f) { printable = false; break; }
-    }
-    if (!printable) continue;
-    std::string cand(s, len);
-    if (cand.size() >= 4 && cand.compare(cand.size() - 4, 4, ".tex") == 0) {
-      m.diffuse_tex = cand;
-      size_t cursor = o + 4 + len;
-      try {
-        (void)read_string_at(body, cursor);
-        if (cursor + 2 <= body.size()) {
-          m.intensify = body[cursor] != 0;
-          ++cursor;
-          m.cull = body[cursor] != 0;
-        }
-      } catch (const std::exception&) {
+  if (plan.reads_modern_render_state) {
+    m.use_environ = r.u8() != 0;
+    m.prelit = r.u8() != 0;
+    const int32_t z_mode = r.i32();
+    m.z_mode = static_cast<uint8_t>(
+        (z_mode >= 0 && z_mode <= 4) ? z_mode : 1);
+    m.alpha_cut = r.u8() != 0;
+    if (plan.reads_alpha_threshold) m.alpha_threshold = r.i32();
+    m.alpha_write = r.u8() != 0;
+    const int32_t tex_gen = r.i32();
+    m.tex_gen = static_cast<uint8_t>(
+        (tex_gen >= 0 && tex_gen <= 5) ? tex_gen : 0);
+    const int32_t tex_wrap = r.i32();
+    m.tex_wrap = static_cast<uint8_t>(
+        (tex_wrap >= 0 && tex_wrap <= 4) ? tex_wrap : 1);
+    const float tex_xfm[12] = {r.f32(), r.f32(), r.f32(),
+                               r.f32(), r.f32(), r.f32(),
+                               r.f32(), r.f32(), r.f32(),
+                               r.f32(), r.f32(), r.f32()};
+    bool sane_xfm = true;
+    for (float value : tex_xfm) {
+      if (!std::isfinite(value) || std::fabs(value) > 128.0f) {
+        sane_xfm = false;
       }
-      break;
     }
+    if (sane_xfm) {
+      m.tex_xfm[0][0] = tex_xfm[0];
+      m.tex_xfm[0][1] = tex_xfm[1];
+      m.tex_xfm[0][2] = 0.0f;
+      m.tex_xfm[1][0] = tex_xfm[3];
+      m.tex_xfm[1][1] = tex_xfm[4];
+      m.tex_xfm[1][2] = 0.0f;
+      m.tex_xfm[2][0] = tex_xfm[9];
+      m.tex_xfm[2][1] = tex_xfm[10];
+      m.tex_xfm[2][2] = 1.0f;
+      m.tex_scale[0] = m.tex_xfm[0][0];
+      m.tex_scale[1] = m.tex_xfm[1][1];
+      m.tex_offset[0] = m.tex_xfm[2][0];
+      m.tex_offset[1] = m.tex_xfm[2][1];
+    }
+    m.diffuse_tex_offset = static_cast<uint32_t>(r.pos);
+    m.diffuse_tex = r.str();
+    m.pre_diffuse_tex_bytes.assign(
+        body.begin() + static_cast<std::ptrdiff_t>(flag_pos),
+        body.begin() + static_cast<std::ptrdiff_t>(m.diffuse_tex_offset));
+    const size_t after_diffuse = r.pos;
+    if (after_diffuse < body.size()) {
+      m.post_diffuse_tex_bytes.assign(
+          body.begin() + static_cast<std::ptrdiff_t>(after_diffuse),
+          body.end());
+    }
+    m.next_pass = r.str();
+    m.intensify = r.u8() != 0;
+    m.has_cull = true;
+    m.cull = r.u8() != 0;
+    m.emissive_multiplier = r.f32();
+    m.has_render_state = true;
   }
   m.decoded = true;
   return m;
-}
-
-GroupObj decode_group(const std::string& entry_name,
-                      const std::vector<uint8_t>& body) {
-  GroupObj group;
-  group.name = entry_name;
-  if (decode_group_source_order(body, group)) return group;
-  size_t after_trans_offset = body.size();
-  decode_group_transform(body, group, &after_trans_offset);
-  const uint16_t group_revision =
-      body.size() >= 4 ? low_revision(read_u32_at(body, 0)) : 0;
-  if (group.has_transform) {
-    parse_group_source_layout(body, group_revision, after_trans_offset, group);
-  }
-  return group;
 }
 
 BandPlacerObj decode_band_placer(const std::string& entry_name,
@@ -1286,7 +3444,8 @@ BandPlacerObj decode_band_placer(const std::string& entry_name,
 }
 
 MeshObj decode_mesh(const std::string& entry_name,
-                    const std::vector<uint8_t>& body) {
+                    const std::vector<uint8_t>& body,
+                    int32_t parent_dir_revision) {
   MeshObj mesh;
   mesh.name = entry_name;
   try {
@@ -1296,12 +3455,14 @@ MeshObj decode_mesh(const std::string& entry_name,
       // Not fatal — some mesh variants exist — but record it.
       mesh.error = "unexpected mesh version " + std::to_string(ver);
     }
-    // RndMesh object base, then embedded RndTrans base.
-    r.skip(kObjMeta);
-    std::string trans_parent;
-    read_trans_block(r, mesh.local, mesh.world_stored, mesh.constraint,
-                     mesh.target, mesh.preserve_scale, trans_parent, false);
-    mesh.parent = trans_parent;
+    read_object_fields(r);  // Hmx::Object fields for the Mesh object.
+    const TransFields trans = read_trans_block(r, false, parent_dir_revision);
+    mesh.local = trans.local;
+    mesh.world_stored = trans.world;
+    mesh.constraint = trans.constraint;
+    mesh.target = trans.target;
+    mesh.preserve_scale = trans.preserve_scale;
+    mesh.parent = trans.parent;
 
     // Draw base: version (= 3), showing flag, then sphere + draw-order.
     int32_t draw_ver = r.i32();
@@ -1312,9 +3473,40 @@ MeshObj decode_mesh(const std::string& entry_name,
 
     // Mesh fields.
     mesh.material = r.str();           // material name
+    if (ver == 27) r.str();            // legacy secondary material name
     mesh.geometry_owner = r.str();     // geometry-owner name (usually self)
-    mesh.mutable_flags = r.u32();      // RndMesh::mMutable
-    r.skip(5);                         // volume + null BSP-tree owner
+    if (ver < 13) r.str();             // alt geom owner
+    if (ver < 15) r.str();             // trans parent reference
+    if (ver < 14) {
+      r.str();
+      r.str();
+    }
+    if (ver < 3) {
+      (void)r.f32();
+      (void)r.f32();
+      (void)r.f32();
+    }
+    if (ver < 15) r.skip(16);
+    if (ver < 8) (void)r.u8();
+    if (ver < 15) {
+      r.str();
+      (void)r.f32();
+    }
+    if (ver < 16) {
+      if (ver > 11) (void)r.u8();
+    } else {
+      mesh.mutable_flags = r.u32();
+    }
+    if (ver > 17) (void)r.u32();  // volume
+    if (ver > 18) {
+      const bool bsp_has_value = r.u8() != 0;
+      if (bsp_has_value) {
+        mesh.error = "unsupported non-empty BSP tree";
+        return mesh;
+      }
+    }
+    if (ver == 7) (void)r.u8();
+    if (ver < 11) (void)r.u32();
     uint32_t vcount = r.u32();
 
     // Sanity-gate the vertex count against the remaining bytes: we need at least
@@ -1890,12 +4082,12 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                              payload.data() + de.offset + de.size);
       try {
         if (de.type == "Mesh") {
-          MeshObj m = decode_mesh(de.name, b);
+          MeshObj m = decode_mesh(de.name, b, dir.dir_version);
           m.dir_index = &de - dir.entries.data();
           if (m.decoded) ++mesh_ok; else ++mesh_fail;
           out.meshes.push_back(std::move(m));
         } else if (de.type == "Trans") {
-          out.transes.push_back(decode_trans(de.name, b));
+          out.transes.push_back(decode_trans(de.name, b, dir.dir_version));
         } else if (de.type == "Mat") {
           out.mats.push_back(decode_mat(de.name, b));
         } else if (de.type == "Cam") {
@@ -1909,8 +4101,12 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         } else if (de.type == "Environ") {
           out.environs.push_back(decode_environ(de.name, b));
         } else if (de.type == "Group") {
-          GroupObj group = decode_group(de.name, b);
+          GroupObj group = decode_group(de.name, b, dir.dir_version);
           group.dir_index = &de - dir.entries.data();
+          if (!group.decoded) {
+            std::fprintf(stderr, "[milo_scene]   Group '%s' decode: %s\n",
+                         de.name.c_str(), group.error.c_str());
+          }
           out.groups.push_back(std::move(group));
         } else if (de.type == "BandPlacer") {
           out.band_placers.push_back(decode_band_placer(de.name, b));

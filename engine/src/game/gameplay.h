@@ -750,6 +750,11 @@ class Gameplay {
   void set_diagnostic_venue_override(const std::string& venue) {
     diagnostic_venue_override_ = venue;
   }
+  // Diagnostic prop helper: keeps the stock song/venue/character selection, but
+  // substitutes guitarist0's quickplay guitar symbol for prop-anchor traces.
+  void set_diagnostic_guitar_override(const std::string& guitar) {
+    diagnostic_guitar_override_ = guitar;
+  }
   void set_diagnostic_venue_event(const std::string& event_name) {
     diagnostic_venue_event_ = event_name;
     diagnostic_venue_event_applied_ = false;
@@ -1046,6 +1051,7 @@ class Gameplay {
     std::string last_midi_marker;
     std::string active_clip_mode;
     size_t active_group_index = 0;
+    int32_t active_group_which = 0;
     double active_group_started = 0.0;
     uint32_t active_group_last_bar = UINT32_MAX;
     uint32_t last_anim_note_mask = UINT32_MAX;
@@ -1449,6 +1455,7 @@ class Gameplay {
   uint32_t diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
   std::string diagnostic_character_override_;
   std::string diagnostic_venue_override_;
+  std::string diagnostic_guitar_override_;
   std::string diagnostic_venue_event_;
   std::string diagnostic_camera_shot_;
   double diagnostic_camera_path_offset_frames_ = 0.0;

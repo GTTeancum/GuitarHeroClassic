@@ -1,0 +1,119 @@
+{
+  "trace_id": "pcsx2_rock_lower_body_mesh_rows_20260715",
+  "source_json": "../../GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_rock_lower_body_mesh_rows_20260715.json",
+  "before_sample_screenshot": "../../GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_rock_lower_body_mesh_rows_20260715.before_sample.window.png",
+  "after_sample_screenshot": "../../GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_rock_lower_body_mesh_rows_20260715.window.png",
+  "stale_trace_rejected": {
+    "source_json": "../../GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_lower_body_mesh_rows_20260715.json",
+    "reason": "old 0x00db targets stayed static while the direct app screenshot showed active gameplay"
+  },
+  "runtime": {
+    "seconds": 8.0,
+    "sample_count": 32,
+    "active_gameplay": true,
+    "focus_forced": false
+  },
+  "source_truth": "ihatecompvir_rb3_latest_CharBone_CharClip_CharBonesSamples",
+  "runtime_corroboree_conclusion": {
+    "native_path": "source_output_lower_body_bridge",
+    "rejects": [
+      "stale_named_mesh_wrapper_rows",
+      "foot_ik",
+      "camera_angle",
+      "character_name_offset"
+    ]
+  },
+  "required_moving_desc_rows": [
+    "rock_desc_R_thigh",
+    "rock_desc_R_knee",
+    "rock_desc_L_ankle",
+    "rock_desc_R_ankle",
+    "rock_desc_L_toe",
+    "rock_desc_R_toe",
+    "rock_desc_pelvis"
+  ],
+  "raw_change_offsets": {
+    "rock_desc_R_thigh": {
+      "changed_count": 26,
+      "max_unique_count": 32,
+      "offsets": ["0x4c", "0x50", "0x54", "0x5c", "0x60", "0x64", "0x6c", "0x70", "0x74", "0x8c", "0x90", "0x94", "0x98", "0x9c", "0xa0", "0xa4", "0xa8", "0xac", "0xb0", "0xb4", "0xb8", "0xbc", "0xc0", "0xc4", "0xc8", "0xcc"]
+    },
+    "rock_desc_R_knee": {
+      "changed_count": 17,
+      "max_unique_count": 32,
+      "offsets": ["0x4c", "0x50", "0x5c", "0x60", "0x8c", "0x90", "0x94", "0x9c", "0xa0", "0xa4", "0xac", "0xb0", "0xb4", "0xbc", "0xc0", "0xc4", "0xcc"]
+    },
+    "rock_desc_L_ankle": {
+      "changed_count": 21,
+      "max_unique_count": 32,
+      "offsets": ["0x4c", "0x50", "0x54", "0x5c", "0x60", "0x64", "0x6c", "0x70", "0x74", "0x8c", "0x90", "0x94", "0x9c", "0xa0", "0xa4", "0xac", "0xb0", "0xb4", "0xbc", "0xc0", "0xc4"]
+    },
+    "rock_desc_R_ankle": {
+      "changed_count": 13,
+      "max_unique_count": 5,
+      "offsets": ["0x8c", "0x90", "0x94", "0x9c", "0xa0", "0xa4", "0xac", "0xb0", "0xb4", "0xbc", "0xc0", "0xc4", "0xcc"]
+    },
+    "rock_desc_L_toe": {
+      "changed_count": 21,
+      "max_unique_count": 32,
+      "offsets": ["0x4c", "0x50", "0x54", "0x5c", "0x60", "0x64", "0x6c", "0x70", "0x74", "0x8c", "0x90", "0x94", "0x9c", "0xa0", "0xa4", "0xac", "0xb0", "0xb4", "0xbc", "0xc0", "0xc4"]
+    },
+    "rock_desc_R_toe": {
+      "changed_count": 13,
+      "max_unique_count": 32,
+      "offsets": ["0x8c", "0x90", "0x94", "0x9c", "0xa0", "0xa4", "0xac", "0xb0", "0xb4", "0xbc", "0xc0", "0xc4", "0xcc"]
+    },
+    "rock_desc_pelvis": {
+      "changed_count": 17,
+      "max_unique_count": 7,
+      "offsets": ["0x8c", "0x90", "0x94", "0x98", "0x9c", "0xa0", "0xa4", "0xa8", "0xac", "0xb0", "0xb4", "0xb8", "0xbc", "0xc0", "0xc4", "0xc8", "0xcc"]
+    }
+  },
+  "pairs": [
+    {
+      "bone": "bone_L-thigh.mesh",
+      "desc": {"name": "rock_desc_L_thigh", "addr": "0x00e25864", "changed_count": 0},
+      "mesh": {"name": "rock_mesh_L_thigh", "addr": "0x00ef23e0", "changed_count": 0}
+    },
+    {
+      "bone": "bone_R-thigh.mesh",
+      "desc": {"name": "rock_desc_R_thigh", "addr": "0x00e28264", "changed_count": 26},
+      "mesh": {"name": "rock_mesh_R_thigh", "addr": "0x00ef2d30", "changed_count": 0}
+    },
+    {
+      "bone": "bone_L-knee.mesh",
+      "desc": {"name": "rock_desc_L_knee", "addr": "0x00e21b64", "changed_count": 0},
+      "mesh": {"name": "rock_mesh_L_knee", "addr": "0x00ef15c0", "changed_count": 0}
+    },
+    {
+      "bone": "bone_R-knee.mesh",
+      "desc": {"name": "rock_desc_R_knee", "addr": "0x00e23864", "changed_count": 17},
+      "mesh": {"name": "rock_mesh_R_knee", "addr": "0x00ef1c68", "changed_count": 0}
+    },
+    {
+      "bone": "bone_L-ankle.mesh",
+      "desc": {"name": "rock_desc_L_ankle", "addr": "0x00e25f64", "changed_count": 21},
+      "mesh": {"name": "rock_mesh_L_ankle", "addr": "0x00ef24c0", "changed_count": 0}
+    },
+    {
+      "bone": "bone_R-ankle.mesh",
+      "desc": {"name": "rock_desc_R_ankle", "addr": "0x00e28364", "changed_count": 13},
+      "mesh": {"name": "rock_mesh_R_ankle", "addr": "0x00ef2e10", "changed_count": 0}
+    },
+    {
+      "bone": "bone_L-toe.mesh",
+      "desc": {"name": "rock_desc_L_toe", "addr": "0x00e24364", "changed_count": 21},
+      "mesh": {"name": "rock_mesh_L_toe", "addr": "0x00ef1eb0", "changed_count": 0}
+    },
+    {
+      "bone": "bone_R-toe.mesh",
+      "desc": {"name": "rock_desc_R_toe", "addr": "0x00e22f64", "changed_count": 13},
+      "mesh": {"name": "rock_mesh_R_toe", "addr": "0x00ef1920", "changed_count": 0}
+    },
+    {
+      "bone": "bone_pelvis.mesh",
+      "desc": {"name": "rock_desc_pelvis", "addr": "0x00e27464", "changed_count": 17},
+      "mesh": {"name": "rock_mesh_pelvis", "addr": "0x00ef29c8", "changed_count": 0}
+    }
+  ]
+}
