@@ -3345,14 +3345,15 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   MiloEnvFrameCache env_cache;
   ScopedMiloEnvFrameCache scoped_env_cache(env_cache);
 
-  const float backbuffer_aspect =
+  const float physical_backbuffer_aspect =
       win_->bb_height() > 0 ? static_cast<float>(win_->bb_width()) /
                                   static_cast<float>(win_->bb_height())
                             : 16.0f / 9.0f;
-  const float default_aspect =
-      default_camera_aspect_ > 0.0f ? default_camera_aspect_ : backbuffer_aspect;
+  const float backbuffer_aspect = default_camera_aspect_ > 0.0f
+                                      ? default_camera_aspect_
+                                      : physical_backbuffer_aspect;
   const float aspect =
-      env_camera_aspect_preset_or("GHOGX_CAMERA_ASPECT", default_aspect);
+      env_camera_aspect_preset_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect);
 
   DebugVenueInspectorState* debug_venue = nullptr;
   if (draw_scene && debug_venue_inspector_enabled() &&
@@ -4785,52 +4786,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       apply_mesh_transform_sample(
           local, sample_transform_anim(active.anim, anim_frame));
     };
-    auto animated_world_for = [&](auto&& self, const std::string& node,
-                                  std::array<float, 16>& out,
-                                  int guard) -> bool {
-      if (guard >= 64) {
-        if (env_enabled("GHOGX_LOG_MESH_ANIM_RESOLVE")) {
-          std::fprintf(stderr,
-                       "[milo_scene] mesh_anim_resolve fail=guard mesh=%s "
-                       "node=%s\n",
-                       m.name.c_str(), node.c_str());
-        }
-        return false;
-      }
-      if (world_override_for(node, out)) return true;
-      std::array<float, 16> local{};
-      if (!local_for(node, local)) {
-        if (env_enabled("GHOGX_LOG_MESH_ANIM_RESOLVE")) {
-          std::fprintf(stderr,
-                       "[milo_scene] mesh_anim_resolve fail=local mesh=%s "
-                       "node=%s kind=%s parent=%s\n",
-                       m.name.c_str(), node.c_str(), target_kind_for(node),
-                       parent_for(node).empty() ? "<none>"
-                                                : parent_for(node).c_str());
-        }
-        return false;
-      }
-      apply_transform_samples(local, node);
-      const std::string parent = parent_for(node);
-      if (parent.empty() || parent == node) {
-        out = local;
-        return true;
-      }
-      std::array<float, 16> parent_world{};
-      if (!self(self, parent, parent_world, guard + 1)) {
-        if (env_enabled("GHOGX_LOG_MESH_ANIM_RESOLVE")) {
-          std::fprintf(stderr,
-                       "[milo_scene] mesh_anim_resolve fail=parent mesh=%s "
-                       "node=%s parent=%s kind=%s\n",
-                       m.name.c_str(), node.c_str(), parent.c_str(),
-                       target_kind_for(parent));
-        }
-        return false;
-      }
-      out = apply_transform_constraint(local, parent_world,
-                                       constraint_for(node));
-      return true;
-    };
     std::vector<std::string> animated_ancestors;
     for (std::string parent = m.parent; !parent.empty();) {
       animated_ancestors.push_back(parent);
@@ -4854,8 +4809,75 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     auto world = scene_.world_matrix(m);
     bool recomposed_animated_chain = false;
     if (chain_has_transform_sample || chain_has_world_override) {
-      std::array<float, 16> composed{};
-      if (animated_world_for(animated_world_for, m.name, composed, 0)) {
+      std::vector<std::string> chain;
+      chain.reserve(animated_ancestors.size() + 1);
+      for (const auto& ancestor : animated_ancestors) chain.push_back(ancestor);
+      chain.push_back(m.name);
+      std::array<float, 16> anchor_base{};
+      std::array<float, 16> anchor_current{};
+      bool have_anchor = false;
+      bool resolved_all_nodes = true;
+      std::array<float, 16> composed = world;
+      for (const std::string& target : chain) {
+        const bool target_is_mesh = target == m.name;
+        const bool target_sampled = target_has_transform_sample(target);
+        if (!target_sampled && !target_is_mesh) continue;
+        std::array<float, 16> base_world{};
+        if (!base_world_for(target, base_world)) {
+          resolved_all_nodes = false;
+          break;
+        }
+        std::array<float, 16> current_world = base_world;
+        if (have_anchor) {
+          current_world =
+              mul16(mul16(base_world, affine_inverse16(anchor_base)),
+                    anchor_current);
+        }
+        if (target_sampled) {
+          std::array<float, 16> base_local{};
+          if (!local_for(target, base_local)) {
+            resolved_all_nodes = false;
+            break;
+          }
+          std::array<float, 16> sampled_local = base_local;
+          const bool log_local =
+              env_mesh_filter_matches("GHOGX_LOG_MESH_ANIM_LOCAL", m.name) ||
+              env_mesh_filter_matches("GHOGX_LOG_MESH_ANIM_LOCAL", target);
+          const auto offset_it = mesh_transform_offsets_.find(target);
+          const bool has_offset = offset_it != mesh_transform_offsets_.end();
+          const auto active_it = active_mesh_anims_.find(target);
+          const bool has_active_anim = active_it != active_mesh_anims_.end();
+          MiloSceneRenderer::MeshTransformSample active_sample;
+          const MiloSceneRenderer::MeshTransformSample* applied_sample =
+              nullptr;
+          float active_frame = 0.0f;
+          if (has_offset) {
+            applied_sample = &offset_it->second;
+            apply_mesh_transform_sample(sampled_local, offset_it->second);
+          }
+          if (has_active_anim) {
+            const auto& active = active_it->second;
+            active_frame = active.elapsed * active.frames_per_second;
+            active_sample = sample_transform_anim(active.anim, active_frame);
+            applied_sample = &active_sample;
+            apply_mesh_transform_sample(sampled_local, active_sample);
+          }
+          if (log_local) {
+            log_mesh_anim_local_rows(
+                m.name, target, target_kind_for(target), parent_for(target),
+                base_local, sampled_local, applied_sample, active_frame,
+                has_offset, has_active_anim);
+          }
+          current_world =
+              mul16(mul16(sampled_local, affine_inverse16(base_local)),
+                    current_world);
+          anchor_base = base_world;
+          anchor_current = current_world;
+          have_anchor = true;
+        }
+        if (target_is_mesh) composed = current_world;
+      }
+      if (resolved_all_nodes) {
         world = composed;
         recomposed_animated_chain = true;
       }

@@ -3525,10 +3525,14 @@ MeshObj decode_mesh(const std::string& entry_name,
       v.nx = r.f32(); v.ny = r.f32(); v.nz = r.f32();
       // ihatecompvir's RndMesh reader treats GH2 rev 28's pre-separate-color
       // slot as color first, then copies it into boneWeights when mBones exists.
-      v.w[0] = r.f32();
-      v.w[1] = r.f32();
-      v.w[2] = r.f32();
-      v.w[3] = r.f32();
+      const float weight0 = r.f32();
+      const float weight1 = r.f32();
+      const float weight2 = r.f32();
+      const float weight3 = r.f32();
+      v.w[0] = weight0;
+      v.w[1] = weight1;
+      v.w[2] = weight2;
+      v.w[3] = weight3;
       v.r = 1.0f; v.g = 1.0f; v.b = 1.0f; v.a = 1.0f;
       v.u  = r.f32(); v.v  = r.f32();
     }
