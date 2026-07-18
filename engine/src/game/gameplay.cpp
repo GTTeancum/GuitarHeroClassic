@@ -1694,6 +1694,60 @@ struct DecodedRndCamAnim {
     size_t end_offset = 0;
 };
 
+struct DecodedRndColorXfmSummary {
+    uint16_t revision = 0;
+    uint16_t alt_revision = 0;
+    float lightness = 0.0f;
+    float saturation = 0.0f;
+    float hue = 0.0f;
+    float brightness = 0.0f;
+    float contrast = 0.0f;
+    bool source_visible_payload = false;
+};
+
+struct DecodedRndPostProcSummary {
+    std::string name;
+    std::string source_milo;
+    uint16_t revision = 0;
+    uint16_t alt_revision = 0;
+    bool bloom_color_read = false;
+    float bloom_intensity = 0.0f;
+    float bloom_threshold = 0.0f;
+    std::string luminance_map;
+    DecodedRndColorXfmSummary color_xfm;
+    float noise_intensity = 0.0f;
+    float noise_top_scale = 0.0f;
+    bool noise_stationary = false;
+    std::string noise_map;
+    bool noise_midtone = false;
+    float trail_threshold = 0.0f;
+    float trail_duration = 0.0f;
+    float emulate_fps = 0.0f;
+    float poster_levels = 0.0f;
+    float poster_min = 0.0f;
+    float kaleidoscope_complexity = 0.0f;
+    float hall_of_time_rate = 0.0f;
+    float hall_of_time_mix = 0.0f;
+    int hall_of_time_type = 0;
+    float motion_blur_blend = 0.0f;
+    bool motion_blur_velocity = false;
+    std::string gradient_map;
+    float gradient_map_opacity = 0.0f;
+    std::string refract_map;
+    float refract_dist = 0.0f;
+    float refract_angle = 0.0f;
+    float chromatic_aberration_offset = 0.0f;
+    bool chromatic_sharpen = false;
+    float vignette_intensity = 0.0f;
+    bool bloom_glare = false;
+    bool bloom_streak = false;
+    float bloom_streak_attenuation = 0.0f;
+    float bloom_streak_angle = 0.0f;
+    size_t bytes_consumed = 0;
+    size_t bytes_total = 0;
+    bool exact_reader_eof = false;
+};
+
 Gameplay::CameraKey read_rnd_transanim_quat_key_like_miloeditor(MiloCursor& r) {
     Gameplay::CameraKey key;
     for (float& v : key.quat) v = r.f32();
@@ -1709,6 +1763,39 @@ Gameplay::CameraKey read_rnd_transanim_vec3_key_like_miloeditor(MiloCursor& r) {
     key.eye[2] = r.f32();
     key.frame = r.f32();
     return key;
+}
+
+std::array<float, 2> read_vec2_like_miloeditor(MiloCursor& r) {
+    return {r.f32(), r.f32()};
+}
+
+std::array<float, 3> read_vec3_like_miloeditor(MiloCursor& r) {
+    return {r.f32(), r.f32(), r.f32()};
+}
+
+std::array<float, 4> read_hmx_color4_like_miloeditor(MiloCursor& r) {
+    return {r.f32(), r.f32(), r.f32(), r.f32()};
+}
+
+DecodedRndColorXfmSummary read_rnd_colorxfm_like_miloeditor(MiloCursor& r) {
+    DecodedRndColorXfmSummary out;
+    const uint32_t combined_revision = r.u32();
+    out.revision = static_cast<uint16_t>(combined_revision & 0xffff);
+    out.alt_revision =
+        static_cast<uint16_t>((combined_revision >> 16) & 0xffff);
+    if (out.revision > 0) return out;
+    (void)read_hmx_matrix(r);
+    out.lightness = r.f32();
+    out.saturation = r.f32();
+    out.hue = r.f32();
+    out.brightness = r.f32();
+    out.contrast = r.f32();
+    (void)read_hmx_color4_like_miloeditor(r);
+    (void)read_hmx_color4_like_miloeditor(r);
+    (void)read_hmx_color4_like_miloeditor(r);
+    (void)read_hmx_color4_like_miloeditor(r);
+    out.source_visible_payload = true;
+    return out;
 }
 
 Gameplay::VenueCameraFovAnim::FovKey read_rnd_camanim_fov_key_like_miloeditor(
@@ -1910,6 +1997,128 @@ std::optional<DecodedRndCamAnim> read_rnd_camanim_like_miloeditor(
         }
         return std::nullopt;
     }
+}
+
+std::optional<DecodedRndPostProcSummary> read_rnd_postproc_like_miloeditor(
+    const uint8_t* body, size_t size, std::string name,
+    std::string source_milo) {
+    try {
+        MiloCursor r{body, size, 0};
+        DecodedRndPostProcSummary pp;
+        pp.name = canonical_milo_ref(std::move(name));
+        pp.source_milo = std::move(source_milo);
+        const uint32_t combined_revision = r.u32();
+        pp.revision = static_cast<uint16_t>(combined_revision & 0xffff);
+        pp.alt_revision =
+            static_cast<uint16_t>((combined_revision >> 16) & 0xffff);
+        std::unordered_map<std::string, MiloValue> object_props;
+        read_object_fields_like_miloeditor(r, object_props);
+
+        if (pp.revision > 4) {
+            if (pp.revision > 10) {
+                (void)read_hmx_color4_like_miloeditor(r);
+                pp.bloom_color_read = true;
+                pp.bloom_intensity = r.f32();
+                pp.bloom_threshold = r.f32();
+            }
+        }
+        pp.luminance_map = canonical_milo_ref(r.symbol());
+        pp.color_xfm = read_rnd_colorxfm_like_miloeditor(r);
+        (void)read_vec2_like_miloeditor(r);
+        (void)read_vec2_like_miloeditor(r);
+        (void)read_vec2_like_miloeditor(r);
+        pp.noise_intensity = r.f32();
+        pp.noise_top_scale = r.f32();
+        pp.noise_stationary = r.boolean();
+        pp.noise_map = canonical_milo_ref(r.symbol());
+        pp.noise_midtone = r.boolean();
+        if (pp.revision > 7) {
+            pp.trail_threshold = r.f32();
+            pp.trail_duration = r.f32();
+            pp.emulate_fps = r.f32();
+        }
+        if (pp.revision > 9) {
+            pp.poster_levels = r.f32();
+        }
+        if (pp.revision > 13) pp.poster_min = r.f32();
+        pp.kaleidoscope_complexity = r.f32();
+        (void)r.f32();
+        (void)r.f32();
+        (void)r.f32();
+        (void)r.boolean();
+        pp.hall_of_time_rate = r.f32();
+        (void)read_hmx_color4_like_miloeditor(r);
+        pp.hall_of_time_mix = r.f32();
+        pp.hall_of_time_type = r.i32();
+        pp.motion_blur_blend = r.f32();
+        (void)read_hmx_color4_like_miloeditor(r);
+        pp.motion_blur_velocity = r.boolean();
+        pp.gradient_map = canonical_milo_ref(r.symbol());
+        pp.gradient_map_opacity = r.f32();
+        (void)r.f32();
+        (void)r.f32();
+        (void)r.f32();
+        pp.refract_map = canonical_milo_ref(r.symbol());
+        pp.refract_dist = r.f32();
+        (void)read_vec2_like_miloeditor(r);
+        (void)read_vec2_like_miloeditor(r);
+        pp.refract_angle = r.f32();
+        (void)read_vec2_like_miloeditor(r);
+        pp.chromatic_aberration_offset = r.f32();
+        pp.chromatic_sharpen = r.boolean();
+        (void)read_hmx_color4_like_miloeditor(r);
+        pp.vignette_intensity = r.f32();
+        if (pp.revision > 32) pp.bloom_glare = r.boolean();
+        if (pp.revision > 35) {
+            pp.bloom_streak = r.boolean();
+            pp.bloom_streak_attenuation = r.f32();
+            pp.bloom_streak_angle = r.f32();
+        }
+        pp.bytes_consumed = r.pos;
+        pp.bytes_total = r.size;
+        pp.exact_reader_eof = r.pos == r.size;
+        return pp;
+    } catch (const std::exception& ex) {
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] RndPostProc decode failed %s: %s\n",
+                         name.c_str(), ex.what());
+        }
+        return std::nullopt;
+    }
+}
+
+std::string format_rnd_postproc_summary(
+    const DecodedRndPostProcSummary& pp) {
+    char buf[1024];
+    std::snprintf(
+        buf, sizeof(buf),
+        "source_reader=MiloEditor::RndPostProc.Read source_color_xfm=MiloEditor::RndColorXfm.Read source=%s name=%s rev=%u alt=%u bytes=%zu/%zu eof_exact=%d bloom_color=%d bloom=(%.3f %.3f) luminance=%s color_xfm_rev=%u color_xfm_payload=%d color_xfm=(%.3f %.3f %.3f %.3f %.3f) noise=(%.3f %.3f stat:%d mid:%d map:%s) trail=(%.3f %.3f fps:%.3f) poster=(%.3f %.3f) kaleidoscope=%.3f hall=(%.3f %.3f type:%d) motion=(%.3f velocity:%d) gradient=(%s %.3f) refract=(%s %.3f %.3f) chromatic=(%.3f sharpen:%d) vignette=%.3f bloom_tail=(glare:%d streak:%d attenuation:%.3f angle:%.3f)",
+        pp.source_milo.c_str(), pp.name.c_str(), pp.revision,
+        pp.alt_revision, pp.bytes_consumed, pp.bytes_total,
+        pp.exact_reader_eof ? 1 : 0, pp.bloom_color_read ? 1 : 0,
+        pp.bloom_intensity, pp.bloom_threshold,
+        pp.luminance_map.empty() ? "<none>" : pp.luminance_map.c_str(),
+        pp.color_xfm.revision,
+        pp.color_xfm.source_visible_payload ? 1 : 0,
+        pp.color_xfm.lightness, pp.color_xfm.saturation, pp.color_xfm.hue,
+        pp.color_xfm.brightness, pp.color_xfm.contrast,
+        pp.noise_intensity, pp.noise_top_scale,
+        pp.noise_stationary ? 1 : 0, pp.noise_midtone ? 1 : 0,
+        pp.noise_map.empty() ? "<none>" : pp.noise_map.c_str(),
+        pp.trail_threshold, pp.trail_duration, pp.emulate_fps,
+        pp.poster_levels, pp.poster_min, pp.kaleidoscope_complexity,
+        pp.hall_of_time_rate, pp.hall_of_time_mix, pp.hall_of_time_type,
+        pp.motion_blur_blend, pp.motion_blur_velocity ? 1 : 0,
+        pp.gradient_map.empty() ? "<none>" : pp.gradient_map.c_str(),
+        pp.gradient_map_opacity,
+        pp.refract_map.empty() ? "<none>" : pp.refract_map.c_str(),
+        pp.refract_dist, pp.refract_angle,
+        pp.chromatic_aberration_offset, pp.chromatic_sharpen ? 1 : 0,
+        pp.vignette_intensity, pp.bloom_glare ? 1 : 0,
+        pp.bloom_streak ? 1 : 0, pp.bloom_streak_attenuation,
+        pp.bloom_streak_angle);
+    return std::string(buf);
 }
 
 std::optional<DecodedRndTransAnim> read_rnd_transanim_like_miloeditor(
@@ -12245,6 +12454,57 @@ size_t count_milo_entries_of_type(const std::string& hdr_path,
         }
     }
     return 0;
+}
+
+std::map<std::string, std::string> load_venue_camera_postprocess_summaries(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& milo_paths) {
+    std::map<std::string, std::string> out;
+    size_t decoded_objects = 0;
+    size_t prefix_objects = 0;
+    try {
+        const auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        for (const auto& milo_path : milo_paths) {
+            if (milo_path.empty()) continue;
+            auto entry = ark.find(milo_path);
+            if (!entry) entry = ark.find("../../system/run/" + milo_path);
+            if (!entry) continue;
+            auto bytes = ark.read_entry(*entry, {ark_path});
+            auto hdr = gh::milo::parse_header(bytes);
+            auto payload = gh::milo::inflate_payload(bytes, hdr);
+            auto dir = gh::milo::parse_directory(payload);
+            for (const auto& de : dir.entries) {
+                if (de.type != "PostProc" ||
+                    de.offset + de.size > payload.size()) {
+                    continue;
+                }
+                const auto decoded = read_rnd_postproc_like_miloeditor(
+                    payload.data() + de.offset, static_cast<size_t>(de.size),
+                    de.name, milo_path);
+                if (!decoded) continue;
+                const std::string summary = format_rnd_postproc_summary(*decoded);
+                out[canonical_milo_ref(de.name)] = summary;
+                if (de.name != canonical_milo_ref(de.name))
+                    out[de.name] = summary;
+                ++decoded_objects;
+                if (!decoded->exact_reader_eof) ++prefix_objects;
+            }
+        }
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] venue camera RndPostProc assets: source_reader=MiloEditor::RndPostProc.Read source_color_xfm=MiloEditor::RndColorXfm.Read sources=%zu decoded=%zu source_visible_prefix=%zu aliases=%zu render_effect=postprocessor_pipeline_deferred\n",
+                milo_paths.size(), decoded_objects, prefix_objects,
+                out.size());
+        }
+    } catch (const std::exception& ex) {
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] venue camera RndPostProc assets failed: %s\n",
+                         ex.what());
+        }
+    }
+    return out;
 }
 
 void append_scene_for_venue_subdir(ghogx::milo_scene::Scene& dst,
@@ -28158,6 +28418,27 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
                 ? "<none>"
                 : active_camera_postprocess_ref_.c_str(),
             key.postproc_override_refs.size());
+        const auto summary_it =
+            venue_camera_postprocess_summaries_.find(active_camera_postprocess_ref_);
+        const bool source_payload_decoded =
+            !active_camera_postprocess_ref_.empty() &&
+            summary_it != venue_camera_postprocess_summaries_.end();
+        std::fprintf(
+            stderr,
+            "[world] camera start_shot postprocess_source: source_script=world/camshot.dta source_call=%s shot=%s active_postprocess=%s source_payload=%s summaries=%zu %s\n",
+            source_selects_postprocess ? "RndPostProc::Select"
+                                       : "RndPostProc::Reset",
+            active_camera_runtime_shot_.c_str(),
+            active_camera_postprocess_ref_.empty()
+                ? "<none>"
+                : active_camera_postprocess_ref_.c_str(),
+            active_camera_postprocess_ref_.empty()
+                ? "reset_no_object"
+                : (source_payload_decoded ? "decoded_from_loaded_milo"
+                                          : "not_found_in_loaded_milos"),
+            venue_camera_postprocess_summaries_.size(),
+            source_payload_decoded ? summary_it->second.c_str()
+                                   : "source_reader=MiloEditor::RndPostProc.Read render_effect=postprocessor_pipeline_deferred");
     }
     if (key.category == "LOSE" &&
         (debug_venue_filters_enabled() || debug_camera_enabled())) {
@@ -35052,11 +35333,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
             ghogx::milo_scene::Scene venue_chars_scene_for_load;
             const std::string chars_milo = venue_assembly.chars_milo;
             guitarist0_charwalk_object_count_ = 0;
+            venue_camera_postprocess_summaries_.clear();
             bool chars_scene_loaded = false;
             if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_, venue_geom,
                                               venue_scene)) {
                 log_venue_dependencies(hdr_path_, ark_path_,
                                        venue_assembly.dependency_milos);
+                std::vector<std::string> venue_postprocess_sources;
+                push_unique_ref(venue_postprocess_sources,
+                                venue_assembly.world_milo);
+                push_unique_ref(venue_postprocess_sources, chars_milo);
+                push_unique_ref(venue_postprocess_sources, venue_geom);
+                push_unique_ref(venue_postprocess_sources,
+                                venue_assembly.lighting_milo);
+                for (const auto& dep : venue_assembly.dependency_milos)
+                    push_unique_ref(venue_postprocess_sources, dep);
+                venue_camera_postprocess_summaries_ =
+                    load_venue_camera_postprocess_summaries(
+                        hdr_path_, ark_path_, venue_postprocess_sources);
                 const std::vector<std::string> venue_visual_subdir_sources =
                     merge_visual_venue_subdirs(
                         hdr_path_, ark_path_,

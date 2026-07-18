@@ -2,6 +2,17 @@
 
 ## Venue Camera
 
+- 2026-07-18 gameplay RndPostProc source summary:
+  MiloEditor source reads `RndPostProc` as base `Object` fields followed by
+  bloom/luminance, `RndColorXfm`, flicker/noise, trail, poster,
+  kaleidoscope, hall-of-time, motion blur, gradient, refract, chromatic,
+  vignette, and bloom-tail fields. Native now scans only the already-loaded
+  venue MILO assembly and dependency list for `PostProc` entries, stores a
+  compact source-reader summary by object name, and emits a separate
+  `postprocess_source` row when `camshot.dta::start_shot` selects or resets
+  postprocess state. This is asset/source proof only: it does not implement
+  the postprocess renderer effect, change camera pose math, add dependencies,
+  touch FreeCam, or mask the open under-venue concern.
 - 2026-07-17 gameplay camera source-backed status row:
   Runtime camera proofs now emit `[world] camera source-backed status` instead
   of the numeric progress row. The row derives

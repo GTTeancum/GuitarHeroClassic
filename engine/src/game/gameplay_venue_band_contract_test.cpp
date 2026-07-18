@@ -6298,6 +6298,31 @@ int main() {
                  "active_postprocess=%spostproc_overrides=%zu"
                  "render_effect=postprocessor_pipeline_deferred\\n\"",
                  "camera StartAnim mirrors the Xbox postprocess select/reset lifecycle while leaving renderer effects deferred");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::string>"
+                 "venue_camera_postprocess_summaries_;",
+                 "gameplay keeps decoded RndPostProc source summaries separate from active postprocess state");
+  ok &= contains(gameplay_c,
+                 "read_rnd_postproc_like_miloeditor(",
+                 "camera material support has a source-shaped RndPostProc reader");
+  ok &= contains(gameplay_c,
+                 "source_reader=MiloEditor::RndPostProc.Read"
+                 "source_color_xfm=MiloEditor::RndColorXfm.Read",
+                 "camera postprocess diagnostics cite the ihatecompvir RndPostProc and RndColorXfm readers");
+  ok &= contains(gameplay_c,
+                 "load_venue_camera_postprocess_summaries(",
+                 "venue loading scans the already-discovered MILO set for camera postprocess objects");
+  ok &= contains(gameplay_c,
+                 "venue_camera_postprocess_summaries_=load_venue_camera_postprocess_summaries(",
+                 "gameplay venue init records decoded postprocess source summaries from loaded venue dependencies");
+  ok &= contains(gameplay_c,
+                 "\"[world]camerastart_shotpostprocess_source:"
+                 "source_script=world/camshot.dtasource_call=%sshot=%s"
+                 "active_postprocess=%ssource_payload=%ssummaries=%zu%s\\n\"",
+                 "camera StartAnim reports whether the active postprocess object payload was decoded from loaded MILOs");
+  ok &= contains(gameplay_c,
+                 "render_effect=postprocessor_pipeline_deferred",
+                 "camera material diagnostics keep postprocess renderer effects deferred");
   ok &= appears_before(
       start_camera_shot_runtime_c,
       "active_camera_postprocess_ref_=canonical_milo_ref(key.postprocess_ref);",
