@@ -162,6 +162,7 @@ class HighwayRenderer {
     bool prelit = false;
     bool point_lights = false;
     bool intensify = false;
+    bool cull = true;
     bool texture_wrap = false;
     bool ok = false;
   };
@@ -179,7 +180,11 @@ class HighwayRenderer {
     uint8_t blend = 0;
     uint8_t z_mode = 1;
     uint8_t tex_gen = 0;
+    bool prelit = false;
+    bool alpha_cut = false;
+    bool alpha_write = false;
     bool intensify = false;
+    bool cull = true;
     bool texture_wrap = false;
     bool ok = false;
   };

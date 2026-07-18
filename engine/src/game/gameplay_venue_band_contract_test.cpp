@@ -2085,7 +2085,8 @@ int main() {
                  "autolocal_tail_half_for_screen_width=[&](intlane,floaty,",
                  "parked whammy trace can convert PCSX2 screen-width data back into root-space width");
   ok &= contains(highway_renderer_c,
-                 "sample_compensated_tail_width_px_720(rel)",
+                 "if(profile==TailWidthProfileKind::kWhammyBody){"
+                 "returnsample_compensated_tail_width_px_720(rel_y);}",
                  "parked whammy trace keeps PCSX2 visible targets after measured native line-response inversion");
   ok &= contains(highway_renderer_c,
                  "constboolwhammy_tail_deformation_enabled="
@@ -2342,6 +2343,27 @@ int main() {
                  "out.z_mode=mat->z_mode;",
                  "highway runtime meshes copy authored MILO z mode");
   ok &= contains(highway_renderer_c,
+                 "out.prelit=mat->prelit;",
+                 "highway runtime tail line materials copy authored prelit state");
+  ok &= contains(highway_renderer_c,
+                 "out.alpha_cut=mat->alpha_cut;",
+                 "highway runtime tail line materials copy authored alpha-cut state");
+  ok &= contains(highway_renderer_c,
+                 "out.alpha_write=mat->alpha_write;",
+                 "highway runtime tail line materials copy authored alpha-write state");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_ALPHATESTENABLE,"
+                 "source_alpha_test?TRUE:FALSE);",
+                 "highway tail line materials choose alpha-test state from the decoded source alpha flags");
+  ok &= contains(highway_renderer_c,
+                 "constboolsource_alpha_test="
+                 "material->alpha_cut||material->alpha_write;",
+                 "highway tail line materials map alpha-write to the PCSX2 observed alpha-test pass");
+  ok &= contains(highway_renderer_c,
+                 "constDWORDsource_alpha_ref=material->alpha_cut?"
+                 "kNoteCardAlphaRef:0;",
+                 "source alpha-write tail lines use the PCSX2 observed zero alpha-test reference");
+  ok &= contains(highway_renderer_c,
                  "out.use_environ=mat->use_environ;",
                  "highway runtime meshes copy authored use-environment lighting state");
   ok &= contains(highway_renderer_c,
@@ -2359,6 +2381,9 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "out.intensify=mat->intensify;",
                  "highway runtime meshes copy authored MILO intensify state");
+  ok &= contains(highway_renderer_c,
+                 "out.cull=mat->cull;",
+                 "highway runtime materials copy authored cull state");
   ok &= contains(highway_renderer_c,
                  "out.texture_wrap=mat->tex_wrap!=0||"
                  "mat->tex_scale[0]>1.01f||"
@@ -3117,6 +3142,16 @@ int main() {
                  "std::stringsmasher_normal_texture_name_;",
                  "highway stores the authored idle smasher material");
   ok &= contains(highway_renderer_h_c,
+                 "boolcull=true;",
+                 "highway runtime meshes carry the decoded MILO material cull flag");
+  ok &= contains(highway_renderer_c,
+                 "out.cull=mat->cull;",
+                 "native highway meshes preserve source material culling");
+  ok &= contains(highway_renderer_c,
+                 "DWORDhighway_source_cull_mode(boolsource_cull_enabled){"
+                 "returnsource_cull_enabled?D3DCULL_CW:D3DCULL_NONE;}",
+                 "source-authored cull flags map to the mirrored highway projection cull mode");
+  ok &= contains(highway_renderer_h_c,
                  "std::array<std::string,5>smasher_ring_texture_names_;",
                  "highway stores lane-authored native smasher ring materials");
   ok &= contains(highway_renderer_h_c,
@@ -3298,12 +3333,30 @@ int main() {
                  "\"gem_smasher.mesh\",\"gem_smasher_\"+name+\"_1.mat\");",
                  "pressed smasher body add layers draw through source-bound meshes");
   ok &= contains(highway_renderer_c,
-                 "invert_mesh_normals(smasher_add_meshes_[lane]);",
-                 "pressed smasher body add layers use corrected source-facing normals");
+                 "gem_smasher_mesh_=convert_mesh(\"gem_smasher.mesh\");",
+                 "fret-target smasher body keeps decoded source mesh normals");
   ok &= contains(highway_renderer_c,
-                 "gem_smasher_mesh_=convert_mesh(\"gem_smasher.mesh\");"
-                 "invert_mesh_normals(gem_smasher_mesh_);",
-                 "fret-target smasher body uses corrected source-facing normals");
+                 "autodraw_smasher_solid_mesh="
+                 "[&](constRuntimeMesh&mesh,boolwrite_depth,auto&&draw_mesh)",
+                 "fret-target smasher bodies draw through a local solid 3D render-state wrapper");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_ZENABLE,TRUE);"
+                 "dev_->SetRenderState(D3DRS_ZWRITEENABLE,"
+                 "write_depth?TRUE:FALSE);",
+                 "fret-target smasher body enables depth instead of the global overlay state");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_CULLMODE,"
+                 "highway_source_cull_mode(mesh.cull));",
+                 "fret-target smasher body honors decoded material culling while raised");
+  ok &= contains(highway_renderer_c,
+                 "draw_smasher_solid_mesh(gem_smasher_mesh_,true,[&](){",
+                 "fret-target smasher body writes depth so interior faces do not bleed through");
+  ok &= absent(highway_renderer_c,
+               "invert_mesh_normals(",
+               "fret-target smasher meshes must not flip decoded source normals");
+  ok &= absent(highway_renderer_c,
+               "draw_centered_root_mesh_z_fit_with_texture",
+               "pressed smasher bodies must not introduce non-source Z scaling");
   ok &= contains(highway_renderer_c,
                  "smasher_press_anim_=load_track_transanim_transform_anim("
                  "hdr_path,ark_path,\"gem_smasher.tnm\");",
@@ -3317,9 +3370,6 @@ int main() {
                  "bonus_smasher_add_mesh_=convert_mesh("
                  "\"gem_smasher.mesh\",\"gem_smasher_bonus_1.mat\");",
                  "active star power draws the bonus smasher body add through its source-bound mesh");
-  ok &= contains(highway_renderer_c,
-                 "invert_mesh_normals(bonus_smasher_add_mesh_);",
-                 "bonus smasher body add uses corrected source-facing normals");
   ok &= contains(highway_renderer_c,
                  "smasher_add_alpha_key_sources.insert(mat->diffuse_tex);"
                  "returnsmasher_add_alpha_key_alias(mat->diffuse_tex);",
@@ -3629,6 +3679,14 @@ int main() {
                  "kNormalHeldBodyDetailWidthScale4x3;",
                  "normal active held sustain material detail applies the 4:3 silhouette profile before local geometry projection");
   ok &= contains(highway_renderer_c,
+                 "sample_line_body_geometry_width_px_720("
+                 "TailWidthProfileKindprofile,floatrel_y)",
+                 "normal active held sustain source-line detail has a measured geometry-width route");
+  ok &= contains(highway_renderer_c,
+                 "returnsample_mesh_body_geometry_width_px_720("
+                 "profile,rel_y);",
+                 "normal held source-line detail reuses the same PCSX2 normal profile compensation as the mesh fallback");
+  ok &= contains(highway_renderer_c,
                  "kPcsx2NormalSilhouetteWidthProfile4x3",
                  "normal active held sustain detail has a separate PCSX2 traced silhouette profile");
   ok &= contains(highway_renderer_c,
@@ -3649,6 +3707,11 @@ int main() {
                  "D3DCOLOR_ARGB(245,255,255,255),true,false,false,"
                  "TailWidthProfileKind::kNormalBodyDetail);",
                  "normal active held sustains use the PCSX2 normal silhouette width profile on the source-shaped lane detail");
+  ok &= contains(highway_renderer_c,
+                 "draw_tail_line_y(lane,y0,y1,\"held_body_detail\",material,"
+                 "half_width,color,true,false,false,on,off,"
+                 "TailWidthProfileKind::kNormalBodyDetail);",
+                 "normal active held sustains use the PCSX2 normal silhouette width profile on the default source-line detail path");
   ok &= contains(highway_renderer_c,
                  "draw_tail_section(sy_near,sy_far,"
                  "section_half_at(rel_mid,y_mid));",
@@ -3836,7 +3899,8 @@ int main() {
                  "diagnostic whammy star sustains can use the source RndLine material color without changing normal play");
   ok &= contains(highway_renderer_c,
                  "draw_tail_line_y(lane,y0,y1,\"held_whammy_source_line\","
-                 "material,half_width,color,true,true,true,on,off,true);",
+                 "material,half_width,color,true,true,true,on,off,"
+                 "TailWidthProfileKind::kWhammyBody);",
                  "whammy sustain rendering is isolated on the source runtime line path for PCSX2 data-derived width tracing");
   ok &= contains(highway_renderer_c,
                  "constfloattail_near_y=kStrikeY+nowbar_tail_clip_;",

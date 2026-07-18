@@ -726,6 +726,10 @@ DWORD highway_note_cull_mode() {
   return D3DCULL_NONE;
 }
 
+DWORD highway_source_cull_mode(bool source_cull_enabled) {
+  return source_cull_enabled ? D3DCULL_CW : D3DCULL_NONE;
+}
+
 float node_scalar_float(const gh::dtb::Node& node, float fallback) {
   if (!gh::dtb::is_array(node)) return fallback;
   const auto& kids = gh::dtb::children(node);
@@ -1799,6 +1803,47 @@ float sample_mesh_body_geometry_width_px_720(TailWidthProfileKind profile,
   }
   if (profile == TailWidthProfileKind::kWhammyBody) {
     return sample_held_body_geometry_width_px_720(rel_y);
+  }
+  return 0.0f;
+}
+
+float sample_line_body_geometry_width_px_720(TailWidthProfileKind profile,
+                                             float rel_y) {
+  if (profile == TailWidthProfileKind::kWhammyBody) {
+    return sample_compensated_tail_width_px_720(rel_y);
+  }
+  return sample_mesh_body_geometry_width_px_720(profile, rel_y);
+}
+
+size_t tail_width_profile_sample_count(TailWidthProfileKind profile) {
+  if (profile == TailWidthProfileKind::kNormalBodyFill) {
+    return kPcsx2NormalBodyWidthProfile4x3.size();
+  }
+  if (profile == TailWidthProfileKind::kNormalBodyDetail) {
+    return kPcsx2NormalSilhouetteWidthProfile4x3.size();
+  }
+  if (profile == TailWidthProfileKind::kNormalTightJoin) {
+    return kPcsx2NormalTightJoinWidthProfile4x3.size();
+  }
+  if (profile == TailWidthProfileKind::kWhammyBody) {
+    return kPcsx2WhammyBodyWidthProfile4x3.size();
+  }
+  return 0;
+}
+
+float sample_visible_tail_width_px_720(TailWidthProfileKind profile,
+                                       float rel_y) {
+  if (profile == TailWidthProfileKind::kNormalBodyFill) {
+    return sample_normal_body_width_px_720(rel_y);
+  }
+  if (profile == TailWidthProfileKind::kNormalBodyDetail) {
+    return sample_normal_silhouette_width_px_720(rel_y);
+  }
+  if (profile == TailWidthProfileKind::kNormalTightJoin) {
+    return sample_normal_tight_join_width_px_720(rel_y);
+  }
+  if (profile == TailWidthProfileKind::kWhammyBody) {
+    return sample_tail_width_px_720(rel_y);
   }
   return 0.0f;
 }
@@ -3021,6 +3066,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
       out.prelit = mat->prelit;
       out.point_lights = mat->point_lights;
       out.intensify = mat->intensify;
+      out.cull = mat->cull;
       out.texture_wrap = mat->tex_wrap != 0 || mat->tex_scale[0] > 1.01f ||
                          mat->tex_scale[1] > 1.01f;
       for (int i = 0; i < 4; ++i) out.material_color[i] = mat->color[i];
@@ -3202,13 +3248,6 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
       smasher_add_alpha_key_sources.insert(mesh.texture_name);
       mesh.texture_name = smasher_add_alpha_key_alias(mesh.texture_name);
     };
-    auto invert_mesh_normals = [](RuntimeMesh& mesh) {
-      for (auto& v : mesh.verts) {
-        v.nx = -v.nx;
-        v.ny = -v.ny;
-        v.nz = -v.nz;
-      }
-    };
     auto convert_line_material = [&](const std::string& mat_name) {
       RuntimeLineMaterial out;
       const auto* mat = track_scene.find_mat(mat_name);
@@ -3218,7 +3257,11 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
       out.blend = mat->blend;
       out.z_mode = mat->z_mode;
       out.tex_gen = mat->tex_gen;
+      out.prelit = mat->prelit;
+      out.alpha_cut = mat->alpha_cut;
+      out.alpha_write = mat->alpha_write;
       out.intensify = mat->intensify;
+      out.cull = mat->cull;
       out.texture_wrap = mat->tex_wrap != 0 || mat->tex_scale[0] > 1.01f ||
                          mat->tex_scale[1] > 1.01f;
       for (int i = 0; i < 4; ++i) out.color[i] = mat->color[i];
@@ -3313,7 +3356,6 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                               smasher_add_blends_[lane]);
       smasher_add_meshes_[lane] =
           convert_mesh("gem_smasher.mesh", "gem_smasher_" + name + "_1.mat");
-      invert_mesh_normals(smasher_add_meshes_[lane]);
       alpha_key_source_alpha_smasher_add(smasher_add_meshes_[lane]);
       smasher_ring_texture_names_[lane] =
           material_texture("now_ring_" + name + ".mat");
@@ -3464,7 +3506,6 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
     half_beat_line_mesh_ = convert_mesh("half_beat_line5.mesh");
     quarter_beat_line_mesh_ = convert_mesh("quarter_beat_line5.mesh");
     gem_smasher_mesh_ = convert_mesh("gem_smasher.mesh");
-    invert_mesh_normals(gem_smasher_mesh_);
     smasher_rim_mesh_ = convert_mesh("smasher_rim.mesh");
     bonus_smasher_rim_mesh_ =
         convert_mesh_with_material_fallback("smasher_rim.mesh",
@@ -3523,7 +3564,6 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                             bonus_smasher_add_blend_);
     bonus_smasher_add_mesh_ =
         convert_mesh("gem_smasher.mesh", "gem_smasher_bonus_1.mat");
-    invert_mesh_normals(bonus_smasher_add_mesh_);
     alpha_key_source_alpha_smasher_add(bonus_smasher_add_mesh_);
     bonus_smasher_ring_texture_name_ = material_texture("now_ring_bonus.mat");
     for (int i = 0; i < 3; ++i) {
@@ -3670,7 +3710,8 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
           [](const char* label, const RuntimeLineMaterial& material) {
             std::fprintf(stderr,
                          "[highway] line material %-14s ok=%d mat=%s tex=%s "
-                         "blend=%u zmode=%u texgen=%u intensify=%d sampler=%s "
+                         "blend=%u zmode=%u texgen=%u prelit=%d alpha_cut=%d "
+                         "alpha_write=%d intensify=%d cull=%d sampler=%s "
                          "color=%.3f,%.3f,%.3f,%.3f\n",
                          label, material.ok ? 1 : 0,
                          material.material_name.c_str(),
@@ -3678,7 +3719,11 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                          static_cast<unsigned>(material.blend),
                          static_cast<unsigned>(material.z_mode),
                          static_cast<unsigned>(material.tex_gen),
+                         material.prelit ? 1 : 0,
+                         material.alpha_cut ? 1 : 0,
+                         material.alpha_write ? 1 : 0,
                          material.intensify ? 1 : 0,
+                         material.cull ? 1 : 0,
                          material.texture_wrap ? "wrap" : "clamp",
                          material.color[0], material.color[1],
                          material.color[2], material.color[3]);
@@ -3759,6 +3804,10 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
       log_runtime_mesh("top_miss", miss_top_mesh_);
       log_runtime_mesh("star_miss", star_miss_mesh_);
       log_runtime_mesh("top_star_miss", star_miss_top_mesh_);
+      log_runtime_mesh("gem_smasher", gem_smasher_mesh_);
+      log_runtime_mesh("red_smasher_add", smasher_add_meshes_[1]);
+      log_runtime_mesh("blue_smasher_add", smasher_add_meshes_[3]);
+      log_runtime_mesh("bonus_smasher_add", bonus_smasher_add_mesh_);
       log_source_mesh("green_gem", "green_gem.mesh");
       log_source_mesh("red_gem", "red_gem.mesh");
       log_source_mesh("green_star", "green_star.mesh");
@@ -4585,7 +4634,6 @@ void HighwayRenderer::draw_impl(double song_time,
             use_texture_alpha, 0.0f, 0.0f, true, z_offset, clip_to_z_min,
             z_min);
       };
-
   // --- 1) Board surface / rails / lane lines ---
   const ColorAnimState* surface_flash_curve = nullptr;
   const int surface_flash_mult =
@@ -5310,18 +5358,29 @@ void HighwayRenderer::draw_impl(double song_time,
                                 float half_width, D3DCOLOR tint,
                                 bool active_segment, bool star_tail,
                                 bool whammy_tail, double on, double off,
-                                bool measured_body_width) {
+                                TailWidthProfileKind width_profile) {
       if (lane < 0 || lane >= 5) return false;
       if (y1 <= y0 || !material || !material->ok) return false;
       if (!tail_layer_visible(source_label)) return false;
       IDirect3DTexture9* texture = tex(material->texture_name);
       if (!texture) return false;
+      const bool measured_body_width =
+          width_profile != TailWidthProfileKind::kNone;
+      const bool source_alpha_test =
+          material->alpha_cut || material->alpha_write;
+      const DWORD source_alpha_ref = material->alpha_cut ? kNoteCardAlphaRef : 0;
       if (debug_tails && tail_debug_budget < 96) {
+        const float target_mid_width =
+            measured_body_width
+                ? sample_visible_tail_width_px_720(width_profile, 0.5f)
+                : 0.0f;
         std::fprintf(stderr,
                      "[highway-tail-line] source=%s active=%d star_tail=%d "
                      "whammy=%d lane=%d on=%.3f off=%.3f y=%.3f..%.3f "
                      "fade=%.3f..%.3f mat=%s tex=%s tex_ok=1 blend=%u "
-                     "zmode=%u texgen=%u intensify=%d sampler=%s "
+                     "zmode=%u texgen=%u prelit=%d alpha_cut=%d "
+                     "alpha_write=%d intensify=%d cull=%d sampler=%s "
+                     "alpha_test=%d alpha_ref=%lu "
                      "half=%.3f measured_body_width=%d profile_samples=%zu "
                      "target_mid_px720=%.3f authored_mid_px720=%.3f tint=%08x "
                      "color=%.3f,%.3f,%.3f,%.3f\n",
@@ -5337,16 +5396,22 @@ void HighwayRenderer::draw_impl(double song_time,
                      static_cast<unsigned>(material->blend),
                      static_cast<unsigned>(material->z_mode),
                      static_cast<unsigned>(material->tex_gen),
+                     material->prelit ? 1 : 0,
+                     material->alpha_cut ? 1 : 0,
+                     material->alpha_write ? 1 : 0,
                      material->intensify ? 1 : 0,
-                     material->texture_wrap ? "wrap" : "clamp", half_width,
+                     material->cull ? 1 : 0,
+                     material->texture_wrap ? "wrap" : "clamp",
+                     source_alpha_test ? 1 : 0,
+                     static_cast<unsigned long>(source_alpha_ref), half_width,
                      measured_body_width ? 1 : 0,
                      measured_body_width
-                         ? kPcsx2WhammyBodyWidthProfile4x3.size()
+                         ? tail_width_profile_sample_count(width_profile)
                          : 0u,
-                     measured_body_width ? sample_tail_width_px_720(0.5f)
-                                         : 0.0f,
+                     target_mid_width,
                      measured_body_width
-                         ? sample_compensated_tail_width_px_720(0.5f)
+                         ? sample_line_body_geometry_width_px_720(
+                               width_profile, 0.5f)
                          : 0.0f,
                      static_cast<unsigned>(tint),
                      material->color[0], material->color[1],
@@ -5377,19 +5442,33 @@ void HighwayRenderer::draw_impl(double song_time,
       DWORD prev_line_src_blend = D3DBLEND_SRCALPHA;
       DWORD prev_line_dest_blend = D3DBLEND_INVSRCALPHA;
       DWORD prev_line_blend_op = D3DBLENDOP_ADD;
+      DWORD prev_line_alpha_test = FALSE;
+      DWORD prev_line_alpha_func = D3DCMP_ALWAYS;
+      DWORD prev_line_alpha_ref = 0;
       dev_->GetRenderState(D3DRS_SRCBLEND, &prev_line_src_blend);
       dev_->GetRenderState(D3DRS_DESTBLEND, &prev_line_dest_blend);
       dev_->GetRenderState(D3DRS_BLENDOP, &prev_line_blend_op);
+      dev_->GetRenderState(D3DRS_ALPHATESTENABLE, &prev_line_alpha_test);
+      dev_->GetRenderState(D3DRS_ALPHAFUNC, &prev_line_alpha_func);
+      dev_->GetRenderState(D3DRS_ALPHAREF, &prev_line_alpha_ref);
       dev_->SetRenderState(D3DRS_BLENDOP, line_blend_state.op);
       dev_->SetRenderState(D3DRS_SRCBLEND, line_blend_state.src);
       dev_->SetRenderState(D3DRS_DESTBLEND, line_blend_state.dest);
+      dev_->SetRenderState(D3DRS_ALPHATESTENABLE,
+                           source_alpha_test ? TRUE : FALSE);
+      if (source_alpha_test) {
+        dev_->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+        dev_->SetRenderState(D3DRS_ALPHAREF, source_alpha_ref);
+      }
 
       const float cx = lane_x(lane);
       const float z = kGemZ - 0.015f;
       auto half_at = [&](float rel, float y) {
         if (!measured_body_width) return highway_root.scale_x(half_width);
         const float local_half = local_tail_half_for_screen_width(
-            lane, y, sample_compensated_tail_width_px_720(rel), half_width);
+            lane, y,
+            sample_line_body_geometry_width_px_720(width_profile, rel),
+            half_width);
         return highway_root.scale_x(local_half);
       };
       auto world_y_at = [&](float rel) {
@@ -5410,11 +5489,21 @@ void HighwayRenderer::draw_impl(double song_time,
                   material->texture_wrap);
       };
       if (measured_body_width) {
-        for (size_t i = 1; i < kPcsx2WhammyBodyWidthProfile4x3.size(); ++i) {
-          draw_line_section(kPcsx2WhammyBodyWidthProfile4x3[i - 1].rel_y,
-                            kPcsx2WhammyBodyWidthProfile4x3[i].rel_y);
+        const auto draw_profile = [&](const auto& profile) {
+          for (size_t i = 1; i < profile.size(); ++i) {
+            draw_line_section(profile[i - 1].rel_y, profile[i].rel_y);
+          }
+          draw_line_section(profile.back().rel_y, 1.0f);
+        };
+        if (width_profile == TailWidthProfileKind::kNormalBodyDetail) {
+          draw_profile(kPcsx2NormalSilhouetteWidthProfile4x3);
+        } else if (width_profile == TailWidthProfileKind::kNormalBodyFill) {
+          draw_profile(kPcsx2NormalBodyWidthProfile4x3);
+        } else if (width_profile == TailWidthProfileKind::kNormalTightJoin) {
+          draw_profile(kPcsx2NormalTightJoinWidthProfile4x3);
+        } else {
+          draw_profile(kPcsx2WhammyBodyWidthProfile4x3);
         }
-        draw_line_section(kPcsx2WhammyBodyWidthProfile4x3.back().rel_y, 1.0f);
       } else {
         draw_line_section(0.0f, 1.0f);
       }
@@ -5422,6 +5511,9 @@ void HighwayRenderer::draw_impl(double song_time,
       dev_->SetRenderState(D3DRS_BLENDOP, prev_line_blend_op);
       dev_->SetRenderState(D3DRS_SRCBLEND, prev_line_src_blend);
       dev_->SetRenderState(D3DRS_DESTBLEND, prev_line_dest_blend);
+      dev_->SetRenderState(D3DRS_ALPHAREF, prev_line_alpha_ref);
+      dev_->SetRenderState(D3DRS_ALPHAFUNC, prev_line_alpha_func);
+      dev_->SetRenderState(D3DRS_ALPHATESTENABLE, prev_line_alpha_test);
       return true;
     };
     auto draw_tail_segment = [&](int lane, double on, double off,
@@ -5453,7 +5545,8 @@ void HighwayRenderer::draw_impl(double song_time,
       if (y1 <= y0) return;
 
       draw_tail_line_y(lane, y0, y1, "held_whammy_source_line", material,
-                       half_width, color, true, true, true, on, off, true);
+                       half_width, color, true, true, true, on, off,
+                       TailWidthProfileKind::kWhammyBody);
     };
     auto draw_normal_tail_line_detail = [&](int lane, double on, double off,
                                             const RuntimeLineMaterial* material,
@@ -5466,7 +5559,8 @@ void HighwayRenderer::draw_impl(double song_time,
       if (y1 <= y0) return;
 
       draw_tail_line_y(lane, y0, y1, "held_body_detail", material,
-                       half_width, color, true, false, false, on, off, false);
+                       half_width, color, true, false, false, on, off,
+                       TailWidthProfileKind::kNormalBodyDetail);
     };
     for (size_t note_index = 0; note_index < notes.size(); ++note_index) {
       if (consumed_notes && note_index < consumed_notes->size() &&
@@ -5872,16 +5966,40 @@ void HighwayRenderer::draw_impl(double song_time,
             ++smasher_idle_debug_budget;
           }
         }
+        auto draw_smasher_solid_mesh =
+            [&](const RuntimeMesh& mesh, bool write_depth, auto&& draw_mesh) {
+              DWORD prev_z_enable = FALSE;
+              DWORD prev_z_write = FALSE;
+              DWORD prev_z_func = D3DCMP_LESSEQUAL;
+              DWORD prev_cull_mode = D3DCULL_NONE;
+              dev_->GetRenderState(D3DRS_ZENABLE, &prev_z_enable);
+              dev_->GetRenderState(D3DRS_ZWRITEENABLE, &prev_z_write);
+              dev_->GetRenderState(D3DRS_ZFUNC, &prev_z_func);
+              dev_->GetRenderState(D3DRS_CULLMODE, &prev_cull_mode);
+              dev_->SetRenderState(D3DRS_ZENABLE, TRUE);
+              dev_->SetRenderState(D3DRS_ZWRITEENABLE,
+                                   write_depth ? TRUE : FALSE);
+              dev_->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+              dev_->SetRenderState(D3DRS_CULLMODE,
+                                   highway_source_cull_mode(mesh.cull));
+              draw_mesh();
+              dev_->SetRenderState(D3DRS_CULLMODE, prev_cull_mode);
+              dev_->SetRenderState(D3DRS_ZFUNC, prev_z_func);
+              dev_->SetRenderState(D3DRS_ZWRITEENABLE, prev_z_write);
+              dev_->SetRenderState(D3DRS_ZENABLE, prev_z_enable);
+            };
         auto draw_smasher_body = [&]() {
-          if (!smasher_texture.empty()) {
-            draw_centered_root_mesh_with_texture(
-                gem_smasher_mesh_, smasher_texture, x, kStrikeY, base, 1.0f,
-                true, smasher_z_offset, true, kSmasherClipZ);
-          } else {
-            draw_centered_root_mesh(
-                gem_smasher_mesh_, x, kStrikeY, base, 1.0f, true,
-                smasher_z_offset, true, kSmasherClipZ);
-          }
+          draw_smasher_solid_mesh(gem_smasher_mesh_, true, [&]() {
+            if (!smasher_texture.empty()) {
+              draw_centered_root_mesh_with_texture(
+                  gem_smasher_mesh_, smasher_texture, x, kStrikeY, base, 1.0f,
+                  true, smasher_z_offset, true, kSmasherClipZ);
+            } else {
+              draw_centered_root_mesh(
+                  gem_smasher_mesh_, x, kStrikeY, base, 1.0f, true,
+                  smasher_z_offset, true, kSmasherClipZ);
+            }
+          });
         };
         auto draw_smasher_ring = [&]() {
           if (!ring_mesh->ok) return;
@@ -5935,16 +6053,26 @@ void HighwayRenderer::draw_impl(double song_time,
           DWORD prev_add_src_blend = D3DBLEND_SRCALPHA;
           DWORD prev_add_dest_blend = D3DBLEND_INVSRCALPHA;
           DWORD prev_add_blend_op = D3DBLENDOP_ADD;
+          DWORD prev_add_z_enable = FALSE;
           DWORD prev_add_z_write = FALSE;
+          DWORD prev_add_z_func = D3DCMP_LESSEQUAL;
+          DWORD prev_add_cull_mode = D3DCULL_NONE;
           dev_->GetRenderState(D3DRS_SRCBLEND, &prev_add_src_blend);
           dev_->GetRenderState(D3DRS_DESTBLEND, &prev_add_dest_blend);
           dev_->GetRenderState(D3DRS_BLENDOP, &prev_add_blend_op);
+          dev_->GetRenderState(D3DRS_ZENABLE, &prev_add_z_enable);
           dev_->GetRenderState(D3DRS_ZWRITEENABLE, &prev_add_z_write);
+          dev_->GetRenderState(D3DRS_ZFUNC, &prev_add_z_func);
+          dev_->GetRenderState(D3DRS_CULLMODE, &prev_add_cull_mode);
           dev_->SetRenderState(D3DRS_BLENDOP, smasher_add_blend_state.op);
           dev_->SetRenderState(D3DRS_SRCBLEND, smasher_add_blend_state.src);
           dev_->SetRenderState(D3DRS_DESTBLEND, smasher_add_blend_state.dest);
+          dev_->SetRenderState(D3DRS_ZENABLE, TRUE);
           dev_->SetRenderState(D3DRS_ZWRITEENABLE,
                                disable_add_z_write ? FALSE : TRUE);
+          dev_->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+          dev_->SetRenderState(D3DRS_CULLMODE,
+                               highway_source_cull_mode(add_mesh.cull));
           if (smasher_add_mesh_ok) {
             draw_centered_root_mesh(
                 add_mesh, x, kStrikeY, D3DCOLOR_ARGB(255, 255, 255, 255),
@@ -5955,7 +6083,10 @@ void HighwayRenderer::draw_impl(double song_time,
                 D3DCOLOR_ARGB(255, 255, 255, 255), 1.0f, true,
                 add_z_offset, true, kSmasherClipZ);
           }
+          dev_->SetRenderState(D3DRS_CULLMODE, prev_add_cull_mode);
+          dev_->SetRenderState(D3DRS_ZFUNC, prev_add_z_func);
           dev_->SetRenderState(D3DRS_ZWRITEENABLE, prev_add_z_write);
+          dev_->SetRenderState(D3DRS_ZENABLE, prev_add_z_enable);
           dev_->SetRenderState(D3DRS_BLENDOP, prev_add_blend_op);
           dev_->SetRenderState(D3DRS_SRCBLEND, prev_add_src_blend);
           dev_->SetRenderState(D3DRS_DESTBLEND, prev_add_dest_blend);
