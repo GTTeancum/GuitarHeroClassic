@@ -3655,12 +3655,11 @@ Open work:
   PS2-comparable final-row surface while preserving the current camera behavior;
   it confirms that the remaining visual mismatch is still upstream in the
   CamShot result/path/source bridge.
-- 2026-06-29 PS2 projection/aspect validation diagnostic:
-  `GHOGX_CAMERA_ASPECT=<float>` overrides the submitted venue-camera projection
-  aspect while preserving the accepted camera row, fov, screen offset, and all
-  venue visibility/event state. This is an evidence-only diagnostic for checking
-  whether the current 16:9 native backbuffer exposes geometry that the accepted
-  PS2 trace's 4:3-ish viewport cropped out; it is not a mesh visibility hack.
+- 2026-06-29 PS2 projection/aspect validation diagnostic, tightened 2026-07-15:
+  `GHOGX_CAMERA_ASPECT` may only select the supported `4:3` or `16:9` camera
+  aspect presets, including near-equivalent float values. Arbitrary projection
+  aspects are ignored so venue/character projection cannot drift away from the
+  highway while validating console-shaped captures.
 - 2026-06-29 additive Mat alpha bridge:
   the accepted balcony validation showed `searchlight_glows_off.mnm` sampling
   `light_glow.mat` down to alpha `0.035`, but the native frame still rendered a
@@ -10587,6 +10586,16 @@ Rejected native probe:
 - `native_smasher_current2_detail.png` is the close visual artifact for this
   run; it keeps the signed-off highway surface visible while showing inactive
   rings, raised colored press states, and the fixed ring outlines.
+
+2026-07-17 smasher/button grounding correction:
+- The 2026-07-03 raised-button interpretation is superseded for the highway
+  parity branch. A focused 4:3 no-hit-effects capture showed the pressed
+  smasher body itself jumping to `body_top=1.050` while the authored ring
+  stayed at `ring_top=0.220`, matching the floating-button artifact seen in
+  proof screenshots.
+- Pressed fret targets now keep the smasher body at the grounded source height
+  (`body_top=0.200`) and use pressed source textures/add/ring layers for the
+  visual state change instead of moving the body away from the ring.
 
 2026-07-03 current ROCK meter sweep validation:
 - The HUD renderer now has a bounded `GHOGX_DEBUG_HUD_ROCK_METER` proof row

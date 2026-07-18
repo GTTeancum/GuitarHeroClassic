@@ -1,0 +1,96 @@
+﻿{
+    "pass":  "native_4x3_cap_owner_status_20260717_02",
+    "status":  "measurement_only_no_renderer_patch",
+    "native_capture":  {
+                           "song":  "shoutatthedevil",
+                           "difficulty":  3,
+                           "aspect":  "4:3",
+                           "output_size":  "960x720",
+                           "diagnostic_song_start":  16,
+                           "screenshot_frame":  60,
+                           "variants":  [
+                                            "full",
+                                            "no_caps",
+                                            "no_sustains",
+                                            "no_sustains_no_caps"
+                                        ]
+                       },
+    "native_metrics":  {
+                           "active_cap_over_no_sustain":  {
+                                                              "a":  "no_sustains",
+                                                              "b":  "no_sustains_no_caps",
+                                                              "preview":  "diff_active_cap_only.png",
+                                                              "bbox":  [
+                                                                           326,
+                                                                           583,
+                                                                           623,
+                                                                           610
+                                                                       ],
+                                                              "nonzero_pixels":  4723,
+                                                              "nonzero_percent":  0.683304,
+                                                              "mean_abs_rgb_per_channel":  0.642636,
+                                                              "max_channel_abs":  254
+                                                          },
+                           "sustain_without_active_cap":  {
+                                                              "a":  "no_caps",
+                                                              "b":  "no_sustains_no_caps",
+                                                              "preview":  "diff_sustain_without_cap.png",
+                                                              "bbox":  [
+                                                                           317,
+                                                                           349,
+                                                                           632,
+                                                                           648
+                                                                       ],
+                                                              "nonzero_pixels":  29219,
+                                                              "nonzero_percent":  4.227286,
+                                                              "mean_abs_rgb_per_channel":  2.111233,
+                                                              "max_channel_abs":  254
+                                                          },
+                           "active_cap_over_full_tail":  {
+                                                             "a":  "full",
+                                                             "b":  "no_caps",
+                                                             "preview":  "diff_full_minus_no_caps.png",
+                                                             "bbox":  [
+                                                                          326,
+                                                                          583,
+                                                                          623,
+                                                                          610
+                                                                      ],
+                                                             "nonzero_pixels":  4723,
+                                                             "nonzero_percent":  0.683304,
+                                                             "mean_abs_rgb_per_channel":  0.496226,
+                                                             "max_channel_abs":  252
+                                                         }
+                       },
+    "pcsx2_reference":  {
+                            "trace":  "proofs/pcsx2_normal_cap_gs_trace_20260717_01/frame17_tail_extract/tail_trace.json",
+                            "selected_component_640x480":  {
+                                                               "min_x":  212,
+                                                               "max_x":  296,
+                                                               "min_y":  245,
+                                                               "max_y":  370,
+                                                               "width_px":  85,
+                                                               "height_px":  126,
+                                                               "centroid_x":  265.235,
+                                                               "centroid_y":  321.243
+                                                           },
+                            "scaled_to_960x720":  {
+                                                      "min_x":  318,
+                                                      "max_x":  444,
+                                                      "min_y":  367.5,
+                                                      "max_y":  555,
+                                                      "width_px":  127.5,
+                                                      "height_px":  189
+                                                  }
+                        },
+    "finding":  "The current native active sustain cap isolates to a short horizontal smasher-derived plate at bbox [326,583,623,610], while the PCSX2 selected visible component is a much taller tail/cap column at 640x480 bbox [212,245,296,370] (about [318,367.5,444,555] when scaled to 960x720). The native sustain stack without the active cap covers bbox [317,349,632,648]. This points at unresolved lower cap/effect ownership or clipping/source mapping, not a safe placement tweak to the existing active cap.",
+    "decision":  "No renderer patch promoted. Do not promote smasher rim/add/cyan flare/tail color changes from this pass. Continue with a texture/raster/source-owner trace for the lower component.",
+    "screenshots":  [
+                        "cap_owner_status_contact_sheet.png",
+                        "cap_owner_status_full_contact_sheet.png",
+                        "diff_active_cap_only.png",
+                        "diff_sustain_without_cap.png",
+                        "diff_full_minus_no_caps.png"
+                    ],
+    "trace":  "cap_owner_status_trace.txt"
+}

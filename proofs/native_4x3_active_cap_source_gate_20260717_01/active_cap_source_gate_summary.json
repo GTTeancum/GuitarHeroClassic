@@ -1,0 +1,29 @@
+{
+  "proof": "proofs\\native_4x3_active_cap_source_gate_20260717_01",
+  "exit": "0",
+  "frames_png": [
+    "frame_00001.png",
+    "frame_00030.png",
+    "frame_00060.png"
+  ],
+  "contact_sheet": "active_cap_source_gate_contact_sheet.png",
+  "strikeline_crop": "frame_00060_strikeline_crop.png",
+  "active_cap_debug_rows": 0,
+  "smasher_debug_rows": 15,
+  "tail_debug_rows": 26,
+  "final_gameplay_summary": "[ghogx] final gameplay summary: state=playing song=shoutatthedevil diff=3 t=17.500 score=100 streak=1 mult=1 hits=1 ",
+  "source_findings": [
+    "ihatecompvir rb3 GemRepTemplate::CreateTail reserves tail mesh verts/faces from mTailVerts and mNumTailSections.",
+    "ihatecompvir rb3 GemRepTemplate::SetupTailVerts copies tail02.mesh verts, sorts them, and assigns mCapVerts = mTailVerts before resizing.",
+    "Tail.h in the same source drop only declares Hit/Release/Done; Tail::UpdateVerts is not present in the local source drop.",
+    "No GemRepTemplate/mCapVerts/Tail implementation was found in local re-gh2; separate moving-note/smasher sustain caps are therefore diagnostic-only."
+  ],
+  "renderer_change": "Default active sustain note-head/cap pass now requires GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_CAPS in addition to the old disable gate.",
+  "verification": [
+    "Release ghogx_app and ghogx_gameplay_venue_band_contract_test built successfully.",
+    "ghogx_gameplay_venue_band_contract_test exited 0.",
+    "Strict --aspect 4:3 native capture exited 0 at 960x720.",
+    "GHOGX_DEBUG_HIGHWAY_ACTIVE_SUSTAIN_CAPS was enabled and emitted 0 active-cap rows because the experiment flag was not enabled.",
+    "Smasher and tail debug rows were still present, proving the capture exercised the held sustain and pressed smasher path."
+  ]
+}

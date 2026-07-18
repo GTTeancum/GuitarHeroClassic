@@ -1,0 +1,11 @@
+pcsx2_lower_cap_texture_candidate_reconciliation_20260717_01
+No. It is a recurring colored footprint over the accepted components, but recovered texture/source evidence rejects it as a standalone renderer patch basis.
+vram_14208=- TBP0 14208 PSM 20 256x128 refs=44 rgba_sha1=456ceb43b0e2796b raw_page_sha1=3173286bfd7606ce alpha_pixels=32768 mean_rgb=(56.06, 42.78, 24.89) closest_same_size=wood.tex.bmp:normal mean_abs_rgb=133.841
+frame15: bbox=[220, 259, 264, 287] px=243 overlap=1.0 lead_draw=740 transfer=238 st=[0.02363, 0.02409, 0.019391, 0.019845] sample=[82.0, 203.0, 154.0, 34.0]
+frame16: bbox=[265, 245, 293, 279] px=338 overlap=1.0 lead_draw=740 transfer=238 st=[0.023312, 0.024112, 0.011785, 0.019767] sample=[49.25, 191.75, 161.25, 34.0]
+frame17: bbox=[212, 245, 296, 370] px=1813 overlap=1.0 lead_draw=673 transfer=236 st=[0.03865, 0.046639, 0.02825, 0.038678] sample=[65.833, 195.5, 136.167, 34.0]
+source_match: star_blue.tex.bmp size=[32, 32] iou=0.3207 rms=38.725 score=281.968
+source_match: smasher_orange.tex.bmp size=[32, 64] iou=0.3372 rms=59.303 score=277.939
+source_match: star_green.tex.bmp size=[32, 32] iou=0.323 rms=50.327 score=272.714
+source_match: star_yellow.tex.bmp size=[32, 32] iou=0.3057 rms=36.254 score=269.468
+decision: no renderer patch; source-object mapping or GS blend/depth attribution still required

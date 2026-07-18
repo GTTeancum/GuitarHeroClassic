@@ -1,0 +1,50 @@
+{
+  "proof": "proofs\\native_4x3_active_cap_inner_restore_20260717_01",
+  "default_exit": "0",
+  "no_caps_exit": "0",
+  "default_frames": [
+    "frame_00060.png"
+  ],
+  "no_caps_frames": [
+    "frame_00060.png"
+  ],
+  "default_active_cap_rows": 4,
+  "no_caps_active_cap_rows": 0,
+  "default_tail_rows": 26,
+  "default_smasher_rows": 15,
+  "default_summary": "[ghogx] final gameplay summary: state=playing song=shoutatthedevil diff=3 t=17.500 score=100 streak=1 mult=1 hits=1 ",
+  "no_caps_summary": "[ghogx] final gameplay summary: state=playing song=shoutatthedevil diff=3 t=17.500 score=100 streak=1 mult=1 hits=1 ",
+  "diff_bbox": [
+    0,
+    0,
+    460,
+    111
+  ],
+  "crop_box": [
+    250,
+    500,
+    710,
+    670
+  ],
+  "renderer_change": "Restored the source-backed gem_smasher body-only inner cap by default; larger moving-note/top fallback remains behind GHOGX_EXPERIMENT_HIGHWAY_ACTIVE_SUSTAIN_CAPS or GHOGX_EXPERIMENT_HIGHWAY_NORMAL_ACTIVE_SUSTAIN_CAPS.",
+  "verification": [
+    "Release ghogx_app and ghogx_gameplay_venue_band_contract_test built successfully.",
+    "ghogx_gameplay_venue_band_contract_test exited 0.",
+    "Default strict 4:3 capture exited 0 and logged active sustain cap rows.",
+    "Caps-disabled strict 4:3 capture exited 0 and logged zero active sustain cap rows.",
+    "Default active cap rows are the smasher=1 body=1 add=0 path; no top fallback is enabled by default."
+  ],
+  "selected_default_active_cap_rows": [
+    "[highway-active-sustain-cap] lane=1 tick=12120 smasher=1 body=1 add=0 center_y=10.041 lower_y=7.760 scale=1.456 ",
+    "[highway-active-sustain-cap] lane=3 tick=12120 smasher=1 body=1 add=0 center_y=10.041 lower_y=7.760 scale=1.456 ",
+    "[highway-active-sustain-cap] lane=1 tick=12120 smasher=1 body=1 add=0 center_y=10.041 lower_y=7.760 scale=1.456 ",
+    "[highway-active-sustain-cap] lane=3 tick=12120 smasher=1 body=1 add=0 center_y=10.041 lower_y=7.760 scale=1.456 "
+  ],
+  "visual_note": "Crop/diff sheet is fixed to the strikeline cap area so run-to-run venue differences do not dominate the diff.",
+  "retained_visuals": [
+    "active_cap_inner_restore_contact_sheet.png",
+    "active_cap_inner_restore_crop_sheet.png",
+    "default/frame_00060.png",
+    "no_active_caps/frame_00060.png"
+  ]
+}

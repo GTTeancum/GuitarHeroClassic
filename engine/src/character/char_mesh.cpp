@@ -11592,6 +11592,64 @@ std::array<float, 16> Character::mesh_world(const SkinnedMesh& m) const {
   return source_world_for(*this, m.name, false);
 }
 
+std::array<float, 16> Character::model_space_parent_delta(
+    const std::string& parent) const {
+  const auto bind = bone_world_bind_local_chain(parent);
+  const auto current = bone_world_local_chain(parent);
+  return mat4_mul(affine_inverse(bind), current);
+}
+
+std::array<float, 16> Character::attachment_parent_world(
+    const std::string& parent) const {
+  return mat4_mul(bone_world_bind(parent), model_space_parent_delta(parent));
+}
+
+std::array<float, 16> Character::mesh_attachment_world(
+    const SkinnedMesh& m, bool bind_local) const {
+  const Xfm* local = &m.local;
+  if (bind_local) {
+    for (size_t i = 0; i < meshes.size(); ++i) {
+      if (meshes[i].name == m.name && i < bind_mesh_local.size()) {
+        local = &bind_mesh_local[i];
+        break;
+      }
+    }
+  }
+  return mat4_mul(xfm_to_mat4(*local), attachment_parent_world(m.parent));
+}
+
+bool has_mesh_local_bind_space(const Character& character,
+                               const SkinnedMesh& mesh) {
+  if (!mesh.decoded || mesh.bone_palette.empty() ||
+      mesh.bind.size() < mesh.bone_palette.size()) {
+    return false;
+  }
+  const auto mesh_bind = character.bone_world_bind_local_chain(mesh.name);
+  const auto identity = identity_mat4();
+  float model_error = 0.0f;
+  float mesh_error = 0.0f;
+  auto max_delta = [](const std::array<float, 16>& a,
+                      const std::array<float, 16>& b) {
+    float result = 0.0f;
+    for (size_t i = 0; i < a.size(); ++i) {
+      result = std::max(result, std::fabs(a[i] - b[i]));
+    }
+    return result;
+  };
+  for (size_t i = 0; i < mesh.bone_palette.size(); ++i) {
+    const auto product = mat4_mul(
+        xfm_to_mat4(mesh.bind[i]),
+        character.bone_world_bind_local_chain(mesh.bone_palette[i]));
+    model_error = std::max(model_error, max_delta(product, identity));
+    mesh_error = std::max(mesh_error, max_delta(product, mesh_bind));
+  }
+  constexpr float kMeshClose = 0.05f;
+  constexpr float kNontrivialModelOffset = 1.0f;
+  constexpr float kErrorRatio = 8.0f;
+  return mesh_error <= kMeshClose && model_error > kNontrivialModelOffset &&
+         model_error > mesh_error * kErrorRatio;
+}
+
 bool Character::has_transform(const std::string& name) const {
   SourceXfm xfm;
   return find_source_xfm(*this, name, xfm);
@@ -11771,6 +11829,9 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
     out.bind_bone_local.clear();
     out.bind_bone_local.reserve(out.bones.size());
     for (const auto& b : out.bones) out.bind_bone_local.push_back(b.local);
+    for (auto& mesh : out.meshes) {
+      mesh.mesh_local_bind_space = has_mesh_local_bind_space(out, mesh);
+    }
     return true;
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "[char] load_character(%s): %s\n", milo_path.c_str(),

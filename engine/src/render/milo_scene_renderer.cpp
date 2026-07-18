@@ -33,6 +33,7 @@ struct SVtx {
   D3DCOLOR color;
   float u, v;
 };
+
 constexpr DWORD kFVF =
     D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1;
 struct PVtx {
@@ -51,6 +52,81 @@ constexpr DWORD kAuthoredLightSlotCount = 4;
 constexpr float kMaxAuthoredLightColor = 64.0f;
 constexpr float kApproxDirectionalScale = 1.0f;
 constexpr float kApproxFillScale = 0.45f;
+
+struct D3DStateCache {
+  explicit D3DStateCache(IDirect3DDevice9* device) : dev(device) {}
+
+  void render(D3DRENDERSTATETYPE state, DWORD value) {
+    const size_t idx = static_cast<size_t>(state);
+    if (idx < render_valid.size() && render_valid[idx] &&
+        render_values[idx] == value) {
+      return;
+    }
+    dev->SetRenderState(state, value);
+    if (idx < render_valid.size()) {
+      render_valid[idx] = true;
+      render_values[idx] = value;
+    }
+  }
+
+  void sampler(DWORD sampler, D3DSAMPLERSTATETYPE state, DWORD value) {
+    const size_t sampler_idx = static_cast<size_t>(sampler);
+    const size_t state_idx = static_cast<size_t>(state);
+    if (sampler_idx < sampler_valid.size() &&
+        state_idx < sampler_valid[sampler_idx].size() &&
+        sampler_valid[sampler_idx][state_idx] &&
+        sampler_values[sampler_idx][state_idx] == value) {
+      return;
+    }
+    dev->SetSamplerState(sampler, state, value);
+    if (sampler_idx < sampler_valid.size() &&
+        state_idx < sampler_valid[sampler_idx].size()) {
+      sampler_valid[sampler_idx][state_idx] = true;
+      sampler_values[sampler_idx][state_idx] = value;
+    }
+  }
+
+  void texture_stage(DWORD stage, D3DTEXTURESTAGESTATETYPE state,
+                     DWORD value) {
+    const size_t stage_idx = static_cast<size_t>(stage);
+    const size_t state_idx = static_cast<size_t>(state);
+    if (stage_idx < texture_stage_valid.size() &&
+        state_idx < texture_stage_valid[stage_idx].size() &&
+        texture_stage_valid[stage_idx][state_idx] &&
+        texture_stage_values[stage_idx][state_idx] == value) {
+      return;
+    }
+    dev->SetTextureStageState(stage, state, value);
+    if (stage_idx < texture_stage_valid.size() &&
+        state_idx < texture_stage_valid[stage_idx].size()) {
+      texture_stage_valid[stage_idx][state_idx] = true;
+      texture_stage_values[stage_idx][state_idx] = value;
+    }
+  }
+
+  void texture(DWORD stage, IDirect3DBaseTexture9* texture_value) {
+    const size_t stage_idx = static_cast<size_t>(stage);
+    if (stage_idx < textures_valid.size() && textures_valid[stage_idx] &&
+        textures[stage_idx] == texture_value) {
+      return;
+    }
+    dev->SetTexture(stage, texture_value);
+    if (stage_idx < textures_valid.size()) {
+      textures_valid[stage_idx] = true;
+      textures[stage_idx] = texture_value;
+    }
+  }
+
+  IDirect3DDevice9* dev = nullptr;
+  std::array<DWORD, 256> render_values{};
+  std::array<bool, 256> render_valid{};
+  std::array<std::array<DWORD, 32>, 8> sampler_values{};
+  std::array<std::array<bool, 32>, 8> sampler_valid{};
+  std::array<std::array<DWORD, 32>, 8> texture_stage_values{};
+  std::array<std::array<bool, 32>, 8> texture_stage_valid{};
+  std::array<IDirect3DBaseTexture9*, 8> textures{};
+  std::array<bool, 8> textures_valid{};
+};
 
 std::array<float, 4> average_particle_color(
     const std::array<float, 4>& low,
@@ -181,12 +257,53 @@ bool is_authored_invisible_material(const std::string& material) {
   return material == "invisible.mat" || material == "ray_blocker.mat";
 }
 
-bool mesh_matches_env_spec(const char* name, const std::string& mesh) {
+std::string read_env_string_raw(const char* name) {
   char* value = nullptr;
   size_t len = 0;
-  const bool has = _dupenv_s(&value, &len, name) == 0 && value && value[0];
-  std::string spec = has ? value : "";
+  if (_dupenv_s(&value, &len, name) != 0 || !value) return {};
+  std::string result(value);
   std::free(value);
+  return result;
+}
+
+struct MiloEnvFrameCache {
+  MiloEnvFrameCache() {
+    values.reserve(48);
+  }
+
+  std::string string_value(const char* name) const {
+    const auto [it, inserted] = values.emplace(name, std::string{});
+    if (inserted) it->second = read_env_string_raw(name);
+    return it->second;
+  }
+
+  mutable std::unordered_map<std::string, std::string> values;
+};
+
+thread_local const MiloEnvFrameCache* active_milo_env_frame_cache = nullptr;
+
+struct ScopedMiloEnvFrameCache {
+  explicit ScopedMiloEnvFrameCache(const MiloEnvFrameCache& cache)
+      : previous(active_milo_env_frame_cache) {
+    active_milo_env_frame_cache = &cache;
+  }
+
+  ~ScopedMiloEnvFrameCache() {
+    active_milo_env_frame_cache = previous;
+  }
+
+  const MiloEnvFrameCache* previous = nullptr;
+};
+
+std::string env_cached_string(const char* name) {
+  if (active_milo_env_frame_cache) {
+    return active_milo_env_frame_cache->string_value(name);
+  }
+  return read_env_string_raw(name);
+}
+
+bool mesh_matches_env_spec(const char* name, const std::string& mesh) {
+  const std::string spec = env_cached_string(name);
   if (spec.empty()) return false;
   size_t start = 0;
   while (start <= spec.size()) {
@@ -282,7 +399,7 @@ void install_default_scene_fill_lights(IDirect3DDevice9* dev) {
 
 void install_approx_scene_lights(
     IDirect3DDevice9* dev,
-    std::vector<ApproxLightCandidate> candidates) {
+    std::vector<ApproxLightCandidate>& candidates) {
   if (!dev) return;
   if (candidates.empty()) {
     install_default_scene_fill_lights(dev);
@@ -988,20 +1105,12 @@ MiloSceneRenderer::MeshTransformSample sample_transform_anim(
 }
 
 bool env_enabled(const char* name) {
-  char* value = nullptr;
-  size_t len = 0;
-  if (_dupenv_s(&value, &len, name) != 0 || !value) return false;
-  const bool enabled = value[0] != '\0' && value[0] != '0';
-  std::free(value);
-  return enabled;
+  const std::string value = env_cached_string(name);
+  return !value.empty() && value[0] != '0';
 }
 
 bool env_mesh_filter_matches(const char* name, const std::string& mesh_name) {
-  char* value = nullptr;
-  size_t len = 0;
-  if (_dupenv_s(&value, &len, name) != 0 || !value) return false;
-  std::string filter(value);
-  std::free(value);
+  const std::string filter = env_cached_string(name);
   if (filter.empty() || filter == "0") return false;
   if (filter == "1" || filter == "true" || filter == "TRUE") return true;
   return mesh_name.find(filter) != std::string::npos;
@@ -1009,15 +1118,41 @@ bool env_mesh_filter_matches(const char* name, const std::string& mesh_name) {
 
 float env_float_or(const char* name, float fallback, float min_value,
                    float max_value) {
-  char* value = nullptr;
-  size_t len = 0;
-  if (_dupenv_s(&value, &len, name) != 0 || !value) return fallback;
+  const std::string value = env_cached_string(name);
+  if (value.empty()) return fallback;
   char* end = nullptr;
-  const float parsed = std::strtof(value, &end);
-  std::free(value);
-  if (end == value || !std::isfinite(parsed)) return fallback;
+  const char* text = value.c_str();
+  const float parsed = std::strtof(text, &end);
+  if (end == text || !std::isfinite(parsed)) return fallback;
   if (parsed < min_value || parsed > max_value) return fallback;
   return parsed;
+}
+
+float env_camera_aspect_preset_or(const char* name, float fallback) {
+  const std::string value = env_cached_string(name);
+  if (value.empty()) return fallback;
+
+  constexpr float kAspect4x3 = 4.0f / 3.0f;
+  constexpr float kAspect16x9 = 16.0f / 9.0f;
+  constexpr float kAspectEpsilon = 0.002f;
+  float aspect = fallback;
+  if (value == "4:3") {
+    aspect = kAspect4x3;
+  } else if (value == "16:9") {
+    aspect = kAspect16x9;
+  } else {
+    char* end = nullptr;
+    const char* text = value.c_str();
+    const float parsed = std::strtof(text, &end);
+    if (end != text && std::isfinite(parsed)) {
+      if (std::fabs(parsed - kAspect4x3) <= kAspectEpsilon) {
+        aspect = kAspect4x3;
+      } else if (std::fabs(parsed - kAspect16x9) <= kAspectEpsilon) {
+        aspect = kAspect16x9;
+      }
+    }
+  }
+  return aspect;
 }
 
 size_t mesh_anim_log_stride() {
@@ -1420,6 +1555,54 @@ float vec_len3(float x, float y, float z) {
   return std::sqrt(x * x + y * y + z * z);
 }
 
+bool mesh_bbox_outside_clip_frustum(const milo_scene::MeshObj& mesh,
+                                    const std::array<float, 16>& wvp) {
+  const float xs[2] = {mesh.bb_min[0], mesh.bb_max[0]};
+  const float ys[2] = {mesh.bb_min[1], mesh.bb_max[1]};
+  const float zs[2] = {mesh.bb_min[2], mesh.bb_max[2]};
+  for (int axis = 0; axis < 3; ++axis) {
+    if (!std::isfinite(mesh.bb_min[axis]) ||
+        !std::isfinite(mesh.bb_max[axis]) ||
+        mesh.bb_max[axis] < mesh.bb_min[axis]) {
+      return false;
+    }
+  }
+
+  bool outside_left = true;
+  bool outside_right = true;
+  bool outside_bottom = true;
+  bool outside_top = true;
+  bool outside_near = true;
+  bool outside_far = true;
+  for (float px : xs) {
+    for (float py : ys) {
+      for (float pz : zs) {
+        const float x =
+            px * wvp[0] + py * wvp[4] + pz * wvp[8] + wvp[12];
+        const float y =
+            px * wvp[1] + py * wvp[5] + pz * wvp[9] + wvp[13];
+        const float z =
+            px * wvp[2] + py * wvp[6] + pz * wvp[10] + wvp[14];
+        const float w =
+            px * wvp[3] + py * wvp[7] + pz * wvp[11] + wvp[15];
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) ||
+            !std::isfinite(w)) {
+          return false;
+        }
+        const float margin = std::max(0.01f, std::fabs(w) * 0.03f);
+        outside_left = outside_left && (x + w < -margin);
+        outside_right = outside_right && (w - x < -margin);
+        outside_bottom = outside_bottom && (y + w < -margin);
+        outside_top = outside_top && (w - y < -margin);
+        outside_near = outside_near && (z < -margin);
+        outside_far = outside_far && (w - z < -margin);
+      }
+    }
+  }
+  return outside_left || outside_right || outside_bottom || outside_top ||
+         outside_near || outside_far;
+}
+
 struct DebugVenuePick {
   bool hit = false;
   std::string mesh;
@@ -1558,11 +1741,7 @@ bool debug_pick_culled_by_cull_mode(DWORD cull_mode, bool backfacing) {
 }
 
 bool env_string(const char* name, std::string& out) {
-  char* value = nullptr;
-  size_t len = 0;
-  if (_dupenv_s(&value, &len, name) != 0 || !value) return false;
-  out = value;
-  std::free(value);
+  out = env_cached_string(name);
   return !out.empty() && out != "0";
 }
 
@@ -2753,25 +2932,91 @@ IDirect3DTexture9* MiloSceneRenderer::upload(const ghogx::asset::Image& img) {
   return t;
 }
 
+const milo_scene::MatObj* MiloSceneRenderer::find_material(
+    const std::string& name) const {
+  const auto it = materials_by_name_.find(name);
+  return it != materials_by_name_.end() ? it->second : nullptr;
+}
+
 void MiloSceneRenderer::set_scene(
     milo_scene::Scene scene,
     const std::map<std::string, ghogx::asset::Image>& textures) {
   scene_ = std::move(scene);
+  materials_by_name_.clear();
+  for (const auto& mat : scene_.mats) {
+    materials_by_name_[mat.name] = &mat;
+  }
+  meshes_by_name_.clear();
+  for (const auto& mesh : scene_.meshes) {
+    meshes_by_name_.emplace(mesh.name, &mesh);
+  }
+  groups_by_name_.clear();
+  for (const auto& group : scene_.groups) {
+    groups_by_name_.emplace(group.name, &group);
+  }
+  ordered_draw_meshes_.clear();
+  ordered_draw_meshes_.reserve(scene_.meshes.size());
+  std::unordered_set<const milo_scene::MeshObj*> queued;
+  queued.reserve(scene_.meshes.size());
+  std::unordered_set<std::string> grouped_meshes(scene_.grouped_meshes.begin(),
+                                                 scene_.grouped_meshes.end());
+  for (const auto& name : scene_.draw_order) {
+    for (const auto& mesh : scene_.meshes) {
+      if (queued.find(&mesh) == queued.end() && mesh.name == name) {
+        ordered_draw_meshes_.push_back(&mesh);
+        queued.insert(&mesh);
+        break;
+      }
+    }
+  }
+  for (const auto& mesh : scene_.meshes) {
+    if (!scene_.draw_order.empty() &&
+        grouped_meshes.find(mesh.name) != grouped_meshes.end()) {
+      continue;
+    }
+    if (queued.insert(&mesh).second) ordered_draw_meshes_.push_back(&mesh);
+  }
+  spotlight_template_meshes_.clear();
+  auto add_spotlight_group_meshes = [&](const std::string& group_name) {
+    std::vector<std::string> pending{group_name};
+    std::unordered_set<std::string> seen_groups;
+    while (!pending.empty()) {
+      const std::string current = pending.back();
+      pending.pop_back();
+      if (!seen_groups.insert(current).second) continue;
+      const auto group_it = groups_by_name_.find(current);
+      if (group_it != groups_by_name_.end() && group_it->second) {
+        for (const auto& child : group_it->second->children) {
+          if (child.rfind(".mesh") != std::string::npos) {
+            spotlight_template_meshes_.insert(child);
+          } else if (child.rfind(".grp") != std::string::npos) {
+            pending.push_back(child);
+          }
+        }
+      }
+    }
+  };
+  for (const auto& spot : scene_.spotlights) {
+    add_spotlight_group_meshes(spot.group);
+    if (!spot.target.empty()) spotlight_template_meshes_.insert(spot.target);
+    if (!spot.circle_mesh.empty()) {
+      spotlight_template_meshes_.insert(spot.circle_mesh);
+    }
+    for (const auto& mesh : spot.instance_meshes) {
+      if (!mesh.empty()) spotlight_template_meshes_.insert(mesh);
+    }
+  }
   active_spotlight_filter_ = false;
   active_spotlights_.clear();
   mesh_environments_.clear();
 
-  std::map<std::string, const milo_scene::GroupObj*> groups_by_name;
-  for (const auto& group : scene_.groups) {
-    groups_by_name[group.name] = &group;
-  }
   size_t mesh_environment_conflicts = 0;
   auto assign_group_environments =
       [&](auto&& self, const std::string& group_name, std::string current_env,
           std::unordered_set<std::string>& visiting) -> void {
     if (!visiting.insert(group_name).second) return;
-    const auto group_it = groups_by_name.find(group_name);
-    if (group_it == groups_by_name.end() || !group_it->second) {
+    const auto group_it = groups_by_name_.find(group_name);
+    if (group_it == groups_by_name_.end() || !group_it->second) {
       visiting.erase(group_name);
       return;
     }
@@ -2968,13 +3213,15 @@ void MiloSceneRenderer::draw_text_over_scene() {
 void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
                                   bool draw_text) {
   if (!dev_) return;
+  MiloEnvFrameCache env_cache;
+  ScopedMiloEnvFrameCache scoped_env_cache(env_cache);
 
   const float backbuffer_aspect =
       win_->bb_height() > 0 ? static_cast<float>(win_->bb_width()) /
                                   static_cast<float>(win_->bb_height())
                             : 16.0f / 9.0f;
   const float aspect =
-      env_float_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect, 0.5f, 3.0f);
+      env_camera_aspect_preset_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect);
 
   DebugVenueInspectorState* debug_venue = nullptr;
   if (draw_scene && debug_venue_inspector_enabled() &&
@@ -3081,6 +3328,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     std::memcpy(out.data(), &proj, 64);
     return out;
   }();
+  const auto view_proj_arr = mul16(view_arr, proj_arr);
 
   dev_->SetFVF(kFVF);
   dev_->SetRenderState(D3DRS_ZENABLE, TRUE);
@@ -3116,6 +3364,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   dev_->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
   dev_->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 
+  D3DStateCache d3d_state(dev_);
   D3DMATRIX wm;
   std::vector<SVtx> vb;
   const std::string debug_highlight_mesh =
@@ -3300,7 +3549,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     active_authored_fog_key = env->name;
   };
-
   auto draw_mesh_with_world = [&](const milo_scene::MeshObj& m,
                                    const std::array<float, 16>& w,
                                    const std::string* material_override = nullptr,
@@ -3336,7 +3584,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     const bool debug_highlighted_source_only =
         debug_highlighted_mesh && debug_venue &&
         debug_venue->highlight_source_only;
-    const milo_scene::MatObj* mat_obj = scene_.find_mat(material);
+    const milo_scene::MatObj* mat_obj = find_material(material);
     std::string diffuse_tex;
     if (mat_obj) {
       const auto* mat = mat_obj;
@@ -3468,7 +3716,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
                                      cc_env(mesh_env_color[2]));
       }
     }
-    dev_->SetRenderState(D3DRS_AMBIENT, mesh_ambient);
+    d3d_state.render(D3DRS_AMBIENT, mesh_ambient);
     install_approx_scene_lights(dev_, approx_directional_lights);
     configure_authored_fog(mesh_env);
     configure_authored_lights(mesh_env);
@@ -3587,7 +3835,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     const DWORD mesh_cull_mode =
         venue_mesh_cull_mode(scene_, m, mat_obj, authored_cull_mode,
                              debug_highlighted_mesh);
-    dev_->SetRenderState(D3DRS_CULLMODE, mesh_cull_mode);
+    d3d_state.render(D3DRS_CULLMODE, mesh_cull_mode);
     if (material_blend == kBlendAdd && ma < 0.999f) {
       // ONE/ONE additive blending ignores vertex alpha, so treat Mat alpha as
       // authored emissive intensity for fading glows/beams.
@@ -3603,10 +3851,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         !z_mode_writes || blend_state.additive ||
         material_blend == kBlendSubtract || material_blend == kBlendMultiply ||
         ma < 0.999f;
-    dev_->SetRenderState(D3DRS_ZWRITEENABLE, disable_zwrite ? FALSE : TRUE);
-    dev_->SetRenderState(D3DRS_BLENDOP, blend_state.op);
-    dev_->SetRenderState(D3DRS_SRCBLEND, blend_state.src);
-    dev_->SetRenderState(D3DRS_DESTBLEND, blend_state.dest);
+    d3d_state.render(D3DRS_ZWRITEENABLE, disable_zwrite ? FALSE : TRUE);
+    d3d_state.render(D3DRS_BLENDOP, blend_state.op);
+    d3d_state.render(D3DRS_SRCBLEND, blend_state.src);
+    d3d_state.render(D3DRS_DESTBLEND, blend_state.dest);
     if (env_enabled("GHOGX_LOG_ALPHA_MESHES") &&
         (blend_state.additive || ma < 0.999f ||
          material.find("glow") != std::string::npos ||
@@ -3702,17 +3950,21 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
     if (texture) {
-      dev_->SetTexture(0, texture);
-      dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
-      dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
-      dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-      dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+      d3d_state.texture(0, texture);
+      d3d_state.sampler(
+          0, D3DSAMP_ADDRESSU,
+          tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
+      d3d_state.sampler(
+          0, D3DSAMP_ADDRESSV,
+          tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
+      d3d_state.texture_stage(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+      d3d_state.texture_stage(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
     } else {
-      dev_->SetTexture(0, nullptr);
-      dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-      dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-      dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
-      dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+      d3d_state.texture(0, nullptr);
+      d3d_state.sampler(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+      d3d_state.sampler(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+      d3d_state.texture_stage(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+      d3d_state.texture_stage(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
     }
 
     const bool disable_mesh_lighting =
@@ -3720,7 +3972,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     DWORD prev_lighting = TRUE;
     if (disable_mesh_lighting) {
       dev_->GetRenderState(D3DRS_LIGHTING, &prev_lighting);
-      dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
+      d3d_state.render(D3DRS_LIGHTING, FALSE);
       if (prelit_lighting_bypass && env_enabled("GHOGX_LOG_PRELIT_MESHES")) {
         static std::unordered_set<std::string> logged_prelit;
         const std::string key = m.name + "|" + material;
@@ -3733,8 +3985,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
 
-    vb.clear();
-    vb.reserve(m.vertex_count);
     const std::vector<std::array<float, 3>>* position_override = nullptr;
     if (const auto pos_it = mesh_position_overrides_.find(m.name);
         pos_it != mesh_position_overrides_.end() && !pos_it->second.empty()) {
@@ -3746,9 +3996,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         !normal_it->second.empty()) {
       normal_override = &normal_it->second;
     }
+    vb.resize(m.verts.size());
     for (size_t vi = 0; vi < m.verts.size(); ++vi) {
       const auto& v = m.verts[vi];
-      SVtx s;
+      SVtx& s = vb[vi];
       if (position_override && vi < position_override->size()) {
         const auto& p = (*position_override)[vi];
         s.x = v.px + (p[0] - v.px) * mesh_anim_blend;
@@ -3806,7 +4057,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       float vv = base_u * uv_m01 + base_v * uv_m11;
       s.u = u + uv_m20;
       s.v = vv + uv_m21;
-      vb.push_back(s);
     }
 
     dev_->DrawIndexedPrimitiveUP(
@@ -3814,7 +4064,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         static_cast<UINT>(m.face_count), m.indices.data(), D3DFMT_INDEX16,
         vb.data(), sizeof(SVtx));
     if (disable_mesh_lighting) {
-      dev_->SetRenderState(D3DRS_LIGHTING, prev_lighting);
+      d3d_state.render(D3DRS_LIGHTING, prev_lighting);
     }
   };
 
@@ -3831,7 +4081,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     intensity = std::clamp(intensity, 0.0f, 8.0f);
     if (intensity <= 0.001f) return;
-    const milo_scene::MatObj* mat = scene_.find_mat(p.material);
+    const milo_scene::MatObj* mat = find_material(p.material);
     if (!mat) return;
     IDirect3DTexture9* texture = nullptr;
     if (const auto tex_it = tex_.find(mat->diffuse_tex); tex_it != tex_.end())
@@ -4027,27 +4277,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   std::vector<PostTextMesh> post_text_draw_meshes;
 
   if (draw_scene) {
-    std::vector<const milo_scene::MeshObj*> draw_meshes;
-    draw_meshes.reserve(scene_.meshes.size());
-    std::unordered_set<const milo_scene::MeshObj*> queued;
-    std::unordered_set<std::string> grouped_meshes(scene_.grouped_meshes.begin(),
-                                                   scene_.grouped_meshes.end());
-    for (const auto& name : scene_.draw_order) {
-      for (const auto& m : scene_.meshes) {
-        if (queued.find(&m) == queued.end() && m.name == name) {
-          draw_meshes.push_back(&m);
-          queued.insert(&m);
-          break;
-        }
-      }
-    }
-    for (const auto& m : scene_.meshes) {
-      if (!scene_.draw_order.empty() &&
-          grouped_meshes.find(m.name) != grouped_meshes.end()) {
-        continue;
-      }
-      if (queued.insert(&m).second) draw_meshes.push_back(&m);
-    }
+    const auto& draw_meshes = ordered_draw_meshes_;
 
     const bool draw_spotlight_instances =
         !env_enabled("GHOGX_DISABLE_SPOTLIGHT_INSTANCES");
@@ -4057,6 +4287,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     const bool debug_source_pick =
         debug_venue && (env_enabled("GHOGX_VENUE_PICK_SOURCE") ||
                         !env_enabled("GHOGX_VENUE_PICK_RENDER_ONLY"));
+    const bool venue_frustum_cull_enabled =
+        !env_enabled("GHOGX_DISABLE_VENUE_FRUSTUM_CULL") && !debug_venue &&
+        !debug_camera_meshes &&
+        !(cam_.result_frame.valid && cam_.result_frame.has_custom_projection);
     if (debug_venue) {
       float pick_ndc[2] = {0.0f, 0.0f};
       if (env_float_pair("GHOGX_VENUE_PICK_NDC", pick_ndc)) {
@@ -4127,36 +4361,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     float distance = 0.0f;
   };
     std::vector<ProjectedCameraMeshHit> projected_camera_mesh_hits;
-    std::unordered_set<std::string> spotlight_template_meshes;
-    auto add_spotlight_group_meshes = [&](const std::string& group_name) {
-      std::vector<std::string> pending{group_name};
-      std::unordered_set<std::string> seen_groups;
-      while (!pending.empty()) {
-        const std::string current = pending.back();
-        pending.pop_back();
-        if (!seen_groups.insert(current).second) continue;
-        for (const auto& group : scene_.groups) {
-          if (group.name != current) continue;
-          for (const auto& child : group.children) {
-            if (child.rfind(".mesh") != std::string::npos) {
-              spotlight_template_meshes.insert(child);
-            } else if (child.rfind(".grp") != std::string::npos) {
-              pending.push_back(child);
-            }
-          }
-          break;
-        }
-      }
-    };
-    for (const auto& spot : scene_.spotlights) {
-      add_spotlight_group_meshes(spot.group);
-      if (!spot.target.empty()) spotlight_template_meshes.insert(spot.target);
-      if (!spot.circle_mesh.empty())
-        spotlight_template_meshes.insert(spot.circle_mesh);
-      for (const auto& mesh : spot.instance_meshes) {
-        if (!mesh.empty()) spotlight_template_meshes.insert(mesh);
-      }
-    }
+    const auto& spotlight_template_meshes = spotlight_template_meshes_;
 
   for (const auto* mp : draw_meshes) {
     const auto& m = *mp;
@@ -4167,7 +4372,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     const bool spotlight_template_mesh =
         spotlight_template_meshes.find(m.name) != spotlight_template_meshes.end();
     const bool material_invisible = is_authored_invisible_material(m.material);
-    const auto* pick_mat = scene_.find_mat(m.material);
+    const auto* pick_mat = find_material(m.material);
     const DWORD pick_cull_mode =
         venue_mesh_cull_mode(scene_, m, pick_mat, authored_cull_mode, false);
     const bool cull_enabled = pick_cull_mode != D3DCULL_NONE;
@@ -4480,6 +4685,16 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       post_text_draw_meshes.push_back({&m, draw_world});
       continue;
     }
+    if (venue_frustum_cull_enabled && would_reach_draw &&
+        !debug_source_highlighted) {
+      const auto pos_it = mesh_position_overrides_.find(m.name);
+      const bool has_position_override =
+          pos_it != mesh_position_overrides_.end() && !pos_it->second.empty();
+      if (!has_position_override) {
+        const auto wvp = mul16(draw_world, view_proj_arr);
+        if (mesh_bbox_outside_clip_frustum(m, wvp)) continue;
+      }
+    }
     if (debug_camera_meshes && m.decoded && !m.verts.empty()) {
       float mn[3] = {0, 0, 0};
       float mx[3] = {0, 0, 0};
@@ -4673,20 +4888,18 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
       if (spot.group == "superflare_cannon.grp") continue;
       if (!spot.has_transform || spot.group.empty()) continue;
-      const milo_scene::GroupObj* group = nullptr;
-      for (const auto& g : scene_.groups) {
-        if (g.name == spot.group) {
-          group = &g;
-          break;
-        }
-      }
+      const auto group_it = groups_by_name_.find(spot.group);
+      const milo_scene::GroupObj* group =
+          group_it == groups_by_name_.end() ? nullptr : group_it->second;
       if (!group) continue;
       auto spot_world = xfm_to_mat4(spot.world_stored);
       if (active_it != active_spotlights_.end() &&
           !active_it->second.target_mesh.empty() &&
           !env_enabled("GHOGX_DISABLE_SPOTLIGHT_TARGET_AIM")) {
-        for (const auto& target : scene_.meshes) {
-          if (target.name != active_it->second.target_mesh) continue;
+        if (const auto target_it =
+                meshes_by_name_.find(active_it->second.target_mesh);
+            target_it != meshes_by_name_.end() && target_it->second) {
+          const auto& target = *target_it->second;
           const auto target_world = scene_.world_matrix(target);
           const float origin[3] = {spot_world[12], spot_world[13],
                                    spot_world[14]};
@@ -4733,7 +4946,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
               spot_world[10] = aim_up[2];
             }
           }
-          break;
         }
       }
       spot_world = mul16(spot_world, world_transform_);
@@ -4746,55 +4958,56 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           dev_->SetRenderState(D3DRS_ZENABLE, FALSE);
         }
         bool drew_circle = false;
-        for (const auto& m : scene_.meshes) {
-          if (spot.circle_mesh.empty() || m.name != spot.circle_mesh) continue;
-          const std::string* mat =
-              spot.circle_material.empty() ? nullptr : &spot.circle_material;
-          draw_mesh_with_world(m, spot_world, mat, &active_it->second);
-          drew_circle = true;
-          break;
+        if (!spot.circle_mesh.empty()) {
+          const auto circle_it = meshes_by_name_.find(spot.circle_mesh);
+          if (circle_it != meshes_by_name_.end() && circle_it->second) {
+            const auto& m = *circle_it->second;
+            const std::string* mat =
+                spot.circle_material.empty() ? nullptr : &spot.circle_material;
+            draw_mesh_with_world(m, spot_world, mat, &active_it->second);
+            drew_circle = true;
+          }
         }
         for (const auto& child : group->children) {
           if (child == spot.circle_mesh && drew_circle) continue;
           if (hidden_meshes_.find(child) != hidden_meshes_.end()) continue;
-          for (const auto& m : scene_.meshes) {
-            if (m.name != child) continue;
-            draw_mesh_with_world(m, spot_world, nullptr, &active_it->second);
-            if (env_enabled("GHOGX_LOG_SPOTLIGHT_MESHES")) {
-              const auto wv = mul16(spot_world, view_arr);
-              const auto wvp = mul16(wv, proj_arr);
-              float min_x = std::numeric_limits<float>::infinity();
-              float min_y = std::numeric_limits<float>::infinity();
-              float max_x = -std::numeric_limits<float>::infinity();
-              float max_y = -std::numeric_limits<float>::infinity();
-              size_t in_front = 0;
-              size_t on_screen = 0;
-              for (const auto& v : m.verts) {
-                const float x =
-                    v.px * wvp[0] + v.py * wvp[4] + v.pz * wvp[8] + wvp[12];
-                const float y =
-                    v.px * wvp[1] + v.py * wvp[5] + v.pz * wvp[9] + wvp[13];
-                const float w =
-                    v.px * wvp[3] + v.py * wvp[7] + v.pz * wvp[11] + wvp[15];
-                if (w <= 0.001f) continue;
-                ++in_front;
-                const float nx = x / w;
-                const float ny = y / w;
-                min_x = std::min(min_x, nx);
-                max_x = std::max(max_x, nx);
-                min_y = std::min(min_y, ny);
-                max_y = std::max(max_y, ny);
-                if (nx >= -1.0f && nx <= 1.0f && ny >= -1.0f && ny <= 1.0f)
-                  ++on_screen;
-              }
-              std::fprintf(stderr,
-                           "[milo_scene] spotlight draw spot=%s mesh=%s material=%s world_pos=(%.2f %.2f %.2f) clip_verts=%zu/%zu on_screen=%zu ndc=(%.2f %.2f)..(%.2f %.2f)\n",
-                           spot.name.c_str(), m.name.c_str(),
-                           m.material.c_str(), spot_world[12], spot_world[13],
-                           spot_world[14], in_front, m.verts.size(), on_screen,
-                           min_x, min_y, max_x, max_y);
+          const auto child_it = meshes_by_name_.find(child);
+          if (child_it == meshes_by_name_.end() || !child_it->second) continue;
+          const auto& m = *child_it->second;
+          draw_mesh_with_world(m, spot_world, nullptr, &active_it->second);
+          if (env_enabled("GHOGX_LOG_SPOTLIGHT_MESHES")) {
+            const auto wv = mul16(spot_world, view_arr);
+            const auto wvp = mul16(wv, proj_arr);
+            float min_x = std::numeric_limits<float>::infinity();
+            float min_y = std::numeric_limits<float>::infinity();
+            float max_x = -std::numeric_limits<float>::infinity();
+            float max_y = -std::numeric_limits<float>::infinity();
+            size_t in_front = 0;
+            size_t on_screen = 0;
+            for (const auto& v : m.verts) {
+              const float x =
+                  v.px * wvp[0] + v.py * wvp[4] + v.pz * wvp[8] + wvp[12];
+              const float y =
+                  v.px * wvp[1] + v.py * wvp[5] + v.pz * wvp[9] + wvp[13];
+              const float w =
+                  v.px * wvp[3] + v.py * wvp[7] + v.pz * wvp[11] + wvp[15];
+              if (w <= 0.001f) continue;
+              ++in_front;
+              const float nx = x / w;
+              const float ny = y / w;
+              min_x = std::min(min_x, nx);
+              max_x = std::max(max_x, nx);
+              min_y = std::min(min_y, ny);
+              max_y = std::max(max_y, ny);
+              if (nx >= -1.0f && nx <= 1.0f && ny >= -1.0f && ny <= 1.0f)
+                ++on_screen;
             }
-            break;
+            std::fprintf(stderr,
+                         "[milo_scene] spotlight draw spot=%s mesh=%s material=%s world_pos=(%.2f %.2f %.2f) clip_verts=%zu/%zu on_screen=%zu ndc=(%.2f %.2f)..(%.2f %.2f)\n",
+                         spot.name.c_str(), m.name.c_str(),
+                         m.material.c_str(), spot_world[12], spot_world[13],
+                         spot_world[14], in_front, m.verts.size(), on_screen,
+                         min_x, min_y, max_x, max_y);
           }
         }
         for (const auto& child : spot.instance_meshes) {
@@ -4805,17 +5018,16 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
             continue;
           }
           if (hidden_meshes_.find(child) != hidden_meshes_.end()) continue;
-          for (const auto& m : scene_.meshes) {
-            if (m.name != child) continue;
-            draw_mesh_with_world(m, spot_world, nullptr, &active_it->second);
-            if (env_enabled("GHOGX_LOG_SPOTLIGHT_MESHES")) {
-              std::fprintf(stderr,
-                           "[milo_scene] spotlight direct mesh spot=%s mesh=%s material=%s world_pos=(%.2f %.2f %.2f)\n",
-                           spot.name.c_str(), m.name.c_str(),
-                           m.material.c_str(), spot_world[12], spot_world[13],
-                           spot_world[14]);
-            }
-            break;
+          const auto child_it = meshes_by_name_.find(child);
+          if (child_it == meshes_by_name_.end() || !child_it->second) continue;
+          const auto& m = *child_it->second;
+          draw_mesh_with_world(m, spot_world, nullptr, &active_it->second);
+          if (env_enabled("GHOGX_LOG_SPOTLIGHT_MESHES")) {
+            std::fprintf(stderr,
+                         "[milo_scene] spotlight direct mesh spot=%s mesh=%s material=%s world_pos=(%.2f %.2f %.2f)\n",
+                         spot.name.c_str(), m.name.c_str(),
+                         m.material.c_str(), spot_world[12], spot_world[13],
+                         spot_world[14]);
           }
         }
         if (env_enabled("GHOGX_LOG_ALPHA_MESHES")) {
@@ -4838,11 +5050,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
       for (const auto& child : group->children) {
         if (hidden_meshes_.find(child) != hidden_meshes_.end()) continue;
-        for (const auto& m : scene_.meshes) {
-          if (m.name != child) continue;
-          draw_mesh_with_world(m, spot_world);
-          break;
-        }
+        const auto child_it = meshes_by_name_.find(child);
+        if (child_it == meshes_by_name_.end() || !child_it->second) continue;
+        draw_mesh_with_world(*child_it->second, spot_world);
       }
     }
   }

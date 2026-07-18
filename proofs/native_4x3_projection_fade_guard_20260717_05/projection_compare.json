@@ -1,0 +1,162 @@
+{
+  "reference": {
+    "json": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-highway-visuals\\proofs\\highway_4x3_projection_measure_20260715_04\\projection_trace.json",
+    "format": "projection_fit",
+    "native_pcsx2_screenshot": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-highway-visuals\\proofs\\pcsx2_4x3_gameplay_capture_20260715_01\\01_live_gameplay_Guitar Hero II_SLUS-21447_20260715133314.png",
+    "paired_gs_dump": "",
+    "accepted_for": [
+      "4:3 PCSX2 rail projection width/center fit",
+      "renderer root/camera profile regression checks"
+    ],
+    "not_accepted_for": [
+      "sustain-tail body/core shape",
+      "whammy ripple formula",
+      "audio behavior"
+    ],
+    "scale_to_target": {
+      "x": 0.8006672226855713,
+      "y": 0.8008898776418243
+    }
+  },
+  "projection_constants": {
+    "profile": "4:3",
+    "cam_x": -0.04188884,
+    "cam_y": -63.22,
+    "cam_z": 17.33562394,
+    "cam_pitch_deg": 5.45721249,
+    "cam_yaw_deg": 0.2198823,
+    "fov_y": 0.4102,
+    "near_z": 50.0,
+    "far_z": 200.0,
+    "track_x_scale": 1.02769107,
+    "board_half_x": 10.276910699999998
+  },
+  "projected_rail_fit": {
+    "left_slope_x_per_y": -0.5878583457961032,
+    "left_intercept_x_at_y0": 587.8258638430588,
+    "right_slope_x_per_y": 0.5924149560336671,
+    "right_intercept_x_at_y0": 358.06461228113164,
+    "metrics": {
+      "sample_count": 9,
+      "width_rms_px": 0.621769,
+      "width_max_abs_px": 0.937,
+      "center_rms_px": 0.080742,
+      "center_max_abs_px": 0.176
+    },
+    "width_samples": [
+      {
+        "source_y_px": 1000.9573057118008,
+        "target_y_px": 801.657,
+        "reference_width_px": 717.261,
+        "projected_width_px": 716.413,
+        "width_error_px": -0.849,
+        "width_error_percent": -0.118,
+        "reference_center_x_px": 474.596,
+        "projected_center_x_px": 474.772,
+        "center_error_px": 0.176
+      },
+      {
+        "source_y_px": 825.7257974640527,
+        "target_y_px": 661.315,
+        "reference_width_px": 551.093,
+        "projected_width_px": 550.772,
+        "width_error_px": -0.321,
+        "width_error_percent": -0.058,
+        "reference_center_x_px": 474.335,
+        "projected_center_x_px": 474.452,
+        "center_error_px": 0.117
+      },
+      {
+        "source_y_px": 747.9095286248929,
+        "target_y_px": 598.993,
+        "reference_width_px": 477.301,
+        "projected_width_px": 477.214,
+        "width_error_px": -0.087,
+        "width_error_percent": -0.018,
+        "reference_center_x_px": 474.219,
+        "projected_center_x_px": 474.31,
+        "center_error_px": 0.091
+      },
+      {
+        "source_y_px": 663.6532446781488,
+        "target_y_px": 531.513,
+        "reference_width_px": 397.403,
+        "projected_width_px": 397.57,
+        "width_error_px": 0.167,
+        "width_error_percent": 0.042,
+        "reference_center_x_px": 474.093,
+        "projected_center_x_px": 474.156,
+        "center_error_px": 0.063
+      },
+      {
+        "source_y_px": 572.1229803445036,
+        "target_y_px": 458.208,
+        "reference_width_px": 310.607,
+        "projected_width_px": 311.049,
+        "width_error_px": 0.442,
+        "width_error_percent": 0.142,
+        "reference_center_x_px": 473.957,
+        "projected_center_x_px": 473.989,
+        "center_error_px": 0.032
+      },
+      {
+        "source_y_px": 513.3110364158002,
+        "target_y_px": 411.106,
+        "reference_width_px": 254.837,
+        "projected_width_px": 255.456,
+        "width_error_px": 0.619,
+        "width_error_percent": 0.243,
+        "reference_center_x_px": 473.869,
+        "projected_center_x_px": 473.882,
+        "center_error_px": 0.013
+      },
+      {
+        "source_y_px": 472.3342791457547,
+        "target_y_px": 378.288,
+        "reference_width_px": 215.979,
+        "projected_width_px": 216.722,
+        "width_error_px": 0.743,
+        "width_error_percent": 0.344,
+        "reference_center_x_px": 473.808,
+        "projected_center_x_px": 473.807,
+        "center_error_px": -0.001
+      },
+      {
+        "source_y_px": 459.22403814889566,
+        "target_y_px": 367.788,
+        "reference_width_px": 203.547,
+        "projected_width_px": 204.329,
+        "width_error_px": 0.782,
+        "width_error_percent": 0.384,
+        "reference_center_x_px": 473.789,
+        "projected_center_x_px": 473.783,
+        "center_error_px": -0.006
+      },
+      {
+        "source_y_px": 407.8795850996654,
+        "target_y_px": 326.667,
+        "reference_width_px": 154.858,
+        "projected_width_px": 155.795,
+        "width_error_px": 0.937,
+        "width_error_percent": 0.605,
+        "reference_center_x_px": 473.712,
+        "projected_center_x_px": 473.689,
+        "center_error_px": -0.023
+      }
+    ]
+  },
+  "measured_fade_world_values_for_reference_band": {
+    "reference_first_visible_board_y_px_target": 326.6666310030691,
+    "reference_full_alpha_y_px_target": null,
+    "top_y": 164.4772969276156,
+    "alpha_dist": 71.67506,
+    "alpha_dist_source": "renderer_pcsx2_4x3_constant"
+  },
+  "tail_body_width_projection": {
+    "tail_tight_width": 0.7,
+    "tail_body_factor": 0.85,
+    "tail_body_half_width": 0.595,
+    "bucketed_profile": [],
+    "note": "Whammy ripple/width is intentionally not modeled here."
+  }
+}

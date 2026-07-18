@@ -1,0 +1,5 @@
+scenario=native 4:3 forced-held raised smasher body at threshold
+song=shoutatthedevil difficulty=3 diagnostic-start=16 forced-frets=0x0a frame=20
+crop=C:\Programming\GitHub\Guitar Hero II\GuitarHeroOGX-highway-visuals\proofs\native_4x3_smasher_solid_state_20260717_01\smasher_solid_state_forceheld_frame_00020_threshold_crop.png
+trace=C:\Programming\GitHub\Guitar Hero II\GuitarHeroOGX-highway-visuals\proofs\native_4x3_smasher_solid_state_20260717_01\smasher_trace.txt
+exit=0

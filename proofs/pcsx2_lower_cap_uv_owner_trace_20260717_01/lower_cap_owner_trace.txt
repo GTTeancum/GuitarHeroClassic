@@ -1,0 +1,14 @@
+pcsx2_lower_cap_uv_owner_trace_20260717_01
+component={'count': 1813, 'min_x': 212, 'max_x': 296, 'min_y': 245, 'max_y': 370, 'width_px': 85, 'height_px': 126, 'centroid_x': 265.235, 'centroid_y': 321.243}
+draw=673 transfer=236 tbp0=14208 cover=1813/1813 frac=1.0 st=[0.03865, 0.046639, 0.02825, 0.038678] sample=[65.833, 195.5, 136.167, 34.0]
+draw=2916 transfer=1258 tbp0=14208 cover=1813/1813 frac=1.0 st=[0.038634, 0.04662, 0.028229, 0.038649] sample=[65.833, 195.5, 136.167, 34.0]
+draw=5159 transfer=2280 tbp0=14208 cover=1813/1813 frac=1.0 st=[0.03865, 0.046639, 0.02825, 0.038678] sample=[65.833, 195.5, 136.167, 34.0]
+draw=7402 transfer=3302 tbp0=14208 cover=1813/1813 frac=1.0 st=[0.038634, 0.04662, 0.028229, 0.038649] sample=[65.833, 195.5, 136.167, 34.0]
+draw=1 transfer=0 tbp0=None cover=1813/1813 frac=1.0 st=[0.0, 0.0, 0.0, 0.0] sample=None
+draw=2244 transfer=1022 tbp0=11424 cover=1813/1813 frac=1.0 st=[6.3e-05, 6.3e-05, 0.00024, 0.00024] sample=[0.0, 0.0, 0.0, 255.0]
+draw=4487 transfer=2044 tbp0=11424 cover=1813/1813 frac=1.0 st=[6.3e-05, 6.3e-05, 0.00024, 0.00024] sample=[0.0, 0.0, 0.0, 255.0]
+draw=6730 transfer=3066 tbp0=11424 cover=1813/1813 frac=1.0 st=[6.3e-05, 6.3e-05, 0.00024, 0.00024] sample=[0.0, 0.0, 0.0, 255.0]
+draw=1102 transfer=386 tbp0=15616 cover=1813/1813 frac=1.0 st=[-0.240634, -0.232011, 0.002279, 0.003078] sample=None
+draw=3345 transfer=1408 tbp0=15616 cover=1813/1813 frac=1.0 st=[-0.240618, -0.231997, 0.00228, 0.003079] sample=None
+draw=5588 transfer=2430 tbp0=15616 cover=1813/1813 frac=1.0 st=[-0.240634, -0.232011, 0.002279, 0.003078] sample=None
+draw=7831 transfer=3452 tbp0=15616 cover=1813/1813 frac=1.0 st=[-0.240618, -0.231997, 0.00228, 0.003079] sample=None

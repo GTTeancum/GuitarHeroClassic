@@ -16,6 +16,7 @@
 #include <array>
 #include <cassert>
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
@@ -181,6 +182,10 @@ bool debug_venue_filters_enabled() {
 
 bool debug_venue_only_capture_enabled() {
     return env_value("GHOGX_DEBUG_VENUE_ONLY_CAPTURE") != nullptr;
+}
+
+bool debug_highway_only_capture_enabled() {
+    return env_value("GHOGX_DEBUG_HIGHWAY_ONLY_CAPTURE") != nullptr;
 }
 
 bool debug_venue_proxy_enabled() {
@@ -1538,6 +1543,7 @@ constexpr float kCamShotSourceDefaultFilter = 0.9f;
 constexpr float kCamShotSourceDefaultNearPlane = 1.0f;
 constexpr float kCamShotSourceDefaultFarPlane = 1000.0f;
 constexpr const char* kSourceCamShotAnimTarget = "CamShot::sAnimTarget";
+constexpr float kVenueDrawDistanceScale = 1.5f;
 constexpr int kMiloPlatformNone = 0;
 constexpr int kMiloPlatformPS2 = 1;
 constexpr int kMiloPlatformXBox = 2;
@@ -3029,6 +3035,59 @@ std::string strip_mesh_suffix(std::string name) {
         name.resize(name.size() - suffix.size());
     }
     return name;
+}
+
+std::unordered_map<std::string, std::unordered_set<std::string>>
+build_camera_performer_target_requests(
+    const std::vector<Gameplay::CameraKey>& camera_keys,
+    const std::vector<Gameplay::CameraKey>& regular_camera_keys) {
+    std::unordered_map<std::string, std::unordered_set<std::string>> requests;
+    auto request_performer_target =
+        [&](const std::string& entity, const std::string& subpart,
+            const std::string& source_object) {
+            if (entity.empty()) return;
+            auto& targets = requests[entity];
+            auto add_target = [&](const std::string& target) {
+                if (target.empty()) return;
+                targets.insert(target);
+                const std::string stripped = strip_mesh_suffix(target);
+                if (!stripped.empty()) targets.insert(stripped);
+            };
+            add_target(subpart);
+            add_target(source_object);
+        };
+    auto request_camera_key_targets = [&](const Gameplay::CameraKey& key) {
+        request_performer_target(key.target_entity, key.target_subpart, {});
+        for (const auto& ref : key.target_refs) {
+            request_performer_target(ref.entity, ref.subpart, ref.source_object);
+        }
+        request_performer_target(key.parent_entity, key.parent_subpart,
+                                 key.parent_source_object);
+        request_performer_target(key.focus_target_entity,
+                                 key.focus_target_subpart,
+                                 key.focus_target_source_object);
+        for (const auto& pos : key.positions) {
+            request_performer_target(pos.target_entity, pos.target_subpart, {});
+            for (const auto& ref : pos.target_refs) {
+                request_performer_target(ref.entity, ref.subpart,
+                                         ref.source_object);
+            }
+            request_performer_target(pos.parent_entity, pos.parent_subpart,
+                                     pos.parent_source_object);
+            request_performer_target(pos.focus_target_entity,
+                                     pos.focus_target_subpart,
+                                     pos.focus_target_source_object);
+        }
+    };
+    for (const auto& key : camera_keys) request_camera_key_targets(key);
+    for (const auto& key : regular_camera_keys)
+        request_camera_key_targets(key);
+    for (const char* role : {"guitarist0", "singer", "bassist", "drummer",
+                             "keyboard"}) {
+        request_performer_target(std::string(role), "bone_spine1.mesh", {});
+        request_performer_target(std::string(role), "bone_spine1", {});
+    }
+    return requests;
 }
 
 bool debug_hand_pose_rows_enabled() {
@@ -8564,10 +8623,10 @@ PerformerMidiState performer_midi_state_at(const ghogx::chart::Chart& chart,
                                            std::string_view track,
                                            double song_time) {
     PerformerMidiState state;
+    const uint32_t now_tick = chart.sec_to_tick(song_time);
     for (const auto& ev : chart.performer_events) {
+        if (ev.tick > now_tick) break;
         if (ev.track != track) continue;
-        const double t = chart.tick_to_sec(ev.tick);
-        if (t > song_time) break;
         state.marker = ev.text;
         if (ev.text == "[play]") {
             state.playing = true;
@@ -8636,6 +8695,168 @@ std::array<float, 16> xfm_to_mat4(const ghogx::milo_scene::Xfm& x) {
             x.rot[2][0], x.rot[2][1], x.rot[2][2], 0.0f,
             x.pos[0], x.pos[1], x.pos[2], 1.0f};
 }
+
+class CharacterTransformCache {
+  public:
+    explicit CharacterTransformCache(
+        const ghogx::character::Character& character,
+        const std::unordered_set<std::string>* requested_names = nullptr) {
+        std::unordered_set<std::string> filtered_names;
+        if (requested_names) {
+            filtered_names.reserve(requested_names->size() * 4 + 8);
+            auto parent_for_object = [&](const std::string& name) -> std::string {
+                for (const auto& bone : character.bones) {
+                    if (bone.name == name) return bone.parent;
+                }
+                for (const auto& mesh : character.meshes) {
+                    if (mesh.name == name) return mesh.parent;
+                }
+                return {};
+            };
+            auto add_object_and_parents = [&](const std::string& name) {
+                std::string current = name;
+                for (int guard = 0; !current.empty() && guard < 256; ++guard) {
+                    const bool inserted = filtered_names.insert(current).second;
+                    if (!inserted) break;
+                    current = parent_for_object(current);
+                }
+            };
+            for (const auto& name : *requested_names) {
+                add_object_and_parents(name);
+            }
+        }
+
+        auto should_include = [&](const std::string& name) {
+            return !requested_names || filtered_names.find(name) != filtered_names.end();
+        };
+        const size_t object_count = requested_names
+                                        ? filtered_names.size()
+                                        : character.bones.size() +
+                                              character.meshes.size();
+        current_locals_.reserve(object_count);
+        bind_locals_.reserve(object_count);
+        parents_.reserve(object_count);
+        stored_worlds_.reserve(object_count);
+        current_worlds_.reserve(object_count);
+        bind_worlds_.reserve(object_count);
+        corrected_worlds_.reserve(character.meshes.size());
+        runtime_world_overrides_ = &character.runtime_world_overrides;
+
+        for (size_t i = 0; i < character.bones.size(); ++i) {
+            const auto& bone = character.bones[i];
+            if (!should_include(bone.name)) continue;
+            current_locals_[bone.name] = &bone.local;
+            bind_locals_[bone.name] =
+                i < character.bind_bone_local.size()
+                    ? &character.bind_bone_local[i]
+                    : &bone.local;
+            parents_[bone.name] = bone.parent;
+            stored_worlds_[bone.name] = xfm_to_mat4(bone.world_stored);
+        }
+        for (size_t i = 0; i < character.meshes.size(); ++i) {
+            const auto& mesh = character.meshes[i];
+            if (!should_include(mesh.name)) continue;
+            current_locals_[mesh.name] = &mesh.local;
+            bind_locals_[mesh.name] =
+                i < character.bind_mesh_local.size()
+                    ? &character.bind_mesh_local[i]
+                    : &mesh.local;
+            parents_[mesh.name] = mesh.parent;
+            stored_worlds_[mesh.name] = xfm_to_mat4(mesh.world_stored);
+        }
+    }
+
+    std::array<float, 16> local_world(const std::string& name) {
+        return local_world_impl(name, false);
+    }
+
+    std::array<float, 16> corrected_world(const std::string& name) {
+        if (const auto override_it = runtime_world_overrides_->find(name);
+            override_it != runtime_world_overrides_->end()) {
+            return override_it->second;
+        }
+        if (const auto it = corrected_worlds_.find(name);
+            it != corrected_worlds_.end()) {
+            return it->second;
+        }
+        const auto current = local_world_impl(name, false);
+        const auto bind = local_world_impl(name, true);
+        auto stored = identity();
+        if (const auto stored_it = stored_worlds_.find(name);
+            stored_it != stored_worlds_.end()) {
+            stored = stored_it->second;
+        }
+        const auto bind_correction =
+            mat4_mul_game(mat4_affine_inverse_game(bind), stored);
+        const auto world = mat4_mul_game(current, bind_correction);
+        corrected_worlds_[name] = world;
+        return world;
+    }
+
+  private:
+    static std::array<float, 16> identity() {
+        return {1.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f};
+    }
+
+    std::array<float, 16> local_world_impl(const std::string& name,
+                                           bool bind_pose) {
+        auto& cache = bind_pose ? bind_worlds_ : current_worlds_;
+        if (const auto cached = cache.find(name); cached != cache.end()) {
+            return cached->second;
+        }
+        if (!bind_pose) {
+            if (const auto override_it = runtime_world_overrides_->find(name);
+                override_it != runtime_world_overrides_->end()) {
+                cache[name] = override_it->second;
+                return override_it->second;
+            }
+        }
+        const auto& locals = bind_pose ? bind_locals_ : current_locals_;
+        const auto local_it = locals.find(name);
+        if (local_it == locals.end()) return identity();
+
+        auto& resolving = bind_pose ? resolving_bind_ : resolving_current_;
+        if (!resolving.insert(name).second) return identity();
+
+        std::array<float, 16> world = xfm_to_mat4(*local_it->second);
+        if (const auto parent_it = parents_.find(name);
+            parent_it != parents_.end() && !parent_it->second.empty()) {
+            std::array<float, 16> parent_world = identity();
+            if (!bind_pose) {
+                if (const auto override_it =
+                        runtime_world_overrides_->find(parent_it->second);
+                    override_it != runtime_world_overrides_->end()) {
+                    parent_world = override_it->second;
+                } else {
+                    parent_world = local_world_impl(parent_it->second, false);
+                }
+            } else {
+                parent_world = local_world_impl(parent_it->second, true);
+            }
+            world = mat4_mul_game(world, parent_world);
+        }
+
+        resolving.erase(name);
+        cache[name] = world;
+        return world;
+    }
+
+    const std::map<std::string, std::array<float, 16>>*
+        runtime_world_overrides_ = nullptr;
+    std::unordered_map<std::string, const ghogx::milo_scene::Xfm*>
+        current_locals_;
+    std::unordered_map<std::string, const ghogx::milo_scene::Xfm*> bind_locals_;
+    std::unordered_map<std::string, std::string> parents_;
+    std::unordered_map<std::string, std::array<float, 16>> stored_worlds_;
+    std::unordered_map<std::string, std::array<float, 16>> current_worlds_;
+    std::unordered_map<std::string, std::array<float, 16>> bind_worlds_;
+    std::unordered_map<std::string, std::array<float, 16>> corrected_worlds_;
+    std::unordered_set<std::string> resolving_current_;
+    std::unordered_set<std::string> resolving_bind_;
+};
 
 std::map<std::string, std::array<float, 3>> build_scene_mesh_local_positions(
     const ghogx::milo_scene::Scene& scene) {
@@ -12372,7 +12593,8 @@ size_t append_worldcrowd_floor_meshes_for_venue_chars(
                            });
     };
     auto dst_floor_mat = [&]() -> std::optional<std::string> {
-        for (const char* name : {"floor.mat", "tile_dark.mat"}) {
+        for (const char* name :
+             {"floor.mat", "tile_dark.mat", "street_asphalt.mat"}) {
             if (dst_has_mat(name)) return std::string(name);
         }
         return std::nullopt;
@@ -19118,6 +19340,32 @@ float camera_rndcam_on_far_plane_like_source(
     return cam.far_z;
 }
 
+void apply_venue_draw_distance_scale(ghogx::render::OrbitCamera& cam) {
+    if (!std::isfinite(cam.far_z) || cam.far_z <= 0.0f) return;
+    const float expanded_far_z = cam.far_z * kVenueDrawDistanceScale;
+    if (std::isfinite(expanded_far_z) && expanded_far_z > cam.near_z) {
+        cam.far_z = expanded_far_z;
+    }
+}
+
+struct ScopedVenueDrawDistance {
+    explicit ScopedVenueDrawDistance(ghogx::render::MiloSceneRenderer* world)
+        : world(world) {
+        if (!world) return;
+        original = world->camera();
+        apply_venue_draw_distance_scale(world->camera());
+        active = true;
+    }
+
+    ~ScopedVenueDrawDistance() {
+        if (active && world) world->camera() = original;
+    }
+
+    ghogx::render::MiloSceneRenderer* world = nullptr;
+    ghogx::render::OrbitCamera original;
+    bool active = false;
+};
+
 std::optional<CameraTarget> camera_parent_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets);
@@ -25407,12 +25655,13 @@ NoteCue current_fret_hand_cue(
     if (cues.empty()) return cue;
     constexpr double kMaxGapSec = 0.24;
     const uint32_t now_tick = chart.sec_to_tick(song_time);
-    const ghogx::chart::HandGemCue* chosen = nullptr;
-    for (const auto& candidate : cues) {
-        if (candidate.tick > now_tick) break;
-        chosen = &candidate;
-    }
-    if (!chosen) return cue;
+    const auto it = std::upper_bound(
+        cues.begin(), cues.end(), now_tick,
+        [](uint32_t tick, const ghogx::chart::HandGemCue& cue) {
+            return tick < cue.tick;
+        });
+    if (it == cues.begin()) return cue;
+    const ghogx::chart::HandGemCue* chosen = &*std::prev(it);
     const double on = chart.tick_to_sec(chosen->tick);
     const double off = std::max(on, chart.tick_to_sec(chosen->tick_off));
     if (song_time > off + kMaxGapSec) return cue;
@@ -25429,14 +25678,13 @@ FretPositionState current_fret_position_state(
     FretPositionState state;
     if (cues.empty()) return state;
     const uint32_t now_tick = chart.sec_to_tick(song_time);
-    const ghogx::chart::FretPositionCue* chosen = nullptr;
-    for (const auto& cue : cues) {
-        if (cue.tick > now_tick) break;
-        if (cue.tick <= now_tick) {
-            chosen = &cue;
-        }
-    }
-    if (!chosen) return state;
+    const auto it = std::upper_bound(
+        cues.begin(), cues.end(), now_tick,
+        [](uint32_t tick, const ghogx::chart::FretPositionCue& cue) {
+            return tick < cue.tick;
+        });
+    if (it == cues.begin()) return state;
+    const ghogx::chart::FretPositionCue* chosen = &*std::prev(it);
     state.active = true;
     state.tick = chosen->tick;
     state.spot_index = chosen->spot_index;
@@ -25924,6 +26172,10 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     regular_camera_keys_.clear();
     source_intro_camera_previous_ = CameraKey{};
     has_source_intro_camera_previous_ = false;
+    regular_camera_source_record_member_table_.clear();
+    camera_performer_targets_ =
+        build_camera_performer_target_requests(camera_keys_,
+                                               regular_camera_keys_);
     pending_regular_camera_.clear();
     active_regular_camera_.clear();
     previous_regular_camera_.clear();
@@ -25989,6 +26241,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     should_resend_excitement_ = false;
     lighting_presets_.clear();
     lighting_spotlights_.clear();
+    lighting_spots_by_name_.clear();
+    lighting_spots_by_target_.clear();
     active_lighting_preset_.clear();
     active_lighting_keyframe_.clear();
     active_lighting_keyframe_index_ = SIZE_MAX;
@@ -25999,6 +26253,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_transition_start_ = 0.0;
     lighting_transition_duration_ = 0.0;
     lighting_transition_active_ = false;
+    lighting_spot_renderer_dirty_ = true;
     lighting_preset_env_light_transition_from_ = {};
     lighting_preset_env_light_transition_to_ = {};
     lighting_preset_env_light_transition_start_ = 0.0;
@@ -28361,6 +28616,7 @@ void Gameplay::set_camera_glow_spot_ref(const std::string& raw_ref) {
     if (!ref.empty()) {
         active_camera_glow_spot_ = camera_glow_spot_state_for_ref(ref);
     }
+    lighting_spot_renderer_dirty_ = true;
 
     if (debug_venue_filters_enabled()) {
         if (active_camera_glow_spot_) {
@@ -29165,9 +29421,10 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                                  bool force_persistent,
                                  int next_link_depth) {
     if (event_name.empty()) return;
+    const bool debug_venue = debug_venue_filters_enabled();
     if (persistent && !world_) {
         active_venue_event_ = event_name;
-        if (debug_venue_filters_enabled()) {
+        if (debug_venue) {
             std::fprintf(stderr,
                          "[world] venue event %s: latched until venue load\n",
                          event_name.c_str());
@@ -29176,7 +29433,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     }
     if (!persistent && !world_) {
         push_unique_ref(pending_transient_venue_events_, event_name);
-        if (debug_venue_filters_enabled()) {
+        if (debug_venue) {
             std::fprintf(stderr,
                          "[world] venue event %s: queued until venue load\n",
                          event_name.c_str());
@@ -29188,7 +29445,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         venue_event_route_enabled_by_triggers(event_name);
     execute_venue_script_event(event_name);
     if (!venue_event_trigger_routes_enabled) {
-        if (debug_venue_filters_enabled()) {
+        if (debug_venue) {
             std::fprintf(
                 stderr,
                 "[world] venue event %s: skipped by disabled EventTrigger gate\n",
@@ -29272,7 +29529,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         venue_light_state_overrides_.clear();
     }
     if (peak_transition) {
-        if (debug_venue_filters_enabled()) {
+        if (debug_venue) {
             std::fprintf(stderr,
                          "[world] venue peak bridge %s -> %s\n",
                          event_name.c_str(),
@@ -29429,25 +29686,27 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 material_tex_changed = true;
             }
             venue_route_applied = true;
-            std::fprintf(stderr,
-                         "[world] venue event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
-                         event_name.c_str(), route.anim.c_str(),
-                         anim.material.c_str(), active_anim.start_alpha,
-                         active_anim.end_alpha,
-                         active_anim.color_keys.size(),
-                         active_anim.alpha_keys.size(),
-                         active_anim.texture_keys.size(),
-                         active_anim.tex_translation_keys.size(),
-                         active_anim.tex_scale_keys.size(),
-                         active_anim.tex_rotation_keys.size(),
-                         active_anim.duration_seconds,
-                         active_anim.source_blend_period_seconds,
-                         route.source_wait ? 1 : 0, route_delay,
-                         wait_seconds,
-                         active_anim.has_source_filter
-                             ? active_anim.source_filter.name.c_str()
-                             : "none",
-                         persistent ? "persistent" : "transient");
+            if (debug_venue) {
+                std::fprintf(stderr,
+                             "[world] venue event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
+                             event_name.c_str(), route.anim.c_str(),
+                             anim.material.c_str(), active_anim.start_alpha,
+                             active_anim.end_alpha,
+                             active_anim.color_keys.size(),
+                             active_anim.alpha_keys.size(),
+                             active_anim.texture_keys.size(),
+                             active_anim.tex_translation_keys.size(),
+                             active_anim.tex_scale_keys.size(),
+                             active_anim.tex_rotation_keys.size(),
+                             active_anim.duration_seconds,
+                             active_anim.source_blend_period_seconds,
+                             route.source_wait ? 1 : 0, route_delay,
+                             wait_seconds,
+                             active_anim.has_source_filter
+                                 ? active_anim.source_filter.name.c_str()
+                                 : "none",
+                             persistent ? "persistent" : "transient");
+            }
             if (active_anim.duration_seconds <= 0.0001 && !delayed_start) {
                 const float terminal_frame =
                     active_material_anim_terminal_frame(active_anim, &chart_);
@@ -29551,19 +29810,21 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                     environment_fog_changed);
             }
             venue_route_applied = true;
-            std::fprintf(
-                stderr,
-                "[world] venue event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
-                event_name.c_str(), anim.name.c_str(),
-                anim.environment.c_str(), anim.color_keys.size(),
-                anim.fog_color_keys.size(), anim.fog_range_keys.size(),
-                anim.duration_frames,
-                active_anim.duration_seconds,
-                active_anim.source_blend_period_seconds,
-                route.source_wait ? 1 : 0, route_delay, wait_seconds,
-                route.has_source_filter ? route.source_filter.name.c_str()
-                                        : "none",
-                persistent ? "persistent" : "transient");
+            if (debug_venue) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
+                    event_name.c_str(), anim.name.c_str(),
+                    anim.environment.c_str(), anim.color_keys.size(),
+                    anim.fog_color_keys.size(), anim.fog_range_keys.size(),
+                    anim.duration_frames,
+                    active_anim.duration_seconds,
+                    active_anim.source_blend_period_seconds,
+                    route.source_wait ? 1 : 0, route_delay, wait_seconds,
+                    route.has_source_filter ? route.source_filter.name.c_str()
+                                            : "none",
+                    persistent ? "persistent" : "transient");
+            }
             if (active_anim.duration_seconds > 0.001 ||
                 anim.duration_frames > 0.001f || delayed_start) {
                 active_venue_environment_anims_.push_back(std::move(active_anim));
@@ -29625,17 +29886,19 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 light_color_changed = true;
             }
             venue_route_applied = true;
-            std::fprintf(
-                stderr,
-                "[world] venue event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
-                event_name.c_str(), anim.name.c_str(), anim.light.c_str(),
-                anim.color_keys.size(), anim.duration_frames,
-                active_anim.duration_seconds,
-                active_anim.source_blend_period_seconds,
-                route.source_wait ? 1 : 0, route_delay, wait_seconds,
-                route.has_source_filter ? route.source_filter.name.c_str()
-                                        : "none",
-                persistent ? "persistent" : "transient");
+            if (debug_venue) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
+                    event_name.c_str(), anim.name.c_str(), anim.light.c_str(),
+                    anim.color_keys.size(), anim.duration_frames,
+                    active_anim.duration_seconds,
+                    active_anim.source_blend_period_seconds,
+                    route.source_wait ? 1 : 0, route_delay, wait_seconds,
+                    route.has_source_filter ? route.source_filter.name.c_str()
+                                            : "none",
+                    persistent ? "persistent" : "transient");
+            }
             if (active_anim.duration_seconds > 0.001 ||
                 anim.duration_frames > 0.001f || delayed_start) {
                 active_venue_light_anims_.push_back(std::move(active_anim));
@@ -29686,32 +29949,37 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active.persistent = persistent;
             active_venue_particles_.push_back(std::move(active));
             venue_route_applied = true;
-            std::fprintf(
-                stderr,
-                "[world] venue event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
-                event_name.c_str(), route.particle.c_str(),
-                route.anim.c_str(), route.start_color_keys.size(),
-                route.end_color_keys.size(), route.emission_keys.size(),
-                route.speed_keys.size(), route.life_keys.size(),
-                route.size_keys.size(), route.duration_frames,
-                active_venue_particles_.back().duration_seconds,
-                active_venue_particles_.back().source_blend_period_seconds,
-                route.source_wait ? 1 : 0, route_delay, wait_seconds,
-                route.has_source_filter ? route.source_filter.name.c_str()
-                                        : "none",
-                persistent ? "persistent" : "transient");
+            if (debug_venue) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f wait=%d delay=%.3f inherited_wait=%.3f filter=%s %s\n",
+                    event_name.c_str(), route.particle.c_str(),
+                    route.anim.c_str(), route.start_color_keys.size(),
+                    route.end_color_keys.size(), route.emission_keys.size(),
+                    route.speed_keys.size(), route.life_keys.size(),
+                    route.size_keys.size(), route.duration_frames,
+                    active_venue_particles_.back().duration_seconds,
+                    active_venue_particles_.back().source_blend_period_seconds,
+                    route.source_wait ? 1 : 0, route_delay, wait_seconds,
+                    route.has_source_filter ? route.source_filter.name.c_str()
+                                            : "none",
+                    persistent ? "persistent" : "transient");
+            }
         }
     }
     for (const auto& [material, alpha] : material_changes) {
         const auto mesh_it = venue_material_meshes_.find(material);
         if (mesh_it == venue_material_meshes_.end()) continue;
-        std::fprintf(stderr, "[world] venue event %s: material %s %s %zu meshes\n",
-                     event_name.c_str(), material.c_str(),
-                     alpha <= 0.001f ? "hide" : "show",
-                     mesh_it->second.size());
+        if (debug_venue) {
+            std::fprintf(stderr,
+                         "[world] venue event %s: material %s %s %zu meshes\n",
+                         event_name.c_str(), material.c_str(),
+                         alpha <= 0.001f ? "hide" : "show",
+                         mesh_it->second.size());
+        }
     }
     const bool current_visibility_applied =
-        apply_venue_event_visibility(event_name, true);
+        apply_venue_event_visibility(event_name, debug_venue);
     if (current_visibility_applied) venue_route_applied = true;
     if (venue_script_object_applied) venue_route_applied = true;
     if (const auto filter_event_it =
@@ -29722,7 +29990,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         for (const auto& filter : filter_event_it->second) {
             if (venue_event_trigger_enabled_by_name(filter.source_trigger)) {
                 enabled_filters.push_back(filter);
-            } else if (debug_venue_filters_enabled()) {
+            } else if (debug_venue) {
                 std::fprintf(
                     stderr,
                     "[world] venue event %s: AnimFilter %s skipped by disabled source trigger %s\n",
@@ -29731,7 +29999,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             }
         }
         if (enabled_filters.empty()) {
-            if (debug_venue_filters_enabled()) {
+            if (debug_venue) {
                 std::fprintf(
                     stderr,
                     "[world] venue event %s: all AnimFilters disabled by source trigger gates\n",
@@ -29760,7 +30028,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 if (wait_seconds > 0.001) {
                     filter.event_delay_seconds +=
                         static_cast<float>(wait_seconds);
-                    if (debug_venue_filters_enabled()) {
+                    if (debug_venue) {
                         std::fprintf(
                             stderr,
                             "[world] venue event %s: AnimFilter %s wait inherited %.3fs from active source task\n",
@@ -29792,7 +30060,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                     ++active_it;
                 }
             }
-            if (replaced_filters > 0 && debug_venue_filters_enabled()) {
+            if (replaced_filters > 0 && debug_venue) {
                 std::ostringstream targets;
                 for (const auto& filter : enabled_filters) {
                     if (filter.target_ref.empty()) continue;
@@ -29812,18 +30080,23 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active_filter.persistent = persistent;
             active_venue_anim_filters_.push_back(std::move(active_filter));
             venue_route_applied = true;
-            for (const auto& filter : enabled_filters) {
-                std::fprintf(
-                    stderr,
-                    "[world] venue event %s: AnimFilter %s target=%s source=%s rate=%d frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d blend=%.3f wait=%d delay=%.3f %s\n",
-                    event_name.c_str(), filter.name.c_str(),
-                    filter.target_ref.c_str(), filter.source_trigger.c_str(),
-                    filter.anim_rate,
-                    filter.start_frame, filter.end_frame, filter.targets.size(),
-                    filter.mesh_anim_targets.size(), filter.scale, filter.period,
-                    filter.offset_frame, filter.type, filter.event_blend_seconds,
-                    filter.event_wait ? 1 : 0, filter.event_delay_seconds,
-                    persistent ? "persistent" : "transient");
+            if (debug_venue) {
+                for (const auto& filter : enabled_filters) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue event %s: AnimFilter %s target=%s source=%s rate=%d frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d blend=%.3f wait=%d delay=%.3f %s\n",
+                        event_name.c_str(), filter.name.c_str(),
+                        filter.target_ref.c_str(),
+                        filter.source_trigger.c_str(), filter.anim_rate,
+                        filter.start_frame, filter.end_frame,
+                        filter.targets.size(),
+                        filter.mesh_anim_targets.size(), filter.scale,
+                        filter.period, filter.offset_frame, filter.type,
+                        filter.event_blend_seconds,
+                        filter.event_wait ? 1 : 0,
+                        filter.event_delay_seconds,
+                        persistent ? "persistent" : "transient");
+                }
             }
         }
     }
@@ -29861,13 +30134,13 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         apply_lighting_event(event_name, persistent);
     if (has_decoded_route_entry && !venue_route_applied &&
         !lighting_route_applied &&
-        debug_venue_filters_enabled()) {
+        debug_venue) {
         std::fprintf(stderr,
                      "[world] event %s: no decoded venue/lighting routes\n",
                      event_name.c_str());
     }
     if (next_link_depth >= 16) {
-        if (debug_venue_filters_enabled()) {
+        if (debug_venue) {
             std::fprintf(stderr,
                          "[world] venue event %s: next_link recursion guard\n",
                          event_name.c_str());
@@ -29878,7 +30151,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     if (next_links_it == venue_event_next_links_.end()) return;
     for (const auto& linked_event : next_links_it->second) {
         if (linked_event.empty() || linked_event == event_name) continue;
-        if (debug_venue_filters_enabled()) {
+        if (debug_venue) {
             std::fprintf(stderr, "[world] venue event %s: next_link -> %s\n",
                          event_name.c_str(), linked_event.c_str());
         }
@@ -29900,6 +30173,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     lighting_transition_start_ = song_time_;
     lighting_transition_duration_ = 0.0;
     lighting_transition_active_ = false;
+    lighting_spot_renderer_dirty_ = true;
     lighting_preset_env_light_transition_from_ = {};
     lighting_preset_env_light_transition_to_ = {};
     lighting_preset_env_light_transition_start_ = song_time_;
@@ -32554,6 +32828,7 @@ void Gameplay::set_lighting_spot_targets(
     const double duration =
         cold_start ? 0.0 : std::max(0.0, fade_seconds);
     active_lighting_spot_targets_ = targets;
+    lighting_spot_renderer_dirty_ = true;
     if (duration <= 0.0001) {
         lighting_transition_from_.clear();
         lighting_transition_to_.clear();
@@ -32999,10 +33274,13 @@ void Gameplay::update_lighting_spotlight_renderer() {
         lighting_transition_to_.clear();
         lighting_->set_active_spotlights(
             composed_lighting_spots_for_renderer(active_lighting_spot_targets_));
+        lighting_spot_renderer_dirty_ = false;
         return;
     }
+    if (!lighting_transition_active_ && !lighting_spot_renderer_dirty_) return;
     lighting_->set_active_spotlights(
         composed_lighting_spots_for_renderer(interpolated_lighting_spots()));
+    if (!lighting_transition_active_) lighting_spot_renderer_dirty_ = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -33077,6 +33355,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
     active_sustains_.clear();
     active_session_sustains_.clear();
+    audio_.reset_gameplay_feedback();
     hit_flash_mask_ = 0;
     miss_flash_mask_ = 0;
     for (float& flash : lane_flash_) flash = 0.0f;
@@ -33149,6 +33428,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     lighting_transition_start_ = song_time_;
     lighting_transition_duration_ = 0.0;
     lighting_transition_active_ = false;
+    lighting_spot_renderer_dirty_ = true;
     lighting_preset_env_light_transition_from_ = {};
     lighting_preset_env_light_transition_to_ = {};
     lighting_preset_env_light_transition_start_ = song_time_;
@@ -33167,14 +33447,46 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
 void Gameplay::refresh_worldcrowd_actor_source_targets_for_camera() {
     if (!venue_chars_scene_loaded_) return;
     const bool debug_camera = debug_camera_enabled();
-    auto has_crowd_source_ref = [](const std::vector<CameraKey>& keys) {
-        for (const auto& key : keys) {
-            if (canonical_milo_ref(key.source_ref) == "crowd") return true;
+    auto key_has_crowd_source_ref = [](const CameraKey& key) {
+        auto is_crowd_ref = [](const std::string& ref) {
+            return canonical_milo_ref(ref) == "crowd";
+        };
+        if (is_crowd_ref(key.source_ref)) return true;
+        if (key.has_ps2_source_record &&
+            is_crowd_ref(key.ps2_source_record.source_ref)) {
+            return true;
+        }
+        for (const auto& position : key.positions) {
+            if (is_crowd_ref(position.source_ref)) return true;
+            if (position.has_ps2_source_record &&
+                is_crowd_ref(position.ps2_source_record.source_ref)) {
+                return true;
+            }
         }
         return false;
     };
-    if (!debug_camera && !has_crowd_source_ref(camera_keys_) &&
-        !has_crowd_source_ref(regular_camera_keys_)) {
+    auto named_key_has_crowd_source_ref = [&](const std::string& name) {
+        if (name.empty()) return false;
+        const CameraKey* key = find_camera_key_by_name(regular_camera_keys_, name);
+        return key && key_has_crowd_source_ref(*key);
+    };
+    auto keys_have_crowd_source_ref = [&](const std::vector<CameraKey>& keys) {
+        for (const auto& key : keys) {
+            if (key_has_crowd_source_ref(key)) return true;
+        }
+        return false;
+    };
+    const bool intro_camera_active =
+        intro_camera_seconds_ > 0.0 && song_time_ < intro_camera_seconds_;
+    const bool needs_crowd_source_refresh =
+        debug_camera ||
+        (intro_camera_active && keys_have_crowd_source_ref(camera_keys_)) ||
+        named_key_has_crowd_source_ref(active_regular_camera_) ||
+        named_key_has_crowd_source_ref(pending_regular_camera_) ||
+        (active_regular_camera_.empty() && pending_regular_camera_.empty() &&
+         last_worldcrowd_actor_source_sample_time_ < 0.0 &&
+         keys_have_crowd_source_ref(regular_camera_keys_));
+    if (!needs_crowd_source_refresh) {
         return;
     }
     const double sample_time = std::floor(std::max(0.0, song_time_) * 30.0) / 30.0;
@@ -33486,7 +33798,8 @@ void Gameplay::update_worldcrowd_actor_lighting(
     key << (preset ? preset->name : std::string{"<none>"}) << "|"
         << (keyframe ? keyframe->name : std::string{"<none>"}) << "|"
         << active_venue_event_ << "|" << mod.intensity << "|" << mod.r << "|"
-        << mod.g << "|" << mod.b << "|" << (mod.symbolic ? 1 : 0);
+        << mod.g << "|" << mod.b << "|" << (mod.symbolic ? 1 : 0) << "|"
+        << (mod.low ? 1 : 0);
     const std::string key_text = key.str();
     if (key_text != last_worldcrowd_actor_lighting_key_) {
         last_worldcrowd_actor_lighting_key_ = key_text;
@@ -33519,6 +33832,7 @@ void Gameplay::update_performer_lighting(
 
     const PerformerCrowdLightingMod mod =
         performer_crowd_lighting_mod_for(preset, keyframe, active_venue_event_);
+
     size_t applied = 0;
     for (auto& perf : performers_) {
         if (!perf.renderer) continue;
@@ -33531,7 +33845,7 @@ void Gameplay::update_performer_lighting(
         << (keyframe ? keyframe->name : std::string{"<none>"}) << "|"
         << active_venue_event_ << "|" << mod.intensity << "|" << mod.r << "|"
         << mod.g << "|" << mod.b << "|" << (mod.symbolic ? 1 : 0) << "|"
-        << applied;
+        << (mod.low ? 1 : 0) << "|" << applied;
     const std::string key_text = key.str();
     if (key_text != last_performer_lighting_key_) {
         last_performer_lighting_key_ = key_text;
@@ -34287,6 +34601,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                 multiplier_surface_flash_ = 1.0f;
             }
             const bool star_collect = source_group_has_star_power(event);
+            if (!diagnostic_autoplay_) audio_.note_hit_feedback(star_collect);
             for (int lane = 0; lane < 5; ++lane) {
                 if ((event.mask & (1u << lane)) == 0) continue;
                 lane_hit_[lane] = true;
@@ -34321,6 +34636,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                     if (star_miss) star_miss_flash_[lane] = 1.0f;
                 }
                 bad_gameplay_feedback = true;
+                audio_.note_miss_feedback();
                 std::fprintf(stderr,
                              "[gameplay] miss tick=%u mask=0x%02x star=%d streak reset rock=%.2f\n",
                              event.source_tick, event.mask & 0x1fu,
@@ -34339,6 +34655,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                 if ((event.mask & (1u << lane)) != 0) miss_flash_[lane] = 1.0f;
             }
             bad_gameplay_feedback = true;
+            audio_.overstrum_feedback();
             std::fprintf(stderr,
                          "[gameplay] overstrum mask=0x%02x streak reset rock=%.2f\n",
                          event.mask & 0x1fu, event.rock_fill);
@@ -34357,6 +34674,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
             break;
         case FoFiXSessionEventType::StarPhraseComplete:
             star_power_highway_flash_ = std::max(star_power_highway_flash_, 0.75f);
+            if (!diagnostic_autoplay_) audio_.star_phrase_complete_feedback();
             std::fprintf(stderr,
                          "[gameplay] star phrase complete sp=%.2f\n",
                          event.star_power_fill);
@@ -34470,6 +34788,29 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         song_time_ = audio_.position_sec();
     else
         song_time_ += static_cast<double>(dt);
+
+    auto update_audio_whammy_state = [&]() {
+        const bool raw_whammy = (fret_mask & (1u << 7)) != 0;
+        bool sustain_active = false;
+        if (gameplay_session_mirror_) {
+            for (const auto& sustain : active_session_sustains_) {
+                if (song_time_ >= sustain.start_time &&
+                    song_time_ < sustain.end_time) {
+                    sustain_active = true;
+                    break;
+                }
+            }
+        } else {
+            for (const auto& sustain : active_sustains_) {
+                if (song_time_ >= sustain.start_time &&
+                    song_time_ < sustain.end_time) {
+                    sustain_active = true;
+                    break;
+                }
+            }
+        }
+        audio_.set_whammy_state(raw_whammy && sustain_active, song_time_);
+    };
 
     if (!gameplay_session_mirror_ && (fret_mask & (1u << 6)) != 0) {
         if (fofix_activate_star_power(star_power_)) {
@@ -34616,6 +34957,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     bool bad_gameplay_feedback_this_frame = false;
 
     auto update_presentation_after_gameplay = [&]() {
+        update_audio_whammy_state();
         if (!diagnostic_autoplay_ &&
             (bad_gameplay_feedback_this_frame || miss_flash_mask_ != 0)) {
             bad_highway_flash_ = 1.0f;
@@ -35075,7 +35417,65 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
 
 void Gameplay::draw(ghogx::render::Window& win) {
     if (!chart_loaded_) return;
+    const bool profile_draw =
+        env_value("GHOGX_PROFILE_GAMEPLAY_DRAW") != nullptr ||
+        env_value("GHOGX_PROFILE_FRAME_TIMES") != nullptr;
+    const auto profile_total_start = std::chrono::steady_clock::now();
+    double profile_world = 0.0;
+    double profile_proxy = 0.0;
+    double profile_lighting = 0.0;
+    double profile_drum = 0.0;
+    double profile_performers = 0.0;
+    double profile_highway = 0.0;
+    double profile_init = 0.0;
+    double profile_anim = 0.0;
+    double profile_camera = 0.0;
+    auto profile_now = [] { return std::chrono::steady_clock::now(); };
+    auto profile_elapsed = [](std::chrono::steady_clock::time_point start) {
+        return std::chrono::duration<double>(
+                   std::chrono::steady_clock::now() - start)
+            .count();
+    };
+    auto log_profile = [&]() {
+        if (!profile_draw) return;
+        struct Totals {
+            uint64_t frames = 0;
+            double total = 0.0;
+            double world = 0.0;
+            double proxy = 0.0;
+            double lighting = 0.0;
+            double drum = 0.0;
+            double performers = 0.0;
+            double highway = 0.0;
+            double init = 0.0;
+            double anim = 0.0;
+            double camera = 0.0;
+        };
+        static Totals totals;
+        ++totals.frames;
+        totals.total += profile_elapsed(profile_total_start);
+        totals.world += profile_world;
+        totals.proxy += profile_proxy;
+        totals.lighting += profile_lighting;
+        totals.drum += profile_drum;
+        totals.performers += profile_performers;
+        totals.highway += profile_highway;
+        totals.init += profile_init;
+        totals.anim += profile_anim;
+        totals.camera += profile_camera;
+        if ((totals.frames % 30) != 0) return;
+        const double inv = 1000.0 / static_cast<double>(totals.frames);
+        std::fprintf(stderr,
+                     "[profile-gameplay] frames=%llu total=%.3fms init=%.3fms anim=%.3fms camera=%.3fms world=%.3fms proxy=%.3fms lighting=%.3fms drum=%.3fms performers=%.3fms highway=%.3fms\n",
+                     static_cast<unsigned long long>(totals.frames),
+                     totals.total * inv, totals.init * inv,
+                     totals.anim * inv, totals.camera * inv,
+                     totals.world * inv, totals.proxy * inv,
+                     totals.lighting * inv, totals.drum * inv,
+                     totals.performers * inv, totals.highway * inv);
+    };
     if (!world_init_attempted_) {
+        const auto profile_init_start = profile_now();
         world_init_attempted_ = true;
         if (quickplay_rig_) {
             const VenueMiloAssembly venue_assembly =
@@ -35496,6 +35896,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     hdr_path_, ark_path_, quickplay_rig_->venue,
                     camera_manager_random_seed_,
                     camera_manager_random_seed_source_.c_str());
+                regular_camera_source_record_member_table_ =
+                    camera_source_record_member_table_for_keys(
+                        regular_camera_keys_);
+                camera_performer_targets_ =
+                    build_camera_performer_target_requests(
+                        camera_keys_, regular_camera_keys_);
                 intro_camera_seconds_ = intro_camera_duration_seconds(chart_);
                 std::fprintf(stderr,
                              "[world] intro camera window: %.3fs (6 bars)\n",
@@ -35511,6 +35917,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                               lighting_milo, lighting_scene)) {
                 lighting_spotlights_.clear();
                 lighting_spotlights_.reserve(lighting_scene.spotlights.size());
+                lighting_spots_by_name_.clear();
+                lighting_spots_by_target_.clear();
                 size_t lighting_spotlight_defaults = 0;
                 size_t lighting_spotlight_source_order = 0;
                 for (const auto& spot : lighting_scene.spotlights) {
@@ -35526,6 +35934,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                           spot.default_color[2]},
                          spot.default_intensity,
                          spot.has_default_state});
+                    const LightingSpotlight* cached_spot =
+                        &lighting_spotlights_.back();
+                    lighting_spots_by_name_[cached_spot->name] = cached_spot;
+                    if (!cached_spot->target.empty()) {
+                        lighting_spots_by_target_[cached_spot->target]
+                            .push_back(cached_spot);
+                    }
                     if (spot.has_default_state) {
                         ++lighting_spotlight_defaults;
                         if (debug_venue_filters_enabled()) {
@@ -36562,6 +36977,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                "keyboard_active_fast"});
             }
         }
+        if (profile_draw) profile_init += profile_elapsed(profile_init_start);
     }
 
     const bool highway_whammy_active = (prev_fret_mask_ & (1u << 7)) != 0;
@@ -36581,8 +36997,38 @@ void Gameplay::draw(ghogx::render::Window& win) {
             current_note_cue(song_time_, chart_, performer_guitar_notes);
         const bool intro_active =
             intro_camera_seconds_ > 0.0 && song_time_ < intro_camera_seconds_;
+        const auto profile_anim_start = profile_now();
         if (drum_kit_) {
             drum_kit_->update(static_cast<float>(dt));
+        }
+        const bool debug_hand_map_frame =
+            env_value("GHOGX_DEBUG_HAND_MAP") != nullptr;
+        const bool left_weight_override_frame =
+            env_value("GHOGX_LEFT_WEIGHT") != nullptr;
+        const bool right_weight_override_frame =
+            env_value("GHOGX_RIGHT_WEIGHT") != nullptr;
+        const bool debug_performer_sync_frame =
+            debug_performer_sync_enabled();
+        const float performer_sync_stride_frame =
+            debug_performer_sync_frame
+                ? std::max(
+                      0.0f,
+                      env_float("GHOGX_DEBUG_PERFORMER_SYNC_STRIDE", 0.25f))
+                : 0.0f;
+        const bool debug_face_frame = debug_face_enabled_game();
+        std::vector<uint32_t> band_jump_ticks_this_frame;
+        if (!intro_active) {
+            const double band_jump_window_start =
+                song_time_ - std::max(0.001, dt * 1.5);
+            band_jump_ticks_this_frame.reserve(2);
+            for (const auto& ev : chart_.text_events) {
+                const double event_time = chart_.tick_to_sec(ev.tick);
+                if (event_time < band_jump_window_start) continue;
+                if (event_time > song_time_) break;
+                if (ev.text == "[band_jump]") {
+                    band_jump_ticks_this_frame.push_back(ev.tick);
+                }
+            }
         }
         for (auto& perf : performers_) {
             if (!perf.renderer) continue;
@@ -36706,14 +37152,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
             if (!intro_active && perf.band_jump_clip.loaded) {
-                for (const auto& ev : chart_.text_events) {
-                    const double event_time = chart_.tick_to_sec(ev.tick);
-                    if (event_time < song_time_ - std::max(0.001, dt * 1.5))
-                        continue;
-                    if (event_time > song_time_) break;
-                    if (ev.text != "[band_jump]") continue;
-                    if (ev.tick == perf.last_band_jump_tick) continue;
-                    perf.last_band_jump_tick = ev.tick;
+                for (const uint32_t band_jump_tick :
+                     band_jump_ticks_this_frame) {
+                    if (band_jump_tick == perf.last_band_jump_tick) continue;
+                    perf.last_band_jump_tick = band_jump_tick;
                     perf.last_band_jump_started = song_time_;
                     perf.last_band_jump_duration =
                         perf.band_jump_clip.duration_seconds();
@@ -36726,7 +37168,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         stderr,
                         "[world] performer band_jump: role=%s clip=%s source=%s tick=%u duration=%.3f t=%.3f\n",
                         perf.role.c_str(), perf.band_jump_clip.name.c_str(),
-                        clip_source_path(perf.band_jump_clip), ev.tick,
+                        clip_source_path(perf.band_jump_clip), band_jump_tick,
                         perf.last_band_jump_duration, song_time_);
                     break;
                 }
@@ -36783,7 +37225,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     selected_strum_names.push_back(perf.strum_clip.name);
                 }
                 if (!next_clip) return;
-                if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
+                if (debug_hand_map_frame) {
                     std::fprintf(
                         stderr,
                         "[strummap] role=%s map=StrumMap_Default tick=%u len=%.3f choices=",
@@ -36900,7 +37342,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 if (desired_mask != perf.last_anim_note_mask ||
                     desired_tick != perf.last_anim_note_tick ||
                     next_fret_names != perf.active_fret_clip_names) {
-                    if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
+                    if (debug_hand_map_frame) {
                         std::fprintf(
                             stderr,
                             "[handmap] role=%s source=%s map=%s mask=0x%02x tick=%u len=%.3f choices=",
@@ -37106,12 +37548,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 float left_weight = fret_active ? 1.0f : 0.0f;
                 float right_weight =
                     perf.strum_player.active() ? 1.0f : 0.0f;
-                if (env_value("GHOGX_LEFT_WEIGHT") != nullptr) {
+                if (left_weight_override_frame) {
                     left_weight = std::clamp(
                         env_float("GHOGX_LEFT_WEIGHT", left_weight), 0.0f,
                         1.0f);
                 }
-                if (env_value("GHOGX_RIGHT_WEIGHT") != nullptr) {
+                if (right_weight_override_frame) {
                     right_weight = std::clamp(
                         env_float("GHOGX_RIGHT_WEIGHT", right_weight), 0.0f,
                         1.0f);
@@ -37126,7 +37568,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             std::string controller_midi_fret_target;
             bool controller_midi_fret_target_enabled = false;
             if (hand_driver_active && perf_fret_pos.active) {
-                if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
+                if (debug_hand_map_frame) {
                     std::fprintf(stderr,
                                  "[fretpos] role=%s tick=%u spot=%s index=%d\n",
                                  perf.role.c_str(), perf_fret_pos.tick,
@@ -37136,12 +37578,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 controller_midi_fret_target = perf_fret_pos.spot_name;
                 controller_midi_fret_target_enabled = true;
             }
-            if (debug_performer_sync_enabled()) {
-                const float stride = std::max(
-                    0.0f, env_float("GHOGX_DEBUG_PERFORMER_SYNC_STRIDE", 0.25f));
+            if (debug_performer_sync_frame) {
                 if (song_time_ + 1e-5 >= perf.next_performer_sync_log_time) {
                     perf.next_performer_sync_log_time =
-                        song_time_ + static_cast<double>(stride);
+                        song_time_ +
+                        static_cast<double>(performer_sync_stride_frame);
                     auto print_names =
                         [](const std::vector<std::string>& names) {
                             if (names.empty()) {
@@ -37188,7 +37629,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         perf_fret_pos.active ? perf_fret_pos.spot_name.c_str()
                                              : "-",
                         debug_left_ik_weight, debug_right_ik_weight,
-                        perf.band_jump_player.active() ? 1 : 0,
+                        song_time_ >= perf.last_band_jump_started &&
+                                song_time_ <= perf.last_band_jump_started +
+                                                  perf.last_band_jump_duration
+                            ? 1
+                            : 0,
                         active_force_char_lod_);
                 }
             }
@@ -37245,7 +37690,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     const bool applied =
                         ghogx::character::apply_facefx_animation_frame(
                             *perf.facefx_graph, registers, character);
-                    if (debug_face_enabled_game()) {
+                    if (debug_face_frame) {
                         std::fprintf(
                             stderr,
                             "[facefx] role=%s EyeZCombiner=%.4f "
@@ -37257,8 +37702,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
         }
+        if (profile_draw) profile_anim += profile_elapsed(profile_anim_start);
 
+        const auto profile_camera_start = profile_now();
+        const bool build_all_performer_targets = debug_gameplay_camera_enabled();
         std::unordered_map<std::string, CameraTarget> camera_targets;
+        camera_targets.reserve(performers_.size() * 16 +
+                               camera_performer_targets_.size() * 8 + 32);
         for (auto& perf : performers_) {
             if (!perf.renderer) continue;
             const CameraTarget performer_base_target{perf.world_transform};
@@ -37266,7 +37716,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 performer_base_target;
             camera_targets[camera_target_id(perf.role, "base")] =
                 performer_base_target;
+            const auto needed_it = camera_performer_targets_.find(perf.role);
+            const std::unordered_set<std::string>* needed_targets =
+                needed_it != camera_performer_targets_.end() ? &needed_it->second
+                                                             : nullptr;
+            if (!build_all_performer_targets &&
+                (!needed_targets || needed_targets->empty())) {
+                continue;
+            }
+            auto target_needed = [&](const std::string& subpart) {
+                return build_all_performer_targets ||
+                       (needed_targets &&
+                        needed_targets->find(subpart) != needed_targets->end());
+            };
             auto& character = perf.renderer->character();
+            CharacterTransformCache transform_cache(
+                character,
+                build_all_performer_targets ? nullptr : needed_targets);
             auto add_target = [&](std::string_view subpart,
                                   const std::array<float, 16>& local_world) {
                 const auto world =
@@ -37278,15 +37744,21 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 // Camera focus targets must live in the same authored basis as
                 // the skinned performer vertices before applying the stage
                 // placement transform.
-                const auto local_world =
-                    character.bone_world_local_chain(bone.name);
+                const std::string bone_mesh = bone.name + ".mesh";
+                if (!target_needed(bone.name) && !target_needed(bone_mesh))
+                    continue;
+                const auto local_world = transform_cache.local_world(bone.name);
                 add_target(bone.name, local_world);
-                add_target(bone.name + ".mesh", local_world);
+                add_target(bone_mesh, local_world);
             }
             for (const auto& mesh : character.meshes) {
-                const auto local_world = character.mesh_world(mesh);
+                const std::string stripped_mesh =
+                    strip_mesh_suffix(mesh.name);
+                if (!target_needed(mesh.name) && !target_needed(stripped_mesh))
+                    continue;
+                const auto local_world = transform_cache.corrected_world(mesh.name);
                 add_target(mesh.name, local_world);
-                add_target(strip_mesh_suffix(mesh.name), local_world);
+                add_target(stripped_mesh, local_world);
             }
             auto add_prop_camera_targets = [&](const std::vector<CameraKey>& keys) {
                 for (const auto& key : keys) {
@@ -37351,8 +37823,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
         }
-        const auto source_record_member_table =
-            camera_source_record_member_table_for_keys(regular_camera_keys_);
+        const auto& source_record_member_table =
+            regular_camera_source_record_member_table_;
 
         if (!intro_end_dispatched_ && intro_camera_seconds_ > 0.0 &&
             song_time_ >= intro_camera_seconds_) {
@@ -37934,6 +38406,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 if (source_restarted_shot) {
                     clear_pending_regular_camera_after_start_like_source();
                 }
+                refresh_worldcrowd_actor_source_targets_for_camera();
                 std::vector<CameraKey> selected_camera;
                 const float source_setpreframe_blend = 1.0f;
                 const float source_setframe_blend = 1.0f;
@@ -38747,8 +39220,42 @@ void Gameplay::draw(ghogx::render::Window& win) {
         apply_gameplay_backing_camera(world_.get(), camera_targets,
                                       venue_camera_target_worlds_, song_time_,
                                       !diagnostic_camera_shot_.empty());
+        if (profile_draw) profile_camera += profile_elapsed(profile_camera_start);
+        if (debug_highway_only_capture_enabled()) {
+            win.clear(0.0f, 0.0f, 0.0f);
+            if (!highway_) {
+                highway_ = std::make_unique<HighwayRenderer>(win);
+            }
+            if (!highway_->textures_loaded_for_surface(highway_surface_ref_)) {
+                highway_->load_textures(hdr_path_, ark_path_, highway_surface_ref_);
+            }
+            const auto profile_highway_start = profile_now();
+            highway_->draw_over_scene(song_time_, chart_, difficulty_,
+                                      prev_fret_mask_ & 0x1F, lane_flash_,
+                                      1.5f,
+                                      &note_consumed_[
+                                          std::clamp(difficulty_, 0, 3)],
+                                      &active_session_sustains_,
+                                      star_power_.active,
+                                      highway_whammy_active,
+                                      star_collect_flash_,
+                                      miss_flash_,
+                                      star_miss_flash_,
+                                      multiplier_,
+                                      bad_highway_flash_,
+                                      fofix_rock_fill(rock_),
+                                      star_power_highway_flash_,
+                                      multiplier_surface_flash_);
+            if (profile_draw)
+                profile_highway += profile_elapsed(profile_highway_start);
+            log_profile();
+            return;
+        }
+        ScopedVenueDrawDistance venue_draw_distance(world_.get());
         update_worldcrowd_actor_runtime(static_cast<float>(dt));
         bool scene_drawn = false;
+        auto profile_phase_start = profile_now();
+        const auto profile_lighting_start = profile_phase_start;
         bool worldcrowd_drawn = false;
         if (lighting_) {
             const LightingRequest lighting_request =
@@ -38873,13 +39380,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         }
                         active_lighting_keyframe_ = keyframe.name;
                         active_lighting_keyframe_index_ = keyframe_index;
-                        std::map<std::string, const LightingSpotlight*> spots_by_name;
-                        std::map<std::string, std::vector<const LightingSpotlight*>> spots_by_target;
-                        for (const auto& spot : lighting_spotlights_) {
-                            spots_by_name[spot.name] = &spot;
-                            if (!spot.target.empty())
-                                spots_by_target[spot.target].push_back(&spot);
-                        }
                         std::map<std::string,
                                  const LightingPreset::TargetState*> states_by_target;
                         for (const auto& state : keyframe.target_states) {
@@ -38924,8 +39424,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         };
                         size_t mesh_target_spots = 0;
                         for (const auto& target : keyframe.mesh_targets) {
-                            const auto target_it = spots_by_target.find(target);
-                            if (target_it == spots_by_target.end()) continue;
+                            const auto target_it =
+                                lighting_spots_by_target_.find(target);
+                            if (target_it == lighting_spots_by_target_.end())
+                                continue;
                             const auto state_it = states_by_target.find(target);
                             for (const LightingSpotlight* spot : target_it->second) {
                                 if (!spot) continue;
@@ -38939,8 +39441,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         }
                         size_t direct_spots = 0;
                         for (const auto& spot_ref : keyframe.spot_refs) {
-                            const auto spot_it = spots_by_name.find(spot_ref);
-                            if (spot_it == spots_by_name.end()) continue;
+                            const auto spot_it =
+                                lighting_spots_by_name_.find(spot_ref);
+                            if (spot_it == lighting_spots_by_name_.end())
+                                continue;
                             if (!preset_has_spot(spot_it->second->name))
                                 continue;
                             ++direct_spots;
@@ -38953,8 +39457,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         }
                         for (const auto& state : keyframe.target_states) {
                             if (const auto target_it =
-                                    spots_by_target.find(state.target);
-                                target_it != spots_by_target.end()) {
+                                    lighting_spots_by_target_.find(state.target);
+                                target_it != lighting_spots_by_target_.end()) {
                                 for (const LightingSpotlight* spot : target_it->second) {
                                     if (!spot) continue;
                                     if (!preset_has_spot(spot->name)) continue;
@@ -38967,8 +39471,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                  infer_spotlight_names_from_target(
                                      state.target)) {
                                 const auto spot_it =
-                                    spots_by_name.find(spot_name);
-                                if (spot_it == spots_by_name.end()) continue;
+                                    lighting_spots_by_name_.find(spot_name);
+                                if (spot_it == lighting_spots_by_name_.end())
+                                    continue;
                                 if (!preset_has_spot(spot_it->second->name))
                                     continue;
                                 ++inferred_spots;
@@ -39074,9 +39579,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
             update_venue_proxy_objects();
             update_worldcrowd_actor_lighting();
+            profile_phase_start = profile_now();
             world_->draw();
+            if (profile_draw)
+                profile_world += profile_elapsed(profile_phase_start);
             scene_drawn = true;
+            profile_phase_start = profile_now();
             draw_venue_proxy_objects(world_->camera());
+            if (profile_draw)
+                profile_proxy += profile_elapsed(profile_phase_start);
             draw_worldcrowd_actor_runtime(world_->camera());
             worldcrowd_drawn = true;
             if (!late_lighting_overlay) {
@@ -39093,15 +39604,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
         if (!scene_drawn) {
             update_venue_proxy_objects();
             update_lighting_preset_env_light_state();
+            profile_phase_start = profile_now();
             world_->draw();
+            if (profile_draw)
+                profile_world += profile_elapsed(profile_phase_start);
+            profile_phase_start = profile_now();
             draw_venue_proxy_objects(world_->camera());
+            if (profile_draw)
+                profile_proxy += profile_elapsed(profile_phase_start);
         }
+        if (profile_draw && lighting_)
+            profile_lighting += profile_elapsed(profile_lighting_start);
         if (!worldcrowd_drawn) {
             update_worldcrowd_actor_lighting();
             draw_worldcrowd_actor_runtime(world_->camera());
         }
         update_performer_lighting();
         if (drum_kit_) {
+            profile_phase_start = profile_now();
             drum_kit_->set_environment_color_overrides(
                 venue_environment_colors_);
             drum_kit_->set_environment_fog_overrides(
@@ -39113,8 +39633,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
             drum_kit_->set_light_state_overrides(venue_light_state_overrides_);
             drum_kit_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
             drum_kit_->draw_over_scene(world_->camera());
+            if (profile_draw) profile_drum += profile_elapsed(profile_phase_start);
         }
         const std::string_view only_role = only_draw_performer_role();
+        profile_phase_start = profile_now();
         for (auto& perf : performers_) {
             if (!only_role.empty() && perf.role != only_role) continue;
             if (!perf.renderer) continue;
@@ -39123,8 +39645,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 performer_lighting_environment_for_role(perf.role));
             perf.renderer->draw_over_scene(world_->camera());
         }
+        if (profile_draw) profile_performers += profile_elapsed(profile_phase_start);
         if (lighting_ && late_lighting_overlay_enabled()) {
+            profile_phase_start = profile_now();
             lighting_->draw_over_scene(world_->camera());
+            if (profile_draw) profile_lighting += profile_elapsed(profile_phase_start);
             if (debug_venue_filters_enabled()) {
                 std::fprintf(stderr,
                              "[world] lighting overlay composite: order=after_band "
@@ -39133,6 +39658,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
         }
         if (debug_venue_only_capture_enabled()) {
+            log_profile();
             return;
         }
         if (diagnostic_hide_highway_enabled()) {
@@ -39145,6 +39671,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
         if (!highway_->textures_loaded_for_surface(highway_surface_ref_)) {
             highway_->load_textures(hdr_path_, ark_path_, highway_surface_ref_);
         }
+        profile_phase_start = profile_now();
         highway_->draw_over_scene(song_time_, chart_, difficulty_,
                                   prev_fret_mask_ & 0x1F, lane_flash_, 1.5f,
                                   &note_consumed_[std::clamp(difficulty_, 0, 3)],
@@ -39159,6 +39686,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   fofix_rock_fill(rock_),
                                   star_power_highway_flash_,
                                   multiplier_surface_flash_);
+        if (profile_draw) profile_highway += profile_elapsed(profile_phase_start);
+        log_profile();
         return;
     }
 

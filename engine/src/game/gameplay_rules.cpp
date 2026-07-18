@@ -7,8 +7,8 @@ namespace ghogx::game {
 
 namespace {
 
-constexpr double kFoFiXStandardHitScale = 1.2;
 constexpr double kMillisecondsPerSecond = 1000.0;
+constexpr double kGh2WatcherSlopMs = 100.0;
 constexpr double kRockMax = 30000.0;
 constexpr double kMinBase = 400.0;
 constexpr double kPlusBase = 15.0;
@@ -16,7 +16,7 @@ constexpr double kMinGain = 2.0;
 constexpr double kPlusGain = 7.0;
 constexpr double kStarPhraseAward = 25.0;
 constexpr double kStarActivationThreshold = 50.0;
-constexpr double kStarDrainDivisorMs = 200.0;
+constexpr double kGh2StarDeployRate = 0.125;
 constexpr double kBaseSustainScore = 0.1;
 
 int popcount5(uint32_t mask) {
@@ -39,11 +39,8 @@ int first_lane(uint32_t mask) {
 }  // namespace
 
 FoFiXHitWindow fofix_hit_window_for_bpm(double bpm) {
-  const double clamped_bpm = std::clamp(bpm, 1.0, 200.0);
-  const double margin_ms =
-      std::max(0.0, 250.0 - clamped_bpm / 5.0 -
-                        70.0 * kFoFiXStandardHitScale);
-  const double margin_sec = margin_ms / kMillisecondsPerSecond;
+  (void)bpm;
+  const double margin_sec = kGh2WatcherSlopMs / kMillisecondsPerSecond;
   return FoFiXHitWindow{margin_sec, margin_sec};
 }
 
@@ -176,7 +173,7 @@ bool fofix_activate_star_power(FoFiXStarPowerState& state) {
 
 void fofix_update_star_power(FoFiXStarPowerState& state, double dt_seconds) {
   if (!state.active || dt_seconds <= 0.0) return;
-  state.value -= (dt_seconds * kMillisecondsPerSecond) / kStarDrainDivisorMs;
+  state.value -= dt_seconds * kGh2StarDeployRate * 100.0;
   if (state.value <= 0.0) {
     state.value = 0.0;
     state.active = false;

@@ -148,6 +148,44 @@ std::vector<int16_t> decode_pcm_s16(const std::vector<uint8_t>& bytes,
     return out;
 }
 
+std::vector<int16_t> decode_ps_adpcm_mono_s16(const uint8_t* bytes,
+                                              size_t byte_count,
+                                              uint32_t sample_count) {
+    if (!bytes || byte_count < kFrameSize || sample_count == 0) return {};
+
+    const size_t frame_count = byte_count / kFrameSize;
+    const size_t padded_samples = frame_count * kSamplesPerFrame;
+    const size_t wanted =
+        std::min(static_cast<size_t>(sample_count), padded_samples);
+    std::vector<int16_t> out;
+    out.reserve(wanted);
+
+    int32_t h1 = 0;
+    int32_t h2 = 0;
+    for (size_t blk = 0; blk < frame_count && out.size() < wanted; ++blk) {
+        const uint8_t* frame = bytes + blk * kFrameSize;
+        const uint8_t hdr = frame[0];
+        int filter = (hdr >> 4) & 0x0F;
+        const int shift = hdr & 0x0F;
+        if (filter > 4) filter = 0;
+        const int32_t fp = kFilterPos[filter];
+        const int32_t fn = kFilterNeg[filter];
+
+        for (int s = 0; s < kSamplesPerFrame && out.size() < wanted; ++s) {
+            const uint8_t pack = frame[2 + (s >> 1)];
+            const int nibble =
+                (s & 1) ? ((pack >> 4) & 0x0F) : (pack & 0x0F);
+            int32_t out_sample = 0;
+            int32_t hist = 0;
+            decode_ps_sample(nibble, shift, fp, fn, h1, h2, out_sample, hist);
+            out.push_back(clamp_s16(out_sample));
+            h2 = h1;
+            h1 = hist;
+        }
+    }
+    return out;
+}
+
 // ---------------------------------------------------------------------------
 // Streaming decoder
 // ---------------------------------------------------------------------------

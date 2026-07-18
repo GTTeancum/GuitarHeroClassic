@@ -12,6 +12,7 @@ target_link_libraries(ghogx_app PRIVATE
     ghogx_hud         # in-song HUD overlay (score/streak/mult/SP/rock meter)
     ghogx_character   # skinned character mesh decode + D3D9 renderer
     ghogx_ui_render   # windowed menu mode (--menu): boots the menu engine + draws
+    winmm             # timeBeginPeriod/timeEndPeriod for steady 60 Hz pacing
 )
 
 if(MSVC)

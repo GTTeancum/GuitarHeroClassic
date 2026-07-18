@@ -255,19 +255,23 @@ character model playback.
 the reviewable ihatecompvir evidence for both is RB2 dump-only and not enough
 to port a serialized loader. `CharWalk::Load` is named at range
 `0x8039BCA4 -> 0x8039BD64` and only exposes `Debug TheDebug` plus static
-`gRev` references; `CharWalk::Save` is empty, while `CharWalk::Poll`
+`gRev` references; `CharWalk::Save` is empty. The remaining dump ranges are
+`CharWalk::Poll`
 (`0x8039ADB4 -> 0x8039AF6C`), `ForwardPredict`
 (`0x8039AF6C -> 0x8039B0EC`), `BackPredict`
 (`0x8039B0EC -> 0x8039B290`), and `RegulateWalk`
-(`0x8039B290 -> 0x8039B930`) map runtime names and locals without the full
-statement body. `OutfitLoader::Load` is an empty/bodyless row at
-`0x803AC8F4 -> 0x803AC950`, `OutfitLoader::PostLoad` is empty at
-`0x803AC8F0 -> 0x803AC8F4`, and `OutfitLoader::Save`
-(`0x803AC728 -> 0x803AC8F0`) maps category/file-path loop locals without
-proving the load layout. Native keeps both rows opaque until reviewable
-ihatecompvir source proves the serialized behavior; original-game traces may
-corroborate a future source-backed decode but are not an implementation
-authority.
+(`0x8039B290 -> 0x8039B930`).
+
+Those rows map runtime names and locals without the full statement body.
+`OutfitLoader::Load` is an empty/bodyless row at
+`0x803AC8F4 -> 0x803AC950`, and `OutfitLoader::PostLoad` is empty at
+`0x803AC8F0 -> 0x803AC8F4`. The remaining dump range is
+`OutfitLoader::Save`
+(`0x803AC728 -> 0x803AC8F0`). It maps category/file-path loop locals without
+proving the load layout.
+
+Native keeps both rows opaque until a reviewable
+loader body or direct original-game trace proves the serialized behavior.
 
 ## Source Coverage Matrix
 

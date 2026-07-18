@@ -1,0 +1,12 @@
+scenario=current strict 4:3 normal hit-flame focus sweep
+song=shoutatthedevil difficulty=3 diagnostic-start=16 script=16:18:-0.0083 frames=1,5..140
+contact_sheet=C:\Programming\GitHub\Guitar Hero II\GuitarHeroOGX-highway-visuals\proofs\native_4x3_hit_flame_focus_20260717_01\hit_flame_threshold_contact_sheet.png
+trace=C:\Programming\GitHub\Guitar Hero II\GuitarHeroOGX-highway-visuals\proofs\native_4x3_hit_flame_focus_20260717_01\hit_flame_trace.txt
+captured_frames=29
+fofix_hit_rows=1
+gameplay_hit_rows=1
+highway_hit_rows=6
+highway_hit_anim_rows=6
+highway_miss_rows=0
+finding=normal red+blue hit draws source base hit_flame mesh with authored TransAnim and MatAnim color; no star_collect or miss rows in this proof
+exit=0

@@ -264,12 +264,18 @@ class MiloSceneRenderer {
 
  private:
   IDirect3DTexture9* upload(const ghogx::asset::Image& img);
+  const milo_scene::MatObj* find_material(const std::string& name) const;
   void frame_camera_on_bounds();
   void draw_impl(bool clear_target, bool draw_scene, bool draw_text);
 
   Window* win_ = nullptr;
   IDirect3DDevice9* dev_ = nullptr;
   milo_scene::Scene scene_;
+  std::vector<const milo_scene::MeshObj*> ordered_draw_meshes_;
+  std::unordered_set<std::string> spotlight_template_meshes_;
+  std::map<std::string, const milo_scene::MatObj*> materials_by_name_;
+  std::map<std::string, const milo_scene::MeshObj*> meshes_by_name_;
+  std::map<std::string, const milo_scene::GroupObj*> groups_by_name_;
   OrbitCamera cam_;
   std::array<float, 16> world_transform_ = {1, 0, 0, 0, 0, 1, 0, 0,
                                             0, 0, 1, 0, 0, 0, 0, 1};

@@ -131,8 +131,10 @@ int main() {
                  "if(fixed_dt>0.0f)dt=fixed_dt;",
                  "character viewer fixed-dt capture cannot drift under debug logging");
   ok &= contains(app_main_c,
-                 "char_offset,fixed_dt,character_controllers,"
-                 "char_reference_base,midi_fret_target,viewer_clip_stack);",
+                 "char_offset,char_2p_select_placer_player,"
+                 "char_2p_select_event,fixed_dt,character_controllers,"
+                 "char_reference_base,midi_fret_target,viewer_clip_stack,"
+                 "render_size);",
                  "parsed fixed dt reaches character viewer proof path");
   ok &= contains(app_main_c,
                  "--no-character-controllers",
@@ -157,8 +159,9 @@ int main() {
                  "renderer.set_reference_base(reference_base);",
                  "character viewer forwards the reference-base diagnostic to the renderer");
   ok &= contains(app_main_c,
-                 "char_offset,fixed_dt,character_controllers,char_reference_base,"
-                 "midi_fret_target,viewer_clip_stack);",
+                 "char_offset,char_2p_select_placer_player,char_2p_select_event,"
+                 "fixed_dt,character_controllers,char_reference_base,"
+                 "midi_fret_target,viewer_clip_stack,render_size);",
                  "parsed reference-base diagnostic reaches character viewer proof path");
   ok &= contains(char_renderer_c,
                  "voidCharRenderer::set_reference_base(boolenabled){"
@@ -387,10 +390,10 @@ int main() {
                  "use_fret_hand_parser?current_fret_hand_cue(",
                  "player*_fret hand cues drive the fretting fingers");
   ok &= contains(gameplay_c,
-                 "if(cue.tick>now_tick)break;",
+                 "std::upper_bound(cues.begin(),cues.end(),now_tick,",
                  "player*_fret_pos target waits for the authored cue tick");
   ok &= contains(gameplay_c,
-                 "if(!chosen)returnstate;",
+                 "if(it==cues.begin())returnstate;",
                  "fret-position IK target has no future-cue fallback");
   ok &= contains(gameplay_c,
                  "std::strcmp(wanted,\"bone_L-pinky03\")==0;",
@@ -504,7 +507,7 @@ int main() {
                  "constboolcompare_output=charbone_output_compare_enabled();",
                  "broad CharBone rows are compare-only diagnostics");
   ok &= contains(char_clip_c,
-                 "if(!force_selected_output){returnfalse;}",
+                 "returnfalse;}structTargetUpdate{",
                  "only selected hand output can write reconstructed output rows");
 
   if (!ok) {

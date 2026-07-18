@@ -24,6 +24,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -1033,7 +1034,6 @@ class Gameplay {
     ghogx::character::CharClipPlayer idle_player;
     ghogx::character::CharClipPlayer intro_player;
     ghogx::character::CharClipPlayer active_player;
-    ghogx::character::CharClipPlayer band_jump_player;
     ghogx::character::CharClipPlayer face_base_player;
     ghogx::character::CharClipPlayer strum_open_player;
     ghogx::character::CharClipPlayer strum_player;
@@ -1079,6 +1079,9 @@ class Gameplay {
   size_t guitarist0_charwalk_object_count_ = 0;
   CameraKey source_intro_camera_previous_;
   bool has_source_intro_camera_previous_ = false;
+  std::vector<std::string> regular_camera_source_record_member_table_;
+  std::unordered_map<std::string, std::unordered_set<std::string>>
+      camera_performer_targets_;
   std::string pending_regular_camera_;
   std::string active_regular_camera_;
   std::string previous_regular_camera_;
@@ -1118,6 +1121,10 @@ class Gameplay {
   bool should_resend_excitement_ = false;
   std::vector<LightingPreset> lighting_presets_;
   std::vector<LightingSpotlight> lighting_spotlights_;
+  std::unordered_map<std::string, const LightingSpotlight*>
+      lighting_spots_by_name_;
+  std::unordered_map<std::string, std::vector<const LightingSpotlight*>>
+      lighting_spots_by_target_;
   std::string active_lighting_preset_;
   std::string active_lighting_keyframe_;
   size_t active_lighting_keyframe_index_ = SIZE_MAX;
@@ -1131,6 +1138,7 @@ class Gameplay {
   double lighting_transition_start_ = 0.0;
   double lighting_transition_duration_ = 0.0;
   bool lighting_transition_active_ = false;
+  bool lighting_spot_renderer_dirty_ = true;
   LightPresetEnvLightStateSnapshot lighting_preset_env_light_transition_from_;
   LightPresetEnvLightStateSnapshot lighting_preset_env_light_transition_to_;
   double lighting_preset_env_light_transition_start_ = 0.0;

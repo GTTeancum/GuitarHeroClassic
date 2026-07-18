@@ -13,6 +13,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -44,6 +45,13 @@ Header parse_header(const std::vector<uint8_t>& bytes);
 // channel, in channel order, repeated; payload begins at offset 0x80.
 std::vector<int16_t> decode_pcm_s16(const std::vector<uint8_t>& bytes,
                                     const Header& h);
+
+// Decode a raw mono PS-ADPCM/VAG sample payload such as a GH2 SynthSample
+// SampleData block (encoding 2). The sample_count trims the padded final
+// 16-byte frame to the authored length.
+std::vector<int16_t> decode_ps_adpcm_mono_s16(const uint8_t* bytes,
+                                              size_t byte_count,
+                                              uint32_t sample_count);
 
 // Write a 16-bit PCM WAV file (RIFF) -- simple, universally playable.
 void write_wav_pcm16(const std::string& out_path, int channels,

@@ -1,0 +1,42 @@
+﻿# Native 4:3 cap owner/status compact trace
+# Source logs distilled before raw log cleanup. Repeated per-frame duplicates are collapsed per capture file.
+
+## full.stderr.log
+1268: [highway] native track meshes: surface=1 mask=1 rails=1 lines=1 spglow=1 smasher=1 hitflame=1 starcollect=1 miss=1
+1272: [highway] native smasher lane materials: base=5 add=5 add_mesh=5 ring=5
+1428: [highway-tail] source=held_tight_underlay active=1 star_tail=0 whammy=0 lane=1 on=16.133 off=19.596 y=1.500..128.642
+1431: [highway-tail-line] source=held_body_detail active=1 star_tail=0 whammy=0 lane=1 on=16.133 off=19.596 y=1.500..128.642
+1435: [highway-tail] source=held_body_fill active=1 star_tail=0 whammy=0 lane=1 on=16.133 off=19.596 y=1.500..128.642
+1438: [highway-tail] source=held_tight_join active=1 star_tail=0 whammy=0 lane=1 on=16.133 off=19.596 y=1.500..5.500
+1441: [highway-tail] source=held_tight_edge active=1 star_tail=0 whammy=0 lane=1 on=16.133 off=19.596 y=1.500..128.642
+1444: [highway-tail] source=held_tight_underlay active=1 star_tail=0 whammy=0 lane=3 on=16.133 off=19.596 y=1.500..128.642
+1447: [highway-tail-line] source=held_body_detail active=1 star_tail=0 whammy=0 lane=3 on=16.133 off=19.596 y=1.500..128.642
+1451: [highway-tail] source=held_body_fill active=1 star_tail=0 whammy=0 lane=3 on=16.133 off=19.596 y=1.500..128.642
+1454: [highway-tail] source=held_tight_join active=1 star_tail=0 whammy=0 lane=3 on=16.133 off=19.596 y=1.500..5.500
+1457: [highway-tail] source=held_tight_edge active=1 star_tail=0 whammy=0 lane=3 on=16.133 off=19.596 y=1.500..128.642
+1460: [highway-active-sustain-cap] lane=1 tick=12120 smasher=1 body=1 add=0 center_y=10.041 lower_y=7.760 scale=1.456
+1462: [highway-active-sustain-cap] lane=3 tick=12120 smasher=1 body=1 add=0 center_y=10.041 lower_y=7.760 scale=1.456
+
+## no_caps.stderr.log
+1268: [highway] native track meshes: surface=1 mask=1 rails=1 lines=1 spglow=1 smasher=1 hitflame=1 starcollect=1 miss=1
+1272: [highway] native smasher lane materials: base=5 add=5 add_mesh=5 ring=5
+1428: [highway-tail] source=held_tight_underlay active=1 star_tail=0 whammy=0 lane=1 on=16.133 off=19.596 y=1.500..128.642
+1431: [highway-tail-line] source=held_body_detail active=1 star_tail=0 whammy=0 lane=1 on=16.133 off=19.596 y=1.500..128.642
+1435: [highway-tail] source=held_body_fill active=1 star_tail=0 whammy=0 lane=1 on=16.133 off=19.596 y=1.500..128.642
+1438: [highway-tail] source=held_tight_join active=1 star_tail=0 whammy=0 lane=1 on=16.133 off=19.596 y=1.500..5.500
+1441: [highway-tail] source=held_tight_edge active=1 star_tail=0 whammy=0 lane=1 on=16.133 off=19.596 y=1.500..128.642
+1444: [highway-tail] source=held_tight_underlay active=1 star_tail=0 whammy=0 lane=3 on=16.133 off=19.596 y=1.500..128.642
+1447: [highway-tail-line] source=held_body_detail active=1 star_tail=0 whammy=0 lane=3 on=16.133 off=19.596 y=1.500..128.642
+1451: [highway-tail] source=held_body_fill active=1 star_tail=0 whammy=0 lane=3 on=16.133 off=19.596 y=1.500..128.642
+1454: [highway-tail] source=held_tight_join active=1 star_tail=0 whammy=0 lane=3 on=16.133 off=19.596 y=1.500..5.500
+1457: [highway-tail] source=held_tight_edge active=1 star_tail=0 whammy=0 lane=3 on=16.133 off=19.596 y=1.500..128.642
+
+## no_sustains.stderr.log
+1268: [highway] native track meshes: surface=1 mask=1 rails=1 lines=1 spglow=1 smasher=1 hitflame=1 starcollect=1 miss=1
+1272: [highway] native smasher lane materials: base=5 add=5 add_mesh=5 ring=5
+1302: [highway-active-sustain-cap] lane=1 tick=12120 smasher=1 body=1 add=0 center_y=10.041 lower_y=7.760 scale=1.456
+1304: [highway-active-sustain-cap] lane=3 tick=12120 smasher=1 body=1 add=0 center_y=10.041 lower_y=7.760 scale=1.456
+
+## no_sustains_no_caps.stderr.log
+1268: [highway] native track meshes: surface=1 mask=1 rails=1 lines=1 spglow=1 smasher=1 hitflame=1 starcollect=1 miss=1
+1272: [highway] native smasher lane materials: base=5 add=5 add_mesh=5 ring=5

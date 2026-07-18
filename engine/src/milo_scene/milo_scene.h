@@ -1895,6 +1895,7 @@ struct MatObj {
   // serialize alpha_threshold; later revisions do. The default threshold is 0,
   // matching MiloLib's default RndMat field when the serialized value is absent.
   bool has_render_state = false;
+  bool point_lights = false;
   uint8_t z_mode = 1;
   bool alpha_cut = false;
   int32_t alpha_threshold = 0;

@@ -1,0 +1,42 @@
+{
+  "pass": "native_4x3_projection_fade_guard_20260717_05",
+  "status": "measurement_only_no_renderer_patch",
+  "source_window": "shoutatthedevil expert, 4:3 960x720, diagnostic start 16.0s, frame 60",
+  "reference": "proofs/highway_4x3_projection_measure_20260715_04/projection_trace.json",
+  "visual_proof": "proofs/native_4x3_projection_fade_guard_20260717_05/projection_fade_guard_contact_sheet.png",
+  "compact_trace": "proofs/native_4x3_projection_fade_guard_20260717_05/projection_fade_guard_trace.txt",
+  "projection_compare": "proofs/native_4x3_projection_fade_guard_20260717_05/projection_compare.json",
+  "metrics": {
+    "sample_count": 9,
+    "width_rms_px": 0.621769,
+    "width_max_abs_px": 0.937,
+    "center_rms_px": 0.080742,
+    "center_max_abs_px": 0.176
+  },
+  "fade": {
+    "fade_top_world_y": 164.4772969276156,
+    "fade_alpha_dist": 71.67506,
+    "fade_top_screen_y_px": 326.6666310030691
+  },
+  "projection_constants": {
+    "profile": "4:3",
+    "cam_x": -0.04188884,
+    "cam_y": -63.22,
+    "cam_z": 17.33562394,
+    "cam_pitch_deg": 5.45721249,
+    "cam_yaw_deg": 0.2198823,
+    "fov_y": 0.4102,
+    "near_z": 50.0,
+    "far_z": 200.0,
+    "track_x_scale": 1.02769107,
+    "board_half_x": 10.276910699999998
+  },
+  "trace_findings": {
+    "aspect": "strict 4:3 preset; renderer viewport 960x720",
+    "motion": "[highway-surface-scroll] t=17.017 speed=191.163 v_per_y=-0.007446 source_v_per_y=-0.010053 y_scale=1.350169 uv_v=-24.220476 note_dy=-191.163 surface_dy=-191.163 same_pace=1 mesh=1 selected=1",
+    "far_fade": "board_fade_top and track_surface top samples report fade=0.000 at y=164.480; board_fade_start reports fade=1.000 at y=92.805",
+    "tail_scope": "10 tail debug rows retained in compact trace; whammy ripple remains parked"
+  },
+  "decision": "No renderer patch promoted; current 4:3 highway angle, perspective width, motion direction/pace, and far fade still match the accepted PCSX2 projection model at this branch tip.",
+  "artifact_policy": "Retained contact sheet, projection JSON, summary, and compact trace only; raw BMP, verbose log, and separate full-size overlay/native PNGs were deleted after distillation."
+}

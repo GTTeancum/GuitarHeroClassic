@@ -2433,6 +2433,10 @@ struct SkinnedMesh {
   // source computes this as mesh WorldXfm * inverse(bone WorldXfm), and
   // skinning consumes it as v * offset * current bone WorldXfm.
   std::vector<milo_scene::Xfm> bind;
+  // True when the decoded offset rows reconstruct this mesh's own bind-space
+  // row rather than model space. This is a generic PS2 format shape used by
+  // the highway branch's attachment renderer.
+  bool mesh_local_bind_space = false;
   float bb_min[3] = {0, 0, 0};
   float bb_max[3] = {0, 0, 0};
   bool decoded = false;
@@ -6530,6 +6534,12 @@ struct Character {
 
   // Compose a mesh's own source transform world matrix.
   std::array<float, 16> mesh_world(const SkinnedMesh& m) const;
+  std::array<float, 16> model_space_parent_delta(
+      const std::string& parent) const;
+  std::array<float, 16> attachment_parent_world(
+      const std::string& parent) const;
+  std::array<float, 16> mesh_attachment_world(const SkinnedMesh& m,
+                                              bool bind_local) const;
   bool has_transform(const std::string& name) const;
 };
 
