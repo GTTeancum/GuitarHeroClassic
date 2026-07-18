@@ -12217,6 +12217,36 @@ std::optional<VenueMiloDependencyInfo> inspect_venue_milo_dependency(
     return info;
 }
 
+size_t count_milo_entries_of_type(const std::string& hdr_path,
+                                  const std::string& ark_path,
+                                  const std::string& milo_path,
+                                  std::string_view type) {
+    try {
+        const auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) entry = ark.find("../../system/run/" + milo_path);
+        if (!entry) return 0;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        size_t count = 0;
+        for (const auto& de : dir.entries) {
+            if (de.type == type) ++count;
+        }
+        return count;
+    } catch (const std::exception& ex) {
+        if (debug_camera_enabled() || debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] MILO entry count failed: source=%s type=%.*s error=%s\n",
+                milo_path.c_str(), static_cast<int>(type.size()), type.data(),
+                ex.what());
+        }
+    }
+    return 0;
+}
+
 void append_scene_for_venue_subdir(ghogx::milo_scene::Scene& dst,
                                     ghogx::milo_scene::Scene&& src) {
     dst.transes.insert(dst.transes.end(),
@@ -17665,9 +17695,9 @@ enum class CameraSourceCharWalkState {
 
 CameraSourceCharWalkState camera_source_guitarist0_charwalk_state() {
     // RB2 CompositeCharacter exposes CharWalk::mState with None/Going/Stopping.
-    // Native has not loaded a CharWalk runtime object yet, so keep the bridge
-    // pinned to the source "none" state instead of hiding that as an inline
-    // false in the camera picker.
+    // Native can discover CharWalk object entries from source MILOs, but the
+    // mState/Poll body remains unrecovered, so keep the bridge pinned to the
+    // source "none" state instead of hiding that as an inline false.
     return CameraSourceCharWalkState::kStateNone;
 }
 
@@ -17692,12 +17722,15 @@ bool camera_source_guitarist0_actually_walking() {
     return false;
 }
 
-std::string camera_source_guitarist0_actually_walking_source() {
+std::string camera_source_guitarist0_actually_walking_source(
+    size_t source_charwalk_objects) {
     return std::string("guitarist0::actually_walking(") +
+           "source_objects=" + std::to_string(source_charwalk_objects) +
+           " source_reader=MiloEditor::CharWalk.Read object_only " +
            "CharWalk::mState=" +
            camera_source_charwalk_state_label(
                camera_source_guitarist0_charwalk_state()) +
-           " native_bridge_missing body_unrecovered)";
+           " native_bridge=object_presence_only body_unrecovered)";
 }
 
 constexpr const char* kCameraRecoveredRuntimeList =
@@ -35018,6 +35051,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             ghogx::milo_scene::Scene venue_scene;
             ghogx::milo_scene::Scene venue_chars_scene_for_load;
             const std::string chars_milo = venue_assembly.chars_milo;
+            guitarist0_charwalk_object_count_ = 0;
             bool chars_scene_loaded = false;
             if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_, venue_geom,
                                               venue_scene)) {
@@ -35032,6 +35066,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 chars_scene_loaded = ghogx::milo_scene::load_scene(
                     hdr_path_, ark_path_, chars_milo, venue_chars_scene_for_load);
                 if (chars_scene_loaded) {
+                    const size_t venue_charwalk_objects = count_milo_entries_of_type(
+                        hdr_path_, ark_path_, chars_milo, "CharWalk");
+                    if (debug_camera_enabled() ||
+                        debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] camera CharWalk objects: scope=venue_chars source_reader=MiloEditor::CharWalk.Read source_body=Hmx::Object_only source=%s entries=%zu source_state=CharWalk::mState body=rb2_dump_unrecovered actually_walking=deferred_false\n",
+                            chars_milo.c_str(), venue_charwalk_objects);
+                    }
                     const size_t lights_before = venue_scene.lights.size();
                     const size_t environs_before = venue_scene.environs.size();
                     append_scene_lighting_objects(venue_scene,
@@ -35808,6 +35851,19 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     std::fprintf(stderr, "[world] performer failed: %s\n",
                                  char_milo.c_str());
                     return;
+                }
+                if (role == "guitarist0") {
+                    guitarist0_charwalk_object_count_ =
+                        count_milo_entries_of_type(hdr_path_, ark_path_,
+                                                   char_milo, "CharWalk");
+                    if (debug_camera_enabled() ||
+                        debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] camera CharWalk objects: scope=guitarist0_character source_reader=MiloEditor::CharWalk.Read source_body=Hmx::Object_only source=%s entries=%zu source_state=CharWalk::mState body=rb2_dump_unrecovered actually_walking=deferred_false\n",
+                            char_milo.c_str(),
+                            guitarist0_charwalk_object_count_);
+                    }
                 }
                 const bool performer_is_guitarist =
                     starts_with(role, "guitarist");
@@ -37528,7 +37584,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const bool kGuitaristWalking =
                     camera_source_guitarist0_actually_walking();
                 const std::string source_walking_gate =
-                    camera_source_guitarist0_actually_walking_source();
+                    camera_source_guitarist0_actually_walking_source(
+                        guitarist0_charwalk_object_count_);
                 const bool source_multi_vs = camera_source_gamecfg_mode_multi_vs();
                 const int source_faceoff_players =
                     camera_faceoff_active_players_;

@@ -1070,6 +1070,7 @@ class Gameplay {
   bool world_init_attempted_ = false;
   std::vector<CameraKey> camera_keys_;
   std::vector<CameraKey> regular_camera_keys_;
+  size_t guitarist0_charwalk_object_count_ = 0;
   CameraKey source_intro_camera_previous_;
   bool has_source_intro_camera_previous_ = false;
   std::string pending_regular_camera_;

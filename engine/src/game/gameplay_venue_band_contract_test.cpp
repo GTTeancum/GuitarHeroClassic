@@ -14497,6 +14497,14 @@ int main() {
                  "source_check_camera_shot_pick_due="
                  "camera_check_shot_due&&duration_expired;",
                  "world_objects_worldbase.dta::check_camera_shot only runs pick_new_shot after the duration gate expires");
+  ok &= contains(gameplay_h_c,
+                 "size_tguitarist0_charwalk_object_count_=0;",
+                 "regular camera runtime stores the source CharWalk object count from the loaded guitarist0 character MILO");
+  ok &= contains(gameplay_c,
+                 "size_tcount_milo_entries_of_type("
+                 "conststd::string&hdr_path,conststd::string&ark_path,"
+                 "conststd::string&milo_path,std::string_viewtype)",
+                 "venue loader can count source object entries without adding dependencies");
   ok &= contains(gameplay_c,
                  "boolcamera_source_guitarist0_actually_walking(){",
                  "regular camera runtime exposes the source guitarist0 actually_walking predicate");
@@ -14510,13 +14518,21 @@ int main() {
                  "regular camera walking bridge exposes a source CharWalk::mState helper");
   ok &= contains(gameplay_c,
                  "returnCameraSourceCharWalkState::kStateNone;",
-                 "regular camera walking bridge stays pinned to source CharWalk::mState none until a native CharWalk object exists");
+                 "regular camera walking bridge stays pinned to source CharWalk::mState none until native CharWalk state behavior is recovered");
+  ok &= contains(gameplay_c,
+                 "\"[world]cameraCharWalkobjects:"
+                 "scope=guitarist0_character"
+                 "source_reader=MiloEditor::CharWalk.Read"
+                 "source_body=Hmx::Object_only",
+                 "camera diagnostics cite the source CharWalk reader as object-only guitarist0 proof");
   ok &= contains(gameplay_c,
                  "returnstd::string(\"guitarist0::actually_walking(\")+"
+                 "\"source_objects=\"+std::to_string(source_charwalk_objects)+"
+                 "\"source_reader=MiloEditor::CharWalk.Readobject_only\"+"
                  "\"CharWalk::mState=\"+"
                  "camera_source_charwalk_state_label("
                  "camera_source_guitarist0_charwalk_state())+"
-                 "\"native_bridge_missingbody_unrecovered)\";",
+                 "\"native_bridge=object_presence_onlybody_unrecovered)\";",
                  "regular camera diagnostics label the deferred CharWalk mState gate without implying a proven moving state");
   ok &= contains(gameplay_c,
                  "constboolkGuitaristWalking="
@@ -14524,7 +14540,8 @@ int main() {
                  "regular camera selection uses the named source walking gate");
   ok &= contains(gameplay_c,
                  "conststd::stringsource_walking_gate="
-                 "camera_source_guitarist0_actually_walking_source();",
+                 "camera_source_guitarist0_actually_walking_source("
+                 "guitarist0_charwalk_object_count_);",
                  "regular camera selection snapshots the source walking proof string before logging");
   ok &= absent(gameplay_c,
               "constexprboolkGuitaristWalking=false;",

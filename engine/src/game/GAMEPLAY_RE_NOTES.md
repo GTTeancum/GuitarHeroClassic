@@ -12,6 +12,14 @@
   formatting only: no selector behavior, camera pose math, hidden predicate,
   `CharWalk`, FreeCam, dependency, OG Xbox portability, or under-venue behavior
   changed.
+- 2026-07-17 gameplay CharWalk object presence proof:
+  MiloEditor source shows `CharWalk.Read` reads the combined revision plus the
+  base object and exposes no extra standalone asset fields. Native now counts
+  `CharWalk` entries from the loaded guitarist0 character MILO for the source
+  walking gate, while logging the venue chars MILO count as context.
+  `actually_walking` still returns false because `CharWalk::mState`/Poll
+  behavior remains unrecovered; this is proof context only, not a selector
+  behavior change.
 - 2026-07-17 gameplay WorldDir LightPreset/RndDir order bridge:
   ihatecompvir `WorldDir::Poll()` runs
   `CameraManager::PrePoll() -> LightPresetManager::Poll() -> RndDir::Poll() ->
