@@ -101,4 +101,9 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
 std::array<float, 16> source_character_mesh_submission_world(
     const SkinnedMesh& mesh, const Character& character);
 
+// True when the normal draw path must consume skin_to_pose output rather than
+// raw authored vertices. This keeps the renderer's pose-selection decision
+// covered alongside the skin equation itself.
+bool source_character_mesh_renders_decoded_skinning(const SkinnedMesh& mesh);
+
 }  // namespace ghogx::character

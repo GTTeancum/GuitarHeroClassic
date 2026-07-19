@@ -800,20 +800,6 @@ bool is_mesh_local_arm_piece(const SkinnedMesh& m) {
          (contains_arm_token(m.name) || contains_arm_token(m.parent));
 }
 
-bool is_far_negative_mesh_parented_arm_piece(const SkinnedMesh& m) {
-  if (m.bone_palette.empty()) return false;
-  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
-  if (!has_suffix(m.parent, ".mesh")) return false;
-  if (contains_arm_token(m.parent)) return false;
-  if (!contains_arm_token(m.material)) return false;
-  if (!(m.bb_min[2] < -10.0f && m.bb_max[2] < -4.0f)) return false;
-  return palette_contains(m, "clavicle") ||
-         palette_contains(m, "upperArm") ||
-         palette_contains(m, "foreArm") ||
-         palette_contains(m, "hand") ||
-         palette_contains(m, "upperTwist");
-}
-
 bool is_compact_mesh_parented_head_detail_piece(const SkinnedMesh& m) {
   if (m.bone_palette.size() != 3) return false;
   if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
@@ -824,8 +810,7 @@ bool is_compact_mesh_parented_head_detail_piece(const SkinnedMesh& m) {
 }
 
 bool is_raw_mesh_world_authored_piece(const SkinnedMesh& m) {
-  return is_far_negative_mesh_parented_arm_piece(m) ||
-         is_compact_mesh_parented_head_detail_piece(m);
+  return is_compact_mesh_parented_head_detail_piece(m);
 }
 
 bool is_parent_local_ankle_attachment(const SkinnedMesh& m) {
@@ -2153,7 +2138,9 @@ void CharRenderer::draw_impl(bool clear_target) {
         debug_mesh_mode || debug_skin_bounds ||
         (debug_surface_contact && debug_mesh_mode);
     const bool raw_pose =
-        mesh_uses_raw_pose_output(m, raw_mesh_requested) && !needs_pose_vectors;
+        (raw_mesh_requested ||
+         !source_character_mesh_renders_decoded_skinning(m)) &&
+        !needs_pose_vectors;
     if (raw_pose) {
       spos.clear();
       snrm.clear();
@@ -3104,6 +3091,10 @@ std::array<float, 16> source_character_mesh_submission_world(
             0, 0, 1, 0, 0, 0, 0, 1};
   }
   return character.mesh_world(mesh);
+}
+
+bool source_character_mesh_renders_decoded_skinning(const SkinnedMesh& mesh) {
+  return !mesh_uses_raw_pose_output(mesh, false);
 }
 
 }  // namespace ghogx::character

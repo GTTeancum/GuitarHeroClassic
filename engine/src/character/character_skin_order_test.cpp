@@ -141,6 +141,8 @@ int main() {
   CHECK(approx(pos[0][0], 22.0f));
   CHECK(nrm.size() == 1);
   CHECK(approx(nrm[0][0], 2.0f));
+  CHECK(ghogx::character::source_character_mesh_renders_decoded_skinning(
+      far_negative_arm));
 
   std::printf("  [ok] skinning preserves four source slots, offsets, and submission space\n");
   return 0;
