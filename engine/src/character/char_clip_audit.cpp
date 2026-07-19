@@ -81,20 +81,25 @@ bool audit_one(const gh::ark::ArkV3Reader& ark, const std::string& hdr_path,
       const bool accepted = clip.loaded && !clip.frames.empty();
       const size_t channels =
           accepted && !clip.frames.empty() ? clip.frames[0].size() : 0;
-      const int fenced_raw = clip.raw_channel_counts.scale +
-                             clip.raw_channel_counts.rotx +
-                             clip.raw_channel_counts.roty;
+      const int extended_typed = clip.raw_channel_counts.scale +
+                                 clip.raw_channel_counts.rotx +
+                                 clip.raw_channel_counts.roty +
+                                 clip.raw_channel_counts.dx +
+                                 clip.raw_channel_counts.dy +
+                                 clip.raw_channel_counts.dz;
       std::printf("[clip-audit] milo=%s clip=%s bodyBytes=%llu "
                   "accepted=%d frames=%zu channels0=%zu outputBones=%zu "
                   "rawPos=%d rawScale=%d rawQuat=%d rawRotX=%d rawRotY=%d "
-                  "rawRotZ=%d fencedRaw=%d\n",
+                  "rawRotZ=%d rawDX=%d rawDY=%d rawDZ=%d extendedTyped=%d\n",
                   resolved.c_str(), de.name.c_str(),
                   static_cast<unsigned long long>(de.size),
                   accepted ? 1 : 0, clip.frames.size(), channels,
                   clip.output_bones.size(), clip.raw_channel_counts.pos,
                   clip.raw_channel_counts.scale, clip.raw_channel_counts.quat,
                   clip.raw_channel_counts.rotx, clip.raw_channel_counts.roty,
-                  clip.raw_channel_counts.rotz, fenced_raw);
+                  clip.raw_channel_counts.rotz, clip.raw_channel_counts.dx,
+                  clip.raw_channel_counts.dy, clip.raw_channel_counts.dz,
+                  extended_typed);
     }
     return true;
   } catch (const std::exception& ex) {

@@ -403,6 +403,8 @@ struct SourceCharBonesMeshesPoseDumpEvidence {
   std::string pose_meshes_range;
   std::string prop_sync_range;
   std::vector<std::string> pose_meshes_locals;
+  std::string gh2_rexglue_pose_meshes_range;
+  std::vector<std::string> gh2_rexglue_axis_setter_ranges;
   std::string latest_source_file;
   std::string latest_source_comment;
   std::vector<std::string> latest_source_stub_steps;
@@ -411,6 +413,8 @@ struct SourceCharBonesMeshesPoseDumpEvidence {
   bool latest_source_uses_uninitialized_angle = true;
   bool latest_source_publishes_transform_rows = false;
   bool rb2_dump_has_statement_body = false;
+  bool gh2_rexglue_axis_setters_write_full_matrix = true;
+  bool safe_to_publish_selected_axis_rows = false;
   bool safe_to_pose_meshes = false;
   bool safe_to_publish_mesh_transforms = false;
 };
@@ -944,13 +948,28 @@ struct SourceCharLookAtSavePlan {
 
 // One channel value for one frame.
 struct ClipChannel {
-  enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
+  // GH2's runtime CharBones classifier has nine typed buckets. The public
+  // later-engine CharBones header stops at kRotZ, but the GH2 XEX continues
+  // with three post-compose delta axes before its type sentinel.
+  enum Type {
+    kPos,
+    kScale,
+    kQuat,
+    kRotX,
+    kRotY,
+    kRotZ,
+    kDeltaX,
+    kDeltaY,
+    kDeltaZ,
+  } type = kPos;
   std::string bone_name;  // Grim-style target name, often "*.mesh"
   float source_weight = 1.0f;  // Serialized CharBone weight retained from source.
   float pos[3] = {};      // kPos: X,Y,Z
   float scale[3] = {1.0f, 1.0f, 1.0f};  // kScale: local X,Y,Z scale
   float quat[4] = {};     // kQuat: X,Y,Z,W
-  float angle = 0.0f;     // kRotX/kRotY/kRotZ: radians
+  // Scalar samples are stored as normalized half-turns. PoseMeshes converts
+  // them through the game's sinpi-style axis helpers at final publication.
+  float angle = 0.0f;
 };
 
 // All frames of one clip, indexed [frame][channel].
@@ -965,6 +984,9 @@ struct CharClip {
     int rotx = 0;
     int roty = 0;
     int rotz = 0;
+    int dx = 0;
+    int dy = 0;
+    int dz = 0;
   };
   struct OutputBone {
     std::string name;    // CharBone entry name, normally bone_*.trans
@@ -995,15 +1017,11 @@ struct CharClip {
     size_t unread_bytes = 0;
   };
   // Animation MILOs carry CharBone output records beside CharClipSamples.
-  // The public ihatecompvir snapshot used by this worktree does not include
-  // the full runtime pose publisher. Broad body output publishing stays
-  // diagnostic; the native path only bridges source-authored lower-body rows
-  // and source-authored face rows whose flow is backed by CharFaceServo::Poll
-  // -> CharClip::PoseMeshes.
+  // They declare the channel inventory and contexts; their serialized local
+  // transforms are not the live pose base. GH2 CharBonesMeshes resolves the
+  // target transform table and acquires the current target locals instead.
   std::vector<OutputBone> output_bones;
-  // Raw header channel counts are diagnostic evidence for the source-backed
-  // decode boundary. `.scale`, `.rotx`, and `.roty` are consumed but not
-  // published until the missing EvaluateChannel/pose body is sourced.
+  // Raw header channel counts preserve the full GH2 nine-bucket inventory.
   RawChannelCounts raw_channel_counts;
   int fps = 30;        // authored clip playback rate
   float start_frame = 0.0f;
@@ -1118,6 +1136,7 @@ class CharClipPlayer {
   bool source_starved() const;
   bool active() const { return !layers_.empty(); }
   const CharClip* current_clip() const;
+  float current_time_seconds() const;
 
  private:
   struct Layer {
@@ -1211,12 +1230,16 @@ struct CharacterPoseControllerFrameSources {
 struct CharacterPoseStackFrameResult {
   bool applied_clip_layers = false;
   size_t applied_layer_count = 0;
+  bool source_pose_publisher_active = false;
+  // Retained for callers that previously surfaced the source gap. It remains
+  // false now that the GH2 XEX acquire/mix/commit path is implemented.
   bool source_pose_publisher_fenced = false;
 };
 
 struct CharacterPoseControllerFrameResult {
   bool applied_clip_layers = false;
   size_t applied_layer_count = 0;
+  bool source_pose_publisher_active = false;
   bool source_pose_publisher_fenced = false;
   bool fed_driver_flags = false;
   size_t fallback_ik_weights = 0;
@@ -2544,6 +2567,10 @@ std::vector<std::string> source_char_bones_meshes_stuff_meshes(
     const std::vector<std::string>& meshes);
 SourceCharBonesMeshesPoseDumpEvidence
 source_char_bones_meshes_pose_dump_evidence();
+void source_char_bones_meshes_set_axis_rotation(
+    milo_scene::Xfm& xfm,
+    ClipChannel::Type axis,
+    float angle_radians);
 
 // Source-backed CharServoBone movement helpers. These port the isolated math
 // bodies only; broad CharBonesMeshes movement stays fenced to the clip stack.
@@ -2620,6 +2647,7 @@ bool source_grim_char_clip_samples_version_known(int version);
 bool source_grim_char_clip_version_known(int version);
 int source_grim_char_bones_samples_get_type_of(const std::string& channel);
 float source_grim_char_bones_samples_decode_snorm16(int16_t value);
+float source_gh2_char_bones_samples_decode_scalar_angle(int16_t value);
 std::array<float, 4> source_grim_char_bones_samples_decode_short_quat(
     int16_t x,
     int16_t y,
@@ -3919,6 +3947,15 @@ std::vector<std::string> load_clip_group_names(
 void apply_clip_frame(const CharClip& clip, int frame_idx, Character& character);
 void apply_clip_frame_weighted(const CharClip& clip, int frame_idx,
                                float weight, Character& character);
+
+// Publishes an already-materialized GH2 typed pose through the same exact
+// AcquirePose -> PoseMeshes target resolver used by normal CharClip output.
+// The caller must provide the decoded CharBone output inventory that authorizes
+// each target; unlisted sample channels and missing targets remain unwritten.
+bool apply_materialized_typed_pose(
+    const std::vector<ClipChannel>& channels,
+    const std::vector<CharClip::OutputBone>& output_bones,
+    Character& character);
 
 // Apply decoded character-level controllers that sit outside CharClipSamples.
 // Call after clip poses for the frame.

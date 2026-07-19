@@ -1211,34 +1211,57 @@ bool expect_clip_driver_helpers() {
   constexpr float kPi = 3.14159265358979323846f;
   if (!nearf(ghogx::character::source_grim_char_bones_samples_pose_axis_angle(
                  ghogx::character::ClipChannel::kRotZ, 0.5f),
-             kPi * 0.5f) ||
+             0.5f) ||
       !nearf(ghogx::character::source_grim_char_bones_samples_pose_axis_angle(
                  ghogx::character::ClipChannel::kRotX, 0.5f),
              0.5f)) {
-    std::cerr << "Grim pose axis angle helper mismatch\n";
+    std::cerr << "GH2 pose axis angle helper changed radian units\n";
+    ok = false;
+  }
+  ghogx::milo_scene::Xfm source_axis_setter_xfm;
+  source_axis_setter_xfm.rot[0][0] = 0.0f;
+  source_axis_setter_xfm.rot[0][1] = -1.0f;
+  source_axis_setter_xfm.rot[1][0] = 1.0f;
+  source_axis_setter_xfm.rot[1][1] = 0.0f;
+  ghogx::character::source_char_bones_meshes_set_axis_rotation(
+      source_axis_setter_xfm, ghogx::character::ClipChannel::kRotZ,
+      kPi * 0.5f);
+  if (!nearf(source_axis_setter_xfm.rot[0][0], 0.0f) ||
+      !nearf(source_axis_setter_xfm.rot[0][1], 1.0f) ||
+      !nearf(source_axis_setter_xfm.rot[1][0], -1.0f) ||
+      !nearf(source_axis_setter_xfm.rot[1][1], 0.0f)) {
+    std::cerr << "GH2 RexGlue full-matrix RotZ setter mismatch\n";
     ok = false;
   }
   ghogx::character::Character rotz_character;
   ghogx::milo_scene::TransObj rotz_bone;
   rotz_bone.name = "bone_pelvis.mesh";
+  rotz_bone.local.rot[0][0] = 0.0f;
+  rotz_bone.local.rot[0][1] = -1.0f;
+  rotz_bone.local.rot[1][0] = 1.0f;
+  rotz_bone.local.rot[1][1] = 0.0f;
   rotz_character.bones.push_back(rotz_bone);
   ghogx::character::ClipChannel rotz_channel;
   rotz_channel.type = ghogx::character::ClipChannel::kRotZ;
   rotz_channel.bone_name = "bone_pelvis.mesh";
-  rotz_channel.angle = 0.5f;
+  rotz_channel.angle = kPi * 0.5f;
   ghogx::character::apply_clip_pose_sampled({rotz_channel}, 1.0f,
                                             rotz_character);
   const auto& rotz_local = rotz_character.bones[0].local;
-  if (!nearf(rotz_local.rot[0][0], 0.0f) ||
-      !nearf(rotz_local.rot[0][1], 1.0f) ||
-      !nearf(rotz_local.rot[1][0], -1.0f) ||
-      !nearf(rotz_local.rot[1][1], 0.0f)) {
-    std::cerr << "Grim rotz pose application did not use PI-scaled angle\n";
+  if (!nearf(rotz_local.rot[0][0], 1.0f) ||
+      !nearf(rotz_local.rot[0][1], 0.0f) ||
+      !nearf(rotz_local.rot[1][0], 0.0f) ||
+      !nearf(rotz_local.rot[1][1], 1.0f)) {
+    std::cerr << "GH2 rotz pose application did not use decoded radians\n";
     ok = false;
   }
   ghogx::character::Character weighted_rotz_character;
   ghogx::milo_scene::TransObj weighted_rotz_bone;
   weighted_rotz_bone.name = "bone_pelvis.mesh";
+  weighted_rotz_bone.local.rot[0][0] = 0.0f;
+  weighted_rotz_bone.local.rot[0][1] = -1.0f;
+  weighted_rotz_bone.local.rot[1][0] = 1.0f;
+  weighted_rotz_bone.local.rot[1][1] = 0.0f;
   weighted_rotz_character.bones.push_back(weighted_rotz_bone);
   ghogx::character::ClipChannel weighted_rotz_channel = rotz_channel;
   weighted_rotz_channel.source_weight = 0.5f;
@@ -1247,10 +1270,28 @@ bool expect_clip_driver_helpers() {
   const auto& weighted_rotz_local = weighted_rotz_character.bones[0].local;
   constexpr float kSqrtHalf = 0.70710678f;
   if (!nearf(weighted_rotz_local.rot[0][0], kSqrtHalf) ||
-      !nearf(weighted_rotz_local.rot[0][1], kSqrtHalf) ||
-      !nearf(weighted_rotz_local.rot[1][0], -kSqrtHalf) ||
+      !nearf(weighted_rotz_local.rot[0][1], -kSqrtHalf) ||
+      !nearf(weighted_rotz_local.rot[1][0], kSqrtHalf) ||
       !nearf(weighted_rotz_local.rot[1][1], kSqrtHalf)) {
     std::cerr << "source-weighted Grim rotz pose application ignored channel weight\n";
+    ok = false;
+  }
+  ghogx::character::Character relative_rotz_character;
+  ghogx::milo_scene::TransObj relative_rotz_bone;
+  relative_rotz_bone.name = "bone_pelvis.mesh";
+  relative_rotz_bone.local.rot[0][0] = 0.0f;
+  relative_rotz_bone.local.rot[0][1] = 1.0f;
+  relative_rotz_bone.local.rot[1][0] = -1.0f;
+  relative_rotz_bone.local.rot[1][1] = 0.0f;
+  relative_rotz_character.bones.push_back(relative_rotz_bone);
+  ghogx::character::apply_clip_pose_sampled({rotz_channel}, 1.0f,
+                                            relative_rotz_character, true);
+  const auto& relative_rotz_local = relative_rotz_character.bones[0].local;
+  if (!nearf(relative_rotz_local.rot[0][0], -1.0f) ||
+      !nearf(relative_rotz_local.rot[0][1], 0.0f) ||
+      !nearf(relative_rotz_local.rot[1][0], 0.0f) ||
+      !nearf(relative_rotz_local.rot[1][1], -1.0f)) {
+    std::cerr << "relative Grim rotz pose did not compose with the local row\n";
     ok = false;
   }
   ghogx::character::Character lower_output_character;
@@ -1275,21 +1316,25 @@ bool expect_clip_driver_helpers() {
   lower_output_bone.local.pos[0] = 4.0f;
   lower_output_bone.local.pos[1] = 5.0f;
   lower_output_bone.local.pos[2] = 6.0f;
+  lower_output_bone.local.rot[0][0] = 0.0f;
+  lower_output_bone.local.rot[0][1] = -1.0f;
+  lower_output_bone.local.rot[1][0] = 1.0f;
+  lower_output_bone.local.rot[1][1] = 0.0f;
   lower_output_clip.output_bones.push_back(lower_output_bone);
   ghogx::character::apply_clip_frame(lower_output_clip, 0,
                                      lower_output_character);
   const auto& lower_output_local = lower_output_character.bones[0].local;
-  if (!nearf(lower_output_local.pos[0], 4.0f) ||
-      !nearf(lower_output_local.pos[1], 5.0f) ||
-      !nearf(lower_output_local.pos[2], 6.0f)) {
-    std::cerr << "lower-body output bridge did not preserve authored output local position\n";
+  if (!nearf(lower_output_local.pos[0], 90.0f) ||
+      !nearf(lower_output_local.pos[1], 91.0f) ||
+      !nearf(lower_output_local.pos[2], 92.0f)) {
+    std::cerr << "lower-body publisher did not acquire the live target position\n";
     ok = false;
   }
   if (!nearf(lower_output_local.rot[0][0], 0.0f) ||
       !nearf(lower_output_local.rot[0][1], 1.0f) ||
       !nearf(lower_output_local.rot[1][0], -1.0f) ||
       !nearf(lower_output_local.rot[1][1], 0.0f)) {
-    std::cerr << "lower-body output bridge did not rebuild axis row from authored output graph\n";
+    std::cerr << "lower-body publisher did not commit the absolute half-turn axis\n";
     ok = false;
   }
 
@@ -1322,10 +1367,78 @@ bool expect_clip_driver_helpers() {
                                               weighted_lower_output_character);
   const auto& weighted_lower_output_local =
       weighted_lower_output_character.bones[0].local;
-  if (!nearf(weighted_lower_output_local.pos[0], 5.5f) ||
-      !nearf(weighted_lower_output_local.pos[1], 8.75f) ||
-      !nearf(weighted_lower_output_local.pos[2], 12.0f)) {
-    std::cerr << "weighted lower-body output bridge did not blend from authored output local\n";
+  if (!nearf(weighted_lower_output_local.pos[0], 70.0f) ||
+      !nearf(weighted_lower_output_local.pos[1], 73.25f) ||
+      !nearf(weighted_lower_output_local.pos[2], 76.5f)) {
+    std::cerr << "weighted lower-body publisher did not ScaleDown the live target\n";
+    ok = false;
+  }
+
+  ghogx::character::Character body_axis_output_character;
+  ghogx::milo_scene::TransObj body_axis_forearm;
+  body_axis_forearm.name = "bone_R-foreArm.mesh";
+  body_axis_forearm.local.pos[0] = 90.0f;
+  body_axis_forearm.local.pos[1] = 91.0f;
+  body_axis_forearm.local.pos[2] = 92.0f;
+  body_axis_output_character.bones.push_back(body_axis_forearm);
+  ghogx::character::CharClip body_axis_output_clip;
+  body_axis_output_clip.loaded = true;
+  body_axis_output_clip.name = "body_axis_output_test";
+  body_axis_output_clip.frames.resize(1);
+  ghogx::character::ClipChannel body_axis_channel;
+  body_axis_channel.type = ghogx::character::ClipChannel::kRotZ;
+  body_axis_channel.bone_name = "bone_R-foreArm.mesh";
+  body_axis_channel.angle = 0.0f;
+  body_axis_output_clip.frames[0].push_back(body_axis_channel);
+  ghogx::character::CharClip::OutputBone body_axis_output_bone;
+  body_axis_output_bone.name = "bone_R-foreArm.trans";
+  body_axis_output_bone.local.pos[0] = 4.0f;
+  body_axis_output_bone.local.pos[1] = 5.0f;
+  body_axis_output_bone.local.pos[2] = 6.0f;
+  body_axis_output_bone.local.rot[0][0] = 0.0f;
+  body_axis_output_bone.local.rot[0][1] = 1.0f;
+  body_axis_output_bone.local.rot[1][0] = -1.0f;
+  body_axis_output_bone.local.rot[1][1] = 0.0f;
+  body_axis_output_clip.output_bones.push_back(body_axis_output_bone);
+  ghogx::character::apply_clip_frame(body_axis_output_clip, 0,
+                                     body_axis_output_character);
+  const auto& body_axis_output_local =
+      body_axis_output_character.bones[0].local;
+  if (!nearf(body_axis_output_local.pos[0], 90.0f) ||
+      !nearf(body_axis_output_local.pos[1], 91.0f) ||
+      !nearf(body_axis_output_local.pos[2], 92.0f) ||
+      !nearf(body_axis_output_local.rot[0][0], 1.0f) ||
+      !nearf(body_axis_output_local.rot[0][1], 0.0f) ||
+      !nearf(body_axis_output_local.rot[1][0], 0.0f) ||
+      !nearf(body_axis_output_local.rot[1][1], 1.0f)) {
+    std::cerr << "body-axis publisher did not acquire and commit the live target\n";
+    ok = false;
+  }
+
+  ghogx::character::Character shared_body_axis_character;
+  ghogx::milo_scene::TransObj shared_body_axis_forearm = body_axis_forearm;
+  shared_body_axis_character.bones.push_back(shared_body_axis_forearm);
+  ghogx::character::ClipChannelLayerStack shared_body_axis_stack;
+  if (!ghogx::character::append_clip_frame_layer(
+          shared_body_axis_stack, body_axis_output_clip, 0, 1.0f, false)) {
+    std::cerr << "shared body-axis layer stack did not append source clip\n";
+    ok = false;
+  }
+  const auto shared_body_axis_result =
+      ghogx::character::apply_character_pose_stack_frame(
+          shared_body_axis_character, &shared_body_axis_stack);
+  const auto& shared_body_axis_local =
+      shared_body_axis_character.bones[0].local;
+  if (!shared_body_axis_result.applied_clip_layers ||
+      shared_body_axis_result.applied_layer_count != 1 ||
+      !shared_body_axis_result.source_pose_publisher_active ||
+      shared_body_axis_result.source_pose_publisher_fenced ||
+      !nearf(shared_body_axis_local.pos[0], 90.0f) ||
+      !nearf(shared_body_axis_local.pos[1], 91.0f) ||
+      !nearf(shared_body_axis_local.pos[2], 92.0f) ||
+      !nearf(shared_body_axis_local.rot[0][0], 1.0f) ||
+      !nearf(shared_body_axis_local.rot[0][1], 0.0f)) {
+    std::cerr << "shared body-axis layer stack did not use the typed publisher\n";
     ok = false;
   }
 
@@ -1362,11 +1475,129 @@ bool expect_clip_driver_helpers() {
       shared_lower_output_character.bones[0].local;
   if (!shared_lower_output_result.applied_clip_layers ||
       shared_lower_output_result.applied_layer_count != 1 ||
-      !shared_lower_output_result.source_pose_publisher_fenced ||
-      !nearf(shared_lower_output_local.pos[0], 4.0f) ||
-      !nearf(shared_lower_output_local.pos[1], 5.0f) ||
-      !nearf(shared_lower_output_local.pos[2], 6.0f)) {
-    std::cerr << "shared lower-body layer stack did not use authored output local\n";
+      !shared_lower_output_result.source_pose_publisher_active ||
+      shared_lower_output_result.source_pose_publisher_fenced ||
+      !nearf(shared_lower_output_local.pos[0], 90.0f) ||
+      !nearf(shared_lower_output_local.pos[1], 91.0f) ||
+      !nearf(shared_lower_output_local.pos[2], 92.0f)) {
+    std::cerr << "shared lower-body layer stack did not retain the live target local\n";
+    ok = false;
+  }
+
+  // GH2 AcquirePose resolves base.trans before base.mesh and starts from the
+  // resolved target's live local, never the serialized OutputBone local.
+  ghogx::character::Character target_priority_character;
+  ghogx::milo_scene::TransObj target_priority_trans;
+  target_priority_trans.name = "bone_priority.trans";
+  target_priority_trans.local.pos[0] = 100.0f;
+  ghogx::milo_scene::TransObj target_priority_mesh;
+  target_priority_mesh.name = "bone_priority.mesh";
+  target_priority_mesh.local.pos[0] = 200.0f;
+  target_priority_character.bones.push_back(target_priority_trans);
+  target_priority_character.bones.push_back(target_priority_mesh);
+  ghogx::character::CharClip target_priority_clip;
+  target_priority_clip.loaded = true;
+  target_priority_clip.frames.resize(1);
+  ghogx::character::ClipChannel target_priority_pos;
+  target_priority_pos.type = ghogx::character::ClipChannel::kPos;
+  target_priority_pos.bone_name = "bone_priority.mesh";
+  target_priority_pos.pos[0] = 20.0f;
+  target_priority_clip.frames[0].push_back(target_priority_pos);
+  ghogx::character::CharClip::OutputBone target_priority_output;
+  target_priority_output.name = "bone_priority.trans";
+  target_priority_output.local.pos[0] = 999.0f;
+  target_priority_clip.output_bones.push_back(target_priority_output);
+  ghogx::character::apply_clip_frame_weighted(
+      target_priority_clip, 0, 0.25f, target_priority_character);
+  if (!nearf(target_priority_character.bones[0].local.pos[0], 80.0f) ||
+      !nearf(target_priority_character.bones[1].local.pos[0], 200.0f)) {
+    std::cerr << "typed publisher did not resolve .trans before .mesh\n";
+    ok = false;
+  }
+
+  ghogx::character::Character missing_target_character;
+  ghogx::milo_scene::TransObj missing_target_guard;
+  missing_target_guard.name = "bone_guard.mesh";
+  missing_target_guard.local.pos[0] = 321.0f;
+  missing_target_character.bones.push_back(missing_target_guard);
+  ghogx::character::CharClip missing_target_clip = target_priority_clip;
+  missing_target_clip.output_bones[0].name = "bone_missing.trans";
+  missing_target_clip.frames[0][0].bone_name = "bone_missing.mesh";
+  ghogx::character::apply_clip_frame(missing_target_clip, 0,
+                                     missing_target_character);
+  if (!nearf(missing_target_character.bones[0].local.pos[0], 321.0f)) {
+    std::cerr << "missing typed target did not remain on the dummy row\n";
+    ok = false;
+  }
+
+  ghogx::character::Character typed_rotation_character;
+  ghogx::milo_scene::TransObj typed_rotation_bone;
+  typed_rotation_bone.name = "bone_typed.mesh";
+  typed_rotation_bone.local.rot[0][0] = 2.0f;
+  typed_rotation_bone.local.rot[1][1] = 3.0f;
+  typed_rotation_bone.local.rot[2][2] = 4.0f;
+  typed_rotation_character.bones.push_back(typed_rotation_bone);
+  ghogx::character::CharClip typed_rotation_clip;
+  typed_rotation_clip.loaded = true;
+  typed_rotation_clip.frames.resize(1);
+  ghogx::character::ClipChannel typed_quat;
+  typed_quat.type = ghogx::character::ClipChannel::kQuat;
+  typed_quat.bone_name = "bone_typed.mesh";
+  typed_quat.quat[2] = -kSqrtHalf;
+  typed_quat.quat[3] = -kSqrtHalf;
+  ghogx::character::ClipChannel typed_scale;
+  typed_scale.type = ghogx::character::ClipChannel::kScale;
+  typed_scale.bone_name = "bone_typed.mesh";
+  typed_scale.scale[0] = 5.0f;
+  typed_scale.scale[1] = 6.0f;
+  typed_scale.scale[2] = 7.0f;
+  typed_rotation_clip.frames[0] = {typed_quat, typed_scale};
+  ghogx::character::CharClip::OutputBone typed_rotation_output;
+  typed_rotation_output.name = "bone_typed.trans";
+  typed_rotation_clip.output_bones.push_back(typed_rotation_output);
+  ghogx::character::apply_clip_frame(typed_rotation_clip, 0,
+                                     typed_rotation_character);
+  const auto& typed_rotation_local =
+      typed_rotation_character.bones[0].local;
+  auto row_len = [](const ghogx::milo_scene::Xfm& xfm, int row) {
+    return std::sqrt(xfm.rot[row][0] * xfm.rot[row][0] +
+                     xfm.rot[row][1] * xfm.rot[row][1] +
+                     xfm.rot[row][2] * xfm.rot[row][2]);
+  };
+  if (!nearf(row_len(typed_rotation_local, 0), 5.0f) ||
+      !nearf(row_len(typed_rotation_local, 1), 6.0f) ||
+      !nearf(row_len(typed_rotation_local, 2), 7.0f) ||
+      !nearf(typed_rotation_local.rot[0][0], 0.0f) ||
+      !nearf(typed_rotation_local.rot[0][1], 5.0f) ||
+      !nearf(typed_rotation_local.rot[1][0], -6.0f) ||
+      !nearf(typed_rotation_local.rot[1][1], 0.0f)) {
+    std::cerr << "typed publisher did not sign-correct quat then commit scale last\n";
+    ok = false;
+  }
+
+  ghogx::character::Character typed_delta_character;
+  ghogx::milo_scene::TransObj typed_delta_bone;
+  typed_delta_bone.name = "bone_delta.mesh";
+  typed_delta_character.bones.push_back(typed_delta_bone);
+  ghogx::character::CharClip typed_delta_clip;
+  typed_delta_clip.loaded = true;
+  typed_delta_clip.frames.resize(1);
+  ghogx::character::ClipChannel typed_dx;
+  typed_dx.type = ghogx::character::ClipChannel::kDeltaX;
+  typed_dx.bone_name = "bone_delta.mesh";
+  typed_dx.angle = 0.5f;
+  typed_delta_clip.frames[0].push_back(typed_dx);
+  ghogx::character::CharClip::OutputBone typed_delta_output;
+  typed_delta_output.name = "bone_delta.trans";
+  typed_delta_clip.output_bones.push_back(typed_delta_output);
+  ghogx::character::apply_clip_frame(typed_delta_clip, 0,
+                                     typed_delta_character);
+  const auto& typed_delta_local = typed_delta_character.bones[0].local;
+  if (!nearf(typed_delta_local.rot[1][1], std::cos(0.5f)) ||
+      !nearf(typed_delta_local.rot[1][2], std::sin(0.5f)) ||
+      !nearf(typed_delta_local.rot[2][1], -std::sin(0.5f)) ||
+      !nearf(typed_delta_local.rot[2][2], std::cos(0.5f))) {
+    std::cerr << "typed publisher did not post-compose radian delta X\n";
     ok = false;
   }
 
@@ -1568,6 +1799,7 @@ bool expect_clip_driver_helpers() {
           empty_stack_frame_character, &empty_layer_stack);
   if (empty_stack_frame_result.applied_clip_layers ||
       empty_stack_frame_result.applied_layer_count != 0 ||
+      empty_stack_frame_result.source_pose_publisher_active ||
       empty_stack_frame_result.source_pose_publisher_fenced ||
       !empty_stack_frame_character.runtime_world_overrides.empty()) {
     std::cerr << "shared empty pose-stack frame helper mismatch\n";
@@ -1585,6 +1817,7 @@ bool expect_clip_driver_helpers() {
           null_stack_frame_character, nullptr);
   if (null_stack_frame_result.applied_clip_layers ||
       null_stack_frame_result.applied_layer_count != 0 ||
+      null_stack_frame_result.source_pose_publisher_active ||
       null_stack_frame_result.source_pose_publisher_fenced ||
       !null_stack_frame_character.runtime_world_overrides.empty()) {
     std::cerr << "shared null pose-stack frame helper mismatch\n";
@@ -1602,7 +1835,8 @@ bool expect_clip_driver_helpers() {
           stack_frame_character, &performer_frame_stack);
   if (!stack_frame_result.applied_clip_layers ||
       stack_frame_result.applied_layer_count != performer_frame_stack.layers.size() ||
-      !stack_frame_result.source_pose_publisher_fenced ||
+      !stack_frame_result.source_pose_publisher_active ||
+      stack_frame_result.source_pose_publisher_fenced ||
       !stack_frame_character.runtime_world_overrides.empty()) {
     std::cerr << "shared populated pose-stack frame helper mismatch\n";
     ok = false;
@@ -1641,7 +1875,8 @@ bool expect_clip_driver_helpers() {
       controller_character.runtime_weight_props.find("old.weight");
   if (!controller_result.applied_clip_layers ||
       controller_result.applied_layer_count != performer_frame_stack.layers.size() ||
-      !controller_result.source_pose_publisher_fenced ||
+      !controller_result.source_pose_publisher_active ||
+      controller_result.source_pose_publisher_fenced ||
       !controller_result.fed_driver_flags ||
       controller_result.fallback_ik_weights != 2 ||
       controller_result.applied_midi_fret_target ||
@@ -1674,6 +1909,7 @@ bool expect_clip_driver_helpers() {
           disabled_controller_character, disabled_sources);
   if (disabled_result.applied_clip_layers ||
       disabled_result.applied_layer_count != 0 ||
+      disabled_result.source_pose_publisher_active ||
       disabled_result.source_pose_publisher_fenced ||
       disabled_result.fed_driver_flags ||
       disabled_result.fallback_ik_weights != 0 ||

@@ -374,6 +374,7 @@ std::optional<FaceFxGraph> parse_graph(const std::vector<uint8_t>& bytes) {
 
   FaceFxGraph graph;
   graph.nodes.reserve(node_count);
+  std::size_t pose_ordinal = 0;
   for (uint32_t i = 0; i < node_count && r.pos < r.n; ++i) {
     (void)r.u32();
     std::string class_name = r.fx_string();
@@ -396,6 +397,7 @@ std::optional<FaceFxGraph> parse_graph(const std::vector<uint8_t>& bytes) {
     FaceFxGraphNode node =
         read_graph_base(graph_reader, node_name, class_name);
     if (class_name == "FxBonePoseNode") {
+      node.pose_ordinal = pose_ordinal++;
       if (auto pose =
               read_pose_bone_table(bytes, body_start, record_end, node_name)) {
         node.pose_index = graph.poses.size();
@@ -654,6 +656,268 @@ std::unordered_map<std::string, float> sample_facefx_animation(
     registers[curve.name] = value;
   }
   return registers;
+}
+
+std::unordered_map<std::string, float> sample_facefx_servo_targets(
+    const std::vector<FaceFxLipSyncServo>& servos,
+    const Character& character) {
+  auto resolve_exact = [&](const std::string& object)
+      -> const milo_scene::Xfm* {
+    for (const milo_scene::TransObj& bone : character.bones) {
+      if (bone.name == object) return &bone.local;
+    }
+    for (const SkinnedMesh& mesh : character.meshes) {
+      if (mesh.name == object) return &mesh.local;
+    }
+    return nullptr;
+  };
+
+  std::unordered_map<std::string, float> registers;
+  for (const FaceFxLipSyncServo& servo : servos) {
+    for (const FaceFxServoTarget& target : servo.targets) {
+      const milo_scene::Xfm* transform = resolve_exact(target.object);
+      if (transform == nullptr || target.property.empty()) continue;
+
+      // XEX sub_821A71D0 dispatches the serialized op directly to these three
+      // local-basis Euler helpers. sub_8239E050 is atan2(y, x), so the returned
+      // register values are radians. The register name does not select an axis.
+      float value = 0.0f;
+      switch (target.prop_type) {
+        case 0:  // sub_82269988 / RotX
+          value = std::atan2(transform->rot[1][2], transform->rot[1][1]);
+          break;
+        case 1:  // sub_822699B8 / RotY
+          value = std::atan2(-transform->rot[0][2], transform->rot[2][2]);
+          break;
+        case 2:  // sub_822699E8 / RotZ
+          value = -std::atan2(transform->rot[1][0], transform->rot[1][1]);
+          break;
+        default:
+          continue;
+      }
+      // The source call uses live-overlay mode 2 (replace).
+      registers[target.property] = value;
+    }
+  }
+  return registers;
+}
+
+namespace {
+
+std::string typed_channel_key(const ClipChannel& channel) {
+  return std::to_string(static_cast<int>(channel.type)) + "\n" +
+         channel.bone_name;
+}
+
+ClipChannel zero_channel_like(const ClipChannel& source) {
+  ClipChannel result = source;
+  result.source_weight = 1.0f;
+  switch (result.type) {
+    case ClipChannel::kPos:
+      for (float& value : result.pos) value = 0.0f;
+      break;
+    case ClipChannel::kScale:
+      // sub_82161F20 forwards ScaleDown(0), so the typed scale buffer starts at
+      // zero just like position rather than at the transform identity scale.
+      for (float& value : result.scale) value = 0.0f;
+      break;
+    case ClipChannel::kQuat:
+      for (float& value : result.quat) value = 0.0f;
+      break;
+    case ClipChannel::kRotX:
+    case ClipChannel::kRotY:
+    case ClipChannel::kRotZ:
+    case ClipChannel::kDeltaX:
+    case ClipChannel::kDeltaY:
+    case ClipChannel::kDeltaZ:
+      result.angle = 0.0f;
+      break;
+  }
+  return result;
+}
+
+ClipChannel& ensure_materialized_channel(
+    const ClipChannel& source, std::vector<ClipChannel>& channels,
+    std::unordered_map<std::string, std::size_t>& by_key) {
+  const std::string key = typed_channel_key(source);
+  const auto found = by_key.find(key);
+  if (found != by_key.end()) return channels[found->second];
+  by_key.emplace(key, channels.size());
+  channels.push_back(zero_channel_like(source));
+  return channels.back();
+}
+
+void scale_add_facefx_sample(
+    const std::vector<ClipChannel>& sample, float weight,
+    std::vector<ClipChannel>& channels,
+    std::unordered_map<std::string, std::size_t>& by_key) {
+  for (const ClipChannel& source : sample) {
+    ClipChannel& dest = ensure_materialized_channel(source, channels, by_key);
+    const float effective_weight = weight * source.source_weight;
+    switch (source.type) {
+      case ClipChannel::kPos:
+        for (int axis = 0; axis < 3; ++axis) {
+          dest.pos[axis] += source.pos[axis] * effective_weight;
+        }
+        break;
+      case ClipChannel::kScale:
+        for (int axis = 0; axis < 3; ++axis) {
+          dest.scale[axis] += source.scale[axis] * effective_weight;
+        }
+        break;
+      case ClipChannel::kQuat: {
+        float dot = 0.0f;
+        for (int axis = 0; axis < 4; ++axis) {
+          dot += dest.quat[axis] * source.quat[axis];
+        }
+        const float sign = dot < 0.0f ? -1.0f : 1.0f;
+        for (int axis = 0; axis < 4; ++axis) {
+          dest.quat[axis] += source.quat[axis] * effective_weight * sign;
+        }
+        break;
+      }
+      case ClipChannel::kRotX:
+      case ClipChannel::kRotY:
+      case ClipChannel::kRotZ:
+      case ClipChannel::kDeltaX:
+      case ClipChannel::kDeltaY:
+      case ClipChannel::kDeltaZ:
+        dest.angle += source.angle * effective_weight;
+        break;
+    }
+  }
+}
+
+void multiply_quat_xyzw(const float source[4], const float dest[4],
+                        float out[4]) {
+  // sub_8215E6A0's unweighted final/source pass composes source * destination.
+  const float sx = source[0];
+  const float sy = source[1];
+  const float sz = source[2];
+  const float sw = source[3];
+  const float dx = dest[0];
+  const float dy = dest[1];
+  const float dz = dest[2];
+  const float dw = dest[3];
+  out[0] = sw * dx + sx * dw + sy * dz - sz * dy;
+  out[1] = sw * dy - sx * dz + sy * dw + sz * dx;
+  out[2] = sw * dz + sx * dy - sy * dx + sz * dw;
+  out[3] = sw * dw - sx * dx - sy * dy - sz * dz;
+}
+
+void add_neutral_source_pass(
+    const std::vector<ClipChannel>& neutral,
+    std::vector<ClipChannel>& channels,
+    std::unordered_map<std::string, std::size_t>& by_key) {
+  for (const ClipChannel& source : neutral) {
+    ClipChannel& dest = ensure_materialized_channel(source, channels, by_key);
+    switch (source.type) {
+      case ClipChannel::kPos:
+        for (int axis = 0; axis < 3; ++axis) dest.pos[axis] += source.pos[axis];
+        break;
+      case ClipChannel::kScale:
+        for (int axis = 0; axis < 3; ++axis) {
+          dest.scale[axis] += source.scale[axis];
+        }
+        break;
+      case ClipChannel::kQuat: {
+        float composed[4] = {};
+        multiply_quat_xyzw(source.quat, dest.quat, composed);
+        for (int axis = 0; axis < 4; ++axis) dest.quat[axis] = composed[axis];
+        break;
+      }
+      case ClipChannel::kRotX:
+      case ClipChannel::kRotY:
+      case ClipChannel::kRotZ:
+      case ClipChannel::kDeltaX:
+      case ClipChannel::kDeltaY:
+      case ClipChannel::kDeltaZ:
+        dest.angle += source.angle;
+        break;
+    }
+  }
+}
+
+void append_output_bones_exact(
+    const std::vector<CharClip::OutputBone>& source,
+    std::vector<CharClip::OutputBone>& output,
+    std::unordered_set<std::string>& names) {
+  for (const CharClip::OutputBone& bone : source) {
+    if (!names.insert(bone.name).second) continue;
+    output.push_back(bone);
+  }
+}
+
+}  // namespace
+
+FaceFxMaterializedFrame materialize_facefx_animation_frame(
+    const FaceFxGraph& graph,
+    const std::unordered_map<std::string, float>& registers,
+    const CharClip& neutral_clip,
+    const CharClip& visemes_clip) {
+  FaceFxMaterializedFrame result;
+  if (neutral_clip.frames.empty() || visemes_clip.frames.empty()) return result;
+
+  const std::vector<ClipChannel>& neutral = neutral_clip.frames.front();
+  std::unordered_map<std::string, std::size_t> by_key;
+  by_key.reserve(neutral.size() + visemes_clip.frames.front().size());
+  result.channels.reserve(neutral.size() + visemes_clip.frames.front().size());
+
+  // The runtime target table already contains every typed record when
+  // ScaleDown(0) clears it, including a frame with no active graph nodes.
+  for (const ClipChannel& channel : neutral) {
+    (void)ensure_materialized_channel(channel, result.channels, by_key);
+  }
+  for (const ClipChannel& channel : visemes_clip.frames.front()) {
+    (void)ensure_materialized_channel(channel, result.channels, by_key);
+  }
+
+  float active_abs_sum = 0.0f;
+  for (const FaceFxGraphNode& node : graph.nodes) {
+    if (!node.pose_ordinal) continue;
+    const float weight = evaluate_facefx_node(graph, node.name, registers);
+    if (!std::isfinite(weight) || weight == 0.0f) continue;
+    const std::size_t frame_index =
+        std::min(*node.pose_ordinal, visemes_clip.frames.size() - 1);
+    scale_add_facefx_sample(visemes_clip.frames[frame_index], weight,
+                            result.channels, by_key);
+    active_abs_sum += std::fabs(weight);
+    ++result.active_pose_count;
+  }
+
+  result.neutral_residual = 1.0f - active_abs_sum;
+  for (ClipChannel& channel : result.channels) {
+    if (channel.type != ClipChannel::kQuat) continue;
+    if (channel.quat[3] < 0.0f) {
+      channel.quat[3] -= result.neutral_residual;
+    } else {
+      channel.quat[3] += result.neutral_residual;
+    }
+  }
+  add_neutral_source_pass(neutral, result.channels, by_key);
+
+  std::unordered_set<std::string> output_names;
+  output_names.reserve(neutral_clip.output_bones.size() +
+                       visemes_clip.output_bones.size());
+  append_output_bones_exact(neutral_clip.output_bones, result.output_bones,
+                            output_names);
+  append_output_bones_exact(visemes_clip.output_bones, result.output_bones,
+                            output_names);
+  result.valid = !result.channels.empty() && !result.output_bones.empty();
+  return result;
+}
+
+bool apply_facefx_typed_animation_frame(
+    const FaceFxGraph& graph,
+    const std::unordered_map<std::string, float>& registers,
+    const CharClip& neutral_clip,
+    const CharClip& visemes_clip,
+    Character& character) {
+  FaceFxMaterializedFrame frame = materialize_facefx_animation_frame(
+      graph, registers, neutral_clip, visemes_clip);
+  if (!frame.valid) return false;
+  return apply_materialized_typed_pose(frame.channels, frame.output_bones,
+                                       character);
 }
 
 bool apply_facefx_animation_frame(

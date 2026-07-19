@@ -245,6 +245,13 @@ constexpr float kSmasherClipZ = kBoardZ + 0.02f;
 constexpr float kSmasherBodyTopZ = kBoardZ + 0.20f;
 constexpr float kSmasherFixedRingTopZ = kBoardZ + 0.22f;
 constexpr DWORD kNoteCardAlphaRef = 8;
+// Preserve the authored standard-note silhouette while making its black edge
+// readable at PC highway speed. A faint wider copy feathers the boundary, a
+// solid copy establishes the outline, and the untouched source cap sits above
+// both. All three copies share one draw call.
+constexpr float kPcStandardRingSolidScale = 1.23f;
+constexpr float kPcStandardRingFeatherScale = 1.30f;
+constexpr float kPcStandardRingFeatherAlpha = 0.35f;
 constexpr float kHighwayMaxAuthoredLightColor = 64.0f;
 constexpr float kHighwayApproxFillScale = 0.45f;
 constexpr const char* kStarBlackTopTextureAlias = "gem.tex#star_top_black_raw";
@@ -2856,6 +2863,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
   star_base_rotation_keys_.clear();
   star_base_rotation_duration_frames_ = 0.0f;
   gem_top_mesh_ = RuntimeMesh{};
+  pc_standard_top_mesh_ = RuntimeMesh{};
   gem_glow_mesh_ = RuntimeMesh{};
   star_phrase_tail_mesh_ = RuntimeMesh{};
   star_tail_mesh_ = RuntimeMesh{};
@@ -3425,6 +3433,53 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
       }
     }
     gem_top_mesh_ = convert_mesh("top.mesh");
+    auto make_pc_standard_top_mesh = [](const RuntimeMesh& source) {
+      RuntimeMesh out = source;
+      if (!source.ok || source.verts.empty() || source.indices.empty() ||
+          source.verts.size() * 3u > UINT16_MAX) {
+        return RuntimeMesh{};
+      }
+      out.verts.clear();
+      out.verts.reserve(source.verts.size() * 3u);
+      out.indices.clear();
+      out.indices.reserve(source.indices.size() * 3u);
+      auto append_black_copy = [&](float scale, float alpha) {
+        const uint16_t vertex_base =
+            static_cast<uint16_t>(out.verts.size());
+        for (MeshVertex vertex : source.verts) {
+          vertex.x *= scale;
+          vertex.y *= scale;
+          vertex.r = 0.0f;
+          vertex.g = 0.0f;
+          vertex.b = 0.0f;
+          vertex.a *= alpha;
+          out.verts.push_back(vertex);
+        }
+        for (uint16_t index : source.indices) {
+          out.indices.push_back(static_cast<uint16_t>(index + vertex_base));
+        }
+      };
+      append_black_copy(kPcStandardRingFeatherScale,
+                        kPcStandardRingFeatherAlpha);
+      append_black_copy(kPcStandardRingSolidScale, 1.0f);
+      const uint16_t source_vertex_base =
+          static_cast<uint16_t>(out.verts.size());
+      out.verts.insert(out.verts.end(), source.verts.begin(),
+                       source.verts.end());
+      for (uint16_t index : source.indices) {
+        out.indices.push_back(
+            static_cast<uint16_t>(index + source_vertex_base));
+      }
+      out.min_x = source.min_x * kPcStandardRingFeatherScale;
+      out.max_x = source.max_x * kPcStandardRingFeatherScale;
+      out.min_y = source.min_y * kPcStandardRingFeatherScale;
+      out.max_y = source.max_y * kPcStandardRingFeatherScale;
+      out.center_x = (out.min_x + out.max_x) * 0.5f;
+      out.center_y = (out.min_y + out.max_y) * 0.5f;
+      out.ok = true;
+      return out;
+    };
+    pc_standard_top_mesh_ = make_pc_standard_top_mesh(gem_top_mesh_);
     gem_glow_mesh_ = convert_mesh("glow.mesh");
     held_tight_tail_mesh_ = convert_mesh("tail02.mesh", "tail_glow_tight.mat");
     burn_castlight_mesh_ = convert_mesh("burn_castlight.mesh");
@@ -6486,6 +6541,7 @@ void HighwayRenderer::draw_impl(double song_time,
         auto draw_note_layer_with_state = [&](const RuntimeMesh& mesh,
                                               bool write_depth,
                                               bool depth_test,
+                                              bool allow_note_card_alpha_test,
                                               auto&& draw_mesh) {
           if (!mesh.ok) return;
           const HighwayBlendState blend_state =
@@ -6514,7 +6570,9 @@ void HighwayRenderer::draw_impl(double song_time,
               mesh.material_color[3] * (static_cast<float>(a) / 255.0f) <
                   0.999f;
           const bool alpha_test_note_card =
-              is_note_black_card_tex_name(mesh.texture_name, slot_color_names_);
+              allow_note_card_alpha_test &&
+              is_note_black_card_tex_name(mesh.texture_name,
+                                          slot_color_names_);
           dev_->SetRenderState(D3DRS_ZWRITEENABLE,
                                (write_depth && !disable_zwrite) ? TRUE : FALSE);
           dev_->SetRenderState(D3DRS_ZFUNC,
@@ -6544,7 +6602,7 @@ void HighwayRenderer::draw_impl(double song_time,
                                    float z_min = 0.0f,
                                    bool use_vertex_color = true) {
           draw_note_layer_with_state(
-              mesh, write_depth, depth_test, [&]() {
+              mesh, write_depth, depth_test, true, [&]() {
                 draw_authored_root_mesh(mesh, x, g.y, tint, 1.0f, true,
                                         0.0f, clip_to_z_min, z_min,
                                         use_vertex_color);
@@ -6554,13 +6612,24 @@ void HighwayRenderer::draw_impl(double song_time,
             [&](const RuntimeMesh& mesh, bool write_depth, bool depth_test,
                 const MeshTransformSample& transform) {
               draw_note_layer_with_state(
-                  mesh, write_depth, depth_test, [&]() {
+                  mesh, write_depth, depth_test, true, [&]() {
                     draw_authored_runtime_mesh_transformed(
                         mesh, x, g.y, tint, root_transform(transform));
                   });
             };
         auto draw_standard_top_over_body = [&]() {
           if (!moving_note_standard_has_top_ || !gem_top_mesh_.ok) return;
+          if (pc_standard_top_mesh_.ok) {
+            // The expanded black copies and untouched source cap are packed
+            // into one source-textured draw. The HOPO path never enters here.
+            draw_note_layer_with_state(
+                pc_standard_top_mesh_, false, false, false, [&]() {
+                  draw_authored_root_mesh(pc_standard_top_mesh_, x, g.y, tint,
+                                          1.0f, true, 0.0f, false, 0.0f,
+                                          true);
+                });
+            return;
+          }
           draw_note_layer(gem_top_mesh_, false, false);
         };
         auto draw_hopo_top_over_body = [&]() {
@@ -6573,6 +6642,13 @@ void HighwayRenderer::draw_impl(double song_time,
             return;
           }
           draw_standard_top_over_body();
+        };
+        auto draw_note_type_top_over_body = [&]() {
+          if (g.hopo) {
+            draw_hopo_top_over_body();
+          } else {
+            draw_standard_top_over_body();
+          }
         };
         auto log_note_draw = [&](const char* kind) {
           int budget_slot = 0;
@@ -6599,29 +6675,35 @@ void HighwayRenderer::draw_impl(double song_time,
           const bool star_effect_layers_enabled =
               !env_enabled("GHOGX_DISABLE_HIGHWAY_STAR_EFFECT_LAYERS");
           const bool star_base_draw =
-              g.star && moving_note_star_has_base_ && star_effect_layers_enabled &&
+              !bonus_highway_active && g.star && moving_note_star_has_base_ &&
+              star_effect_layers_enabled &&
               !env_enabled("GHOGX_DISABLE_HIGHWAY_STAR_BASE") &&
               star_base_mesh_.ok;
           const bool star_lane_draw =
-              g.star && moving_note_star_has_lane_ &&
+              !bonus_highway_active && g.star && moving_note_star_has_lane_ &&
               !env_enabled("GHOGX_DISABLE_HIGHWAY_STAR_LANE") &&
               star_mesh_[g.lane].ok;
           const bool star_overlay_draw =
-              g.star && moving_note_star_has_overlay_ && star_effect_layers_enabled &&
+              !bonus_highway_active && g.star && moving_note_star_has_overlay_ &&
+              star_effect_layers_enabled &&
               !env_enabled("GHOGX_DISABLE_HIGHWAY_STAR_OVERLAY") &&
               star_overlay_mesh_.ok;
           const bool star_top_draw =
-              g.star && moving_note_star_has_top_ && star_top && star_top->ok &&
+              !bonus_highway_active && g.star && moving_note_star_has_top_ &&
+              star_top && star_top->ok &&
               !env_enabled("GHOGX_DISABLE_HIGHWAY_STAR_TOP");
           const bool star_top_is_black =
-              star_top == &star_black_top_mesh_ && star_black_top_mesh_.ok;
+              star_top_draw && star_top == &star_black_top_mesh_ &&
+              star_black_top_mesh_.ok;
+          const bool authored_note_type_top =
+              bonus_highway_active || !g.star;
           const bool standard_top_draw =
-              !g.star && !g.hopo && moving_note_standard_has_top_ &&
+              authored_note_type_top && !g.hopo && moving_note_standard_has_top_ &&
               gem_top_mesh_.ok;
           const bool hopo_top_draw =
-              !g.star && g.hopo && hopo_mesh_[g.lane].ok;
+              authored_note_type_top && g.hopo && hopo_mesh_[g.lane].ok;
           const bool hopo_fallback_top_draw =
-              !g.star && g.hopo && !hopo_mesh_[g.lane].ok &&
+              authored_note_type_top && g.hopo && !hopo_mesh_[g.lane].ok &&
               moving_note_standard_has_top_ && gem_top_mesh_.ok;
           std::fprintf(stderr,
                        "[highway-note-draw] kind=%s tick=%u lane=%d y=%.3f "
@@ -6651,7 +6733,7 @@ void HighwayRenderer::draw_impl(double song_time,
                        hopo_fallback_top_draw ? 1 : 0,
                        star_top_draw ? 1 : 0,
                        star_top_is_black ? 1 : 0);
-          if (g.star) {
+          if (g.star && !bonus_highway_active) {
             std::fprintf(stderr,
                          "[highway-star-layer] tick=%u lane=%d base=%d "
                          "lane_mesh=%d overlay=%d top=%d black_top=%d "
@@ -6691,10 +6773,15 @@ void HighwayRenderer::draw_impl(double song_time,
         };
         if (bonus_highway_active && bonus_gem_mesh_.ok) {
           log_note_draw("bonus");
+          // Source contract: gem_template.view owns the ordinary body plus
+          // top.mesh, while gem_bonus.mesh is the same authored body geometry
+          // with the active-star-power material. Replace only the body so the
+          // chart's normal-versus-HOPO top remains visible.
           draw_note_layer(bonus_gem_mesh_, true);
           if (bonus_gem_overlay_mesh_.ok) {
             draw_note_layer(bonus_gem_overlay_mesh_, false, false);
           }
+          draw_note_type_top_over_body();
           if (bonus_spark1_mesh_.ok || bonus_spark2_mesh_.ok) {
             if (bonus_spark1_mesh_.ok) {
               draw_note_layer(bonus_spark1_mesh_, false, false);

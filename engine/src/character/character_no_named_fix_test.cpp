@@ -129,6 +129,7 @@ int main() {
       "ankle_toe_palette",
       "hidden_numbered_hair_variant",
       "hair_numbered_variant",
+      "blended_hair",
   };
 
   bool ok = true;

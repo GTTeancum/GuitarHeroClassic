@@ -200,18 +200,17 @@ Raw mesh-world authored pieces:
 - Some weighted meshes are not skinned through the normal palette equation at
   all; their vertices are consumed as raw mesh-local vertices and drawn through
   the mesh object's world row.
-- The former `metal_singer` world branch is now split into two format shapes:
-  far-negative mesh-parented arm pieces and compact mesh-parented head details.
-  The arm shape requires arm material naming, a non-arm mesh parent, upper-limb
-  palette bones, and authored bounds with `min_z < -10` and `max_z < -4`. The
-  compact head-detail shape requires a mesh parent, three palette bones
-  including `bone_neck.mesh` and `bone_head.mesh`, and compact authored bounds
-  near the local origin.
-- Validation: `engine/out/codex_goal_20260616_raw_mesh_world_predicates/`
-  keeps active `msinger` arm/head-detail pieces in `mode=raw-bypass` /
-  `world=mesh-world`, while Rockabill arm controls remain
-  `mode=mesh-local-arm-space` and Glam1 head/eye controls remain on their
-  existing generic routes.
+- A former `metal_singer` branch treated far-negative mesh-parented arm pieces
+  as raw mesh-world geometry. That branch was retired on 2026-07-18: those
+  records carry real upper-limb palettes and decoded source offsets, so the
+  source `RndMesh::SetBone` contract requires them to use
+  `vertex * storedOffset * currentBoneWorld` like other weighted geometry.
+  Keeping them rigid on the mesh row made the surfaces detach from the animated
+  clavicle/upper-arm/forearm rows. `character_skin_order_test` now covers the
+  exact far-negative weighted record shape.
+- The remaining raw mesh-world predicate covers compact mesh-parented head
+  details only: three palette bones including `bone_neck.mesh` and
+  `bone_head.mesh`, with compact authored bounds near the local origin.
 
 ## Hair
 
@@ -1894,9 +1893,9 @@ Glam1 eyes / look-at:
   exercise the look-at update in the captured window (`0x0017d690` zero-hit
   while the Trans writer heartbeat fired), and patching the older
   `0x0017d658` address killed the heartbeat, so do not use that rerun as
-  negative eye evidence. A future `CharEyes` port must come from accepted rows
-  that show the full resident/pivot/source-eye chain and from ihatecompvir
-  `CharEyes`/`CharLookAt` source, not from the removed register bridge.
+  negative eye evidence. The direct GH2 XEX/ihatecompvir port recorded below
+  now supplies the accepted resident/pivot/source-eye chain; it does not revive
+  this removed register bridge.
   Historical validation:
   `engine/out/codex_goal_20260616_eye_side_resolver/goth2_eye_side_v2.stderr.log`
   showed alternate eye spellings resolving without a character-specific branch
@@ -1908,9 +1907,9 @@ Glam1 eyes / look-at:
   current behavior. ihatecompvir source proves GH2-era `CharEyes` rows are a
   look-at reference list plus trailing old transformable, and `CharEyes`
   delegates poll children to `CharLookAt`; it does not prove a native bridge
-  that copies eye mesh world rows into ad-hoc controller overrides. Keep this
-  as removed trial evidence until a direct source-backed `CharEyes`/`CharLookAt`
-  poll port exists.
+  that copies eye mesh world rows into ad-hoc controller overrides. The direct
+  stock local-rotation port recorded below supersedes the old waiting condition;
+  this synthetic world-row trial remains removed.
 - 2026-06-28 removed alternate eye-name attachment resolver:
   a prior `transform_world()` / `transform_local_chain_world()` path classified
   alternate PS2 eye mesh spellings (`L-eye.mesh`, `R-eye.mesh`,
@@ -2759,6 +2758,25 @@ Useful environment flags:
   records as bind rows, which polluted overlay clips and made the bridge look
   worse than the traced local-row write path. Validation:
   `engine/out/native_song_20260614/glam1_output_layer_drivenrows_f0.bmp`.
+- 2026-07-18 bassist body-axis output bridge: the stock
+  `bassist_active_fast_01` clip drives both forearms with scalar `.rotz` rows.
+  The direct sampled fallback was applying those values against the visible
+  character's current local matrices, while the source
+  `CharBone::StuffBones` -> `CharClip::PoseMeshes` route evaluates them against
+  the clip's decoded authored `OutputBone` locals. Quaternion-driven upper-arm
+  rows hid the mismatch because they replace the full rotation. Native now
+  republishes only decoded non-leg, non-hand-driver, non-face scalar body
+  rotation rows through the matching authored output subset. This is a generic
+  row-shape rule, not a `metal_bass` branch, hand IK, or pose offset; the broad
+  body publisher remains fenced. The six-frame bounded proof in
+  `engine/out/bassist_contact_audit_20260718/body_axis_probe_six/` restores the
+  authored bass-hand path and the focused driver-flags regression pins both
+  direct-frame and shared-layer application. The visible, audible
+  `badreputation` proof in
+  `engine/out/runtime_proofs/animation-body-axis-badreputation-20260718-001/`
+  completed at song time 193.790 with 793/793 autoplay hits, 16 bassist events,
+  393 bassist sync samples, a normal idle/outro transition, and zero audio
+  queue underflows or submit errors; user visual signoff remains separate.
 - Gameplay hand overlays now strip lower-body channels and lower-body output
   rows when loading right/left hand driver clips. This preserves the trace
   split where main body driver output owns pelvis/thigh/knee/toe rows and
@@ -5269,3 +5287,159 @@ Viewer hand-overlay validation:
   `rockabill2` main role and let the source driver fallback resolve to
   `char/rockabill1/anims/gen/rockabill1_main.milo_ps2`; do not hard-code
   `rock1_main` as a substitute. `rockabill2` still keeps its local fret row set.
+
+2026-07-18 GH2 absolute scalar rotation trace and rejected partial bridge:
+
+- RexGlue maps `CharBonesMeshes::PoseMeshes` to
+  `0x821A51E0->0x821A5590`. Its RotX, RotY, and RotZ callees at
+  `0x8217B1C0`, `0x8214C240`, and `0x821A50E8` each write a complete 3x3 axis
+  matrix into the target transform.
+- Absolute `.rotx`, `.roty`, and `.rotz` rows replace rotation on the transform
+  selected by the real `CharBonesMeshes` mesh vector. That does not prove the
+  native partial OutputBone bridge selects the same target or publishes at the
+  same stage.
+ - `engine/out/axel_axis_pose_audit_20260718/` freezes stock Metal1
+  `stand_fast_04` at frame 30 and shows why the isolated setter looked
+  promising, but the following audible `madhouse` run made the legs move like
+  a marionette. The live application is rejected and removed. Keep the exact
+  setter as evidence only until RexGlue/PCSX2 proves target resolution,
+  publication order, and servo behavior together.
+
+2026-07-18 complete GH2 typed-pose trace, including mouth and eyes:
+
+- The rejected trial used serialized `OutputBone.local` rows as the pose base.
+  GH2 does not. `sub_821A6710` reallocates the nine typed buckets, keeps one
+  target slot per declared row, resolves the base name as `.trans` first and
+  `.mesh` second, and acquires the resolved object's current local position,
+  row scales, quaternion, and normalized scalar axes. Missing targets keep a
+  dummy slot and do not authorize a fuzzy or aliased transform write.
+- The non-internal `CharDriver` path calls the current clip's reset/ScaleDown
+  slot with `1 - effectiveWeight`, then applies sampled channels with
+  `effectiveWeight`. `sub_8215DBE8` and `sub_8215DF28` match rows by symbol
+  inside their typed bucket; vector/scalar rows use multiply/add and quaternion
+  rows use hemisphere-corrected accumulation. The final quaternion is
+  normalized before publication.
+- The GH2 classifier has nine real buckets: `.pos`, `.scale`, `.quat`,
+  `.rotx`, `.roty`, `.rotz`, `.drotx`, `.droty`, and `.drotz`. PS2
+  compression 1 keeps vectors as three float32 values, stores quaternions as
+  four int16 values, and stores all six scalar buckets as one int16. The native
+  reader now retains every bucket; the stock Metal Drummer audit confirms the
+  two `.rotx` finger rows in each of all 13 clips are published instead of
+  consumed and discarded.
+- `sub_821A51E0` commits position, quaternion, absolute X/Y/Z scalar rotations,
+  post-compose delta rotation, then row-length scale. All scalar samples are
+  normalized half-turns and are multiplied by pi only at commit. The middle
+  post-compose helper is an exact no-op in this GH2 Xbox 360 binary. Scale is
+  an absolute row-length commit after rotation, not component-wise matrix
+  multiplication.
+- `sub_82189408` is the `CharServoBone` poll/commit body; it calls
+  `sub_821A51E0(this+8)` before its facing/regulation work. This closes the
+  missing body-pose publication edge that the isolated setter trial lacked.
+- Mouth, eyelids, brows, cheeks, jaw, and body clips share these same typed
+  buffers. Gameplay gaze has one additional ordered write: `CharLookAt`
+  updates the rigid eye mesh, then `FaceFxLipSyncServo` samples that rotation
+  into `L/R-eyeX` and `L/R-eyeZ`, evaluates the graph, expands its 17 transform
+  targets, applies the quaternion neutral residual, and commits through the
+  same `sub_821A51E0` path. Mouth motion is therefore not a jaw-only overlay,
+  and blink is not eye-mesh hiding.
+- Native now uses the acquired live target and exact typed clip publisher for
+  body and UI face clips. Gameplay FaceFX no longer uses the FAC matrices as
+  expression shapes: it loads the authored `neutral` and `visemes` clips,
+  maps each `FxBonePoseNode` ordinal to the matching viseme frame, applies the
+  `1 - sum(abs(activeWeight))` residual to quaternion `w` only, composes the
+  neutral quaternion/source pass last, and publishes the result through the
+  same typed target table. The old direct matrix-difference
+  `apply_facefx_pose_delta` path remains inspection-only and is not used by
+  gameplay.
+- `sub_821A71D0` eye-register extraction is also live. Each decoded
+  `FaceFxLipSyncServo` target resolves its object by exact name and dispatches
+  its serialized op `0/1/2` to the XEX RotX/RotY/RotZ `atan2` formula. Values
+  stay in radians and replace the named graph register through mode 2; no axis
+  is inferred from `L-eyeX`, `R-eyeZ`, or character-specific spellings.
+  Non-singer guitar characters also load the authored
+  `songs/_blinktrack/_blinktrack.voc` source for `Blink`.
+- Real-asset audit with `ghogx_character_facefx_audit` proves Metal1 has 11
+  decoded pose nodes and 11 viseme frames (`EyesClosed` ordinal 9), 17 typed
+  mouth/lid/brow/cheek/jaw channels, 87 target declarations, and four exact eye
+  register rows. Metal Singer separately proves 16 phoneme pose nodes map to
+  16 jaw-only viseme frames. The old face filter's missing `cheek` predicate is
+  fixed, and face clips retain their full decoded target table while only
+  sampled channels write.
+- Direct GH2 XEX RE now closes the rigid-eye destination owner and publication
+  edge. `sub_82170130` (`0x82170130..0x821704B0`, `CharEyes::NextLook`)
+  defaults to the `RndTransformable` owned at `CharEyes+52`, writes the newly
+  generated local target transform there, may replace that chosen object with
+  a qualifying authored interest, and assigns that exact same object into the
+  destination `ObjPtr` at `+60` of every child `CharLookAt`. Therefore the
+  stock `dest=<none>` rows are intentional serialized state, not inert or
+  incomplete assets. `sub_82170BA8` (`0x82170BA8..0x82170E10`) schedules this
+  before the child eye polls; `sub_8216E4E8`
+  (`0x8216E4E8..0x8216EA40`) is the rigid-eye transform writer.
+- `source_gh2_char_eyes_next_look_publication` freezes the proved default
+  target, interest substitution, all-child destination assignment, and
+  scheduler resets as deterministic RE evidence. `sub_82170078`
+  (`CharEyes::Enter`) zeros the timer, averaged delta, and blink history, sets
+  the previous cosine to `1`, and copies the first decoded eye's current world
+  Y row as the previous facing. `sub_82170BA8` adds task delta seconds, computes
+  the target cosine from the first decoded eye, and calls `NextLook` only when
+  elapsed time is greater than `8`, on the traced blink rising edge/chance, or
+  when cosine is greater than `cos(35 degrees)` while its `0.1`-smoothed delta
+  is positive. Poll stores the current cosine and facing after `NextLook`
+  returns.
+- The generated-target math is also now exact rather than descriptive.
+  `NextLook` takes the current first-eye source `WorldXfm().m.y`, subtracts the
+  previous facing row, multiplies that delta by `45`, clamps its length to
+  `tan(0.45814892509952188)` (`26.25` degrees), adds it back to current facing,
+  and projects from the source position by `RandomFloat(20, 100) * 12`. If the
+  owning `ObjectDir` dynamically casts to `RndTransformable` and the candidate
+  falls below that directory's world Z, the vector is shortened to intersect
+  that Z plane. `source_gh2_char_eyes_generated_target` preserves this formula
+  with an already sampled random unit value for deterministic tests. GH2's
+  random unit is now mirrored too: seed words use the `1103515245 / 12345`
+  LCG pair, the active 250-word state advances lagged XOR cursors `0` and
+  `103`, and `RandomFloat` scales the returned low 16 bits by `1/65536`.
+- A packed-stock controller audit closes the live writer boundary without any
+  eye-side or character-name inference. Every audited live eye row is decoded
+  `CharEyes` revision 3 with two exact child references whose `CharLookAt`
+  objects are revision 2, weight `1`, source equal to pivot, empty serialized
+  destination, roll enabled, no yaw-weight route, no jitter, and zero source
+  radius. The object names vary across characters, so only those decoded links
+  resolve the pivots.
+- `apply_source_gh2_char_eyes_and_lookats` now mirrors that exact stock subset:
+  `Enter` identities each decoded pivot rotation, `CharEyes::Poll` maintains
+  the traced scheduler and generated target, then each decoded `CharLookAt`
+  transforms the target direction into its exact parent's space, applies the
+  serialized yaw/pitch bounds and half-time smoothing, builds the local-Y
+  rotation quaternion, and post-multiplies the pivot's current local rotation.
+  Unsupported revisions, non-self-pivot rows, weighted-yaw rows, jitter,
+  source radius, non-unit weight, or nonempty serialized destinations remain
+  fenced. This is a current-local eye-mesh write, not the removed synthetic
+  world-row bridge, an eye hide/inset, or a synthetic head-forward target.
+- Real `metal1_viseme.milo_ps2` inspection proves the non-singer face graph's
+  authored mouth/lid inventory is 17 typed channels: quaternion rows for both
+  brow pairs, both cheeks, both upper lids, and jaw, plus position rows for
+  both lip corners, both lower-lip points and center, and both upper-lip points
+  and center. There are no direct rigid eye-mesh clip channels, so controller
+  order is source-shaped and non-overlapping: body typed commit, decoded rigid
+  eye-local write, exact servo register sample, then typed FaceFX mouth/lid
+  commit.
+
+## 2026-07-19 Metal1 hair depth-state closure
+
+- Small2 diagnostics prove all 13 `metal1_hair.mat` pieces decode the same
+  authored render state: `blend=3` (`kSrcAlpha`), `zMode=1` (`kNormal`),
+  `alphaCut=0`, `alphaRef=0`, `texWrap=1`, and `Mat.ng.cull=1`. Texture-alpha
+  sampling also shows the cards are predominantly opaque, so inventing an
+  alpha-test threshold is not justified by the stock material or texture.
+- The PC draw path was overriding that data whenever a blended mesh matched a
+  hair name, changing `kNormal` from `zwrite=1` to `zwrite=0`. The override is
+  removed. Hair now uses the same `material_depth_write_enabled` mapping as
+  every other character surface; blend, alpha, culling, source draw order,
+  attachment, and four-slot skinning are unchanged.
+- Pre-fix real-time evidence is in
+  `engine/out/runtime_proofs/character-hair-blend-before-small2-johnthefisherman-20260719-111458`.
+  Post-fix real-time evidence is in
+  `engine/out/runtime_proofs/character-hair-blend-after-small2-madhouse-20260719-111902`.
+  The post-fix log records `zwrite=1` on all 13 Metal1 hair pieces, and the
+  live video keeps the complete attached silhouette readable across front,
+  rear, and wide Small2 views over the venue's radial high-contrast panels.

@@ -163,7 +163,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharDriver.cpp` | `ghogx_character_clip_driver_flags_test` | `fenced-runtime-gap` |
 | `CharDriverMidi.cpp` | `ghogx_character_clip_driver_flags_test` | `fenced-runtime-gap` |
 | `CharEyeDartRuleset.cpp` | `ghogx_character_eye_dart_ruleset_source_test` | `ported-visible-source` |
-| `CharEyes.cpp` | `ghogx_character_eyes_source_test` | `fenced-runtime-gap` |
+| `CharEyes.cpp` | `ghogx_character_eyes_source_test` | `ported-visible-source` |
 | `CharFaceServo.cpp` | `ghogx_character_face_servo_source_test` | `fenced-runtime-gap` |
 | `CharForeTwist.cpp` | `ghogx_character_fore_upper_twist_source_test` | `ported-visible-source` |
 | `CharGuitarString.cpp` | `ghogx_character_guitar_string_source_test` | `ported-visible-source` |
@@ -179,7 +179,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharInterest.cpp` | `ghogx_character_interest_source_test` | `fenced-runtime-gap` |
 | `CharLipSync.cpp` | `ghogx_character_lip_sync_source_test` | `fenced-runtime-gap` |
 | `CharLipSyncDriver.cpp` | `ghogx_character_lip_sync_source_test` | `fenced-runtime-gap` |
-| `CharLookAt.cpp` | `ghogx_character_lookat_source_test` | `fenced-runtime-gap` |
+| `CharLookAt.cpp` | `ghogx_character_lookat_source_test` | `ported-visible-source` |
 | `CharMeshCacheMgr.cpp` | `ghogx_character_mesh_cache_source_test` | `fenced-runtime-gap` |
 | `CharMeshHide.cpp` | `ghogx_character_mesh_hide_source_test` | `ported-visible-source` |
 | `CharMirror.cpp` | `ghogx_character_mirror_source_test` | `fenced-runtime-gap` |
@@ -2756,9 +2756,10 @@ note, and all report `unreadBytes=0`.
     This is deterministic row math only; it does not publish live eye/look-at
     transforms.
   - Current stock GH2 `CharLookAt` rows observed in the base characters have
-    `mDest=<none>`, so the source poll gate would be inert. Native therefore
-    keeps these rows decoded/logged and does not publish look-at world rows or
-    fabricate a destination.
+    `mDest=<none>`. Direct GH2 XEX RE now proves this is intentional serialized
+    state: `CharEyes::NextLook` supplies the destination before child polling.
+    Native still does not publish look-at world rows or fabricate a destination
+    from a character name or a head-forward guess.
     `engine/out/source_lookat_20260711/lookat_source_decode_audit.log`
     rechecks Alterna1, Rock2, Rockabill2, and Funk1 with source-shaped fields;
     all sampled rows report `version=2`, `weightableVersion=2`,
@@ -2820,10 +2821,10 @@ note, and all report `unreadBytes=0`.
     to `-1`, and force blink stores the current task time while incrementing
     the blink count by one.
     The checked source does not include a reviewable `CharEyes::GetTarget`
-    body. Native `source_char_eyes_runtime_dump_evidence` therefore marks
-    `latest_source_has_get_target_body=false`; the `PollDeps` target row is a
-    source-visible dependency edge, not evidence for a native target transform
-    resolver or an eye accessory placement fix.
+    body. Native `source_char_eyes_runtime_dump_evidence` therefore still marks
+    `latest_source_has_get_target_body=false`; the later GH2 XEX evidence below,
+    rather than this declaration alone, closes the target owner/publication
+    edge.
   - Native `source_char_eyes_interest_*` helpers port the concrete
     `CharEyes::CharInterestState` refractory timer body: construction/reset set
     the start time to `-1`, beginning a refractory period stores the current
@@ -2857,9 +2858,39 @@ note, and all report `unreadBytes=0`.
     `EitherEyeClamped` query: scan the eye descriptors and return true only
     when a present `CharLookAt` eye has its clamp flag set. It does not invent
     clamp state for missing eye refs.
-- Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
-  does not publish synthetic eye runtime rows until a direct source-backed poll
-  port has real source data to drive it.
+- Direct GH2 XEX RE adds the missing GH2-era ownership edge:
+  `sub_82170130` (`0x82170130 -> 0x821704B0`) is `CharEyes::NextLook`.
+  `CharEyes+52` is an owned/generated `RndTransformable`; `NextLook` writes the
+  generated local target transform into it, defaults the chosen target to that
+  object, optionally substitutes a qualifying authored interest, then loops
+  over every child `CharLookAt` and assigns the one chosen target into its
+  destination `ObjPtr` at child offset `+60`. The stock `mDest=<none>` rows are
+  therefore filled by `CharEyes`, not malformed assets.
+- The same body closes the default generated target formula. It reads the
+  first-eye source `WorldXfm().m.y` facing row, computes
+  `(currentFacing - lastFacing) * 45`, clamps that vector length to
+  `tan(0.45814892509952188)` (the XEX double is exactly `26.25` degrees in
+  radians), adds the clamped delta to current facing, and projects from the
+  source world position by `RandomFloat(20, 100) * 12`. Its one geometric guard
+  is also identified: an MSVC RTTI cast from the owning `ObjectDir` to
+  `RndTransformable`; when that succeeds and the candidate is below the
+  directory world Z, the target ray is shortened to the Z-plane intersection.
+  Native `source_gh2_char_eyes_generated_target` mirrors this with a supplied
+  RNG unit sample for deterministic RE coverage only.
+- `sub_82170BA8` (`0x82170BA8 -> 0x82170E10`) is the owning `CharEyes` poll/
+  scheduler path, and `sub_8216E4E8` (`0x8216E4E8 -> 0x8216EA40`) is the live
+  `CharLookAt` rigid-eye transform writer. The order is `CharEyes` target
+  selection/publication, child `CharLookAt` write, decoded FaceFX eye-register
+  sampling, FaceFX graph materialization, typed commit.
+- Native `source_gh2_char_eyes_next_look_publication` freezes the proved object
+  link behavior: generated target by default, authored-interest substitution,
+  identical destination publication to every child, and the three scheduler
+  state resets at the end of `NextLook`. This makes
+  `safe_to_publish_destination_links=true`. The later full GH2 Poll RE plus the
+  stock controller audit also makes
+  `safe_to_publish_stock_v2_lookat_local=true`; the removed synthetic
+  `runtime_world_overrides` bridge remains prohibited, so
+  `safe_to_publish_eye_runtime_rows=false` still describes that separate path.
 - Native `source_char_eyes_runtime_dump_evidence` records the RB2 dump ranges
   for the missing runtime body and adjacent source-visible helpers: `Poll`
   `0x80354D64 -> 0x80355480`, `NextLook`
@@ -2869,10 +2900,11 @@ note, and all report `unreadBytes=0`.
   `0x80355E84 -> 0x80356030`. The visible `Poll` local inventory includes
   `h`, `camWeight`, `blinkWeight`, `blink`, `delta`, `cang`, `sec`, `d`,
   `dest`, `weight`, `srcCam`, two `Transform t` locals, `it`, and `height`.
-  This remains range/local evidence only: the checked latest source lacks a
-  reviewable `CharEyes::Poll` body, so native keeps
-  `safe_to_publish_eye_runtime_rows=false` and
-  `safe_to_infer_facefx_rows=false`.
+  The RB2 rows remain range/local evidence only. The direct GH2 XEX ranges above
+  independently close destination publication, scheduler state, and the stock
+  revision-2 self-pivot transform write. Native keeps
+  `safe_to_publish_eye_runtime_rows=false` for synthetic world overrides and
+  `safe_to_infer_facefx_rows=false` for register-name/axis inference.
 - `rb3-latest/src/system/char/CharEyeDartRuleset.cpp` and
   `CharEyeDartRuleset.h`
   - `EyeDartRulesetData::ClearToDefaults` sets the source defaults:
@@ -6397,6 +6429,24 @@ in-game and viewer logs report the same rows, so this is animation evidence, not
 a lower-body bridge regression. This remains leg-only proof; it does not sign
 off Metal1's visible right shoulder/hand concern.
 
+2026-07-18 GH2 scalar-axis publisher trace and rejected partial application:
+the earlier viewer/game match above proved only that both native paths shared
+the same implementation. The
+GH2 XEX RexGlue body for `CharBonesMeshes::PoseMeshes`
+(`0x821A51E0->0x821A5590`) calls three concrete scalar-axis setters: RotX
+`0x8217B1C0->0x8217B250`, RotY `0x8214C240->0x8214C2D0`, and RotZ
+`0x821A50E8->0x821A5178`. Each setter writes all nine elements of the target
+local rotation matrix. Absolute `.rotx`, `.roty`, and `.rotz` channels must
+therefore replace the target transform's local rotation with the sampled axis
+matrix; only relative rows compose. Applying those setters directly through
+the native partial OutputBone bridge improved a frozen Metal1
+`stand_fast_04` frame in `engine/out/axel_axis_pose_audit_20260718/`, but the
+audible `madhouse` review exposed marionette-like live leg motion. That trial
+is rejected and removed from live publication. The setter functions remain
+isolated source evidence while the complete RexGlue target-resolution,
+`PoseMeshes`, and `CharServoBone::Poll` path is traced; a correct setter at the
+wrong layer is not a valid fix.
+
 2026-07-15 Metal1 UI/select flat-foot reference:
 Metal1's isolated UI character source data is split into
 `char/metal1/og/gen/metal1_ui.milo_ps2` plus
@@ -6866,6 +6916,102 @@ This makes the Rockabill2 chain/hair problem a shared source-hookup/collision
 publisher gap, not a viewer-only mismatch and not evidence for a static
 accessory offset.
 
+2026-07-18 bounded body scalar-rotation row authority:
+the stock `metal_bass` output inventory isolates a source-visible publisher
+discrepancy without requiring a raw-XEX decompilation or an invented hand
+solver. `bassist_active_fast_01` supplies full quaternion rows for clavicles,
+upper arms, and hands, but scalar `.rotz` rows for both forearms. The direct
+fallback applied those scalar values to the visible character local, whereas
+ihatecompvir `CharBone::StuffBones` registers the active rotation channel and
+`CharClip::PoseMeshes` constructs the authored output graph before
+`CharBonesMeshes::PoseMeshes` publishes it. Native therefore permits one more
+bounded output subset: decoded non-leg, non-hand-driver, non-face scalar body
+rotation rows may use their matching active-clip `OutputBone` locals. The rule
+is selected entirely by decoded channel type and output key, contains no
+character name or manual offset, and leaves the unrecovered broad publisher
+fenced. `engine/out/bassist_contact_audit_20260718/body_axis_probe_six/`
+exercises frames 0, 30, 60, 90, 120, and 150; focused regression coverage in
+`character_clip_driver_flags_test.cpp` requires the authored output local in
+both the direct-frame and shared-layer paths.
+
+2026-07-18 GH2 XEX publisher closure and face-scope extension:
+the previous bounded `OutputBone.local` bridges are superseded. Generated
+ReXGlue bodies now pin the missing GH2-specific implementation chain:
+`sub_821A6710` acquires current target locals after exact `.trans` then `.mesh`
+resolution; `sub_8215DBE8` ScaleDowns matching typed rows;
+`sub_8215DF28` ScaleAdds weighted vectors, scalars, and hemisphere-corrected
+quaternions; `sub_821A51E0` commits the nine buckets; and
+`sub_82189408` is the `CharServoBone` poll body that calls the committer. Scalar
+axes are normalized half-turns until the final setter converts them by pi.
+Native now mirrors that acquire/mix/commit path for all decoded `CharBone` rows
+and never seeds a live pose from serialized `OutputBone.local`.
+
+This closure explicitly includes face rows carried by normal/UI
+`CharClipSamples`: lip positions, jaw/brow/lid/cheek quaternions, and any scalar
+face channel use the same target table and typed publisher as the body. It does
+not collapse gameplay FaceFX into a generic clip. The gameplay order remains
+`body clips -> CharEyes target publication -> CharLookAt rigid-eye write ->
+FaceFxLipSyncServo eye-register sampling and graph evaluation -> sub_821A7978
+neutral-residual finalizer -> sub_821A51E0 typed commit`. The FaceFX finalizer
+and the stock GH2 revision-2 self-pivot `CharLookAt` transform writer are now
+implemented. The writer resolves only exact decoded child/source/pivot links;
+direct pose-difference, eye-side/name inference, synthetic head-forward
+targets, and hide-eye experiments remain outside source authority.
+
+2026-07-18 GH2 FaceFX mouth/lid materialization and eye-register closure:
+
+- `sub_821A7978` resolves `visemes` and `neutral` `CharClipSamples`, clears the
+  typed destination, then calls the `visemes` weighted slot once per active
+  `FxBonePoseNode` using the scalar weight and the node ordinal stored at
+  `node+92`. Native now mirrors this rather than applying byte-identical FAC
+  pose matrices as expression deltas.
+- The destination quaternion residual is exactly
+  `1 - sum(abs(active_weights))`; it changes quaternion `w` according to the
+  accumulated `w` sign and never changes lip `.pos` rows. The final neutral
+  pass adds neutral position rows and composes `neutral * accumulated` for
+  quaternion rows through the traced `sub_8215E6A0` order before the shared
+  typed publisher normalizes/commits.
+- Stock packed-asset audits close the ordinal contract for both graph families:
+  Metal1 has 11 `FxBonePoseNode` rows and 11 viseme samples, while Metal Singer
+  has 16 phoneme pose rows and 16 jaw-only samples. Metal1 keeps all 17 authored
+  face channels, including both cheek rows, and the decoded 87-row target table
+  remains the authorization inventory.
+- `sub_821A71D0` is implemented from the XEX bodies of `sub_82269988`,
+  `sub_822699B8`, `sub_822699E8`, and their `atan2` callee. The serialized
+  target op selects RotX/RotY/RotZ, output is radians, target objects resolve by
+  exact decoded name, and the decoded FaceFX register name receives a mode-2
+  replacement. Register strings never choose the axis.
+- This closes mouth shapes, authored eyelid/blink contribution, and the
+  transform-to-register edge. Direct XEX RE now also closes the `CharEyes`
+  target owner, all-child destination publication stage, Enter state, Poll
+  scheduler, and the stock revision-2 `CharLookAt` rigid-mesh transform write.
+  Gameplay order is body/controllers, `CharEyes` target publication, rigid eye
+  write, exact servo-register sampling, FaceFX graph materialization, typed
+  commit.
+- Direct `sub_82170078` / `sub_82170BA8` RE supplies the GH2 scheduler state and
+  gates: Enter copies the first eye world-Y row, initializes cosine to `1`, and
+  zeros timer/average/blink history; Poll retargets after `>8` seconds, on the
+  `<-0.1` blink-weight rising edge when `RandomFloat(0,1)<0.33`, or when target
+  cosine exceeds `cos(35 degrees)` with a positive `0.1`-smoothed delta. Poll
+  restores the current cosine and facing after `NextLook` returns.
+- The GH2 random helper is likewise binary-backed: the `1103515245 / 12345`
+  LCG seed pass fills 256 words, lagged XOR cursors start at `0` and `103` and
+  wrap over the first 250 words, and the float sample is the returned low 16
+  bits times `1/65536`. Deterministic fixed-seed tests pin this cadence.
+- The stock packed-asset audit found only the narrow live shape now published:
+  `CharEyes` v3 children resolve exact `CharLookAt` v2 objects with weight 1,
+  source equal to pivot, empty serialized destination, roll enabled, negative
+  min-weight-yaw, no jitter, and zero source radius. Native resets each exact
+  pivot rotation on Enter, applies serialized bounds and half-time smoothing,
+  and post-multiplies the current local rotation. Any later revision or
+  unsupported feature combination remains fenced.
+- `metal1_viseme.milo_ps2` independently proves the 17 non-singer face channels
+  consumed by the now-live graph: nine quaternion channels for both brow pairs,
+  both cheeks, both upper lids, and jaw; eight position channels for both lip
+  corners, paired lower/upper lip points, and their centers. No rigid eye mesh
+  appears in that typed set, so the eye write precedes servo sampling without
+  being overwritten by the later mouth/lid commit.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.
@@ -6877,14 +7023,14 @@ accessory offset.
   `lod1.grp`), not `_lod1` or `lod_` name prefixes.
 - Renderer state such as blend, z write, alpha test, wrap, and draw order must
   come from source material/drawable rows.
-- Broad CharBone output enable switches for full body, face, or arbitrary
-  lower-body publishing are removed unless/until the complete source
-  `CharBones` publisher is ported. The current exception is the narrow
-  source-authored lower-body bridge documented above: only decoded
-  facing/pelvis/thigh/knee/ankle/foot/toe `OutputBone` rows from the active
-  clip may write the matching visible lower-body bones. Do not expand this into
-  broad body, face, arm, accessory, or hair output publishing without the source
-  `PoseMeshes` publisher.
+- The GH2 XEX `AcquirePose` / `ScaleDown` / `ScaleAdd` / `PoseMeshes` chain is
+  now the sole native `CharBone` output path. Every write must be authorized by
+  a decoded output row, resolved exactly through `.trans` then `.mesh`, and
+  based on the target's current local. Serialized `OutputBone.local`, fuzzy
+  toe aliases, named-character offsets, and raw unlisted sample writes are not
+  pose authority. `CharLookAt` uses its own ordered decoded-controller path;
+  this rule does not authorize bypassing that layer or widening the live stock
+  revision-2 self-pivot subset.
 - Project override: hair polygons/textures render two-sided. Native therefore
   forces no backface culling for shared hair-token mesh/material/texture
   surfaces and meshes whose own transform, parent, or active bone palette

@@ -41,7 +41,12 @@ bool expect_string(const std::string& got, const std::string& want,
 }  // namespace
 
 int main() {
+  using ghogx::character::Character;
+  using ghogx::character::CharEyes;
+  using ghogx::character::CharLookAt;
+  using ghogx::character::SkinnedMesh;
   using ghogx::character::SourceCharLookAtPollDeps;
+  using ghogx::character::apply_character_controllers;
   using ghogx::character::source_char_lookat_yaw_weight_step;
   using ghogx::character::source_char_lookat_copy_plan;
   using ghogx::character::source_char_lookat_default_limit_state;
@@ -434,6 +439,68 @@ int main() {
              "source-radius clamp pre length");
   ok &= near(source_radius_clamped_offset.offset[1], 0.17453292f,
              "source-radius clamped y offset");
+
+  auto stock_eye_character = []() {
+    Character character;
+    character.dir_name = "stock-eye-test";
+    ghogx::milo_scene::TransObj head;
+    head.name = "bone_head.mesh";
+    character.bones.push_back(head);
+
+    SkinnedMesh eye;
+    eye.name = "authored-eye.mesh";
+    eye.parent = head.name;
+    character.meshes.push_back(eye);
+
+    CharLookAt lookat;
+    lookat.name = "authored-eye.lookat";
+    lookat.version = 2;
+    lookat.weight = 1.0f;
+    lookat.source = eye.name;
+    lookat.pivot = eye.name;
+    lookat.dest.clear();
+    lookat.half_time = 0.0f;
+    lookat.min_yaw = -80.0f;
+    lookat.max_yaw = 80.0f;
+    lookat.min_pitch = -80.0f;
+    lookat.max_pitch = 80.0f;
+    lookat.min_weight_yaw = -1.0f;
+    lookat.allow_roll = true;
+    character.lookats.push_back(lookat);
+
+    CharEyes eyes;
+    eyes.name = "authored-eyes.eyes";
+    eyes.version = 3;
+    eyes.lookats.push_back(lookat.name);
+    character.eyes.push_back(eyes);
+
+    auto& state = character.runtime_gh2_char_eyes[eyes.name];
+    state.entered = true;
+    state.has_last_time = true;
+    state.last_time_seconds = 0.0f;
+    state.generated_target = {1.0f, 1.0f, 0.0f};
+    state.poll = ghogx::character::source_gh2_char_eyes_enter(
+        {0.0f, 1.0f, 0.0f}, true);
+    return character;
+  };
+
+  Character live_eye = stock_eye_character();
+  apply_character_controllers(live_eye, 0.0f);
+  const float inv_sqrt2_live = 0.70710677f;
+  ok &= near(live_eye.meshes[0].local.rot[1][0], inv_sqrt2_live,
+             "stock v2 eye writer rotates local Y toward decoded target x");
+  ok &= near(live_eye.meshes[0].local.rot[1][1], inv_sqrt2_live,
+             "stock v2 eye writer rotates local Y toward decoded target y");
+  ok &= near(live_eye.meshes[0].local.rot[1][2], 0.0f,
+             "stock v2 eye writer preserves decoded target z");
+
+  Character fenced_eye = stock_eye_character();
+  fenced_eye.lookats[0].version = 3;
+  apply_character_controllers(fenced_eye, 0.0f);
+  ok &= near(fenced_eye.meshes[0].local.rot[1][0], 0.0f,
+             "unsupported look-at revision remains fenced x");
+  ok &= near(fenced_eye.meshes[0].local.rot[1][1], 1.0f,
+             "unsupported look-at revision remains fenced y");
 
   return ok ? 0 : 1;
 }

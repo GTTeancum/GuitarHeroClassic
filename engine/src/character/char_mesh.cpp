@@ -9573,6 +9573,10 @@ source_char_eyes_runtime_dump_evidence() {
   evidence.replace_range = "0x80355A74->0x80355DCC";
   evidence.list_poll_children_range = "0x80355DCC->0x80355E84";
   evidence.poll_deps_range = "0x80355E84->0x80356030";
+  evidence.gh2_xex_char_lookat_poll_range = "0x8216E4E8->0x8216EA40";
+  evidence.gh2_xex_char_eyes_next_look_range =
+      "0x82170130->0x821704B0";
+  evidence.gh2_xex_char_eyes_poll_range = "0x82170BA8->0x82170E10";
   evidence.poll_locals = {"h",       "camWeight", "blinkWeight", "blink",
                           "delta",   "cang",      "sec",         "d",
                           "dest",    "weight",    "srcCam",      "t",
@@ -9582,9 +9586,203 @@ source_char_eyes_runtime_dump_evidence() {
                                "b",      "dist",  "c",     "d2"};
   evidence.rb2_dump_has_statement_body = false;
   evidence.latest_source_has_poll_body = false;
+  evidence.gh2_xex_owns_generated_target = true;
+  evidence.gh2_xex_interest_can_replace_target = true;
+  evidence.gh2_xex_assigns_target_to_every_lookat = true;
+  evidence.safe_to_publish_destination_links = true;
+  evidence.safe_to_publish_stock_v2_lookat_local = true;
   evidence.safe_to_publish_eye_runtime_rows = false;
   evidence.safe_to_infer_facefx_rows = false;
   return evidence;
+}
+
+SourceGh2CharEyesNextLookPublication
+source_gh2_char_eyes_next_look_publication(
+    const std::vector<std::string>& lookats,
+    const std::string& generated_target,
+    const std::string& qualifying_interest) {
+  SourceGh2CharEyesNextLookPublication publication;
+  publication.generated_target = generated_target;
+  publication.generated_target_local_written = true;
+  publication.used_interest = !qualifying_interest.empty();
+  publication.chosen_target = publication.used_interest
+                                  ? qualifying_interest
+                                  : generated_target;
+  publication.lookats = lookats;
+  publication.destination_targets.assign(lookats.size(),
+                                         publication.chosen_target);
+  publication.reset_last_look = true;
+  publication.reset_average_delta = true;
+  publication.reset_last_cang = true;
+  return publication;
+}
+
+SourceGh2CharEyesGeneratedTargetResult
+source_gh2_char_eyes_generated_target(
+    const std::array<float, 3>& current_facing,
+    const std::array<float, 3>& last_facing,
+    const std::array<float, 3>& source_world_position,
+    float random_unit,
+    bool object_dir_is_transformable,
+    float object_dir_world_z) {
+  SourceGh2CharEyesGeneratedTargetResult result;
+  constexpr float kFacingGain = 45.0f;
+  constexpr double kFacingLimitRadians = 0.45814892509952188;
+  constexpr float kMinDistance = 20.0f;
+  constexpr float kMaxDistance = 100.0f;
+  constexpr float kDistanceScale = 12.0f;
+
+  result.facing_delta_limit =
+      static_cast<float>(std::tan(kFacingLimitRadians));
+  float facing_delta_length_sq = 0.0f;
+  for (size_t axis = 0; axis < 3; ++axis) {
+    result.facing_delta[axis] =
+        (current_facing[axis] - last_facing[axis]) * kFacingGain;
+    facing_delta_length_sq +=
+        result.facing_delta[axis] * result.facing_delta[axis];
+  }
+  const float facing_delta_length = std::sqrt(facing_delta_length_sq);
+  if (facing_delta_length > result.facing_delta_limit) {
+    const float scale = result.facing_delta_limit / facing_delta_length;
+    for (float& value : result.facing_delta) value *= scale;
+    result.facing_delta_clamped = true;
+  }
+
+  result.random_distance =
+      (kMinDistance + (kMaxDistance - kMinDistance) * random_unit) *
+      kDistanceScale;
+  for (size_t axis = 0; axis < 3; ++axis) {
+    result.projected_facing[axis] =
+        current_facing[axis] + result.facing_delta[axis];
+    result.target[axis] = source_world_position[axis] +
+                          result.projected_facing[axis] *
+                              result.random_distance;
+  }
+
+  if (object_dir_is_transformable && result.target[2] < object_dir_world_z) {
+    result.floor_scale =
+        (object_dir_world_z - source_world_position[2]) /
+        (result.target[2] - source_world_position[2]);
+    for (size_t axis = 0; axis < 3; ++axis) {
+      result.target[axis] =
+          source_world_position[axis] +
+          (result.target[axis] - source_world_position[axis]) *
+              result.floor_scale;
+    }
+    result.floor_clamped = true;
+  }
+  return result;
+}
+
+void source_gh2_random_seed(SourceGh2RandomState& state, uint32_t seed) {
+  constexpr uint32_t kMultiplier = 1103515245u;
+  constexpr uint32_t kAddend = 12345u;
+  for (uint32_t& word : state.words) {
+    seed = seed * kMultiplier + kAddend;
+    const uint32_t low = (seed >> 16u) & 0xffffu;
+    seed = seed * kMultiplier + kAddend;
+    const uint32_t high = (seed >> 16u) & 0x7fffu;
+    word = low | (high << 16u);
+  }
+  state.first_index = 0;
+  state.second_index = 103;
+}
+
+uint32_t source_gh2_random_u32(SourceGh2RandomState& state) {
+  constexpr uint32_t kActiveWords = 250;
+  state.words[state.first_index] ^= state.words[state.second_index];
+  const uint32_t value = state.words[state.first_index];
+  if (++state.first_index == kActiveWords) state.first_index = 0;
+  if (++state.second_index == kActiveWords) state.second_index = 0;
+  return value;
+}
+
+float source_gh2_random_unit(SourceGh2RandomState& state) {
+  constexpr float kLow16Scale = 1.0f / 65536.0f;
+  return static_cast<float>(source_gh2_random_u32(state) & 0xffffu) *
+         kLow16Scale;
+}
+
+SourceGh2CharEyesPollState source_gh2_char_eyes_enter(
+    const std::array<float, 3>& first_eye_world_y,
+    bool has_first_eye) {
+  SourceGh2CharEyesPollState state;
+  if (has_first_eye) state.last_facing = first_eye_world_y;
+  state.last_cang = 1.0f;
+  return state;
+}
+
+SourceGh2CharEyesPollResult source_gh2_char_eyes_poll(
+    SourceGh2CharEyesPollState& state,
+    const std::array<float, 3>& first_eye_world_y,
+    const std::array<float, 3>& first_eye_world_position,
+    const std::array<float, 3>& target_world_position,
+    float delta_seconds,
+    bool has_blink_weight,
+    float blink_weight,
+    float random_unit) {
+  SourceGh2CharEyesPollResult result;
+  constexpr float kBlinkWeightThreshold = -0.1f;
+  constexpr float kBlinkChance = 0.33f;
+  constexpr float kLookTimeoutSeconds = 8.0f;
+  constexpr float kMaximumEyeAngleCos = 0.81915204700314759f;
+  constexpr float kAverageDeltaCoefficient = 0.1f;
+  constexpr float kUnsetCang = 1.0e30f;
+
+  result.previous_facing = state.last_facing;
+  state.seconds_since_look += delta_seconds;
+
+  if (has_blink_weight) {
+    result.blink_delta = blink_weight - state.previous_blink_weight;
+    result.blink_trigger = blink_weight < kBlinkWeightThreshold &&
+                           result.blink_delta > 0.0f &&
+                           state.previous_blink_delta <= 0.0f &&
+                           random_unit < kBlinkChance;
+    state.previous_blink_weight = blink_weight;
+    state.previous_blink_delta = result.blink_delta;
+  }
+
+  std::array<float, 3> target_dir = {};
+  float target_length_sq = 0.0f;
+  for (size_t axis = 0; axis < 3; ++axis) {
+    target_dir[axis] =
+        target_world_position[axis] - first_eye_world_position[axis];
+    target_length_sq += target_dir[axis] * target_dir[axis];
+  }
+  if (target_length_sq > 0.0f) {
+    const float inv_length = 1.0f / std::sqrt(target_length_sq);
+    for (float& value : target_dir) value *= inv_length;
+  }
+  result.cang = std::clamp(first_eye_world_y[0] * target_dir[0] +
+                               first_eye_world_y[1] * target_dir[1] +
+                               first_eye_world_y[2] * target_dir[2],
+                           -1.0f, 1.0f);
+
+  if (state.last_cang != kUnsetCang) {
+    const float delta = result.cang - state.last_cang;
+    state.average_delta +=
+        (delta - state.average_delta) * kAverageDeltaCoefficient;
+  }
+
+  result.timeout_trigger = state.seconds_since_look > kLookTimeoutSeconds;
+  result.facing_trigger = state.seconds_since_look > 0.0f &&
+                          result.cang > kMaximumEyeAngleCos &&
+                          state.average_delta > 0.0f;
+  result.called_next_look =
+      result.timeout_trigger ||
+      (state.seconds_since_look > 0.0f && result.blink_trigger) ||
+      result.facing_trigger;
+  if (result.called_next_look) {
+    state.seconds_since_look = 0.0f;
+    state.average_delta = 0.0f;
+    state.last_cang = kUnsetCang;
+  }
+
+  // CharEyes::Poll stores these after NextLook returns, including on a frame
+  // where NextLook temporarily wrote the sentinel above.
+  state.last_cang = result.cang;
+  state.last_facing = first_eye_world_y;
+  return result;
 }
 
 SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_defaults() {

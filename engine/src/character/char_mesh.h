@@ -4210,13 +4210,83 @@ struct SourceCharEyesRuntimeDumpEvidence {
   std::string replace_range;
   std::string list_poll_children_range;
   std::string poll_deps_range;
+  std::string gh2_xex_char_lookat_poll_range;
+  std::string gh2_xex_char_eyes_next_look_range;
+  std::string gh2_xex_char_eyes_poll_range;
   std::vector<std::string> poll_locals;
   std::vector<std::string> next_look_locals;
   bool rb2_dump_has_statement_body = false;
   bool latest_source_has_poll_body = false;
   bool latest_source_has_get_target_body = false;
+  bool gh2_xex_owns_generated_target = false;
+  bool gh2_xex_interest_can_replace_target = false;
+  bool gh2_xex_assigns_target_to_every_lookat = false;
+  bool safe_to_publish_destination_links = false;
+  bool safe_to_publish_stock_v2_lookat_local = false;
   bool safe_to_publish_eye_runtime_rows = false;
   bool safe_to_infer_facefx_rows = false;
+};
+
+// Direct GH2 XEX NextLook publication evidence. This models only the resolved
+// object-link write proved by sub_82170130: CharEyes writes its owned target's
+// local transform, optionally chooses a qualifying interest instead, then
+// assigns that one chosen object to every child CharLookAt destination.
+struct SourceGh2CharEyesNextLookPublication {
+  std::string generated_target;
+  std::string chosen_target;
+  bool generated_target_local_written = false;
+  bool used_interest = false;
+  std::vector<std::string> lookats;
+  std::vector<std::string> destination_targets;
+  bool reset_last_look = false;
+  bool reset_average_delta = false;
+  bool reset_last_cang = false;
+};
+
+// Direct GH2 XEX generated-target math from CharEyes::NextLook. random_unit is
+// the already-sampled [0,1] value consumed by RandomFloat(20, 100). The
+// optional floor is the WorldXfm().v.z of this object's ObjectDir when that
+// directory dynamically casts to RndTransformable.
+struct SourceGh2CharEyesGeneratedTargetResult {
+  std::array<float, 3> facing_delta = {};
+  float facing_delta_limit = 0.0f;
+  bool facing_delta_clamped = false;
+  std::array<float, 3> projected_facing = {};
+  float random_distance = 0.0f;
+  std::array<float, 3> target = {};
+  bool floor_clamped = false;
+  float floor_scale = 1.0f;
+};
+
+// Direct GH2 XEX random state used by CharEyes. The seed routine fills 256
+// words, while the lagged-XOR sampler advances only through the first 250 with
+// cursors initially separated by 103 entries.
+struct SourceGh2RandomState {
+  std::array<uint32_t, 256> words = {};
+  uint32_t first_index = 0;
+  uint32_t second_index = 103;
+};
+
+// Direct GH2 XEX CharEyes::Enter/Poll scheduler state. The field names express
+// the values proved at sub_82170078 and sub_82170BA8 rather than assigning
+// meanings to any untraced neighboring controller storage.
+struct SourceGh2CharEyesPollState {
+  std::array<float, 3> last_facing = {};
+  float seconds_since_look = 0.0f;
+  float last_cang = 1.0f;
+  float average_delta = 0.0f;
+  float previous_blink_weight = 0.0f;
+  float previous_blink_delta = 0.0f;
+};
+
+struct SourceGh2CharEyesPollResult {
+  std::array<float, 3> previous_facing = {};
+  float cang = 0.0f;
+  float blink_delta = 0.0f;
+  bool blink_trigger = false;
+  bool timeout_trigger = false;
+  bool facing_trigger = false;
+  bool called_next_look = false;
 };
 
 struct SourceCharEyesFocusResult {
@@ -5214,6 +5284,34 @@ void source_char_eyes_poll_deps(
     const std::string& face_servo);
 SourceCharEyesRuntimeDumpEvidence
 source_char_eyes_runtime_dump_evidence();
+SourceGh2CharEyesNextLookPublication
+source_gh2_char_eyes_next_look_publication(
+    const std::vector<std::string>& lookats,
+    const std::string& generated_target,
+    const std::string& qualifying_interest);
+SourceGh2CharEyesGeneratedTargetResult
+source_gh2_char_eyes_generated_target(
+    const std::array<float, 3>& current_facing,
+    const std::array<float, 3>& last_facing,
+    const std::array<float, 3>& source_world_position,
+    float random_unit,
+    bool object_dir_is_transformable,
+    float object_dir_world_z);
+void source_gh2_random_seed(SourceGh2RandomState& state, uint32_t seed);
+uint32_t source_gh2_random_u32(SourceGh2RandomState& state);
+float source_gh2_random_unit(SourceGh2RandomState& state);
+SourceGh2CharEyesPollState source_gh2_char_eyes_enter(
+    const std::array<float, 3>& first_eye_world_y,
+    bool has_first_eye);
+SourceGh2CharEyesPollResult source_gh2_char_eyes_poll(
+    SourceGh2CharEyesPollState& state,
+    const std::array<float, 3>& first_eye_world_y,
+    const std::array<float, 3>& first_eye_world_position,
+    const std::array<float, 3>& target_world_position,
+    float delta_seconds,
+    bool has_blink_weight,
+    float blink_weight,
+    float random_unit);
 SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_defaults();
 bool source_char_eye_dart_ruleset_load_revision_known(int revision);
 SourceCharEyeDartRulesetLoadPlan source_char_eye_dart_ruleset_load_plan(
@@ -5552,6 +5650,22 @@ struct RuntimeIKHandMeasureState {
   float inv_2ab = 0.0f;
   float a2_plus_b2 = 0.0f;
   float aa_plus_bb = 0.0f;
+};
+
+struct RuntimeGh2CharLookAtState {
+  bool entered = false;
+  bool has_smoothed_dir = false;
+  std::array<float, 3> smoothed_dir = {1.0e29f, 0.0f, 0.0f};
+  float yaw_weight = 1.0f;
+  std::array<float, 3> source_history = {};
+};
+
+struct RuntimeGh2CharEyesState {
+  bool entered = false;
+  bool has_last_time = false;
+  float last_time_seconds = 0.0f;
+  std::array<float, 3> generated_target = {};
+  SourceGh2CharEyesPollState poll;
 };
 
 struct FaceFxServoTarget {
@@ -6506,6 +6620,8 @@ struct Character {
   std::map<std::string, std::array<float, 3>> runtime_ik_hand_targets;
   std::map<std::string, RuntimeIKHandMeasureState>
       runtime_ik_hand_measures;
+  std::map<std::string, RuntimeGh2CharEyesState> runtime_gh2_char_eyes;
+  std::map<std::string, RuntimeGh2CharLookAtState> runtime_gh2_char_lookats;
   std::map<std::string, SourceCharHairRuntime> source_char_hair_runtime;
   // PS2 Trans controllers can submit live world rows through the shared
   // writer without replacing the authored local rows that later controllers

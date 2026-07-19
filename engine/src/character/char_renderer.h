@@ -88,11 +88,17 @@ class CharRenderer {
 // Linear-blend skinning of one mesh into world space. Source RndMesh rows are
 // consumed as RB3 runtime-authored offsets:
 // offset_i = mesh_world_bind * inverse(bone_world_bind_i). The native path uses
-// skinned = sum_i w_i * (v * offset_i * bone_world_curr_i). Raw MILO palette
-// rows stay on SkinnedMesh for audit; active skinning uses the source runtime
-// palette after null/unresolved rows are trimmed.
+// skinned = sum_i w_i * (v * offset_i * bone_world_curr_i). All four serialized
+// slots remain in order; null or unresolved source slots contribute identity.
 void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                   std::vector<std::array<float, 3>>& out_pos,
                   std::vector<std::array<float, 3>>& out_nrm);
+
+// RndMesh skinning already emits source world-space vertices. Weighted meshes
+// therefore submit under identity, while unweighted meshes retain their
+// decoded Trans world row. Keeping this decision shared with the focused test
+// prevents attachment code from applying a second transform to hair or limbs.
+std::array<float, 16> source_character_mesh_submission_world(
+    const SkinnedMesh& mesh, const Character& character);
 
 }  // namespace ghogx::character

@@ -1523,6 +1523,10 @@ int run_contract() {
                  "int16_tvalue);",
                  "native exposes grim snorm16 decode helper");
   ok &= contains(char_clip_h,
+                 "floatsource_gh2_char_bones_samples_decode_scalar_angle("
+                 "int16_tvalue);",
+                 "native exposes GH2 compressed scalar-angle decoder");
+  ok &= contains(char_clip_h,
                  "std::array<float,4>source_grim_char_bones_samples_decode_"
                  "short_quat(int16_tx,int16_ty,int16_tz,int16_tw);",
                  "native exposes grim short quat decode helper");
@@ -1538,6 +1542,11 @@ int run_contract() {
                  "int16_tvalue){returnstd::max(static_cast<float>(value)/"
                  "32767.0f,-1.0f);}",
                  "native implements grim snorm16 decode without pi scale");
+  ok &= contains(char_clip,
+                 "floatsource_gh2_char_bones_samples_decode_scalar_angle("
+                 "int16_tvalue){returnstatic_cast<float>(value)*"
+                 "0.0006103515625f;}",
+                 "native implements GH2 XEX compressed scalar radian scale");
   ok &= contains(char_clip,
                  "std::array<float,4>source_grim_char_bones_samples_decode_"
                  "short_quat(int16_tx,int16_ty,int16_tz,int16_tw){return{"
@@ -10234,8 +10243,16 @@ int run_contract() {
   ok &= contains(renderer,
                  "skin[i]=mul16(xfm16(mesh.bind[i]),curr_world);",
                  "native renderer consumes source offset then current transform");
-  ok &= contains(renderer, "!character.has_transform(mesh.bone_palette[i])",
-                 "native renderer skips unresolved source slots");
+  ok &= contains(renderer, "skin.assign(nb,identity);",
+                 "native renderer initializes null source slots to identity");
+  ok &= contains(renderer, "constfloatwgt=v.w[i];",
+                 "native renderer preserves serialized weight-slot order");
+  ok &= missing(renderer, "reverse_slots_for_mesh",
+                "native renderer must not reverse serialized skin slots");
+  ok &= missing(renderer, "mesh-local-terminal-lower-leg",
+                "native renderer must not select a leg-specific skin space");
+  ok &= missing(renderer, "mesh-local-arm-space",
+                "native renderer must not select an arm-specific skin space");
   ok &= contains(rb3_latest_mesh_h,
                  "Vector3SkinVertex(constRndMesh::Vert&,Vector3*);",
                  "latest RndMesh header declares SkinVertex");
@@ -23881,17 +23898,42 @@ int run_contract() {
                  "boolclamped=false;};",
                  "native exposes CharEyes clamp row");
   ok &= contains(char_mesh_h,
-                 "structSourceCharEyesRuntimeDumpEvidence{std::stringpoll_range;"
-                 "std::stringnext_look_range;std::stringreplace_range;"
-                 "std::stringlist_poll_children_range;std::stringpoll_deps_range;"
-                 "std::vector<std::string>poll_locals;"
-                 "std::vector<std::string>next_look_locals;"
-                 "boolrb2_dump_has_statement_body=false;"
-                 "boollatest_source_has_poll_body=false;"
-                 "boollatest_source_has_get_target_body=false;"
-                 "boolsafe_to_publish_eye_runtime_rows=false;"
-                 "boolsafe_to_infer_facefx_rows=false;};",
-                 "native exposes CharEyes runtime dump evidence");
+                  "structSourceCharEyesRuntimeDumpEvidence{std::stringpoll_range;"
+                  "std::stringnext_look_range;std::stringreplace_range;"
+                  "std::stringlist_poll_children_range;std::stringpoll_deps_range;"
+                  "std::stringgh2_xex_char_lookat_poll_range;"
+                  "std::stringgh2_xex_char_eyes_next_look_range;"
+                  "std::stringgh2_xex_char_eyes_poll_range;"
+                  "std::vector<std::string>poll_locals;"
+                  "std::vector<std::string>next_look_locals;"
+                  "boolrb2_dump_has_statement_body=false;"
+                  "boollatest_source_has_poll_body=false;"
+                  "boollatest_source_has_get_target_body=false;"
+                  "boolgh2_xex_owns_generated_target=false;"
+                  "boolgh2_xex_interest_can_replace_target=false;"
+                  "boolgh2_xex_assigns_target_to_every_lookat=false;"
+                  "boolsafe_to_publish_destination_links=false;"
+                  "boolsafe_to_publish_eye_runtime_rows=false;"
+                  "boolsafe_to_infer_facefx_rows=false;};",
+                  "native exposes CharEyes runtime dump evidence");
+  ok &= contains(char_mesh_h,
+                  "structSourceGh2CharEyesNextLookPublication{"
+                  "std::stringgenerated_target;std::stringchosen_target;"
+                  "boolgenerated_target_local_written=false;"
+                  "boolused_interest=false;std::vector<std::string>lookats;"
+                  "std::vector<std::string>destination_targets;"
+                  "boolreset_last_look=false;boolreset_average_delta=false;"
+                  "boolreset_last_cang=false;};",
+                  "native exposes direct GH2 NextLook publication evidence");
+  ok &= contains(char_mesh_h,
+                  "structSourceGh2CharEyesGeneratedTargetResult{"
+                  "std::array<float,3>facing_delta={};"
+                  "floatfacing_delta_limit=0.0f;"
+                  "boolfacing_delta_clamped=false;"
+                  "std::array<float,3>projected_facing={};"
+                  "floatrandom_distance=0.0f;std::array<float,3>target={};"
+                  "boolfloor_clamped=false;floatfloor_scale=1.0f;};",
+                  "native exposes direct GH2 generated eye target result");
   ok &= contains(char_mesh_h,
                  "structSourceCharEyesFocusResult{boolaccepted=false;"
                  "std::stringfocus_interest;intfocus_priority=-1;};",
@@ -24085,9 +24127,17 @@ int run_contract() {
                  "voidsource_char_eyes_poll_deps(",
                  "native exposes CharEyes PollDeps helper");
   ok &= contains(char_mesh_h,
-                 "SourceCharEyesRuntimeDumpEvidence"
-                 "source_char_eyes_runtime_dump_evidence();",
-                 "native exposes CharEyes runtime dump helper");
+                  "SourceCharEyesRuntimeDumpEvidence"
+                  "source_char_eyes_runtime_dump_evidence();",
+                  "native exposes CharEyes runtime dump helper");
+  ok &= contains(char_mesh_h,
+                  "SourceGh2CharEyesNextLookPublication"
+                  "source_gh2_char_eyes_next_look_publication(",
+                  "native exposes direct GH2 NextLook publication helper");
+  ok &= contains(char_mesh_h,
+                  "SourceGh2CharEyesGeneratedTargetResult"
+                  "source_gh2_char_eyes_generated_target(",
+                  "native exposes direct GH2 generated target helper");
   ok &= contains(char_mesh,
                  "std::vector<std::string>source_char_eyes_list_poll_children("
                  "conststd::vector<std::string>&eye_lookats)",
@@ -24374,12 +24424,71 @@ int run_contract() {
                  "evidence.next_look_range=\"0x8035559C->0x80355A74\";",
                  "native CharEyes runtime dump records NextLook range");
   ok &= contains(char_mesh,
-                 "evidence.poll_deps_range=\"0x80355E84->0x80356030\";",
-                 "native CharEyes runtime dump records PollDeps range");
+                  "evidence.poll_deps_range=\"0x80355E84->0x80356030\";",
+                  "native CharEyes runtime dump records PollDeps range");
   ok &= contains(char_mesh,
-                 "evidence.safe_to_publish_eye_runtime_rows=false;"
-                 "evidence.safe_to_infer_facefx_rows=false;",
-                 "native CharEyes runtime dump fences eye and FaceFX rows");
+                  "evidence.gh2_xex_char_lookat_poll_range="
+                  "\"0x8216E4E8->0x8216EA40\";",
+                  "native CharEyes evidence records GH2 CharLookAt Poll range");
+  ok &= contains(char_mesh,
+                  "evidence.gh2_xex_char_eyes_next_look_range="
+                  "\"0x82170130->0x821704B0\";",
+                  "native CharEyes evidence records GH2 NextLook range");
+  ok &= contains(char_mesh,
+                  "evidence.gh2_xex_char_eyes_poll_range="
+                  "\"0x82170BA8->0x82170E10\";",
+                  "native CharEyes evidence records GH2 Poll range");
+  ok &= contains(char_mesh,
+                  "evidence.gh2_xex_owns_generated_target=true;"
+                  "evidence.gh2_xex_interest_can_replace_target=true;"
+                  "evidence.gh2_xex_assigns_target_to_every_lookat=true;"
+                  "evidence.safe_to_publish_destination_links=true;",
+                  "native CharEyes evidence closes destination link publication");
+  ok &= contains(char_mesh,
+                  "evidence.safe_to_publish_eye_runtime_rows=false;"
+                  "evidence.safe_to_infer_facefx_rows=false;",
+                  "native CharEyes runtime dump fences eye and FaceFX rows");
+  ok &= contains(char_mesh,
+                  "SourceGh2CharEyesNextLookPublication"
+                  "source_gh2_char_eyes_next_look_publication(",
+                  "native implements direct GH2 NextLook publication helper");
+  ok &= contains(char_mesh,
+                  "publication.used_interest=!qualifying_interest.empty();"
+                  "publication.chosen_target=publication.used_interest?"
+                  "qualifying_interest:generated_target;",
+                  "native NextLook helper selects generated or authored target");
+  ok &= contains(char_mesh,
+                  "publication.destination_targets.assign(lookats.size(),"
+                  "publication.chosen_target);",
+                  "native NextLook helper assigns one target to every lookat");
+  ok &= contains(char_mesh,
+                  "publication.reset_last_look=true;"
+                  "publication.reset_average_delta=true;"
+                  "publication.reset_last_cang=true;",
+                  "native NextLook helper preserves scheduler resets");
+  ok &= contains(char_mesh,
+                  "SourceGh2CharEyesGeneratedTargetResult"
+                  "source_gh2_char_eyes_generated_target(",
+                  "native implements direct GH2 generated target helper");
+  ok &= contains(char_mesh,
+                  "constexprfloatkFacingGain=45.0f;"
+                  "constexprdoublekFacingLimitRadians=0.45814892509952188;"
+                  "constexprfloatkMinDistance=20.0f;"
+                  "constexprfloatkMaxDistance=100.0f;"
+                  "constexprfloatkDistanceScale=12.0f;",
+                  "native generated target preserves direct XEX constants");
+  ok &= contains(char_mesh,
+                  "result.facing_delta_limit=static_cast<float>(std::tan("
+                  "kFacingLimitRadians));",
+                  "native generated target preserves tangent clamp");
+  ok &= contains(char_mesh,
+                  "result.random_distance=(kMinDistance+(kMaxDistance-"
+                  "kMinDistance)*random_unit)*kDistanceScale;",
+                  "native generated target preserves random distance projection");
+  ok &= contains(char_mesh,
+                  "if(object_dir_is_transformable&&result.target[2]<"
+                  "object_dir_world_z)",
+                  "native generated target preserves ObjectDir floor guard");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_eyes_source_test",
                  "CMake builds CharEyes source test");
@@ -24414,8 +24523,17 @@ int run_contract() {
                  "source_char_eyes_prop_sync_plan()",
                  "focused CharEyes source test covers prop-sync plan");
   ok &= contains(eyes_source_test,
-                 "source_char_eyes_runtime_dump_evidence()",
-                 "focused CharEyes source test covers runtime dump evidence");
+                  "source_char_eyes_runtime_dump_evidence()",
+                  "focused CharEyes source test covers runtime dump evidence");
+  ok &= contains(eyes_source_test,
+                  "source_gh2_char_eyes_next_look_publication(",
+                  "focused CharEyes source test covers GH2 NextLook publication");
+  ok &= contains(eyes_source_test,
+                  "source_gh2_char_eyes_generated_target(",
+                  "focused CharEyes source test covers GH2 generated target math");
+  ok &= contains(eyes_source_test,
+                  "runtime_dump.safe_to_publish_destination_links,true",
+                  "focused CharEyes source test accepts destination links only");
   ok &= contains(eyes_source_test,
                  "runtime_dump.safe_to_publish_eye_runtime_rows,false",
                  "focused CharEyes source test fences eye row publishing");
@@ -24627,8 +24745,14 @@ int run_contract() {
                  "`Poll`\n  `0x80354D64 -> 0x80355480`",
                  "document records CharEyes Poll dump range");
   ok &= contains(doc,
-                 "`safe_to_publish_eye_runtime_rows=false`",
-                 "document fences CharEyes runtime row publishing");
+                  "`safe_to_publish_eye_runtime_rows=false`",
+                  "document fences CharEyes runtime row publishing");
+  ok &= contains(doc,
+                  "`safe_to_publish_destination_links=true`",
+                  "document closes CharEyes destination link publication");
+  ok &= contains(doc,
+                  "`sub_82170130` (`0x82170130 -> 0x821704B0`)",
+                  "document records direct GH2 CharEyes NextLook range");
   ok &= contains(rb2_char_eyes_cpp,
                  "//Range:0x80354D64->0x80355480",
                  "RB2 dump maps CharEyes Poll range");
@@ -27946,6 +28070,8 @@ int run_contract() {
                  "structSourceCharBonesMeshesPoseDumpEvidence{"
                  "std::stringpose_meshes_range;std::stringprop_sync_range;"
                  "std::vector<std::string>pose_meshes_locals;"
+                 "std::stringgh2_rexglue_pose_meshes_range;"
+                 "std::vector<std::string>gh2_rexglue_axis_setter_ranges;"
                  "std::stringlatest_source_file;"
                  "std::stringlatest_source_comment;"
                  "std::vector<std::string>latest_source_stub_steps;"
@@ -27954,6 +28080,8 @@ int run_contract() {
                  "boollatest_source_uses_uninitialized_angle=true;"
                  "boollatest_source_publishes_transform_rows=false;"
                  "boolrb2_dump_has_statement_body=false;"
+                 "boolgh2_rexglue_axis_setters_write_full_matrix=true;"
+                 "boolsafe_to_publish_selected_axis_rows=false;"
                  "boolsafe_to_pose_meshes=false;"
                  "boolsafe_to_publish_mesh_transforms=false;};",
                  "native API exposes CharBonesMeshes PoseMeshes dump evidence");
@@ -28335,6 +28463,14 @@ int run_contract() {
                  "native CharBonesMeshes PoseMeshes dump records locals");
   ok &= contains(
       char_clip,
+      "evidence.gh2_rexglue_pose_meshes_range=\"0x821A51E0->0x821A5590\";"
+      "evidence.gh2_rexglue_axis_setter_ranges={"
+      "\"RotX0x8217B1C0->0x8217B250\","
+      "\"RotY0x8214C240->0x8214C2D0\","
+      "\"RotZ0x821A50E8->0x821A5178\",};",
+      "native CharBonesMeshes PoseMeshes records GH2 scalar axis setters");
+  ok &= contains(
+      char_clip,
       "evidence.latest_source_file=\"rb3/src/system/char/CharBonesMeshes.cpp\";"
       "evidence.latest_source_comment=\"fn_804B0C60-posemeshes\";",
       "native CharBonesMeshes PoseMeshes dump records latest stub source");
@@ -28349,6 +28485,10 @@ int run_contract() {
       "evidence.latest_source_uses_uninitialized_angle=true;"
       "evidence.latest_source_publishes_transform_rows=false;",
       "native CharBonesMeshes PoseMeshes dump rejects latest stub publishing");
+  ok &= contains(char_clip,
+                 "evidence.gh2_rexglue_axis_setters_write_full_matrix=true;"
+                 "evidence.safe_to_publish_selected_axis_rows=false;",
+                 "native GH2 scalar axis matrix publishing remains fenced");
   ok &= contains(char_clip,
                  "evidence.safe_to_pose_meshes=false;"
                  "evidence.safe_to_publish_mesh_transforms=false;",
@@ -29597,10 +29737,8 @@ int run_contract() {
                  "native helper preserves serialized channel weights");
   ok &= contains(char_clip,
                  "floatsource_grim_char_bones_samples_pose_axis_angle("
-                 "ClipChannel::Typeaxis,floatsample){if(axis=="
-                 "ClipChannel::kRotZ){return3.14159265358979323846f*"
-                 "sample;}returnsample;}",
-                 "native helper applies Grim PI-scaled rotz pose angle");
+                 "ClipChannel::Typeaxis,floatsample){(void)axis;returnsample;}",
+                 "native publisher preserves decoded GH2 radian units");
   ok &= contains(char_clip,
                  "SourceGrimCharBonesSamplesDecodePlansource_grim_char_bones_"
                  "samples_decode_plan(){",
@@ -32686,6 +32824,20 @@ int run_contract() {
   ok &= contains(char_clip,
                  "if(!force_selected_output){returnfalse;}",
                  "broad CharBone output compare rows do not write live pose");
+  ok &= contains(char_clip,
+                 "staticboolis_body_axis_output_channel(constClipChannel&channel)",
+                 "body scalar-output bridge is selected by decoded channel shape");
+  ok &= contains(char_clip,
+                 "!is_lower_body_pose_channel_name(key)&&"
+                 "!is_hand_driver_output_key(key)&&!output_key_is_face(key)",
+                 "body scalar-output bridge excludes existing specialized row families");
+  ok &= contains(char_clip,
+                 "apply_clip_pose_output_layer(axis_channels,weight,character,"
+                 "relative,axis_output_bones,true);",
+                 "body scalar-output bridge publishes only its selected authored subset");
+  ok &= contains(format_notes,
+                 "2026-07-18 bassist body-axis output bridge",
+                 "format notes document bounded bassist publisher root cause");
   ok &= contains(format_notes,
                  "Current source-truth removes broad lower-body\n  output live writes",
                  "format notes fence lower-body CharBone output as compare-only");

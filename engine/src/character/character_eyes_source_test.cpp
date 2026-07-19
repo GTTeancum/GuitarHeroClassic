@@ -32,6 +32,12 @@ bool expect_int(int got, int want, const char* label) {
   return false;
 }
 
+bool expect_u32(uint32_t got, uint32_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
 bool expect_float(float got, float want, const char* label) {
   if (std::fabs(got - want) <= 0.0001f) return true;
   std::cerr << label << " got " << got << " want " << want << "\n";
@@ -44,6 +50,7 @@ int main() {
   using ghogx::character::SourceCharEyesInterest;
   using ghogx::character::SourceCharEyesInterestRuntime;
   using ghogx::character::SourceCharEyesPollDeps;
+  using ghogx::character::SourceGh2RandomState;
   using ghogx::character::source_char_eyes_add_interest_object;
   using ghogx::character::source_char_eyes_clear_interest_objects;
   using ghogx::character::source_char_eyes_copy_plan;
@@ -77,6 +84,13 @@ int main() {
   using ghogx::character::source_char_eyes_set_interest_filter_flags;
   using ghogx::character::source_char_eyes_toggle_force_focus;
   using ghogx::character::source_char_eyes_toggle_interest_overlay;
+  using ghogx::character::source_gh2_char_eyes_next_look_publication;
+  using ghogx::character::source_gh2_char_eyes_generated_target;
+  using ghogx::character::source_gh2_char_eyes_enter;
+  using ghogx::character::source_gh2_char_eyes_poll;
+  using ghogx::character::source_gh2_random_seed;
+  using ghogx::character::source_gh2_random_u32;
+  using ghogx::character::source_gh2_random_unit;
 
   bool ok = true;
 
@@ -214,10 +228,211 @@ int main() {
                     "CharEyes latest source lacks poll body");
   ok &= expect_bool(runtime_dump.latest_source_has_get_target_body, false,
                     "CharEyes latest source lacks GetTarget body");
+  ok &= expect_string(runtime_dump.gh2_xex_char_lookat_poll_range,
+                      "0x8216E4E8->0x8216EA40",
+                      "GH2 XEX CharLookAt poll range");
+  ok &= expect_string(runtime_dump.gh2_xex_char_eyes_next_look_range,
+                      "0x82170130->0x821704B0",
+                      "GH2 XEX CharEyes NextLook range");
+  ok &= expect_string(runtime_dump.gh2_xex_char_eyes_poll_range,
+                      "0x82170BA8->0x82170E10",
+                      "GH2 XEX CharEyes poll range");
+  ok &= expect_bool(runtime_dump.gh2_xex_owns_generated_target, true,
+                    "GH2 XEX CharEyes owns generated target");
+  ok &= expect_bool(runtime_dump.gh2_xex_interest_can_replace_target, true,
+                    "GH2 XEX interest can replace generated target");
+  ok &= expect_bool(runtime_dump.gh2_xex_assigns_target_to_every_lookat, true,
+                    "GH2 XEX publishes one target to every lookat");
+  ok &= expect_bool(runtime_dump.safe_to_publish_destination_links, true,
+                    "GH2 XEX destination links are source-backed");
+  ok &= expect_bool(runtime_dump.safe_to_publish_stock_v2_lookat_local, true,
+                    "stock GH2 v2 self-pivot local writer is source-backed");
   ok &= expect_bool(runtime_dump.safe_to_publish_eye_runtime_rows, false,
-                    "CharEyes runtime row publishing remains fenced");
+                    "synthetic CharEyes world-row publishing remains fenced");
   ok &= expect_bool(runtime_dump.safe_to_infer_facefx_rows, false,
                     "CharEyes FaceFX inference remains fenced");
+
+  const auto generated_publication =
+      source_gh2_char_eyes_next_look_publication(
+          {"l-eye.lookat", "r-eye.lookat"}, "CharEyes.generated_target", "");
+  ok &= expect_bool(generated_publication.generated_target_local_written, true,
+                    "NextLook writes generated target local transform");
+  ok &= expect_bool(generated_publication.used_interest, false,
+                    "NextLook defaults to generated target");
+  ok &= expect_string(generated_publication.chosen_target,
+                      "CharEyes.generated_target",
+                      "NextLook generated target chosen");
+  ok &= expect_size(generated_publication.destination_targets.size(), 2,
+                    "NextLook destination publication count");
+  ok &= expect_string(generated_publication.destination_targets[0],
+                      "CharEyes.generated_target",
+                      "NextLook left destination");
+  ok &= expect_string(generated_publication.destination_targets[1],
+                      "CharEyes.generated_target",
+                      "NextLook right destination");
+  ok &= expect_bool(generated_publication.reset_last_look, true,
+                    "NextLook resets last look");
+  ok &= expect_bool(generated_publication.reset_average_delta, true,
+                    "NextLook resets average delta");
+  ok &= expect_bool(generated_publication.reset_last_cang, true,
+                    "NextLook resets last angular value");
+
+  const auto interest_publication =
+      source_gh2_char_eyes_next_look_publication(
+          {"l-eye.lookat", "r-eye.lookat"}, "CharEyes.generated_target",
+          "authored_interest.trans");
+  ok &= expect_bool(interest_publication.used_interest, true,
+                    "NextLook accepts qualifying interest");
+  ok &= expect_string(interest_publication.chosen_target,
+                      "authored_interest.trans",
+                      "NextLook interest target chosen");
+  ok &= expect_string(interest_publication.destination_targets[0],
+                      "authored_interest.trans",
+                      "NextLook left interest destination");
+  ok &= expect_string(interest_publication.destination_targets[1],
+                      "authored_interest.trans",
+                      "NextLook right interest destination");
+
+  const auto straight_target = source_gh2_char_eyes_generated_target(
+      {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 2.0f, 3.0f},
+      0.5f, false, 0.0f);
+  ok &= expect_bool(straight_target.facing_delta_clamped, false,
+                    "NextLook straight facing needs no clamp");
+  ok &= expect_float(straight_target.facing_delta_limit,
+                     std::tan(0.45814892509952188f),
+                     "NextLook facing delta limit");
+  ok &= expect_float(straight_target.random_distance, 720.0f,
+                     "NextLook random distance scale");
+  ok &= expect_float(straight_target.target[0], 1.0f,
+                     "NextLook straight target x");
+  ok &= expect_float(straight_target.target[1], 722.0f,
+                     "NextLook straight target y");
+  ok &= expect_float(straight_target.target[2], 3.0f,
+                     "NextLook straight target z");
+
+  const auto turn_target = source_gh2_char_eyes_generated_target(
+      {1.0f, 0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f},
+      0.0f, false, 0.0f);
+  ok &= expect_bool(turn_target.facing_delta_clamped, true,
+                    "NextLook large facing delta clamps");
+  ok &= expect_float(turn_target.facing_delta[0],
+                     std::tan(0.45814892509952188f),
+                     "NextLook clamped facing delta x");
+
+  const auto floor_target = source_gh2_char_eyes_generated_target(
+      {0.0f, 1.0f, -0.1f}, {0.0f, 1.0f, -0.1f},
+      {0.0f, 0.0f, 10.0f}, 0.0f, true, 0.0f);
+  ok &= expect_bool(floor_target.floor_clamped, true,
+                    "NextLook transformable ObjectDir floor clamps");
+  ok &= expect_float(floor_target.floor_scale, 10.0f / 24.0f,
+                     "NextLook floor intersection scale");
+  ok &= expect_float(floor_target.target[1], 100.0f,
+                     "NextLook floor-clamped target y");
+  ok &= expect_float(floor_target.target[2], 0.0f,
+                     "NextLook floor-clamped target z");
+
+  SourceGh2RandomState random;
+  source_gh2_random_seed(random, 1u);
+  ok &= expect_u32(source_gh2_random_u32(random), 13557849u,
+                   "GH2 lagged XOR first fixed-seed word");
+  ok &= expect_u32(source_gh2_random_u32(random), 1958910700u,
+                   "GH2 lagged XOR second fixed-seed word");
+  ok &= expect_u32(source_gh2_random_u32(random), 1436629461u,
+                   "GH2 lagged XOR third fixed-seed word");
+  source_gh2_random_seed(random, 1u);
+  ok &= expect_float(source_gh2_random_unit(random), 0.8763580322265625f,
+                     "GH2 RandomFloat unit uses low 16 bits");
+
+  const auto gh2_enter =
+      source_gh2_char_eyes_enter({1.0f, 2.0f, 3.0f}, true);
+  ok &= expect_float(gh2_enter.last_facing[0], 1.0f,
+                     "GH2 CharEyes enter facing x");
+  ok &= expect_float(gh2_enter.last_facing[1], 2.0f,
+                     "GH2 CharEyes enter facing y");
+  ok &= expect_float(gh2_enter.last_facing[2], 3.0f,
+                     "GH2 CharEyes enter facing z");
+  ok &= expect_float(gh2_enter.last_cang, 1.0f,
+                     "GH2 CharEyes enter cang");
+  ok &= expect_float(gh2_enter.seconds_since_look, 0.0f,
+                     "GH2 CharEyes enter seconds");
+  ok &= expect_float(gh2_enter.average_delta, 0.0f,
+                     "GH2 CharEyes enter average delta");
+  const auto gh2_enter_no_eye =
+      source_gh2_char_eyes_enter({1.0f, 2.0f, 3.0f}, false);
+  ok &= expect_float(gh2_enter_no_eye.last_facing[0], 0.0f,
+                     "GH2 CharEyes enter missing eye facing x");
+
+  auto steady_poll_state =
+      source_gh2_char_eyes_enter({0.0f, 1.0f, 0.0f}, true);
+  const auto steady_poll = source_gh2_char_eyes_poll(
+      steady_poll_state, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f},
+      {0.0f, 10.0f, 0.0f}, 1.0f, false, 0.0f, 1.0f);
+  ok &= expect_float(steady_poll.cang, 1.0f,
+                     "GH2 CharEyes poll target cosine");
+  ok &= expect_bool(steady_poll.called_next_look, false,
+                    "GH2 CharEyes steady poll does not retarget");
+  ok &= expect_float(steady_poll_state.seconds_since_look, 1.0f,
+                     "GH2 CharEyes poll accumulates seconds");
+
+  auto timeout_state = steady_poll_state;
+  timeout_state.seconds_since_look = 7.0f;
+  const auto timeout_equal = source_gh2_char_eyes_poll(
+      timeout_state, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f},
+      {0.0f, 10.0f, 0.0f}, 1.0f, false, 0.0f, 1.0f);
+  ok &= expect_bool(timeout_equal.called_next_look, false,
+                    "GH2 CharEyes timeout is strict greater-than eight");
+  const auto timeout_over = source_gh2_char_eyes_poll(
+      timeout_state, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f},
+      {0.0f, 10.0f, 0.0f}, 0.001f, false, 0.0f, 1.0f);
+  ok &= expect_bool(timeout_over.timeout_trigger, true,
+                    "GH2 CharEyes timeout triggers above eight");
+  ok &= expect_bool(timeout_over.called_next_look, true,
+                    "GH2 CharEyes timeout calls NextLook");
+  ok &= expect_float(timeout_state.seconds_since_look, 0.0f,
+                     "GH2 NextLook resets elapsed seconds");
+  ok &= expect_float(timeout_state.last_cang, 1.0f,
+                     "GH2 Poll restores cang after NextLook sentinel");
+
+  auto blink_state =
+      source_gh2_char_eyes_enter({0.0f, 1.0f, 0.0f}, true);
+  blink_state.previous_blink_weight = -0.2f;
+  blink_state.previous_blink_delta = -0.1f;
+  const auto blink_poll = source_gh2_char_eyes_poll(
+      blink_state, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f},
+      {10.0f, 0.0f, 0.0f}, 0.1f, true, -0.15f, 0.32f);
+  ok &= expect_bool(blink_poll.blink_trigger, true,
+                    "GH2 CharEyes blink rising edge and chance trigger");
+  ok &= expect_bool(blink_poll.called_next_look, true,
+                    "GH2 CharEyes blink calls NextLook after time advances");
+  ok &= expect_float(blink_state.previous_blink_weight, -0.15f,
+                     "GH2 CharEyes stores current blink weight");
+  ok &= expect_float(blink_state.previous_blink_delta, 0.05f,
+                     "GH2 CharEyes stores current blink delta");
+
+  auto blink_chance_state =
+      source_gh2_char_eyes_enter({0.0f, 1.0f, 0.0f}, true);
+  blink_chance_state.previous_blink_weight = -0.2f;
+  blink_chance_state.previous_blink_delta = -0.1f;
+  const auto blink_chance_equal = source_gh2_char_eyes_poll(
+      blink_chance_state, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f},
+      {10.0f, 0.0f, 0.0f}, 0.1f, true, -0.15f, 0.33f);
+  ok &= expect_bool(blink_chance_equal.blink_trigger, false,
+                    "GH2 CharEyes blink chance is strict below 0.33");
+
+  auto facing_state =
+      source_gh2_char_eyes_enter({0.0f, 1.0f, 0.0f}, true);
+  facing_state.last_cang = 0.5f;
+  const auto facing_poll = source_gh2_char_eyes_poll(
+      facing_state, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f},
+      {0.0f, 10.0f, 0.0f}, 0.1f, false, 0.0f, 1.0f);
+  ok &= expect_bool(facing_poll.facing_trigger, true,
+                    "GH2 CharEyes positive cosine delta triggers retarget");
+  ok &= expect_bool(facing_poll.called_next_look, true,
+                    "GH2 CharEyes facing gate calls NextLook");
+  ok &= expect_float(facing_poll.previous_facing[1], 1.0f,
+                     "GH2 CharEyes preserves pre-poll facing for NextLook");
+  ok &= expect_float(facing_state.average_delta, 0.0f,
+                     "GH2 CharEyes NextLook resets average delta");
 
   const auto category_get =
       source_char_eyes_default_interest_categories_sync(0x24, 0x20, true,

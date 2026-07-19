@@ -381,6 +381,7 @@ class HighwayRenderer {
   std::vector<QuatAnimKey> star_base_rotation_keys_;
   float star_base_rotation_duration_frames_ = 0.0f;
   RuntimeMesh gem_top_mesh_;
+  RuntimeMesh pc_standard_top_mesh_;
   RuntimeMesh gem_glow_mesh_;
   RuntimeMesh star_phrase_tail_mesh_;
   RuntimeMesh star_tail_mesh_;

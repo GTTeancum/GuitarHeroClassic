@@ -41,6 +41,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cctype>
 #include <cstdio>
@@ -998,6 +999,12 @@ source_char_bones_meshes_pose_dump_evidence() {
   evidence.pose_meshes_locals = {"bone", "pend", "p",    "qend", "q",
                                  "a",    "xend", "yend", "end",  "send",
                                  "s",    "blendScale"};
+  evidence.gh2_rexglue_pose_meshes_range = "0x821A51E0->0x821A5590";
+  evidence.gh2_rexglue_axis_setter_ranges = {
+      "RotX 0x8217B1C0->0x8217B250",
+      "RotY 0x8214C240->0x8214C2D0",
+      "RotZ 0x821A50E8->0x821A5178",
+  };
   evidence.latest_source_file =
       "rb3/src/system/char/CharBonesMeshes.cpp";
   evidence.latest_source_comment = "fn_804B0C60 - pose meshes";
@@ -1012,6 +1019,8 @@ source_char_bones_meshes_pose_dump_evidence() {
   evidence.latest_source_uses_uninitialized_angle = true;
   evidence.latest_source_publishes_transform_rows = false;
   evidence.rb2_dump_has_statement_body = false;
+  evidence.gh2_rexglue_axis_setters_write_full_matrix = true;
+  evidence.safe_to_publish_selected_axis_rows = false;
   evidence.safe_to_pose_meshes = false;
   evidence.safe_to_publish_mesh_transforms = false;
   return evidence;
@@ -1168,6 +1177,13 @@ float source_grim_char_bones_samples_decode_snorm16(int16_t value) {
   return std::max(static_cast<float>(value) / 32767.0f, -1.0f);
 }
 
+float source_gh2_char_bones_samples_decode_scalar_angle(int16_t value) {
+  // GH2 sub_821A1A58 converts compressed scalar rotation channels with the
+  // float at 0x8200CF38 (0x3A200000).  The decoded value is already radians;
+  // unlike a compressed quaternion component, it is not an snorm half-turn.
+  return static_cast<float>(value) * 0.0006103515625f;
+}
+
 std::array<float, 4> source_grim_char_bones_samples_decode_short_quat(
     int16_t x,
     int16_t y,
@@ -1182,9 +1198,10 @@ std::array<float, 4> source_grim_char_bones_samples_decode_short_quat(
 float source_grim_char_bones_samples_pose_axis_angle(
     ClipChannel::Type axis,
     float sample) {
-  if (axis == ClipChannel::kRotZ) {
-    return 3.14159265358979323846f * sample;
-  }
+  (void)axis;
+  // Both compressed and uncompressed GH2 scalar rotation rows are radians by
+  // the time they reach PoseMeshes.  Keep this helper as the single publisher
+  // boundary, but do not apply an additional pi conversion here.
   return sample;
 }
 
@@ -2515,6 +2532,70 @@ struct BoneList {
   size_t   frame_bytes = 0;
 };
 
+// GH2's own runtime classifier (sub_8215D520) predates the public later-engine
+// CharBones::Type enum above. It has three additional post-compose rotation
+// buckets and returns 10, not 9, for an unknown channel.
+enum Gh2CharBonesType {
+  kGh2CharBonesTypePos = 0,
+  kGh2CharBonesTypeScale = 1,
+  kGh2CharBonesTypeQuat = 2,
+  kGh2CharBonesTypeRotX = 3,
+  kGh2CharBonesTypeRotY = 4,
+  kGh2CharBonesTypeRotZ = 5,
+  kGh2CharBonesTypeDeltaX = 6,
+  kGh2CharBonesTypeDeltaY = 7,
+  kGh2CharBonesTypeDeltaZ = 8,
+  kGh2CharBonesTypeEnd = 9,
+  kGh2CharBonesTypeUnknown = 10,
+};
+
+int gh2_char_bones_samples_get_type_of(const std::string& channel) {
+  for (size_t dot = channel.find('.'); dot != std::string::npos;
+       dot = channel.find('.', dot + 1)) {
+    if (dot + 1 >= channel.size()) break;
+    switch (channel[dot + 1]) {
+      case 'p': return kGh2CharBonesTypePos;
+      case 's': return kGh2CharBonesTypeScale;
+      case 'q': return kGh2CharBonesTypeQuat;
+      case 'r':
+        if (dot + 4 < channel.size()) {
+          const char axis = channel[dot + 4];
+          if (axis >= 'x' && axis <= 'z') {
+            return kGh2CharBonesTypeRotX + (axis - 'x');
+          }
+        }
+        break;
+      case 'd':
+        // The XEX reads the fifth character after the dot. The supported
+        // source spellings are therefore .drotx/.droty/.drotz.
+        if (dot + 5 < channel.size()) {
+          const char axis = channel[dot + 5];
+          if (axis >= 'x' && axis <= 'z') {
+            return kGh2CharBonesTypeDeltaX + (axis - 'x');
+          }
+        }
+        break;
+      default: break;
+    }
+  }
+  return kGh2CharBonesTypeUnknown;
+}
+
+size_t gh2_char_bones_samples_file_type_size(int type, int compression) {
+  if (type < 0 || type >= kGh2CharBonesTypeEnd) return 0u;
+  // sub_821A1500 treats compression as a boolean. Vectors remain three
+  // float32 values; quaternions become four int16s and scalar axes one int16.
+  if (type <= kGh2CharBonesTypeScale) return 12u;
+  if (type == kGh2CharBonesTypeQuat) return compression == 0 ? 16u : 8u;
+  return compression == 0 ? 4u : 2u;
+}
+
+std::string gh2_char_bones_samples_target_name(const std::string& channel) {
+  const size_t dot = channel.find('.');
+  if (dot == std::string::npos) return channel;
+  return channel.substr(0, dot) + ".mesh";
+}
+
 enum SourceCharBonesCompression {
   kSourceCompressNone = 0,
   kSourceCompressRots = 1,
@@ -2524,8 +2605,8 @@ enum SourceCharBonesCompression {
 };
 
 bool is_valid_category_name(const std::string& name) {
-  int c = source_grim_char_bones_samples_get_type_of(name);
-  return c >= 0 && c < kSourceCharBonesTypeEnd;
+  const int type = gh2_char_bones_samples_get_type_of(name);
+  return type >= 0 && type < kGh2CharBonesTypeEnd;
 }
 
 float env_float_or(const char* name, float fallback) {
@@ -2564,16 +2645,13 @@ const char* source_char_bones_compression_name(int compression) {
   }
 }
 
-std::array<uint32_t, kSourceCharBonesTypeEnd + 1>
-source_grim_char_bones_samples_first_counts(const uint32_t cum[10]) {
-  std::array<uint32_t, kSourceCharBonesTypeEnd + 1> counts = {};
-  for (size_t i = 0; i < counts.size(); ++i) counts[i] = cum[i];
-  return counts;
-}
-
-bool uses_source_byte_quat(const BoneList& list) {
-  if (list.compression < kSourceCompressQuats) return false;
-  return std::find(list.cats.begin(), list.cats.end(), 2) != list.cats.end();
+bool gh2_char_bones_counts_valid(const uint32_t cum[10], int count_size,
+                                 uint32_t bone_count) {
+  if (count_size != 10 || cum[0] != 0) return false;
+  for (int i = 1; i < count_size; ++i) {
+    if (cum[i] < cum[i - 1]) return false;
+  }
+  return cum[kGh2CharBonesTypeEnd] == bone_count;
 }
 
 bool debug_clip_parse_enabled() {
@@ -2606,20 +2684,13 @@ bool read_zero_bone_list(const uint8_t* d, size_t n, size_t& at,
 
   out = BoneList{};
   for (int i = 0; i < header_plan.count_size; ++i) out.cum[i] = c.u32();
-  for (int i = 1; i < header_plan.count_size; ++i) {
-    if (out.cum[i] < out.cum[i - 1]) return false;
+  if (!gh2_char_bones_counts_valid(out.cum, header_plan.count_size, 0u)) {
+    return false;
   }
-  if (out.cum[header_plan.count_size - 1] != 0) return false;
 
   out.compression = (int)c.u32();
   out.num_samples = (int)c.u32();
   if (!source_char_bones_compression_known(out.compression)) return false;
-  if (!source_grim_char_bones_samples_recompute_sizes(
-           out.compression,
-           source_grim_char_bones_samples_first_counts(out.cum))
-           .valid) {
-    return false;
-  }
   if (out.num_samples < 0 || out.num_samples > 100000) return false;
   at = c.pos;
   return true;
@@ -2650,7 +2721,7 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at,
     c.pos += len;
     if (!is_valid_category_name(name)) return false;
     out.names.push_back(name);
-    out.cats.push_back(source_grim_char_bones_samples_get_type_of(name));
+    out.cats.push_back(gh2_char_bones_samples_get_type_of(name));
     if (header_plan.reads_weight) {
       if (c.pos + 4 > n) return false;
       out.weights.push_back(c.f32());
@@ -2663,50 +2734,36 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at,
     return false;
   }
   for (int i = 0; i < header_plan.count_size; ++i) out.cum[i] = c.u32();
-  // Validate: cum[0]==0, non-decreasing, cum[9] <= count.
-  if (out.cum[0] != 0) return false;
-  for (int i = 1; i < header_plan.count_size; ++i) {
-    if (out.cum[i] < out.cum[i - 1]) return false;
+  if (!gh2_char_bones_counts_valid(out.cum, header_plan.count_size, count)) {
+    return false;
   }
-  if (out.cum[header_plan.count_size - 1] > count) return false;
 
   if (c.pos + 8 > n) return false;
   out.compression = (int)c.u32();
   out.num_samples = (int)c.u32();
   if (!source_char_bones_compression_known(out.compression)) return false;
-  if (!source_grim_char_bones_samples_recompute_sizes(
-           out.compression,
-           source_grim_char_bones_samples_first_counts(out.cum))
-           .valid) {
-    return false;
-  }
   if (out.num_samples < 0 || out.num_samples > 100000) return false;
 
   // Category breakdown from cumulative counts.
   auto cat_n = [&](int cat) -> int {
     uint32_t lo = out.cum[cat];
-    uint32_t hi = (cat + 1 < 10) ? out.cum[cat + 1] : count;
+    uint32_t hi = out.cum[cat + 1];
     return (int)(hi - lo);
   };
   out.n_vec   = cat_n(0) + cat_n(1);                       // pos + scale
   out.n_quat  = cat_n(2);                                  // quat
-  out.n_angle = cat_n(3) + cat_n(4) + cat_n(5);            // rot*
-  const SourceGrimCharBonesSamplesDataPlan data_plan =
-      source_grim_char_bones_samples_data_plan(samples_version,
-                                               out.compression,
-                                               out.names,
-                                               out.num_samples);
-  if (!data_plan.known_version ||
-      data_plan.kept_channels.size() != out.names.size()) {
-    return false;
+  out.n_angle = 0;
+  out.frame_bytes = 0u;
+  for (int cat = kGh2CharBonesTypeRotX;
+       cat < kGh2CharBonesTypeEnd; ++cat) {
+    out.n_angle += cat_n(cat);
   }
-  out.frame_bytes = data_plan.sample_size;
-
-  // Source TypeSize proves the 4-byte ByteQuat row for kCompressQuats and
-  // kCompressAll, but the checked source snapshot does not expose the exact
-  // ByteQuat-to-Quat conversion body. Refuse those lists rather than silently
-  // reading four bytes as a ShortQuat.
-  if (uses_source_byte_quat(out)) return false;
+  for (int cat : out.cats) {
+    const size_t type_size =
+        gh2_char_bones_samples_file_type_size(cat, out.compression);
+    if (type_size == 0u) return false;
+    out.frame_bytes += type_size;
+  }
 
   if (header_plan.reads_frame_table) return false;
 
@@ -2743,17 +2800,11 @@ float read_snorm16(Cur& c) {
 }
 
 void read_vec(Cur& c, int cat, int compression, ClipChannel& ch) {
-  float x, y, z;
-  if (compression < 2) {
-    x = c.f32();
-    y = c.f32();
-    z = c.f32();
-  } else {
-    x = read_snorm16(c) * 1345.0f;
-    y = read_snorm16(c) * 1345.0f;
-    z = read_snorm16(c) * 1345.0f;
-  }
-  if (cat == 1) {
+  (void)compression;
+  const float x = c.f32();
+  const float y = c.f32();
+  const float z = c.f32();
+  if (cat == kGh2CharBonesTypeScale) {
     ch.type = ClipChannel::kScale;
     ch.scale[0] = x;
     ch.scale[1] = y;
@@ -2766,33 +2817,31 @@ void read_vec(Cur& c, int cat, int compression, ClipChannel& ch) {
   }
 }
 
-void skip_grim_scale(Cur& c) {
-  (void)c.u32();
-}
-
-void skip_grim_angle(Cur& c, bool comp) {
-  if (comp) {
-    (void)c.u16();
-  } else {
-    (void)c.u32();
-  }
-}
-
 void read_angle(Cur& c, bool comp, int cat, ClipChannel& ch) {
-  ch.type = cat == kSourceCharBonesTypeRotX ? ClipChannel::kRotX
-          : cat == kSourceCharBonesTypeRotY ? ClipChannel::kRotY
-                                            : ClipChannel::kRotZ;
-  ch.angle = comp ? read_snorm16(c) : c.f32();
+  switch (cat) {
+    case kGh2CharBonesTypeRotX: ch.type = ClipChannel::kRotX; break;
+    case kGh2CharBonesTypeRotY: ch.type = ClipChannel::kRotY; break;
+    case kGh2CharBonesTypeRotZ: ch.type = ClipChannel::kRotZ; break;
+    case kGh2CharBonesTypeDeltaX: ch.type = ClipChannel::kDeltaX; break;
+    case kGh2CharBonesTypeDeltaY: ch.type = ClipChannel::kDeltaY; break;
+    case kGh2CharBonesTypeDeltaZ: ch.type = ClipChannel::kDeltaZ; break;
+    default: ch.type = ClipChannel::kRotZ; break;
+  }
+  ch.angle = comp ? source_gh2_char_bones_samples_decode_scalar_angle(c.i16())
+                  : c.f32();
 }
 
 void add_raw_channel_count(CharClip::RawChannelCounts& counts, int type) {
   switch (type) {
-    case kSourceCharBonesTypePos: ++counts.pos; break;
-    case kSourceCharBonesTypeScale: ++counts.scale; break;
-    case kSourceCharBonesTypeQuat: ++counts.quat; break;
-    case kSourceCharBonesTypeRotX: ++counts.rotx; break;
-    case kSourceCharBonesTypeRotY: ++counts.roty; break;
-    case kSourceCharBonesTypeRotZ: ++counts.rotz; break;
+    case kGh2CharBonesTypePos: ++counts.pos; break;
+    case kGh2CharBonesTypeScale: ++counts.scale; break;
+    case kGh2CharBonesTypeQuat: ++counts.quat; break;
+    case kGh2CharBonesTypeRotX: ++counts.rotx; break;
+    case kGh2CharBonesTypeRotY: ++counts.roty; break;
+    case kGh2CharBonesTypeRotZ: ++counts.rotz; break;
+    case kGh2CharBonesTypeDeltaX: ++counts.dx; break;
+    case kGh2CharBonesTypeDeltaY: ++counts.dy; break;
+    case kGh2CharBonesTypeDeltaZ: ++counts.dz; break;
     default: break;
   }
 }
@@ -2867,30 +2916,33 @@ std::vector<std::vector<ClipChannel>> parse_all(
   if (debug_clip_parse_enabled()) {
     for (size_t i = 0; i < lists.size(); ++i) {
       const BoneList& bl = lists[i];
-      int type_counts[kSourceCharBonesTypeEnd] = {};
+      int type_counts[kGh2CharBonesTypeEnd] = {};
       for (int cat : bl.cats) {
-        if (cat >= 0 && cat < kSourceCharBonesTypeEnd) ++type_counts[cat];
+        if (cat >= 0 && cat < kGh2CharBonesTypeEnd) ++type_counts[cat];
       }
       std::fprintf(stderr,
                    "[clip-source-bones] list=%zu comp=%d(%s) samples=%d "
                    "channels=%zu bytes=%zu byteQuat=%d\n",
                    i, bl.compression,
                    source_char_bones_compression_name(bl.compression),
-                   bl.num_samples, bl.names.size(), bl.frame_bytes,
-                   uses_source_byte_quat(bl) ? 1 : 0);
+                   bl.num_samples, bl.names.size(), bl.frame_bytes, 0);
       std::fprintf(stderr,
                    "[clip-source-bones-counts] list=%zu vec=%d quat=%d "
                    "angle=%d\n",
                    i, bl.n_vec, bl.n_quat, bl.n_angle);
       std::fprintf(stderr,
                    "[clip-source-bones-types] list=%zu pos=%d scale=%d "
-                   "quat=%d rotx=%d roty=%d rotz=%d\n",
-                   i, type_counts[kSourceCharBonesTypePos],
-                   type_counts[kSourceCharBonesTypeScale],
-                   type_counts[kSourceCharBonesTypeQuat],
-                   type_counts[kSourceCharBonesTypeRotX],
-                   type_counts[kSourceCharBonesTypeRotY],
-                   type_counts[kSourceCharBonesTypeRotZ]);
+                   "quat=%d rotx=%d roty=%d rotz=%d "
+                   "dx=%d dy=%d dz=%d\n",
+                   i, type_counts[kGh2CharBonesTypePos],
+                   type_counts[kGh2CharBonesTypeScale],
+                   type_counts[kGh2CharBonesTypeQuat],
+                   type_counts[kGh2CharBonesTypeRotX],
+                   type_counts[kGh2CharBonesTypeRotY],
+                   type_counts[kGh2CharBonesTypeRotZ],
+                   type_counts[kGh2CharBonesTypeDeltaX],
+                   type_counts[kGh2CharBonesTypeDeltaY],
+                   type_counts[kGh2CharBonesTypeDeltaZ]);
     }
   }
 
@@ -2923,35 +2975,26 @@ std::vector<std::vector<ClipChannel>> parse_all(
 
       for (size_t bi = 0; bi < bl.names.size(); ++bi) {
         ClipChannel ch;
-        ch.bone_name =
-            source_grim_char_bones_samples_channel_mesh_name(bl.names[bi]);
+        ch.bone_name = gh2_char_bones_samples_target_name(bl.names[bi]);
         ch.source_weight =
             source_grim_char_bones_samples_channel_weight(bl.weights, bi);
         const int cat = bl.cats[bi];
-        if (!source_grim_char_bones_samples_decodes_channel_type(cat)) {
-          switch (cat) {
-            case kSourceCharBonesTypeScale:
-              skip_grim_scale(c);
-              break;
-            case kSourceCharBonesTypeRotX:
-            case kSourceCharBonesTypeRotY:
-              skip_grim_angle(c, comp);
-              break;
-            default:
-              break;
-          }
-          continue;
-        }
         switch (cat) {
-          case kSourceCharBonesTypePos:
+          case kGh2CharBonesTypePos:
+          case kGh2CharBonesTypeScale:
             read_vec(c, cat, bl.compression, ch);
             frames[f].push_back(ch);
             break;
-          case kSourceCharBonesTypeRotZ:
+          case kGh2CharBonesTypeRotX:
+          case kGh2CharBonesTypeRotY:
+          case kGh2CharBonesTypeRotZ:
+          case kGh2CharBonesTypeDeltaX:
+          case kGh2CharBonesTypeDeltaY:
+          case kGh2CharBonesTypeDeltaZ:
             read_angle(c, comp, cat, ch);
             frames[f].push_back(ch);
             break;
-          case kSourceCharBonesTypeQuat:
+          case kGh2CharBonesTypeQuat:
             read_quat(c, comp, ch);
             frames[f].push_back(ch);
             break;
@@ -3786,13 +3829,16 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
       if (result.loaded) {
         std::fprintf(stderr,
                      "[clip] '%s' from %s: %zu frames, %zu channels/frame, %zu output bones "
-                     "flags=0x%08x playFlags=0x%08x blend=%.3f range=%.3f\n",
+                     "flags=0x%08x playFlags=0x%08x blend=%.3f range=%.3f "
+                     "relative=%s\n",
                      clip_name.c_str(), result.source_milo_path.c_str(),
                      result.frames.size(),
                      result.frames.empty() ? 0 : result.frames[0].size(),
                      result.output_bones.size(), result.flags,
                      result.default_play_flags, result.blend_width,
-                     result.range);
+                     result.range,
+                     metadata.relative.empty() ? "<none>"
+                                               : metadata.relative.c_str());
         if (debug_clip_enabled() && metadata.valid &&
             metadata.samples_offset != sample_header_offset) {
           std::fprintf(stderr,
@@ -5665,6 +5711,7 @@ static void dump_leg_pose(const Character& character, const char* tag) {
   };
   dump("bone_facing");
   dump("bone_pelvis");
+  dump("bone_pos_gutbass");
   dump("bone_L-thigh");
   dump("bone_L-knee");
   dump("bone_L-ankle");
@@ -5727,6 +5774,7 @@ static void dump_arm_pose(const Character& character, const char* tag) {
                  bone.local.rot[2][2]);
   };
   dump("bone_pelvis");
+  dump("bone_pos_gutbass");
   dump("bone_L-thigh");
   dump("bone_L-knee");
   dump("bone_L-ankle");
@@ -6774,6 +6822,55 @@ static void post_rotate_axis(milo_scene::Xfm& xfm, ClipChannel::Type axis,
         break;
     }
   }
+}
+
+void source_char_bones_meshes_set_axis_rotation(
+    milo_scene::Xfm& xfm, ClipChannel::Type axis, float angle_radians) {
+  const float ca = std::cos(angle_radians);
+  const float sa = std::sin(angle_radians);
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) xfm.rot[r][c] = 0.0f;
+  }
+  switch (axis) {
+    case ClipChannel::kRotX:
+      xfm.rot[0][0] = 1.0f;
+      xfm.rot[1][1] = ca;
+      xfm.rot[1][2] = sa;
+      xfm.rot[2][1] = -sa;
+      xfm.rot[2][2] = ca;
+      break;
+    case ClipChannel::kRotY:
+      xfm.rot[0][0] = ca;
+      xfm.rot[0][2] = -sa;
+      xfm.rot[1][1] = 1.0f;
+      xfm.rot[2][0] = sa;
+      xfm.rot[2][2] = ca;
+      break;
+    case ClipChannel::kRotZ:
+      xfm.rot[0][0] = ca;
+      xfm.rot[0][1] = sa;
+      xfm.rot[1][0] = -sa;
+      xfm.rot[1][1] = ca;
+      xfm.rot[2][2] = 1.0f;
+      break;
+    default:
+      xfm.rot[0][0] = 1.0f;
+      xfm.rot[1][1] = 1.0f;
+      xfm.rot[2][2] = 1.0f;
+      break;
+  }
+}
+
+static void apply_pose_axis_rotation(milo_scene::Xfm& xfm,
+                                     ClipChannel::Type axis,
+                                     float angle_radians,
+                                     bool relative) {
+  (void)relative;
+  // The exact GH2 PoseMeshes axis setters are retained separately above, but
+  // applying them through the native partial output bridge produced visibly
+  // marionette-like live legs. Keep the established composition path active
+  // until RexGlue/PCSX2 proves the complete target-resolution and servo layer.
+  post_rotate_axis(xfm, axis, angle_radians);
 }
 
 static void source_rotate_about_z_vec(float v[3], float angle) {
@@ -9042,6 +9139,9 @@ struct PendingPose {
   const ClipChannel* rotx = nullptr;
   const ClipChannel* roty = nullptr;
   const ClipChannel* rotz = nullptr;
+  const ClipChannel* dx = nullptr;
+  const ClipChannel* dy = nullptr;
+  const ClipChannel* dz = nullptr;
 };
 
 static void apply_clip_pose_sampled_direct(
@@ -9067,6 +9167,9 @@ static const char* pose_debug_channel_type_name(ClipChannel::Type type) {
     case ClipChannel::kRotX: return "rotx";
     case ClipChannel::kRotY: return "roty";
     case ClipChannel::kRotZ: return "rotz";
+    case ClipChannel::kDeltaX: return "drotx";
+    case ClipChannel::kDeltaY: return "droty";
+    case ClipChannel::kDeltaZ: return "drotz";
   }
   return "?";
 }
@@ -9113,6 +9216,9 @@ static void dump_pose_source_weight_channel(const ClipChannel& ch,
     case ClipChannel::kRotX:
     case ClipChannel::kRotY:
     case ClipChannel::kRotZ:
+    case ClipChannel::kDeltaX:
+    case ClipChannel::kDeltaY:
+    case ClipChannel::kDeltaZ:
       std::fprintf(stderr, " angle=%.4f", ch.angle);
       break;
   }
@@ -9153,22 +9259,41 @@ static void apply_pending_pose(const PendingPose& pose, milo_scene::Xfm& local,
     }
   }
   if (pose.rotx) {
-    post_rotate_axis(
+    apply_pose_axis_rotation(
         local, ClipChannel::kRotX,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotX,
-                                                       pose.rotx->angle));
+                                                       pose.rotx->angle),
+        relative);
   }
   if (pose.roty) {
-    post_rotate_axis(
+    apply_pose_axis_rotation(
         local, ClipChannel::kRotY,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotY,
-                                                       pose.roty->angle));
+                                                       pose.roty->angle),
+        relative);
   }
   if (pose.rotz) {
-    post_rotate_axis(
+    apply_pose_axis_rotation(
         local, ClipChannel::kRotZ,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotZ,
-                                                       pose.rotz->angle));
+                                                       pose.rotz->angle),
+        relative);
+  }
+  if (pose.dx) {
+    post_rotate_axis(
+        local, ClipChannel::kRotX,
+        source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kDeltaX,
+                                                       pose.dx->angle));
+  }
+  // GH2's middle post-compose slot calls sub_822F5468, whose Xbox 360 body is
+  // an exact no-op. Preserve the bucket and its accumulation without inventing
+  // a Y rotation at commit.
+  (void)pose.dy;
+  if (pose.dz) {
+    post_rotate_axis(
+        local, ClipChannel::kRotZ,
+        source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kDeltaZ,
+                                                       pose.dz->angle));
   }
   if (pose.scale) {
     for (int r = 0; r < 3; ++r) {
@@ -9216,7 +9341,10 @@ static void apply_pending_pose_weighted(const PendingPose& pose,
       source_channel_weight_is_full(pose.quat) &&
       source_channel_weight_is_full(pose.rotx) &&
       source_channel_weight_is_full(pose.roty) &&
-      source_channel_weight_is_full(pose.rotz)) {
+      source_channel_weight_is_full(pose.rotz) &&
+      source_channel_weight_is_full(pose.dx) &&
+      source_channel_weight_is_full(pose.dy) &&
+      source_channel_weight_is_full(pose.dz)) {
     apply_pending_pose(pose, local, relative);
     return;
   }
@@ -9260,27 +9388,48 @@ static void apply_pending_pose_weighted(const PendingPose& pose,
   }
   const float rotx_weight = effective_pose_channel_weight(weight, pose.rotx);
   if (pose.rotx && rotx_weight > 0.0f) {
-    post_rotate_axis(
+    apply_pose_axis_rotation(
         local, ClipChannel::kRotX,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotX,
                                                        pose.rotx->angle) *
-            rotx_weight);
+            rotx_weight,
+        relative);
   }
   const float roty_weight = effective_pose_channel_weight(weight, pose.roty);
   if (pose.roty && roty_weight > 0.0f) {
-    post_rotate_axis(
+    apply_pose_axis_rotation(
         local, ClipChannel::kRotY,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotY,
                                                        pose.roty->angle) *
-            roty_weight);
+            roty_weight,
+        relative);
   }
   const float rotz_weight = effective_pose_channel_weight(weight, pose.rotz);
   if (pose.rotz && rotz_weight > 0.0f) {
-    post_rotate_axis(
+    apply_pose_axis_rotation(
         local, ClipChannel::kRotZ,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotZ,
                                                        pose.rotz->angle) *
-            rotz_weight);
+            rotz_weight,
+        relative);
+  }
+  const float dx_weight = effective_pose_channel_weight(weight, pose.dx);
+  if (pose.dx && dx_weight > 0.0f) {
+    post_rotate_axis(
+        local, ClipChannel::kRotX,
+        source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kDeltaX,
+                                                       pose.dx->angle) *
+            dx_weight);
+  }
+  const float dy_weight = effective_pose_channel_weight(weight, pose.dy);
+  (void)dy_weight;
+  const float dz_weight = effective_pose_channel_weight(weight, pose.dz);
+  if (pose.dz && dz_weight > 0.0f) {
+    post_rotate_axis(
+        local, ClipChannel::kRotZ,
+        source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kDeltaZ,
+                                                       pose.dz->angle) *
+            dz_weight);
   }
   const float scale_weight = effective_pose_channel_weight(weight, pose.scale);
   if (pose.scale && scale_weight > 0.0f) {
@@ -9398,10 +9547,6 @@ static bool is_hand_driver_root_key(const std::string& key) {
          key == "bone_fret" || key == "bone_fret_hand";
 }
 
-static bool is_constant_fret_hand_target_key(const std::string& key) {
-  return key == "bone_fret_hand";
-}
-
 static bool is_hand_driver_output_key(const std::string& key) {
   if (is_hand_driver_root_key(key)) return true;
   const bool left_or_right =
@@ -9455,20 +9600,6 @@ static bool output_bones_have_hand_driver_group_root(
     }
   }
   return false;
-}
-
-static int output_depth(const std::vector<OutputPoseNode>& nodes,
-                        const std::unordered_map<std::string, size_t>& by_key,
-                        size_t index) {
-  int depth = 0;
-  std::string parent = nodes[index].parent_key;
-  while (!parent.empty() && depth < 128) {
-    const auto it = by_key.find(parent);
-    if (it == by_key.end()) break;
-    ++depth;
-    parent = nodes[it->second].parent_key;
-  }
-  return depth;
 }
 
 static bool charbone_output_compare_enabled() {
@@ -9538,6 +9669,212 @@ static bool output_bones_have_face_output(
   return false;
 }
 
+enum class Gh2PoseTargetKind {
+  Missing,
+  Bone,
+  Mesh,
+};
+
+struct Gh2PoseTarget {
+  Gh2PoseTargetKind kind = Gh2PoseTargetKind::Missing;
+  size_t index = 0;
+  milo_scene::Xfm* local = nullptr;
+  std::string resolved_name;
+};
+
+static Gh2PoseTarget resolve_gh2_pose_target(Character& character,
+                                             const std::string& base_name) {
+  // sub_82192DD8 truncates the typed suffix and tries the transform spelling
+  // before the mesh spelling. Do exact object-name lookup: aliases such as
+  // toe/toe0 are renderer conveniences and are not part of CharBones binding.
+  const std::string trans_name = base_name + ".trans";
+  const std::string mesh_name = base_name + ".mesh";
+  for (size_t i = 0; i < character.bones.size(); ++i) {
+    if (character.bones[i].name != trans_name) continue;
+    return {Gh2PoseTargetKind::Bone, i, &character.bones[i].local, trans_name};
+  }
+  for (size_t i = 0; i < character.bones.size(); ++i) {
+    if (character.bones[i].name != mesh_name) continue;
+    return {Gh2PoseTargetKind::Bone, i, &character.bones[i].local, mesh_name};
+  }
+  for (size_t i = 0; i < character.meshes.size(); ++i) {
+    if (character.meshes[i].name != mesh_name) continue;
+    return {Gh2PoseTargetKind::Mesh, i, &character.meshes[i].local, mesh_name};
+  }
+  return {};
+}
+
+static float xfm_row_length(const milo_scene::Xfm& xfm, int row) {
+  return std::sqrt(xfm.rot[row][0] * xfm.rot[row][0] +
+                   xfm.rot[row][1] * xfm.rot[row][1] +
+                   xfm.rot[row][2] * xfm.rot[row][2]);
+}
+
+static void xfm_rotation_quat(const milo_scene::Xfm& xfm, float out[4]) {
+  float m[3][3] = {};
+  for (int r = 0; r < 3; ++r) {
+    const float row_len = xfm_row_length(xfm, r);
+    const float inv = row_len > 1.0e-8f ? 1.0f / row_len : 1.0f;
+    for (int c = 0; c < 3; ++c) m[r][c] = xfm.rot[r][c] * inv;
+  }
+
+  const float trace = m[0][0] + m[1][1] + m[2][2];
+  if (trace > 0.0f) {
+    const float s = std::sqrt(trace + 1.0f) * 2.0f;
+    out[3] = 0.25f * s;
+    out[0] = (m[1][2] - m[2][1]) / s;
+    out[1] = (m[2][0] - m[0][2]) / s;
+    out[2] = (m[0][1] - m[1][0]) / s;
+  } else if (m[0][0] > m[1][1] && m[0][0] > m[2][2]) {
+    const float s = std::sqrt(1.0f + m[0][0] - m[1][1] - m[2][2]) * 2.0f;
+    out[3] = (m[1][2] - m[2][1]) / s;
+    out[0] = 0.25f * s;
+    out[1] = (m[0][1] + m[1][0]) / s;
+    out[2] = (m[0][2] + m[2][0]) / s;
+  } else if (m[1][1] > m[2][2]) {
+    const float s = std::sqrt(1.0f + m[1][1] - m[0][0] - m[2][2]) * 2.0f;
+    out[3] = (m[2][0] - m[0][2]) / s;
+    out[0] = (m[0][1] + m[1][0]) / s;
+    out[1] = 0.25f * s;
+    out[2] = (m[1][2] + m[2][1]) / s;
+  } else {
+    const float s = std::sqrt(1.0f + m[2][2] - m[0][0] - m[1][1]) * 2.0f;
+    out[3] = (m[0][1] - m[1][0]) / s;
+    out[0] = (m[0][2] + m[2][0]) / s;
+    out[1] = (m[1][2] + m[2][1]) / s;
+    out[2] = 0.25f * s;
+  }
+  const float len = std::sqrt(out[0] * out[0] + out[1] * out[1] +
+                              out[2] * out[2] + out[3] * out[3]);
+  if (len <= 1.0e-8f) {
+    out[0] = out[1] = out[2] = 0.0f;
+    out[3] = 1.0f;
+    return;
+  }
+  for (int i = 0; i < 4; ++i) out[i] /= len;
+}
+
+static float xfm_axis_radians(const milo_scene::Xfm& xfm,
+                              ClipChannel::Type axis) {
+  const float x_len = std::max(xfm_row_length(xfm, 0), 1.0e-8f);
+  const float y_len = std::max(xfm_row_length(xfm, 1), 1.0e-8f);
+  const float z_len = std::max(xfm_row_length(xfm, 2), 1.0e-8f);
+  switch (axis) {
+    case ClipChannel::kRotX:
+      return std::atan2(xfm.rot[1][2] / y_len,
+                        xfm.rot[1][1] / y_len);
+    case ClipChannel::kRotY:
+      return std::atan2(xfm.rot[2][0] / z_len,
+                        xfm.rot[0][0] / x_len);
+    case ClipChannel::kRotZ:
+      return std::atan2(xfm.rot[0][1] / x_len,
+                        xfm.rot[0][0] / x_len);
+    default: return 0.0f;
+  }
+}
+
+static float gh2_channel_effective_weight(float frame_weight,
+                                          const ClipChannel* channel) {
+  if (!channel) return 0.0f;
+  return std::max(0.0f, frame_weight * channel->source_weight);
+}
+
+static void apply_gh2_typed_pose(const PendingPose& pose, float frame_weight,
+                                 milo_scene::Xfm& target_local) {
+  milo_scene::Xfm materialized = target_local;
+
+  if (pose.pos) {
+    const float w = gh2_channel_effective_weight(frame_weight, pose.pos);
+    for (int i = 0; i < 3; ++i) {
+      materialized.pos[i] = target_local.pos[i] * (1.0f - w) +
+                            pose.pos->pos[i] * w;
+    }
+  }
+
+  float desired_scale[3] = {};
+  bool commits_scale = pose.scale != nullptr;
+  for (int i = 0; i < 3; ++i) desired_scale[i] = xfm_row_length(target_local, i);
+  if (pose.scale) {
+    const float w = gh2_channel_effective_weight(frame_weight, pose.scale);
+    for (int i = 0; i < 3; ++i) {
+      desired_scale[i] = desired_scale[i] * (1.0f - w) +
+                         pose.scale->scale[i] * w;
+    }
+  }
+
+  if (pose.quat) {
+    const float w = gh2_channel_effective_weight(frame_weight, pose.quat);
+    float current[4] = {};
+    xfm_rotation_quat(target_local, current);
+    float dot = 0.0f;
+    for (int i = 0; i < 4; ++i) dot += current[i] * pose.quat->quat[i];
+    const float sign = dot < 0.0f ? -1.0f : 1.0f;
+    float blended[4] = {};
+    float len2 = 0.0f;
+    for (int i = 0; i < 4; ++i) {
+      blended[i] = current[i] * (1.0f - w) +
+                   pose.quat->quat[i] * w * sign;
+      len2 += blended[i] * blended[i];
+    }
+    if (len2 <= 1.0e-12f) {
+      blended[0] = blended[1] = blended[2] = 0.0f;
+      blended[3] = 1.0f;
+    }
+    float rot[3][3] = {};
+    quat_to_rot(blended, rot);
+    for (int r = 0; r < 3; ++r) {
+      for (int c = 0; c < 3; ++c) materialized.rot[r][c] = rot[r][c];
+    }
+  }
+
+  const ClipChannel* absolute_axes[3] = {pose.rotx, pose.roty, pose.rotz};
+  const ClipChannel::Type absolute_types[3] = {
+      ClipChannel::kRotX, ClipChannel::kRotY, ClipChannel::kRotZ};
+  for (int i = 0; i < 3; ++i) {
+    const ClipChannel* channel = absolute_axes[i];
+    if (!channel) continue;
+    const float w = gh2_channel_effective_weight(frame_weight, channel);
+    const float acquired = xfm_axis_radians(target_local, absolute_types[i]);
+    const float sample = acquired * (1.0f - w) + channel->angle * w;
+    source_char_bones_meshes_set_axis_rotation(
+        materialized, absolute_types[i],
+        source_grim_char_bones_samples_pose_axis_angle(absolute_types[i],
+                                                       sample));
+  }
+
+  if (pose.dx) {
+    post_rotate_axis(
+        materialized, ClipChannel::kRotX,
+        source_grim_char_bones_samples_pose_axis_angle(
+            ClipChannel::kDeltaX,
+            pose.dx->angle *
+                gh2_channel_effective_weight(frame_weight, pose.dx)));
+  }
+  // sub_822F5468 is the exact middle-slot no-op in this GH2 binary.
+  if (pose.dz) {
+    post_rotate_axis(
+        materialized, ClipChannel::kRotZ,
+        source_grim_char_bones_samples_pose_axis_angle(
+            ClipChannel::kDeltaZ,
+            pose.dz->angle *
+                gh2_channel_effective_weight(frame_weight, pose.dz)));
+  }
+
+  // PoseMeshes applies scale after every rotation bucket. This rescales rows
+  // to the materialized absolute lengths; it is not component-wise matrix
+  // multiplication by the authored vector.
+  if (commits_scale) {
+    for (int r = 0; r < 3; ++r) {
+      const float current = xfm_row_length(materialized, r);
+      if (current <= 1.0e-8f) continue;
+      const float ratio = desired_scale[r] / current;
+      for (int c = 0; c < 3; ++c) materialized.rot[r][c] *= ratio;
+    }
+  }
+
+  target_local = materialized;
+}
+
 static void dump_charbone_output_map(
     const Character& character, const std::vector<OutputPoseNode>& nodes,
     const std::unordered_map<std::string, size_t>& by_key,
@@ -9599,9 +9936,12 @@ static bool apply_clip_pose_output_layer(
   if (output_bones.empty()) {
     return false;
   }
+  (void)relative;
 
   std::vector<OutputPoseNode> nodes;
   nodes.reserve(output_bones.size());
+  std::vector<Gh2PoseTarget> targets;
+  targets.reserve(output_bones.size());
   std::unordered_map<std::string, size_t> by_key;
   for (const auto& out : output_bones) {
     OutputPoseNode node;
@@ -9609,26 +9949,21 @@ static bool apply_clip_pose_output_layer(
     node.key = strip_transform_suffix(out.name);
     node.parent_key = strip_transform_suffix(out.parent);
     node.bind_local = out.local;
-    node.current_local = out.local;
+    Gh2PoseTarget target = resolve_gh2_pose_target(character, node.key);
+    node.current_local = target.local ? *target.local : milo_scene::Xfm{};
     node.world_stored = out.world_stored;
     by_key[node.key] = nodes.size();
     nodes.push_back(std::move(node));
+    targets.push_back(std::move(target));
   }
 
   std::vector<PendingPose> poses(nodes.size());
   std::vector<bool> node_driven(nodes.size(), false);
-  std::vector<ClipChannel> direct_channels;
-  direct_channels.reserve(channels.size());
-  const bool compare_output = charbone_output_compare_enabled();
+  size_t unbound_channels = 0;
   for (const auto& ch : channels) {
     const auto it = by_key.find(strip_transform_suffix(ch.bone_name));
     if (it == by_key.end()) {
-      direct_channels.push_back(ch);
-      continue;
-    }
-    const bool selected_for_live_output = force_selected_output;
-    if (!selected_for_live_output && !compare_output) {
-      direct_channels.push_back(ch);
+      ++unbound_channels;
       continue;
     }
     PendingPose& pose = poses[it->second];
@@ -9640,105 +9975,47 @@ static bool apply_clip_pose_output_layer(
       case ClipChannel::kRotX: pose.rotx = &ch; break;
       case ClipChannel::kRotY: pose.roty = &ch; break;
       case ClipChannel::kRotZ: pose.rotz = &ch; break;
+      case ClipChannel::kDeltaX: pose.dx = &ch; break;
+      case ClipChannel::kDeltaY: pose.dy = &ch; break;
+      case ClipChannel::kDeltaZ: pose.dz = &ch; break;
     }
   }
 
   for (size_t i = 0; i < nodes.size(); ++i) {
-    if (!node_driven[i]) continue;
-    apply_pending_pose_weighted(poses[i], nodes[i].current_local, weight,
-                                relative);
-  }
-
-  if (force_selected_output) {
-    for (size_t i = 0; i < nodes.size(); ++i) {
-      if (node_driven[i]) continue;
-      if (is_constant_fret_hand_target_key(nodes[i].key)) {
-        node_driven[i] = true;
-      }
-    }
+    if (!node_driven[i] || !targets[i].local) continue;
+    apply_gh2_typed_pose(poses[i], weight, *targets[i].local);
+    nodes[i].current_local = *targets[i].local;
   }
 
   dump_charbone_output_map(character, nodes, by_key, node_driven,
-                           force_selected_output);
+                           true);
 
-  if (force_selected_output && debug_face_enabled() &&
-      output_bones_have_face_output(output_bones)) {
+  if (debug_face_enabled() && output_bones_have_face_output(output_bones)) {
     size_t face_outputs = 0;
     size_t driven_face_outputs = 0;
+    size_t resolved_face_outputs = 0;
     for (size_t i = 0; i < nodes.size(); ++i) {
       if (!output_key_is_face(nodes[i].key)) continue;
       ++face_outputs;
       if (node_driven[i]) ++driven_face_outputs;
+      if (targets[i].local) ++resolved_face_outputs;
     }
     std::fprintf(
         stderr,
         "[face-output] live=1 source_publisher=CharFaceServo::Poll/"
         "CharClip::PoseMeshes outputBones=%zu faceOutputBones=%zu "
-        "drivenFaceOutputBones=%zu directChannels=%zu "
-        "source=CharFaceServo::Poll(TryScaleDown,ScaleAddIdentity,"
-        "RotateBy,PoseMeshes)\n",
+        "drivenFaceOutputBones=%zu resolvedFaceOutputBones=%zu "
+        "unboundChannels=%zu selected=%d "
+        "source=AcquirePose(TransThenMesh),ScaleDown,ScaleAdd,PoseMeshes\n",
         output_bones.size(), face_outputs, driven_face_outputs,
-        direct_channels.size());
+        resolved_face_outputs, unbound_channels,
+        force_selected_output ? 1 : 0);
   }
 
-  if (!force_selected_output) {
-    if (debug_face_enabled() && output_bones_have_face_output(output_bones)) {
-      size_t face_outputs = 0;
-      size_t driven_face_outputs = 0;
-      for (size_t i = 0; i < nodes.size(); ++i) {
-        if (!output_key_is_face(nodes[i].key)) continue;
-        ++face_outputs;
-        if (node_driven[i]) ++driven_face_outputs;
-      }
-      std::fprintf(
-          stderr,
-          "[face-output] live=0 source_publisher=fenced outputBones=%zu "
-          "faceOutputBones=%zu drivenFaceOutputBones=%zu directChannels=%zu "
-          "source=CharClip::PoseMeshes(tmp_viseme_bones,ScaleDown,ScaleAdd,"
-          "PoseMeshes) missing=CharBonesMeshes::PoseMeshes\n",
-          output_bones.size(), face_outputs, driven_face_outputs,
-          direct_channels.size());
-    }
-    return false;
-  }
-
-  struct TargetUpdate {
-    int depth = 0;
-    int target_index = -1;
-    milo_scene::Xfm desired_local;
-  };
-  std::vector<TargetUpdate> updates;
-  updates.reserve(nodes.size());
-
-  for (size_t i = 0; i < nodes.size(); ++i) {
-    if (!node_driven[i]) continue;
-    const int target_i = find_bone_index(character, nodes[i].key);
-    if (target_i < 0 ||
-        static_cast<size_t>(target_i) >= character.bones.size()) {
-      continue;
-    }
-    TargetUpdate update;
-    update.depth = output_depth(nodes, by_key, i);
-    update.target_index = target_i;
-    update.desired_local = nodes[i].current_local;
-    updates.push_back(update);
-  }
-
-  std::sort(updates.begin(), updates.end(),
-            [](const TargetUpdate& a, const TargetUpdate& b) {
-              return a.depth < b.depth;
-            });
-  for (const auto& update : updates) {
-    auto& target = character.bones[static_cast<size_t>(update.target_index)];
-    // Only explicitly selected source-backed output groups write this
-    // reconstructed CharBone graph while the broad publisher remains fenced.
-    target.local = update.desired_local;
-  }
-
-  if (!direct_channels.empty()) {
-    apply_clip_pose_sampled_direct(direct_channels, weight, character,
-                                   relative);
-  }
+  // A missing target retains its CharBones slot and publishes to the runtime's
+  // dummy record. Likewise, a sampled row absent from StuffBones is not granted
+  // a raw transform write. Returning true records that this source publisher,
+  // not the legacy fuzzy direct path, owned the frame.
   return true;
 }
 
@@ -9813,6 +10090,49 @@ static void apply_lower_body_output_layer(
       debug_leg_pose_enabled()) {
     dump_leg_pose(character, "lower-output");
   }
+}
+
+static bool is_body_axis_output_channel(const ClipChannel& channel) {
+  if (channel.type != ClipChannel::kRotX &&
+      channel.type != ClipChannel::kRotY &&
+      channel.type != ClipChannel::kRotZ) {
+    return false;
+  }
+  const std::string key = strip_transform_suffix(channel.bone_name);
+  return !is_lower_body_pose_channel_name(key) &&
+         !is_hand_driver_output_key(key) && !output_key_is_face(key);
+}
+
+static void apply_body_axis_output_layer(
+    const std::vector<ClipChannel>& frame, float weight, Character& character,
+    bool relative,
+    const std::vector<CharClip::OutputBone>& source_output_bones) {
+  if (frame.empty() || source_output_bones.empty()) return;
+
+  std::vector<ClipChannel> axis_channels;
+  std::unordered_set<std::string> axis_keys;
+  for (const auto& channel : frame) {
+    if (!is_body_axis_output_channel(channel)) continue;
+    axis_channels.push_back(channel);
+    axis_keys.insert(strip_transform_suffix(channel.bone_name));
+  }
+  if (axis_channels.empty()) return;
+
+  std::vector<CharClip::OutputBone> axis_output_bones;
+  axis_output_bones.reserve(axis_keys.size());
+  for (const auto& output : source_output_bones) {
+    const std::string key = strip_transform_suffix(output.name);
+    if (axis_keys.find(key) == axis_keys.end()) continue;
+    axis_output_bones.push_back(output);
+  }
+  if (axis_output_bones.empty()) return;
+
+  // CharBone::StuffBones publishes each active scalar rotation row through the
+  // clip's authored output graph before CharClip::PoseMeshes writes the target
+  // Trans. Keep this bridge bounded to those decoded body-axis rows while the
+  // full CharBonesMeshes publisher remains fenced.
+  apply_clip_pose_output_layer(axis_channels, weight, character, relative,
+                               axis_output_bones, true);
 }
 
 static void apply_face_output_layer(
@@ -10055,6 +10375,211 @@ void apply_ik_midi_fret_target(Character& character,
   }
 }
 
+static const CharLookAt* source_gh2_exact_lookat(
+    const Character& character, const std::string& object_name) {
+  for (const CharLookAt& lookat : character.lookats) {
+    if (lookat.name == object_name) return &lookat;
+  }
+  return nullptr;
+}
+
+static SkinnedMesh* source_gh2_exact_mesh(Character& character,
+                                          const std::string& object_name) {
+  for (SkinnedMesh& mesh : character.meshes) {
+    if (mesh.name == object_name) return &mesh;
+  }
+  return nullptr;
+}
+
+static bool source_gh2_exact_transform_world(
+    const Character& character, const std::string& object_name,
+    std::array<float, 16>& world) {
+  for (const auto& bone : character.bones) {
+    if (bone.name != object_name) continue;
+    world = character.bone_world_local_chain(bone.name);
+    return true;
+  }
+  for (const auto& mesh : character.meshes) {
+    if (mesh.name != object_name) continue;
+    world = character.mesh_world(mesh);
+    return true;
+  }
+  return false;
+}
+
+static bool source_gh2_stock_v2_self_pivot_lookat(
+    const CharLookAt& lookat) {
+  constexpr float kExactFloatTolerance = 1.0e-6f;
+  return lookat.version == 2 && !lookat.source.empty() &&
+         lookat.source == lookat.pivot && lookat.dest.empty() &&
+         std::fabs(lookat.weight - 1.0f) <= kExactFloatTolerance &&
+         lookat.min_weight_yaw < 0.0f && lookat.allow_roll &&
+         !lookat.enable_jitter &&
+         std::fabs(lookat.yaw_jitter_limit) <= kExactFloatTolerance &&
+         std::fabs(lookat.pitch_jitter_limit) <= kExactFloatTolerance &&
+         std::fabs(lookat.source_radius) <= kExactFloatTolerance;
+}
+
+static SourceGh2RandomState& source_gh2_char_eyes_random_state() {
+  static SourceGh2RandomState state;
+  static std::once_flag seed_once;
+  std::call_once(seed_once, [&]() {
+    const auto ticks =
+        std::chrono::system_clock::now().time_since_epoch().count();
+    source_gh2_random_seed(state, static_cast<uint32_t>(ticks) & 0xffffu);
+  });
+  return state;
+}
+
+static void source_gh2_reset_local_rotation(milo_scene::Xfm& local) {
+  for (int row = 0; row < 3; ++row) {
+    for (int column = 0; column < 3; ++column) {
+      local.rot[row][column] = row == column ? 1.0f : 0.0f;
+    }
+  }
+}
+
+static void source_gh2_post_multiply_local_rotation(
+    milo_scene::Xfm& local, const float rotation[3][3]) {
+  float result[3][3] = {};
+  for (int row = 0; row < 3; ++row) {
+    for (int column = 0; column < 3; ++column) {
+      for (int inner = 0; inner < 3; ++inner) {
+        result[row][column] +=
+            local.rot[row][inner] * rotation[inner][column];
+      }
+    }
+  }
+  for (int row = 0; row < 3; ++row) {
+    for (int column = 0; column < 3; ++column) {
+      local.rot[row][column] = result[row][column];
+    }
+  }
+}
+
+static void apply_source_gh2_char_eyes_and_lookats(
+    Character& character, float time_seconds) {
+  struct ResolvedLookAt {
+    const CharLookAt* controller = nullptr;
+    SkinnedMesh* pivot = nullptr;
+  };
+
+  for (const CharEyes& eyes : character.eyes) {
+    if (eyes.version != 3 || eyes.lookats.empty()) continue;
+
+    std::vector<ResolvedLookAt> resolved;
+    resolved.reserve(eyes.lookats.size());
+    bool stock_shape = true;
+    for (const std::string& lookat_name : eyes.lookats) {
+      const CharLookAt* lookat =
+          source_gh2_exact_lookat(character, lookat_name);
+      SkinnedMesh* pivot =
+          lookat ? source_gh2_exact_mesh(character, lookat->pivot) : nullptr;
+      std::array<float, 16> parent_world = {};
+      if (!lookat || !source_gh2_stock_v2_self_pivot_lookat(*lookat) ||
+          !pivot || pivot->parent.empty() ||
+          !source_gh2_exact_transform_world(character, pivot->parent,
+                                            parent_world)) {
+        stock_shape = false;
+        break;
+      }
+      resolved.push_back({lookat, pivot});
+    }
+    if (!stock_shape || resolved.empty()) continue;
+
+    RuntimeGh2CharEyesState& eyes_state =
+        character.runtime_gh2_char_eyes[eyes.name];
+    if (eyes_state.entered && eyes_state.has_last_time &&
+        time_seconds < eyes_state.last_time_seconds) {
+      eyes_state = RuntimeGh2CharEyesState{};
+      for (const ResolvedLookAt& row : resolved) {
+        character.runtime_gh2_char_lookats.erase(row.controller->name);
+      }
+    }
+
+    if (!eyes_state.entered) {
+      for (const ResolvedLookAt& row : resolved) {
+        source_gh2_reset_local_rotation(row.pivot->local);
+        RuntimeGh2CharLookAtState& lookat_state =
+            character.runtime_gh2_char_lookats[row.controller->name];
+        lookat_state = RuntimeGh2CharLookAtState{};
+        lookat_state.entered = true;
+      }
+      const auto first_world = character.mesh_world(*resolved.front().pivot);
+      eyes_state.poll = source_gh2_char_eyes_enter(
+          array3_from_vec(mat_row(first_world, 1)), true);
+      eyes_state.entered = true;
+    }
+
+    float delta_seconds = 0.0f;
+    if (eyes_state.has_last_time) {
+      delta_seconds =
+          std::max(0.0f, time_seconds - eyes_state.last_time_seconds);
+    }
+    eyes_state.has_last_time = true;
+    eyes_state.last_time_seconds = time_seconds;
+
+    const auto first_world = character.mesh_world(*resolved.front().pivot);
+    const auto current_facing = array3_from_vec(mat_row(first_world, 1));
+    const auto first_position = array3_from_vec(mat_pos(first_world));
+    const SourceGh2CharEyesPollResult poll = source_gh2_char_eyes_poll(
+        eyes_state.poll, current_facing, first_position,
+        eyes_state.generated_target, delta_seconds, false, 0.0f, 1.0f);
+    if (poll.called_next_look) {
+      SourceGh2RandomState& random = source_gh2_char_eyes_random_state();
+      const auto target = source_gh2_char_eyes_generated_target(
+          current_facing, poll.previous_facing, first_position,
+          source_gh2_random_unit(random), false, 0.0f);
+      eyes_state.generated_target = target.target;
+    }
+
+    const Vec3 target = vec_from_array3(eyes_state.generated_target);
+    for (const ResolvedLookAt& row : resolved) {
+      const CharLookAt& lookat = *row.controller;
+      SkinnedMesh& pivot = *row.pivot;
+      RuntimeGh2CharLookAtState& lookat_state =
+          character.runtime_gh2_char_lookats[lookat.name];
+
+      std::array<float, 16> parent_world = {};
+      if (!source_gh2_exact_transform_world(character, pivot.parent,
+                                            parent_world)) {
+        continue;
+      }
+      const auto pivot_world = character.mesh_world(pivot);
+      Vec3 desired_world =
+          vnorm(vsub(target, mat_pos(pivot_world)), mat_row(pivot_world, 1));
+      Vec3 desired_parent =
+          vnorm(local_vec_from_world_rows(parent_world, desired_world),
+                vec_from_array3(pivot.local.rot[1]));
+
+      const SourceCharLookAtBounds bounds = source_char_lookat_sync_limits(
+          lookat.min_yaw, lookat.max_yaw, lookat.min_pitch,
+          lookat.max_pitch);
+      for (size_t axis = 0; axis < 3; ++axis) {
+        float* value = axis == 0 ? &desired_parent.x
+                       : axis == 1 ? &desired_parent.y
+                                   : &desired_parent.z;
+        *value = std::clamp(*value, bounds.min[axis], bounds.max[axis]);
+      }
+      desired_parent =
+          vnorm(desired_parent, vec_from_array3(pivot.local.rot[1]));
+
+      const auto smoothed = source_char_lookat_smooth_dir(
+          lookat_state.has_smoothed_dir, lookat_state.smoothed_dir,
+          array3_from_vec(desired_parent), delta_seconds, lookat.half_time);
+      lookat_state.smoothed_dir = smoothed.dir;
+      lookat_state.has_smoothed_dir = true;
+
+      float rotation_quat[4] = {};
+      quat_from_vec_to_vec(vec_from_array3(pivot.local.rot[1]),
+                           vec_from_array3(smoothed.dir), rotation_quat);
+      float rotation[3][3] = {};
+      quat_to_rot(rotation_quat, rotation);
+      source_gh2_post_multiply_local_rotation(pivot.local, rotation);
+    }
+  }
+}
+
 void clear_runtime_ik_weights(Character& character) {
   character.runtime_weight_props.clear();
   character.runtime_driver_flag_weights.clear();
@@ -10081,7 +10606,6 @@ void clear_runtime_trans_worlds(Character& character) {
 }
 
 void apply_character_controllers(Character& character, float time_seconds) {
-  (void)time_seconds;
   character.runtime_world_overrides.clear();
   log_character_controller_graph_once(character);
   dump_arm_pose(character, "controllers-pre");
@@ -10097,6 +10621,7 @@ void apply_character_controllers(Character& character, float time_seconds) {
   apply_source_upper_twists(character, bind_bones);
   apply_source_pos_constraints(character);
   apply_source_ik_rods(character);
+  apply_source_gh2_char_eyes_and_lookats(character, time_seconds);
   dump_arm_pose(character, "controllers-post");
 
   if (debug_face_enabled()) {
@@ -10154,6 +10679,9 @@ static void apply_clip_pose_sampled_direct(
         case ClipChannel::kRotX: poses[i].rotx = &ch; break;
         case ClipChannel::kRotY: poses[i].roty = &ch; break;
         case ClipChannel::kRotZ: poses[i].rotz = &ch; break;
+        case ClipChannel::kDeltaX: poses[i].dx = &ch; break;
+        case ClipChannel::kDeltaY: poses[i].dy = &ch; break;
+        case ClipChannel::kDeltaZ: poses[i].dz = &ch; break;
       }
       matched = true;
       dump_pose_source_weight_channel(ch, weight, "bone");
@@ -10169,6 +10697,9 @@ static void apply_clip_pose_sampled_direct(
         case ClipChannel::kRotX: mesh_poses[i].rotx = &ch; break;
         case ClipChannel::kRotY: mesh_poses[i].roty = &ch; break;
         case ClipChannel::kRotZ: mesh_poses[i].rotz = &ch; break;
+        case ClipChannel::kDeltaX: mesh_poses[i].dx = &ch; break;
+        case ClipChannel::kDeltaY: mesh_poses[i].dy = &ch; break;
+        case ClipChannel::kDeltaZ: mesh_poses[i].dz = &ch; break;
       }
       break;
     }
@@ -10204,6 +10735,8 @@ void apply_clip_frame(const CharClip& clip, int frame_idx, Character& character)
                                     clip.relative, clip.output_bones)) {
     apply_clip_pose_sampled_direct(clip.frames[(size_t)fi], 1.0f, character,
                                    clip.relative);
+    apply_body_axis_output_layer(clip.frames[(size_t)fi], 1.0f, character,
+                                 clip.relative, clip.output_bones);
     apply_lower_body_output_layer(clip.frames[(size_t)fi], 1.0f, character,
                                   clip.relative, clip.output_bones);
     apply_face_output_layer(clip.frames[(size_t)fi], 1.0f, character,
@@ -10220,12 +10753,23 @@ void apply_clip_frame_weighted(const CharClip& clip, int frame_idx,
                                     clip.relative, clip.output_bones)) {
     apply_clip_pose_sampled_direct(clip.frames[(size_t)fi], weight, character,
                                    clip.relative);
+    apply_body_axis_output_layer(clip.frames[(size_t)fi], weight, character,
+                                 clip.relative, clip.output_bones);
     apply_lower_body_output_layer(clip.frames[(size_t)fi], weight, character,
                                   clip.relative, clip.output_bones);
     apply_face_output_layer(clip.frames[(size_t)fi], weight, character,
                             clip.relative, clip.output_bones);
   }
   dump_arm_pose(character, "clip-frame-weighted-post");
+}
+
+bool apply_materialized_typed_pose(
+    const std::vector<ClipChannel>& channels,
+    const std::vector<CharClip::OutputBone>& output_bones,
+    Character& character) {
+  if (channels.empty() || output_bones.empty()) return false;
+  return apply_clip_pose_output_layer(channels, 1.0f, character, false,
+                                      output_bones, true);
 }
 
 float CharClip::duration_seconds() const {
@@ -10311,7 +10855,9 @@ const ClipChannel* matching_channel(const std::vector<ClipChannel>& frame,
 }
 
 float blend_axis_angle(float a, float b, float t) {
-  return wrap_ps2_angle(a + wrap_ps2_angle(b - a) * t);
+  // sub_821A1A58 linearly interpolates the normalized scalar sample. Angle
+  // wrapping belongs to later controller math, not CharBonesSamples decode.
+  return a + (b - a) * t;
 }
 
 void blend_channel_into(ClipChannel& out, const ClipChannel& rhs, float t) {
@@ -10341,6 +10887,9 @@ void blend_channel_into(ClipChannel& out, const ClipChannel& rhs, float t) {
     case ClipChannel::kRotX:
     case ClipChannel::kRotY:
     case ClipChannel::kRotZ:
+    case ClipChannel::kDeltaX:
+    case ClipChannel::kDeltaY:
+    case ClipChannel::kDeltaZ:
       out.angle = blend_axis_angle(out.angle, rhs.angle, t);
       break;
   }
@@ -10368,6 +10917,9 @@ ClipChannel identity_channel_like(const ClipChannel& ch) {
     case ClipChannel::kRotX:
     case ClipChannel::kRotY:
     case ClipChannel::kRotZ:
+    case ClipChannel::kDeltaX:
+    case ClipChannel::kDeltaY:
+    case ClipChannel::kDeltaZ:
       identity.angle = 0.0f;
       break;
   }
@@ -10433,6 +10985,9 @@ const char* channel_type_name(ClipChannel::Type type) {
     case ClipChannel::kRotX: return "rotx";
     case ClipChannel::kRotY: return "roty";
     case ClipChannel::kRotZ: return "rotz";
+    case ClipChannel::kDeltaX: return "drotx";
+    case ClipChannel::kDeltaY: return "droty";
+    case ClipChannel::kDeltaZ: return "drotz";
   }
   return "?";
 }
@@ -10470,6 +11025,9 @@ void dump_lane_channel_value(const ClipChannel& ch) {
     case ClipChannel::kRotX:
     case ClipChannel::kRotY:
     case ClipChannel::kRotZ:
+    case ClipChannel::kDeltaX:
+    case ClipChannel::kDeltaY:
+    case ClipChannel::kDeltaZ:
       std::fprintf(stderr, " angle=%.4f", ch.angle);
       break;
   }
@@ -10477,7 +11035,8 @@ void dump_lane_channel_value(const ClipChannel& ch) {
 
 bool is_axis_rot_channel(const ClipChannel& ch) {
   return ch.type == ClipChannel::kRotX || ch.type == ClipChannel::kRotY ||
-         ch.type == ClipChannel::kRotZ;
+         ch.type == ClipChannel::kRotZ || ch.type == ClipChannel::kDeltaX ||
+         ch.type == ClipChannel::kDeltaY || ch.type == ClipChannel::kDeltaZ;
 }
 
 bool is_quat_channel(const ClipChannel& ch) {
@@ -10487,7 +11046,7 @@ bool is_quat_channel(const ClipChannel& ch) {
 ClipChannel weighted_first_layer_channel(const ClipChannel& ch, float weight) {
   ClipChannel out = ch;
   if (is_axis_rot_channel(out)) {
-    out.angle = wrap_ps2_angle(out.angle * weight);
+    out.angle *= weight;
   } else if (is_quat_channel(out)) {
     for (float& q : out.quat) q *= weight;
   }
@@ -10603,7 +11162,7 @@ std::vector<ClipChannel> blend_channel_layers(
         // destination block. Duplicated forearm axis rows from body + hand
         // lanes must therefore add, not normalize by total source count.
         out[acc.index].angle =
-            wrap_ps2_angle(out[acc.index].angle + ch.angle * layer_weight);
+            out[acc.index].angle + ch.angle * layer_weight;
         acc.weight += layer_weight;
         continue;
       }
@@ -10655,6 +11214,7 @@ void apply_clip_channel_layers(const std::vector<ClipChannelLayer>& layers,
     return;
   }
   apply_clip_pose_sampled_direct(frame, 1.0f, character, relative);
+  apply_body_axis_output_layer(frame, 1.0f, character, relative, output_bones);
   apply_lower_body_output_layer(frame, 1.0f, character, relative, output_bones);
   apply_face_output_layer(frame, 1.0f, character, relative, output_bones);
   apply_hand_driver_output_layers(frame, character, relative, layers);
@@ -10828,7 +11388,7 @@ CharacterPoseStackFrameResult apply_character_pose_stack_frame(
     apply_clip_layer_stack(*stack, character);
     result.applied_clip_layers = true;
     result.applied_layer_count = stack->layers.size();
-    result.source_pose_publisher_fenced = true;
+    result.source_pose_publisher_active = true;
     if (debug_pose_publisher_enabled()) {
       std::string layer_names;
       for (size_t i = 0; i < stack->layers.size() && i < 6; ++i) {
@@ -10847,14 +11407,13 @@ CharacterPoseStackFrameResult apply_character_pose_stack_frame(
       }
       if (stack->layers.size() > 6) layer_names += ",...";
       std::fprintf(stderr,
-                   "[pose-publisher] label=%s native diagnostic clip layers: "
-                   "layers=%zu relative=%d source_publisher=fenced missing=%s "
+                   "[pose-publisher] label=%s native typed clip layers: "
+                   "layers=%zu relative=%d source_publisher=active "
+                   "path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes "
                    "layers_used=%s\n",
                    stack->debug_label.empty() ? "<none>"
                                               : stack->debug_label.c_str(),
                    stack->layers.size(), stack->relative ? 1 : 0,
-                   "CharBones::ScaleAdd|CharBonesSamples::EvaluateChannel|"
-                   "CharBonesMeshes::PoseMeshes",
                    layer_names.c_str());
     }
   }
@@ -10870,6 +11429,8 @@ CharacterPoseControllerFrameResult apply_character_pose_controller_frame(
       apply_character_pose_stack_frame(character, sources.pose_stack);
   result.applied_clip_layers = pose_result.applied_clip_layers;
   result.applied_layer_count = pose_result.applied_layer_count;
+  result.source_pose_publisher_active =
+      pose_result.source_pose_publisher_active;
   result.source_pose_publisher_fenced =
       pose_result.source_pose_publisher_fenced;
 
@@ -10908,6 +11469,10 @@ void CharClipPlayer::clear() {
 
 const CharClip* CharClipPlayer::current_clip() const {
   return layers_.empty() ? nullptr : layers_.back().clip;
+}
+
+float CharClipPlayer::current_time_seconds() const {
+  return layers_.empty() ? 0.0f : layers_.back().time_seconds;
 }
 
 void CharClipPlayer::play(const CharClip& clip, uint32_t flags,

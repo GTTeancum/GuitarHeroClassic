@@ -1355,6 +1355,17 @@ int main() {
                       "CharBonesMeshes PoseMeshes first local");
   ok &= expect_string(pose_meshes_dump.pose_meshes_locals[11], "blendScale",
                       "CharBonesMeshes PoseMeshes blend scale local");
+  ok &= expect_string(pose_meshes_dump.gh2_rexglue_pose_meshes_range,
+                      "0x821A51E0->0x821A5590",
+                      "GH2 RexGlue CharBonesMeshes PoseMeshes range");
+  ok &= expect_size(pose_meshes_dump.gh2_rexglue_axis_setter_ranges.size(), 3,
+                    "GH2 RexGlue axis setter range count");
+  ok &= expect_string(pose_meshes_dump.gh2_rexglue_axis_setter_ranges[0],
+                      "RotX 0x8217B1C0->0x8217B250",
+                      "GH2 RexGlue RotX setter range");
+  ok &= expect_string(pose_meshes_dump.gh2_rexglue_axis_setter_ranges[2],
+                      "RotZ 0x821A50E8->0x821A5178",
+                      "GH2 RexGlue RotZ setter range");
   ok &= expect_string(
       pose_meshes_dump.latest_source_file,
       "rb3/src/system/char/CharBonesMeshes.cpp",
@@ -1379,6 +1390,12 @@ int main() {
                    "CharBonesMeshes latest PoseMeshes incomplete");
   ok &= expect_int(pose_meshes_dump.rb2_dump_has_statement_body ? 1 : 0, 0,
                    "CharBonesMeshes dump is not statement body");
+  ok &= expect_int(
+      pose_meshes_dump.gh2_rexglue_axis_setters_write_full_matrix ? 1 : 0, 1,
+      "GH2 RexGlue axis setters replace the complete rotation matrix");
+  ok &= expect_int(
+      pose_meshes_dump.safe_to_publish_selected_axis_rows ? 1 : 0, 0,
+      "GH2 RexGlue scalar axis rows stay fenced without the full publisher");
   ok &= expect_int(pose_meshes_dump.safe_to_publish_mesh_transforms ? 1 : 0, 0,
                    "CharBonesMeshes live transform publishing remains fenced");
   const SourceReleasePosePublisherBoundary shoulder_boundary =
@@ -2164,6 +2181,14 @@ int main() {
                     -1.0f, "grim snorm16 negative clamp");
   ok &= expect_near(source_grim_char_bones_samples_decode_snorm16(16384),
                     16384.0f / 32767.0f, "grim snorm16 mid value");
+  ok &= expect_near(source_gh2_char_bones_samples_decode_scalar_angle(0),
+                    0.0f, "GH2 compressed scalar angle zero radians");
+  ok &= expect_near(source_gh2_char_bones_samples_decode_scalar_angle(1),
+                    0.0006103515625f,
+                    "GH2 compressed scalar angle XEX scale");
+  ok &= expect_near(source_gh2_char_bones_samples_decode_scalar_angle(-32768),
+                    -20.0f,
+                    "GH2 compressed scalar angle remains radians");
   const auto short_quat = source_grim_char_bones_samples_decode_short_quat(
       -32768, 0, 16384, 32767);
   ok &= expect_near(short_quat[0], -1.0f,

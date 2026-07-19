@@ -271,6 +271,7 @@ bool is_face_clip_channel(std::string_view name) {
            lower.find("lip") != std::string::npos ||
            lower.find("jaw") != std::string::npos ||
            lower.find("brow") != std::string::npos ||
+           lower.find("cheek") != std::string::npos ||
            lower.find("lid") != std::string::npos ||
            lower.find("eye") != std::string::npos;
 }
@@ -289,15 +290,10 @@ void keep_face_channels(ghogx::character::CharClip& clip) {
                     frame.end());
         kept += frame.size();
     }
-    clip.output_bones.erase(
-        std::remove_if(clip.output_bones.begin(), clip.output_bones.end(),
-                       [](const ghogx::character::CharClip::OutputBone& bone) {
-                           return !is_face_clip_channel(bone.name);
-                       }),
-        clip.output_bones.end());
     std::fprintf(stderr,
-                 "[world] face filtered '%s': kept %zu/%zu channels\n",
-                 clip.name.c_str(), kept, total);
+                 "[world] face filtered '%s': kept %zu/%zu channels "
+                 "outputBones=%zu source=FaceFxLipSyncServo-target-table\n",
+                 clip.name.c_str(), kept, total, clip.output_bones.size());
 }
 
 void keep_hand_overlay_channels(ghogx::character::CharClip& clip) {
@@ -435,6 +431,19 @@ std::optional<std::string> first_bass_guitar_milo(
         std::fprintf(stderr, "[world] config/gen/guitars.dtb: %s\n", ex.what());
     }
     return std::nullopt;
+}
+
+bool character_draws_authored_instrument(
+    const ghogx::character::Character& character) {
+    // The stock metal_bass character owns guitar.mesh in both LOD groups.
+    // Treat authored draw-group membership as the source of truth so an
+    // external quickplay prop is only added to character graphs that need it.
+    return std::any_of(
+        character.groups.begin(), character.groups.end(),
+        [](const ghogx::milo_scene::GroupObj& group) {
+            return std::find(group.children.begin(), group.children.end(),
+                             "guitar.mesh") != group.children.end();
+        });
 }
 
 std::vector<std::string> scan_milo_strings(const uint8_t* body, size_t size) {
@@ -8627,6 +8636,8 @@ struct PerformerMidiState {
     float main_beat_scale = 1.0f;
     std::string hand_map;
     std::string marker;
+    uint32_t marker_tick = UINT32_MAX;
+    double marker_time = -1.0;
 };
 
 PerformerMidiState performer_midi_state_at(const ghogx::chart::Chart& chart,
@@ -8638,10 +8649,20 @@ PerformerMidiState performer_midi_state_at(const ghogx::chart::Chart& chart,
         if (ev.tick > now_tick) break;
         if (ev.track != track) continue;
         state.marker = ev.text;
+        state.marker_tick = ev.tick;
+        state.marker_time = chart.tick_to_sec(ev.tick);
         if (ev.text == "[play]") {
             state.playing = true;
+            state.allbeat = false;
+            state.double_time = false;
+            state.half_time = false;
+            state.no_snare = false;
         } else if (ev.text == "[idle]") {
             state.playing = false;
+            state.allbeat = false;
+            state.double_time = false;
+            state.half_time = false;
+            state.no_snare = false;
         } else if (ev.text == "[nobeat]") {
             state.playing = true;
             state.no_snare = true;
@@ -9364,9 +9385,35 @@ std::string worldcrowd_clip_group_for_event(
     return worldcrowd_clip_group_for_event(venue_event);
 }
 
-const char* performer_lighting_environment_for_role(std::string_view role) {
-    if (role == "drummer") return "drummer.env";
-    return "band.env";
+bool scene_has_environment(const ghogx::milo_scene::Scene& scene,
+                           std::string_view name) {
+    return std::any_of(scene.environs.begin(), scene.environs.end(),
+                       [&](const auto& env) { return env.name == name; });
+}
+
+std::string source_performer_proxy_environment(
+    std::string_view role, const ghogx::milo_scene::Scene& character_scene) {
+    // Stock venue proxies assign the solo guitarist to the character/char
+    // environment, the band to band.env, and use drummer.env only in the
+    // RedOctane character scene that actually owns it. Resolve those authored
+    // rows against the decoded scene rather than leaving a missing drummer.env
+    // selected in every venue.
+    if (role == "guitarist0") {
+        if (scene_has_environment(character_scene, "character.env")) {
+            return "character.env";
+        }
+        if (scene_has_environment(character_scene, "char.env")) {
+            return "char.env";
+        }
+    }
+    if (role == "drummer" &&
+        scene_has_environment(character_scene, "drummer.env")) {
+        return "drummer.env";
+    }
+    if (scene_has_environment(character_scene, "band.env")) {
+        return "band.env";
+    }
+    return {};
 }
 
 float worldcrowd_fullness_for_event(std::string_view venue_event) {
@@ -9522,15 +9569,20 @@ size_t merge_worldcrowd_actor_source_targets(
         nullptr,
     std::map<std::string, ghogx::character::CharClip>* actor_clip_cache =
         nullptr,
-    bool log_sample_summary = true) {
+    bool log_sample_summary = true,
+    std::vector<WorldCrowdAnimatedCameraSourceCache>* animated_source_cache =
+        nullptr) {
     auto add_target = [&](std::string name,
-                          const std::array<float, 16>& world) {
+                          const std::array<float, 16>& world,
+                          std::array<float, 16>** stored_world = nullptr) {
         name = canonical_milo_ref(std::move(name));
         if (name.empty()) return false;
-        const bool added = into.find(name) == into.end();
-        into[name] = world;
+        const auto [it, added] = into.insert_or_assign(std::move(name), world);
+        if (stored_world) *stored_world = &it->second;
         return added;
     };
+
+    if (animated_source_cache) animated_source_cache->clear();
 
     std::map<std::string, ghogx::milo_scene::Scene> local_actor_scenes;
     std::map<std::string, ghogx::character::Character> local_actor_characters;
@@ -9626,6 +9678,21 @@ size_t merge_worldcrowd_actor_source_targets(
                         sampled_bone_worlds.size());
                 }
             }
+            WorldCrowdAnimatedCameraSourceCache* actor_source_cache = nullptr;
+            if (animated_source_cache) {
+                const auto cache_it = std::find_if(
+                    animated_source_cache->begin(),
+                    animated_source_cache->end(), [&](const auto& candidate) {
+                        return candidate.actor_path == *actor_path;
+                    });
+                if (cache_it != animated_source_cache->end()) {
+                    actor_source_cache = &*cache_it;
+                } else {
+                    animated_source_cache->push_back(
+                        WorldCrowdAnimatedCameraSourceCache{*actor_path, {}});
+                    actor_source_cache = &animated_source_cache->back();
+                }
+            }
             const auto& actor_scene = actor_it->second;
             for (const auto& placement : set.placements) {
                 const auto placement_world = xfm_to_mat4(placement);
@@ -9696,6 +9763,9 @@ size_t merge_worldcrowd_actor_source_targets(
                         const auto bone_it =
                             sampled_bone_worlds.find(source_name);
                         if (bone_it != sampled_bone_worlds.end()) {
+                            WorldCrowdAnimatedCameraSourceBinding binding;
+                            binding.source_name = source_name;
+                            binding.area_local_world = area_local_world;
                             const auto anim_source_world =
                                 mat4_mul_game(bone_it->second,
                                               area_local_world);
@@ -9706,7 +9776,8 @@ size_t merge_worldcrowd_actor_source_targets(
                                 "_placement_" +
                                 std::to_string(placement_index);
                             if (add_target(std::move(anim_key),
-                                           anim_source_world))
+                                           anim_source_world,
+                                           &binding.animated_world))
                                 ++added_count;
                             const auto anim_source_pos =
                                 mat4_position_game(anim_source_world);
@@ -9723,9 +9794,16 @@ size_t merge_worldcrowd_actor_source_targets(
                                         "_placement_" +
                                         std::to_string(placement_index);
                                     if (add_target(std::move(flat_key),
-                                                   *projected))
+                                                   *projected,
+                                                   &binding
+                                                        .animated_flat_worlds
+                                                            [axis]))
                                         ++added_count;
                                 }
+                            }
+                            if (actor_source_cache && binding.animated_world) {
+                                actor_source_cache->bindings.push_back(
+                                    std::move(binding));
                             }
                         }
                     }
@@ -9735,6 +9813,54 @@ size_t merge_worldcrowd_actor_source_targets(
         }
     }
     return added_count;
+}
+
+void update_worldcrowd_animated_camera_source_targets(
+    const std::vector<WorldCrowdAnimatedCameraSourceCache>& source_cache,
+    const std::map<std::string, ghogx::character::Character>& actor_characters,
+    const std::map<std::string, ghogx::character::CharClip>& actor_clips,
+    double sample_time_seconds) {
+    for (const auto& actor_cache : source_cache) {
+        const auto character_it = actor_characters.find(actor_cache.actor_path);
+        const auto clip_it = actor_clips.find(actor_cache.actor_path);
+        if (character_it == actor_characters.end() ||
+            clip_it == actor_clips.end() || !clip_it->second.loaded) {
+            continue;
+        }
+
+        ghogx::character::Character sampled = character_it->second;
+        const int sample_frame =
+            worldcrowd_clip_frame_at_time(clip_it->second, sample_time_seconds);
+        ghogx::character::apply_clip_frame(clip_it->second, sample_frame,
+                                           sampled);
+        std::unordered_map<std::string, std::array<float, 16>>
+            sampled_bone_worlds;
+        sampled_bone_worlds.reserve(sampled.bones.size());
+        for (const auto& bone : sampled.bones) {
+            sampled_bone_worlds[camera_target_component_name(bone.name)] =
+                sampled.bone_world_local_chain(bone.name);
+        }
+
+        for (const auto& binding : actor_cache.bindings) {
+            if (!binding.animated_world) continue;
+            const auto bone_it = sampled_bone_worlds.find(binding.source_name);
+            if (bone_it == sampled_bone_worlds.end()) continue;
+            const auto animated_world =
+                mat4_mul_game(bone_it->second, binding.area_local_world);
+            *binding.animated_world = animated_world;
+            const auto animated_position =
+                mat4_position_game(animated_world);
+            for (int axis = 0; axis < 3; ++axis) {
+                auto* flat_world = binding.animated_flat_worlds[axis];
+                if (!flat_world) continue;
+                if (const auto projected =
+                        worldcrowd_projected_axis_source_world(
+                            animated_world, animated_position, axis)) {
+                    *flat_world = *projected;
+                }
+            }
+        }
+    }
 }
 
 std::optional<std::array<float, 3>> debug_camera_vec3_env(const char* name) {
@@ -17294,12 +17420,17 @@ constexpr std::array<std::string_view, 9> kNormalCamShotCategoryOrder = {
     "flr_far_rt",  "band_POV",    "balcony_lft",
     "balcony_rt",  "SOLO_NEAR",   "SOLO_FAR"};
 
-std::string camera_source_pick_shot_scan_scope(CameraShotMode mode) {
+std::string camera_source_pick_shot_scan_scope(
+    CameraShotMode mode, size_t normal_category_cursor = 0) {
     if (mode == CameraShotMode::Lighter) return "LIGHTER";
     std::vector<std::string> categories;
     categories.reserve(kNormalCamShotCategoryOrder.size());
-    for (const auto category : kNormalCamShotCategoryOrder) {
-        categories.emplace_back(category);
+    const size_t cursor =
+        normal_category_cursor % kNormalCamShotCategoryOrder.size();
+    for (size_t offset = 0; offset < kNormalCamShotCategoryOrder.size();
+         ++offset) {
+        categories.emplace_back(kNormalCamShotCategoryOrder[
+            (cursor + offset) % kNormalCamShotCategoryOrder.size()]);
     }
     return "NORMAL_CAMSHOT_CATEGORIES->" + join_log_names(categories);
 }
@@ -18448,13 +18579,14 @@ void camera_source_no_acceptable_shot(std::string_view category,
                                       bool low_excitement,
                                       bool walking,
                                       bool starpower,
+                                      size_t normal_category_cursor,
                                       const std::vector<CameraShotSourceFilter>&
                                           source_filters) {
     if (debug_camera_enabled() || debug_venue_filters_enabled()) {
         const std::string source_filter_label =
             camera_source_filter_list_label(source_filters);
         const std::string source_scan_scope =
-            camera_source_pick_shot_scan_scope(mode);
+            camera_source_pick_shot_scan_scope(mode, normal_category_cursor);
         std::fprintf(
             stderr,
             "[world] camera pick_shot warning: source_warn=\"No acceptable camera shot:\" source_warn_cat=%s source_manager=CameraManager::PickCameraShot category=%s category_scan=%s mode=%s filters=\"%s\" filter_count=%zu low_excitement=%d walking=%d starpower=%d result=0\n",
@@ -18492,6 +18624,7 @@ std::optional<size_t> choose_regular_camera_key_index_by_category(
     const Gameplay::CameraKey* previous,
     CameraShotMode mode,
     std::string_view current_walkspot,
+    size_t normal_category_cursor,
     Predicate&& predicate) {
     auto scan_category = [&](std::string_view category)
         -> std::optional<size_t> {
@@ -18518,7 +18651,12 @@ std::optional<size_t> choose_regular_camera_key_index_by_category(
     if (mode == CameraShotMode::Lighter) {
         return scan_category("LIGHTER");
     }
-    for (const auto category : kNormalCamShotCategoryOrder) {
+    const size_t cursor =
+        normal_category_cursor % kNormalCamShotCategoryOrder.size();
+    for (size_t offset = 0; offset < kNormalCamShotCategoryOrder.size();
+         ++offset) {
+        const auto category = kNormalCamShotCategoryOrder[
+            (cursor + offset) % kNormalCamShotCategoryOrder.size()];
         if (auto selected = scan_category(category)) return selected;
     }
     return std::nullopt;
@@ -18564,8 +18702,11 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     bool starpower,
     CameraShotMode mode,
     int source_faceoff_players,
-    std::string_view current_walkspot) {
+    std::string_view current_walkspot,
+    size_t& normal_category_cursor) {
     if (keys.empty()) return nullptr;
+    const size_t category_cursor_before =
+        normal_category_cursor % kNormalCamShotCategoryOrder.size();
     const Gameplay::CameraKey* source_previous =
         camera_source_previous_key_for_selection(
             keys, previous_name, source_previous_fallback);
@@ -18582,7 +18723,7 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
         const std::string_view source_category =
             camera_source_pick_shot_category(mode);
         const std::string source_scan_scope =
-            camera_source_pick_shot_scan_scope(mode);
+            camera_source_pick_shot_scan_scope(mode, category_cursor_before);
         const size_t num_shots = camera_source_camera_shots_prescan_count(
             keys, source_previous, mode, current_walkspot, source_filter);
         std::fprintf(
@@ -18596,16 +18737,33 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     camera_source_first_shot_ok(camera_source_pick_shot_category(mode));
     std::optional<size_t> selected =
         choose_regular_camera_key_index_by_category(
-            keys, source_previous, mode, current_walkspot, source_filter);
+            keys, source_previous, mode, current_walkspot,
+            category_cursor_before, source_filter);
     if (!selected) {
         camera_source_no_acceptable_shot(camera_source_pick_shot_category(mode),
                                          mode, low_excitement, walking,
-                                         starpower, source_filters);
+                                         starpower, category_cursor_before,
+                                         source_filters);
         return nullptr;
     }
     const size_t selected_index = *selected;
     const std::string selected_category = keys[selected_index].category;
     const std::string selected_name = keys[selected_index].name;
+    size_t category_cursor_after = category_cursor_before;
+    if (mode != CameraShotMode::Lighter) {
+        const auto selected_category_it =
+            std::find(kNormalCamShotCategoryOrder.begin(),
+                      kNormalCamShotCategoryOrder.end(), selected_category);
+        if (selected_category_it != kNormalCamShotCategoryOrder.end()) {
+            const size_t selected_category_index = static_cast<size_t>(
+                std::distance(kNormalCamShotCategoryOrder.begin(),
+                              selected_category_it));
+            category_cursor_after =
+                (selected_category_index + 1) %
+                kNormalCamShotCategoryOrder.size();
+            normal_category_cursor = category_cursor_after;
+        }
+    }
     const size_t selected_bucket_index =
         camera_category_bucket_index(keys, selected_category, selected_index);
     const std::string before_order =
@@ -18625,6 +18783,14 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
             "[world] camera FindCameraShot move: source_manager=CameraManager::FindCameraShot shot=%s category=%s bucket_index=%zu source_move=MoveItem(end) source_return=CamShot before=%s after=%s\n",
             selected_name.c_str(), selected_category.c_str(),
             selected_bucket_index, before_order.c_str(), after_order.c_str());
+        std::fprintf(
+            stderr,
+            "[world] camera category cursor: mode=%s selected=%s category=%s before=%zu after=%zu scan=%s result=advance_after_accept\n",
+            camera_shot_mode_label(mode), selected_name.c_str(),
+            selected_category.c_str(), category_cursor_before,
+            category_cursor_after,
+            camera_source_pick_shot_scan_scope(mode, category_cursor_before)
+                .c_str());
     }
     return &*inserted;
 }
@@ -26165,6 +26331,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     difficulty_   = std::clamp(difficulty, 0, 3);
     hdr_path_     = hdr_path;
     ark_path_     = ark_path;
+    song_shortname_ = shortname;
     venue_script_rng_state_ = 0x9e3779b9u;
     for (unsigned char c : shortname)
         venue_script_rng_state_ =
@@ -26236,6 +26403,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     camera_faceoff_active_players_ = camera_source_initial_faceoff_active_players();
     diagnostic_camera_active_players_change_applied_ = false;
     camera_shot_counter_ = 0;
+    camera_normal_category_cursor_ = 0;
     camera_result_builder_state_.reset();
     active_force_char_lod_ = -1;
     source_game_lost_camera_dispatched_ = false;
@@ -26419,6 +26587,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     worldcrowd_actor_scenes_.clear();
     worldcrowd_actor_characters_.clear();
     worldcrowd_actor_clips_.clear();
+    worldcrowd_animated_camera_source_cache_.clear();
+    worldcrowd_animated_camera_source_cache_initialized_ = false;
     worldcrowd_actor_runtime_.clear();
     worldcrowd_actor_runtime_placements_ = 0;
     last_worldcrowd_actor_lighting_key_.clear();
@@ -33510,10 +33680,18 @@ void Gameplay::refresh_worldcrowd_actor_source_targets_for_camera() {
         return;
     }
     last_worldcrowd_actor_source_sample_time_ = sample_time;
-    merge_worldcrowd_actor_source_targets(
-        venue_camera_target_worlds_, venue_chars_scene_, hdr_path_, ark_path_,
-        sample_time, &worldcrowd_actor_scenes_, &worldcrowd_actor_characters_,
-        &worldcrowd_actor_clips_, false);
+    if (!worldcrowd_animated_camera_source_cache_initialized_) {
+        merge_worldcrowd_actor_source_targets(
+            venue_camera_target_worlds_, venue_chars_scene_, hdr_path_, ark_path_,
+            sample_time, &worldcrowd_actor_scenes_, &worldcrowd_actor_characters_,
+            &worldcrowd_actor_clips_, false,
+            &worldcrowd_animated_camera_source_cache_);
+        worldcrowd_animated_camera_source_cache_initialized_ = true;
+    } else {
+        update_worldcrowd_animated_camera_source_targets(
+            worldcrowd_animated_camera_source_cache_,
+            worldcrowd_actor_characters_, worldcrowd_actor_clips_, sample_time);
+    }
     const auto probe = debug_camera_source_probe_position();
     if (debug_camera && probe &&
         (last_worldcrowd_actor_source_probe_log_time_ < 0.0 ||
@@ -34862,13 +35040,18 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         fofix_update_star_power(star_power_, static_cast<double>(dt));
     }
 
+    drum_cue_crossed_this_frame_ = false;
     while (next_drum_cue_idx_ < chart_.drum_cues.size()) {
         const auto& cue = chart_.drum_cues[next_drum_cue_idx_];
         const double cue_sec = chart_.tick_to_sec(cue.tick);
         if (cue_sec > song_time_) break;
-        std::fprintf(stderr,
-                     "[world] drummer cue: %s pitch=%d tick=%u t=%.3f\n",
-                     cue.event.c_str(), cue.pitch, cue.tick, song_time_);
+        drum_cue_crossed_this_frame_ = true;
+        std::fprintf(
+            stderr,
+            "[world] drummer cue: song=%s event=%s pitch=%d tick=%u "
+            "event_t=%.3f t=%.3f\n",
+            song_shortname_.c_str(), cue.event.c_str(), cue.pitch, cue.tick,
+            cue_sec, song_time_);
         apply_venue_event(cue.event, false);
         std::vector<std::string> drum_sync_targets;
         const char* drum_sync_route = drum_kit_ ? "no-target" : "no-kit";
@@ -34926,11 +35109,13 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             const std::string targets = join_log_names(drum_sync_targets);
             std::fprintf(
                 stderr,
-                "[drum-sync] cue event=%s pitch=%d tick=%u t=%.3f kit=%d "
-                "route=%s authored=%d fallback=%d targets=%s "
+                "[drum-sync] song=%s cue event=%s pitch=%d tick=%u "
+                "event_t=%.3f t=%.3f kit=%d route=%s authored=%d "
+                "fallback=%d targets=%s "
                 "transforms=%zu routed_events=%zu\n",
-                cue.event.c_str(), cue.pitch, cue.tick, song_time_,
-                drum_kit_ ? 1 : 0, drum_sync_route,
+                song_shortname_.c_str(), cue.event.c_str(), cue.pitch,
+                cue.tick, cue_sec, song_time_, drum_kit_ ? 1 : 0,
+                drum_sync_route,
                 drum_sync_authored ? 1 : 0, drum_sync_fallback ? 1 : 0,
                 targets.c_str(), drum_mesh_transform_anims_.size(),
                 drum_event_mesh_targets_.size());
@@ -36447,15 +36632,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 auto textures = ghogx::asset::load_milo_textures(
                     hdr_path_, ark_path_, char_milo, character.texture_names());
 
+                const bool attach_external_prop =
+                    !prop_milo.empty() &&
+                    !character_draws_authored_instrument(character);
+
                 Performer perf;
                 perf.role = std::move(role);
                 perf.character_name = std::move(character_name);
                 perf.event_track = performer_event_track_for_role(perf.role);
                 perf.track_surface_ref =
                     std::move(performer_highway_surface_ref);
-                perf.prop_milo_ref = prop_milo;
+                perf.lighting_environment_ref =
+                    source_performer_proxy_environment(perf.role,
+                                                       venue_chars_scene_);
+                perf.prop_milo_ref =
+                    attach_external_prop ? prop_milo : std::string{};
                 perf.prop_attach_bone =
-                    prop_milo.empty() ? std::string{} : prop_attach_bone;
+                    attach_external_prop ? prop_attach_bone : std::string{};
                 if (perf.role == "guitarist0" &&
                     !perf.track_surface_ref.empty()) {
                     highway_surface_ref_ = perf.track_surface_ref;
@@ -36468,10 +36661,20 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 perf.renderer->set_use_scene_lighting(scene_lighting);
                 std::fprintf(stderr,
                              "[world] performer scene lighting: role=%s "
-                             "character=%s scene_lighting=%d\n",
+                             "character=%s scene_lighting=%d environment=%s\n",
                              perf.role.c_str(), model_name.c_str(),
-                             scene_lighting ? 1 : 0);
+                             scene_lighting ? 1 : 0,
+                             perf.lighting_environment_ref.empty()
+                                 ? "<none>"
+                                 : perf.lighting_environment_ref.c_str());
+                perf.facefx_servos = facefx_servos;
                 perf.facefx_graph = std::move(facefx_graph);
+                if (perf.role != "singer" && perf.facefx_graph) {
+                    perf.facefx_blink_animation =
+                        ghogx::character::load_facefx_animation(
+                            hdr_path_, ark_path_,
+                            "songs/_blinktrack/_blinktrack.voc");
+                }
 
                 const auto start =
                     perf.role == "guitarist0"
@@ -36522,7 +36725,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         venue_chars_scene_.waypoints.size());
                 }
 
-                if (!prop_milo.empty()) {
+                if (attach_external_prop) {
                     ghogx::milo_scene::Scene prop_scene;
                     if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_,
                                                       prop_milo, prop_scene)) {
@@ -36533,6 +36736,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             std::move(prop_scene), prop_textures,
                             prop_attach_bone);
                     }
+                } else if (!prop_milo.empty()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] performer prop suppressed: role=%s char=%s "
+                        "external=%s reason=authored-guitar-mesh\n",
+                        perf.role.c_str(), perf.character_name.c_str(),
+                        prop_milo.c_str());
                 }
 
                 const std::string anim_milo =
@@ -36588,6 +36798,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                            ark_path_, face_milos,
                                            std::vector<std::string>{"neutral"});
                 keep_face_channels(perf.face_base_clip);
+                load_clip_first_from_milos(
+                    perf.face_visemes_clip, hdr_path_, ark_path_, face_milos,
+                    std::vector<std::string>{"visemes"});
+                keep_face_channels(perf.face_visemes_clip);
                 if (!active_group_names.empty()) {
                     for (const auto& clip_name : active_group_names) {
                         ghogx::character::CharClip clip;
@@ -36843,13 +37057,22 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     stored.idle_player.play(
                         stored.idle_clip, ghogx::character::kCharPlayLoop |
                                               ghogx::character::kCharPlayNoBlend);
+                    // Stock char/gen/char_objects.dtb initializes kBandIdle on
+                    // main.drv and routes later play_mode changes through that
+                    // same driver. Seed the live main-driver player from idle;
+                    // idle_player remains the compatibility fallback when a
+                    // character graph cannot enter the shared route.
+                    stored.active_player.play(
+                        stored.idle_clip, ghogx::character::kCharPlayLoop |
+                                              ghogx::character::kCharPlayNoBlend);
+                    stored.active_clip_mode = "idle";
                 }
                 if (stored.intro_clip.loaded) {
                     stored.intro_player.play(
                         stored.intro_clip, ghogx::character::kCharPlayNoLoop |
                                                ghogx::character::kCharPlayNoBlend);
                 }
-                if (stored.active_clip.loaded) {
+                if (!stored.idle_clip.loaded && stored.active_clip.loaded) {
                     const uint32_t flags =
                         stored.active_group_clips.empty()
                             ? (ghogx::character::kCharPlayLoop |
@@ -37077,13 +37300,52 @@ void Gameplay::draw(ghogx::render::Window& win) {
             if (perf.role == "keyboard" && midi_state.marker.empty()) {
                 midi_state.playing = true;
             }
-            if (perf.last_midi_marker != midi_state.marker) {
+            if (debug_performer_sync_frame) {
+                const uint32_t now_tick = chart_.sec_to_tick(song_time_);
+                if (perf.last_traced_performer_event_tick == UINT32_MAX ||
+                    now_tick >= perf.last_traced_performer_event_tick) {
+                    for (const auto& ev : chart_.performer_events) {
+                        if (perf.last_traced_performer_event_tick !=
+                                UINT32_MAX &&
+                            ev.tick <= perf.last_traced_performer_event_tick)
+                            continue;
+                        if (ev.tick > now_tick) break;
+                        if (ev.track != perf.event_track) continue;
+                        std::fprintf(
+                            stderr,
+                            "[performer-event] song=%s role=%s track=%s "
+                            "event=%s event_tick=%u event_t=%.3f t=%.3f\n",
+                            song_shortname_.c_str(), perf.role.c_str(),
+                            perf.event_track.c_str(), ev.text.c_str(), ev.tick,
+                            chart_.tick_to_sec(ev.tick), song_time_);
+                    }
+                } else if (perf.last_traced_performer_event_tick !=
+                               UINT32_MAX &&
+                           now_tick < perf.last_traced_performer_event_tick) {
+                    std::fprintf(
+                        stderr,
+                        "[performer-event] song=%s role=%s track=%s "
+                        "event=[trace_seek_reset] event_tick=%u "
+                        "event_t=%.3f t=%.3f\n",
+                        song_shortname_.c_str(), perf.role.c_str(),
+                        perf.event_track.c_str(), now_tick,
+                        chart_.tick_to_sec(now_tick), song_time_);
+                }
+                perf.last_traced_performer_event_tick = now_tick;
+            }
+            const bool performer_marker_changed =
+                perf.last_midi_marker != midi_state.marker ||
+                perf.last_midi_marker_tick != midi_state.marker_tick;
+            if (performer_marker_changed) {
                 perf.last_midi_marker = midi_state.marker;
+                perf.last_midi_marker_tick = midi_state.marker_tick;
                 perf.midi_playing = midi_state.playing;
                 std::fprintf(stderr,
-                             "[world] performer midi: role=%s track=%s marker=%s playing=%d wail=%d solo=%d allbeat=%d double=%d halftime=%d nosnare=%d beat_scale=%.3f handmap=%s t=%.3f\n",
-                             perf.role.c_str(), perf.event_track.c_str(),
-                             midi_state.marker.c_str(), midi_state.playing ? 1 : 0,
+                             "[world] performer midi: song=%s role=%s track=%s marker=%s event_tick=%u event_t=%.3f playing=%d wail=%d solo=%d allbeat=%d double=%d halftime=%d nosnare=%d beat_scale=%.3f handmap=%s t=%.3f\n",
+                             song_shortname_.c_str(), perf.role.c_str(),
+                             perf.event_track.c_str(), midi_state.marker.c_str(),
+                             midi_state.marker_tick, midi_state.marker_time,
+                             midi_state.playing ? 1 : 0,
                              midi_state.wail ? 1 : 0, midi_state.solo ? 1 : 0,
                              midi_state.allbeat ? 1 : 0,
                              midi_state.double_time ? 1 : 0,
@@ -37112,6 +37374,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     desired_mode = "nosnare";
                 }
             }
+            if (!performer_playing && perf.idle_clip.loaded) {
+                desired_active = &perf.idle_clip;
+                desired_mode = "idle";
+            }
             if (desired_active->loaded && perf.active_clip_mode != desired_mode) {
                 perf.active_clip_mode = desired_mode;
                 if (!perf.active_group_clips.empty() &&
@@ -37137,9 +37403,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 } else {
                     perf.active_player.play(
-                        *desired_active,
-                        ghogx::character::kCharPlayLoop |
-                            ghogx::character::kCharPlayNoBlend);
+                        *desired_active, ghogx::character::kCharPlayLoop,
+                        character_driver_blend_seconds());
                 }
                 std::fprintf(stderr,
                              "[world] performer active clip: role=%s mode=%s clip=%s source=%s t=%.3f\n",
@@ -37446,7 +37711,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 [&]() -> const ghogx::character::CharClipPlayer* {
                     if (intro_active && perf.intro_player.active())
                         return &perf.intro_player;
-                    if (!intro_active && performer_playing &&
+                    if (!intro_active &&
+                        (performer_playing ||
+                         perf.active_clip_mode == "idle") &&
                         perf.active_player.active())
                         return &perf.active_player;
                     if (perf.idle_player.active()) return &perf.idle_player;
@@ -37497,7 +37764,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
             ghogx::character::CharacterPosePlayerLayerBuildSources
                 pose_player_inputs;
             pose_player_inputs.main = active_main_driver_player();
-            pose_player_inputs.face_base = &perf.face_base_player;
+            pose_player_inputs.face_base =
+                perf.facefx_graph && perf.face_visemes_clip.loaded
+                    ? nullptr
+                    : &perf.face_base_player;
             pose_player_inputs.hand_weights =
                 source_hand_driver_weights ? &*source_hand_driver_weights
                                            : nullptr;
@@ -37619,7 +37889,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 controller_midi_fret_target_enabled = true;
             }
             if (debug_performer_sync_frame) {
-                if (song_time_ + 1e-5 >= perf.next_performer_sync_log_time) {
+                const bool drummer_cue_frame =
+                    perf.role == "drummer" && drum_cue_crossed_this_frame_;
+                if (performer_marker_changed || drummer_cue_frame ||
+                    song_time_ + 1e-5 >= perf.next_performer_sync_log_time) {
                     perf.next_performer_sync_log_time =
                         song_time_ +
                         static_cast<double>(performer_sync_stride_frame);
@@ -37634,21 +37907,50 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                              names[i].c_str());
                             }
                         };
-                    const auto* active_clip = perf.active_player.current_clip();
+                    const auto* main_player = active_main_driver_player();
+                    const auto* active_clip =
+                        main_player ? main_player->current_clip() : nullptr;
+                    const char* main_source =
+                        main_player == &perf.intro_player
+                            ? "intro"
+                            : main_player == &perf.active_player
+                                  ? "active"
+                                  : main_player == &perf.idle_player ? "idle"
+                                                                      : "none";
+                    const float active_clip_time =
+                        main_player ? main_player->current_time_seconds() : 0.0f;
+                    const float active_clip_duration =
+                        active_clip ? active_clip->duration_seconds() : 0.0f;
                     const auto* strum_clip = perf.strum_player.current_clip();
                     const auto* fret_clip = perf.fret_player.current_clip();
+                    const char* sync_reason =
+                        performer_marker_changed && drummer_cue_frame
+                            ? "event+drum-cue"
+                            : performer_marker_changed
+                                  ? "event"
+                                  : drummer_cue_frame ? "drum-cue" : "stride";
                     std::fprintf(
                         stderr,
-                        "[performer-sync] role=%s char=%s t=%.3f playing=%d "
-                        "intro=%d hand_driver=%d active_mode=%s active=%s "
+                        "[performer-sync] song=%s role=%s char=%s track=%s "
+                        "t=%.3f event=%s event_tick=%u event_t=%.3f "
+                        "sync_reason=%s playing=%d intro=%d hand_driver=%d active_mode=%s "
+                        "main_source=%s active=%s clip_t=%.3f/%.3f "
                         "strum_active=%d strum_clip=%s strum_names=",
-                        perf.role.c_str(), perf.character_name.c_str(),
-                        song_time_, performer_playing ? 1 : 0,
+                        song_shortname_.c_str(), perf.role.c_str(),
+                        perf.character_name.c_str(), perf.event_track.c_str(),
+                        song_time_,
+                        midi_state.marker.empty() ? "-"
+                                                  : midi_state.marker.c_str(),
+                        midi_state.marker_tick, midi_state.marker_time,
+                        sync_reason,
+                        performer_playing ? 1 : 0,
                         intro_active ? 1 : 0, hand_driver_active ? 1 : 0,
                         perf.active_clip_mode.empty()
                             ? "-"
                             : perf.active_clip_mode.c_str(),
+                        main_source,
                         active_clip ? active_clip->name.c_str() : "-",
+                        active_clip_time, active_clip_duration,
                         perf.strum_player.active() ? 1 : 0,
                         strum_clip ? strum_clip->name.c_str() : "-");
                     print_names(perf.active_strum_clip_names);
@@ -37723,28 +38025,48 @@ void Gameplay::draw(ghogx::render::Window& win) {
                               *facefx_animation_,
                               static_cast<float>(song_time_))
                         : std::unordered_map<std::string, float>{};
-                if (!registers.empty()) {
-                    const float eyez =
-                        ghogx::character::evaluate_facefx_node(
-                            *perf.facefx_graph, "EyeZCombiner", registers);
-                    const bool applied =
-                        ghogx::character::apply_facefx_animation_frame(
-                            *perf.facefx_graph, registers, character);
-                    if (debug_face_frame) {
-                        std::fprintf(
-                            stderr,
-                            "[facefx] role=%s EyeZCombiner=%.4f "
-                            "graph=%s voc=%d regs=%zu\n",
-                            perf.role.c_str(), eyez, applied ? "applied" : "idle",
-                            use_song_voc_facefx && facefx_animation_ ? 1 : 0,
-                            registers.size());
-                    }
+                if (!use_song_voc_facefx && perf.facefx_blink_animation) {
+                    registers = ghogx::character::sample_facefx_animation(
+                        *perf.facefx_blink_animation,
+                        static_cast<float>(song_time_));
+                }
+                const auto servo_registers =
+                    ghogx::character::sample_facefx_servo_targets(
+                        perf.facefx_servos, character);
+                for (const auto& [name, value] : servo_registers) {
+                    registers[name] = value;
+                }
+                const float eyez = ghogx::character::evaluate_facefx_node(
+                    *perf.facefx_graph, "EyeZCombiner", registers);
+                const bool applied =
+                    ghogx::character::apply_facefx_typed_animation_frame(
+                        *perf.facefx_graph, registers, perf.face_base_clip,
+                        perf.face_visemes_clip, character);
+                if (debug_face_frame) {
+                    std::fprintf(
+                        stderr,
+                        "[facefx] role=%s EyeZCombiner=%.4f "
+                        "typed=%s voc=%d blink=%d regs=%zu servoRegs=%zu "
+                        "source=sub_821A7978\n",
+                        perf.role.c_str(), eyez,
+                        applied ? "applied" : "idle",
+                        use_song_voc_facefx && facefx_animation_ ? 1 : 0,
+                        !use_song_voc_facefx && perf.facefx_blink_animation ? 1
+                                                                           : 0,
+                        registers.size(), servo_registers.size());
                 }
             }
         }
+        drum_cue_crossed_this_frame_ = false;
         if (profile_draw) profile_anim += profile_elapsed(profile_anim_start);
 
         const auto profile_camera_start = profile_now();
+        double profile_camera_targets = 0.0;
+        double profile_camera_worldcrowd = 0.0;
+        double profile_camera_key_eval = 0.0;
+        double profile_camera_apply = 0.0;
+        double profile_camera_backing = 0.0;
+        auto profile_camera_subphase_start = profile_camera_start;
         const bool build_all_performer_targets = debug_gameplay_camera_enabled();
         std::unordered_map<std::string, CameraTarget> camera_targets;
         camera_targets.reserve(performers_.size() * 16 +
@@ -37863,6 +38185,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
         }
+        profile_camera_targets =
+            profile_elapsed(profile_camera_subphase_start);
         const auto& source_record_member_table =
             regular_camera_source_record_member_table_;
 
@@ -37877,7 +38201,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
         const bool in_intro_camera_window =
             intro_camera_seconds_ > 0.0 && song_time_ < intro_camera_seconds_;
         active_force_char_lod_ = -1;
+        profile_camera_subphase_start = profile_now();
         refresh_worldcrowd_actor_source_targets_for_camera();
+        profile_camera_worldcrowd +=
+            profile_elapsed(profile_camera_subphase_start);
         // Match WorldDir/CameraManager: decoded GH2 CamShots drive normal
         // gameplay, with the backing camera retained only for explicit A/B.
         const bool authored_gameplay_cameras_active =
@@ -38287,7 +38614,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         regular_camera_keys_, active_regular_camera_,
                         source_previous_fallback, low_excitement, kGuitaristWalking,
                         guitarist_starpower, camera_mode,
-                        source_faceoff_players, source_current_walkspot);
+                        source_faceoff_players, source_current_walkspot,
+                        camera_normal_category_cursor_);
                 }
                 if (key) {
                     const bool shot_changed =
@@ -38446,11 +38774,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 if (source_restarted_shot) {
                     clear_pending_regular_camera_after_start_like_source();
                 }
+                profile_camera_subphase_start = profile_now();
                 refresh_worldcrowd_actor_source_targets_for_camera();
+                profile_camera_worldcrowd +=
+                    profile_elapsed(profile_camera_subphase_start);
                 std::vector<CameraKey> selected_camera;
                 const float source_setpreframe_blend = 1.0f;
                 const float source_setframe_blend = 1.0f;
                 bool source_frame_key_route = false;
+                profile_camera_subphase_start = profile_now();
                 if (key->has_path_anim && !key->positions.empty()) {
                     selected_camera =
                         regular_camera_path_keys(*key,
@@ -38468,6 +38800,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         selected_camera.push_back(std::move(null_frame));
                     }
                 }
+                profile_camera_key_eval +=
+                    profile_elapsed(profile_camera_subphase_start);
                 const float source_shot_local_frame = camera_source_local_frame(
                     *key, song_time_, active_regular_camera_start_, &chart_);
                 const bool source_shot_started =
@@ -39091,6 +39425,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     venue_camera_world_crowd_placements_,
                     venue_camera_world_crowd_min_,
                     venue_camera_world_crowd_max_};
+                profile_camera_subphase_start = profile_now();
                 apply_camera_keys(world_->camera(), selected_camera, song_time_,
                                   camera_targets,
                                   &camera_result_builder_state_,
@@ -39100,6 +39435,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &venue_crowd_bounds,
                                   &active_camera_interp_debug_reported_);
                 apply_active_camera_fov_anims(world_->camera(), *key);
+                profile_camera_apply +=
+                    profile_elapsed(profile_camera_subphase_start);
                 if (diagnostic_camera_shot_.empty()) {
                     const bool source_camshot_over_latched =
                         active_camera_shots_over_.find(key->name) !=
@@ -39198,6 +39535,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_camera_world_crowd_placements_,
                 venue_camera_world_crowd_min_,
                 venue_camera_world_crowd_max_};
+            profile_camera_subphase_start = profile_now();
             apply_camera_keys(world_->camera(), camera_keys_, song_time_,
                               camera_targets,
                               &camera_result_builder_state_,
@@ -39207,6 +39545,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                               &venue_crowd_bounds);
             apply_active_camera_fov_anims(world_->camera(),
                                           camera_keys_.front());
+            profile_camera_apply +=
+                profile_elapsed(profile_camera_subphase_start);
         } else {
             end_camera_shot_runtime();
         }
@@ -39257,10 +39597,42 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 cam.fov = env_float("GHOGX_DEBUG_GAMEPLAY_CAMERA_FOV", 0.55f);
             }
         }
+        profile_camera_subphase_start = profile_now();
         apply_gameplay_backing_camera(world_.get(), camera_targets,
                                       venue_camera_target_worlds_, song_time_,
                                       !diagnostic_camera_shot_.empty());
-        if (profile_draw) profile_camera += profile_elapsed(profile_camera_start);
+        profile_camera_backing =
+            profile_elapsed(profile_camera_subphase_start);
+        const double profile_camera_total =
+            profile_elapsed(profile_camera_start);
+        if (profile_draw) {
+            profile_camera += profile_camera_total;
+            constexpr double kCameraHitchSeconds = 0.040;
+            if (profile_camera_total >= kCameraHitchSeconds) {
+                const double measured_subphases =
+                    profile_camera_targets + profile_camera_worldcrowd +
+                    profile_camera_key_eval + profile_camera_apply +
+                    profile_camera_backing;
+                const double manager_seconds =
+                    std::max(0.0, profile_camera_total - measured_subphases);
+                std::fprintf(
+                    stderr,
+                    "[profile-camera-hitch] t=%.3f shot=%s total_ms=%.3f "
+                    "targets_ms=%.3f crowd_targets_ms=%.3f key_eval_ms=%.3f "
+                    "apply_ms=%.3f backing_ms=%.3f manager_ms=%.3f\n",
+                    song_time_,
+                    active_regular_camera_.empty()
+                        ? "-"
+                        : active_regular_camera_.c_str(),
+                    profile_camera_total * 1000.0,
+                    profile_camera_targets * 1000.0,
+                    profile_camera_worldcrowd * 1000.0,
+                    profile_camera_key_eval * 1000.0,
+                    profile_camera_apply * 1000.0,
+                    profile_camera_backing * 1000.0,
+                    manager_seconds * 1000.0);
+            }
+        }
         if (debug_highway_only_capture_enabled()) {
             win.clear(0.0f, 0.0f, 0.0f);
             if (!highway_) {
@@ -39681,8 +40053,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
             if (!only_role.empty() && perf.role != only_role) continue;
             if (!perf.renderer) continue;
             perf.renderer->set_min_lod(active_force_char_lod_);
-            world_->apply_environment_lighting_state(
-                performer_lighting_environment_for_role(perf.role));
+            if (!perf.lighting_environment_ref.empty()) {
+                world_->apply_environment_lighting_state(
+                    perf.lighting_environment_ref);
+            }
             perf.renderer->draw_over_scene(world_->camera());
         }
         if (profile_draw) profile_performers += profile_elapsed(profile_phase_start);

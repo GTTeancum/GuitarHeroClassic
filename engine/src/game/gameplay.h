@@ -137,6 +137,19 @@ struct CameraManagerFreeCamState {
   float poll_min_blur = 0.0f;
 };
 
+struct WorldCrowdAnimatedCameraSourceBinding {
+  std::string source_name;
+  std::array<float, 16> area_local_world{};
+  std::array<float, 16>* animated_world = nullptr;
+  std::array<std::array<float, 16>*, 3> animated_flat_worlds = {
+      nullptr, nullptr, nullptr};
+};
+
+struct WorldCrowdAnimatedCameraSourceCache {
+  std::string actor_path;
+  std::vector<WorldCrowdAnimatedCameraSourceBinding> bindings;
+};
+
 class Gameplay {
  public:
   struct QuickplayRig {
@@ -1015,6 +1028,7 @@ class Gameplay {
     std::string character_name;
     std::string event_track;
     std::string track_surface_ref;
+    std::string lighting_environment_ref;
     std::string prop_milo_ref;
     std::string prop_attach_bone;
     std::unique_ptr<ghogx::character::CharRenderer> renderer;
@@ -1027,6 +1041,7 @@ class Gameplay {
     ghogx::character::CharClip active_nosnare_clip;
     ghogx::character::CharClip band_jump_clip;
     ghogx::character::CharClip face_base_clip;
+    ghogx::character::CharClip face_visemes_clip;
     std::vector<ghogx::character::CharClip> active_group_clips;
     ghogx::character::CharClip strum_open_clip;
     ghogx::character::CharClip strum_clip;
@@ -1035,7 +1050,9 @@ class Gameplay {
     std::map<std::string, ghogx::character::CharClip> strum_named_clips;
     std::vector<ghogx::character::CharClip> fret_lane_clips;
     std::map<std::string, ghogx::character::CharClip> fret_named_clips;
+    std::vector<ghogx::character::FaceFxLipSyncServo> facefx_servos;
     std::optional<ghogx::character::FaceFxGraph> facefx_graph;
+    std::optional<ghogx::character::FaceFxAnimation> facefx_blink_animation;
     ghogx::character::CharClipPlayer idle_player;
     ghogx::character::CharClipPlayer intro_player;
     ghogx::character::CharClipPlayer active_player;
@@ -1054,6 +1071,8 @@ class Gameplay {
     double last_band_jump_started = -9999.0;
     double last_band_jump_duration = 0.0;
     std::string last_midi_marker;
+    uint32_t last_midi_marker_tick = UINT32_MAX;
+    uint32_t last_traced_performer_event_tick = UINT32_MAX;
     std::string active_clip_mode;
     size_t active_group_index = 0;
     int32_t active_group_which = 0;
@@ -1105,6 +1124,7 @@ class Gameplay {
   int camera_faceoff_active_players_ = 0;
   bool diagnostic_camera_active_players_change_applied_ = false;
   size_t camera_shot_counter_ = 0;
+  size_t camera_normal_category_cursor_ = 0;
   CameraManagerFreeCamState camera_manager_free_cam_;
   CameraResultBuilderState camera_result_builder_state_;
   int active_force_char_lod_ = -1;
@@ -1329,6 +1349,9 @@ class Gameplay {
   std::map<std::string, ghogx::milo_scene::Scene> worldcrowd_actor_scenes_;
   std::map<std::string, ghogx::character::Character> worldcrowd_actor_characters_;
   std::map<std::string, ghogx::character::CharClip> worldcrowd_actor_clips_;
+  std::vector<WorldCrowdAnimatedCameraSourceCache>
+      worldcrowd_animated_camera_source_cache_;
+  bool worldcrowd_animated_camera_source_cache_initialized_ = false;
   struct WorldCrowdActorRuntime {
     struct PlacementRef {
       std::string crowd_name;
@@ -1413,6 +1436,7 @@ class Gameplay {
   double last_anim_time_ = -1.0;
   uint32_t last_band_note_tick_ = UINT32_MAX;
   size_t next_drum_cue_idx_ = 0;
+  bool drum_cue_crossed_this_frame_ = false;
   size_t next_bass_cue_idx_ = 0;
   size_t next_venue_cue_idx_ = 0;
   size_t next_section_venue_event_idx_ = 0;
@@ -1482,6 +1506,7 @@ class Gameplay {
 
   std::string hdr_path_;
   std::string ark_path_;
+  std::string song_shortname_;
 };
 
 }  // namespace ghogx::game

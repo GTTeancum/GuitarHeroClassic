@@ -319,12 +319,13 @@ int main() {
                "facefx_registers_from_eye_servo",
                "source-backed controller evaluation does not restore the removed FaceFxEyeProperties bridge");
   ok &= contains(gameplay_c,
-                 "apply_facefx_animation_frame(*perf.facefx_graph,registers,"
+                 "apply_facefx_typed_animation_frame(*perf.facefx_graph,"
+                 "registers,perf.face_base_clip,perf.face_visemes_clip,"
                  "character)",
-                 "FaceFX graph output is applied to live performers");
+                 "typed FaceFX graph output is applied to live performers");
   ok &= contains(gameplay_c,
-                 "\"graph=%svoc=%dregs=%zu\\n\"",
-                 "FaceFX diagnostics expose whether a role consumed song VOC curves");
+                 "\"typed=%svoc=%dblink=%dregs=%zuservoRegs=%zu\"",
+                 "FaceFX diagnostics expose song VOC, blink, and servo inputs");
   ok &= contains(gameplay_c,
                  "\"drummer_active_fast_normal\",\"drummer_active_fast_allbeat\"",
                  "drummer active candidates include trace-backed fast clips");
@@ -348,6 +349,44 @@ int main() {
                  "perf.active_double_clip.loaded){desired_active="
                  "&perf.active_double_clip;desired_mode=\"double\";}",
                  "drummer double-time mode drives the active clip switch");
+  ok &= contains(gameplay_c,
+                 "if(ev.text==\"[play]\"){state.playing=true;"
+                 "state.allbeat=false;state.double_time=false;"
+                 "state.half_time=false;state.no_snare=false;}",
+                 "stock drummer play_mode returns play to kBandActive instead of retaining a prior timing mode");
+  ok &= contains(gameplay_c,
+                 "elseif(ev.text==\"[idle]\"){state.playing=false;"
+                 "state.allbeat=false;state.double_time=false;"
+                 "state.half_time=false;state.no_snare=false;}",
+                 "stock drummer idle mode does not leak a prior timing mode into the next play event");
+  ok &= contains(gameplay_c,
+                 "stored.active_player.play(stored.idle_clip,"
+                 "ghogx::character::kCharPlayLoop|"
+                 "ghogx::character::kCharPlayNoBlend);"
+                 "stored.active_clip_mode=\"idle\";",
+                 "the shared main driver starts from stock kBandIdle without a startup blend");
+  ok &= contains(gameplay_c,
+                 "if(!stored.idle_clip.loaded&&stored.active_clip.loaded){",
+                 "active playback does not preempt the stock main-driver idle seed");
+  ok &= contains(gameplay_c,
+                 "if(!performer_playing&&perf.idle_clip.loaded){"
+                 "desired_active=&perf.idle_clip;desired_mode=\"idle\";}",
+                 "authored idle events select idle on the same main-driver player as performance modes");
+  ok &= contains(gameplay_c,
+                 "perf.active_player.play(*desired_active,"
+                 "ghogx::character::kCharPlayLoop,"
+                 "character_driver_blend_seconds());",
+                 "direct play_mode transitions blend on the shared source-style main driver");
+  ok &= absent(gameplay_c,
+               "perf.active_player.play(*desired_active,"
+               "ghogx::character::kCharPlayLoop|"
+               "ghogx::character::kCharPlayNoBlend);",
+               "runtime play_mode transitions do not hard-reset the main driver");
+  ok &= contains(gameplay_c,
+                 "if(!intro_active&&(performer_playing||"
+                 "perf.active_clip_mode==\"idle\")&&"
+                 "perf.active_player.active())return&perf.active_player;",
+                 "the live pose remains on the shared main driver during authored idle modes");
   ok &= contains(gameplay_c,
                  "elseif(ev.text==\"[normal_tempo]\"){"
                  "state.main_beat_scale=1.0f;}"
@@ -444,10 +483,25 @@ int main() {
                  "std::stringprop_attach_bone;",
                  "performers remember attached prop source and anchor for validation");
   ok &= contains(gameplay_c,
-                 "perf.prop_milo_ref=prop_milo;"
-                 "perf.prop_attach_bone=prop_milo.empty()?std::string{}:"
-                 "prop_attach_bone;",
-                 "performer prop diagnostics retain the decoded prop route");
+                 "boolcharacter_draws_authored_instrument("
+                 "constghogx::character::Character&character)",
+                 "authored character group membership controls instrument ownership");
+  ok &= contains(gameplay_c,
+                 "std::find(group.children.begin(),group.children.end(),"
+                 "\"guitar.mesh\")!=group.children.end();",
+                 "the authored instrument rule uses the decoded guitar mesh group ref");
+  ok &= contains(gameplay_c,
+                 "constboolattach_external_prop=!prop_milo.empty()&&"
+                 "!character_draws_authored_instrument(character);",
+                 "an external quickplay prop is suppressed for self-contained character graphs");
+  ok &= contains(gameplay_c,
+                 "perf.prop_milo_ref=attach_external_prop?prop_milo:"
+                 "std::string{};perf.prop_attach_bone=attach_external_prop?"
+                 "prop_attach_bone:std::string{};",
+                 "performer prop diagnostics report only props that were actually attached");
+  ok &= contains(gameplay_c,
+                 "if(attach_external_prop){ghogx::milo_scene::Sceneprop_scene;",
+                 "prop loading obeys the authored instrument ownership rule");
   ok &= contains(gameplay_c,
                  "\"char/og/drums/gen/dw_\"+quickplay_rig_->venue+"
                  "\"_drums.milo_ps2\"",
@@ -478,8 +532,11 @@ int main() {
                  "\"[drum-sync]routeevent=%s\"",
                  "drum sync diagnostic records EventTrigger mesh routes");
   ok &= contains(gameplay_c,
-                 "\"[drum-sync]cueevent=%spitch=%dtick=%ut=%.3fkit=%d\"",
-                 "drum sync diagnostic records live cue-to-kit dispatch");
+                 "\"[drum-sync]song=%scueevent=%spitch=%dtick=%u\"",
+                 "drum sync diagnostic identifies each live cue by song and authored tick");
+  ok &= contains(gameplay_c,
+                 "\"event_t=%.3ft=%.3fkit=%droute=%sauthored=%d\"",
+                 "drum sync diagnostic separates authored cue time from observed frame time");
   ok &= contains(gameplay_c,
                  "drum_sync_route=\"event-trigger\";",
                  "drum sync cue rows distinguish source-authored EventTrigger routes");
@@ -2178,7 +2235,14 @@ int main() {
                  "constexprDWORDkNoteCardAlphaRef=8;",
                  "highway has a stable alpha-test cutoff for keyed note-card texels");
   ok &= contains(highway_renderer_c,
+                 "constexprfloatkPcStandardRingSolidScale=1.23f;",
+                 "PC standard notes use a clearly expanded authored black silhouette");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkPcStandardRingFeatherScale=1.30f;",
+                 "PC standard notes add a wider authored-silhouette feather for local antialiasing");
+  ok &= contains(highway_renderer_c,
                  "constboolalpha_test_note_card="
+                 "allow_note_card_alpha_test&&"
                  "is_note_black_card_tex_name(mesh.texture_name,"
                  "slot_color_names_);",
                  "moving note layers detect keyed note-card textures before drawing");
@@ -4371,14 +4435,20 @@ int main() {
                  "\"std=%dhopo=%dhopo_fb=%dstar=%dblack=%d\\n\"",
                  "moving-note layer diagnostics fit standard HOPO fallback and star top-card flags on one line");
   ok &= contains(highway_renderer_c,
-                 "constboolstandard_top_draw=!g.star&&!g.hopo&&",
-                 "standard top-card diagnostics stay off for HOPO and star notes");
+                 "constboolauthored_note_type_top="
+                 "bonus_highway_active||!g.star;",
+                 "active star power restores authored normal-versus-HOPO tops instead of star geometry");
   ok &= contains(highway_renderer_c,
-                 "constboolhopo_top_draw=!g.star&&g.hopo&&"
+                 "constboolstandard_top_draw="
+                 "authored_note_type_top&&!g.hopo&&",
+                 "standard top-card diagnostics stay off for HOPO notes while covering powered chart-star notes");
+  ok &= contains(highway_renderer_c,
+                 "constboolhopo_top_draw=authored_note_type_top&&g.hopo&&"
                  "hopo_mesh_[g.lane].ok;",
                  "HOPO top-card diagnostics require the lane-specific native HOPO mesh");
   ok &= contains(highway_renderer_c,
-                 "constboolhopo_fallback_top_draw=!g.star&&g.hopo&&"
+                 "constboolhopo_fallback_top_draw="
+                 "authored_note_type_top&&g.hopo&&"
                  "!hopo_mesh_[g.lane].ok&&",
                  "HOPO fallback diagnostics identify the standard-top fallback path");
   ok &= contains(highway_renderer_c,
@@ -4388,11 +4458,13 @@ int main() {
                  "kNoteDrawDebugBudgetPerKind",
                  "moving-note draw diagnostics avoid starving later note kinds in broad captures");
   ok &= contains(highway_renderer_c,
-                 "constboolstar_base_draw=g.star&&moving_note_star_has_base_",
-                 "moving-note draw diagnostics only report star base as drawn on star notes");
+                 "constboolstar_base_draw=!bonus_highway_active&&g.star&&"
+                 "moving_note_star_has_base_",
+                 "moving-note diagnostics suppress star geometry while star power restores normal-versus-HOPO note types");
   ok &= contains(highway_renderer_c,
-                 "constboolstar_top_draw=g.star&&moving_note_star_has_top_",
-                 "moving-note draw diagnostics only report star top as drawn on star notes");
+                 "constboolstar_top_draw=!bonus_highway_active&&g.star&&"
+                 "moving_note_star_has_top_",
+                 "moving-note diagnostics only report the star top outside active star power");
   ok &= contains(highway_renderer_c,
                  "\"[highway-star-layer]tick=%ulane=%dbase=%d\"",
                  "moving-note draw diagnostics expose a compact star-layer row");
@@ -4403,9 +4475,10 @@ int main() {
                  "\"anim=%dblend=%u,%u,%u,%utex=%s,%s,%s,%s\\n\"",
                  "star-layer diagnostics report the native material blend and texture stack");
   ok &= contains(highway_renderer_c,
-                 "constboolstar_top_is_black=star_top==&star_black_top_mesh_&&"
+                 "constboolstar_top_is_black=star_top_draw&&"
+                 "star_top==&star_black_top_mesh_&&"
                  "star_black_top_mesh_.ok;",
-                 "star-layer diagnostics compare the selected top against the authored black top mesh");
+                 "star-layer diagnostics only report the authored black top when that star top is actually drawn");
   ok &= contains(highway_renderer_c,
                  "gems=%d",
                  "visible-note diagnostics report same-tick group gem counts");
@@ -4487,7 +4560,40 @@ int main() {
                "native hit flames must not discard their authored local offset by bbox-centering");
   ok &= contains(highway_renderer_c,
                  "if(bonus_highway_active&&bonus_gem_mesh_.ok){",
-                 "active star power swaps visible notes to the native bonus gem mesh");
+                 "active star power selects the native bonus material body");
+  ok &= contains(highway_renderer_c,
+                 "draw_note_layer(bonus_gem_mesh_,true);",
+                 "active star power draws the source bonus body geometry and material");
+  ok &= contains(highway_renderer_c,
+                 "draw_note_type_top_over_body();",
+                 "active star power preserves the authored normal-versus-HOPO top");
+  ok &= contains(highway_renderer_c,
+                 "pc_standard_top_mesh_=make_pc_standard_top_mesh("
+                 "gem_top_mesh_);",
+                 "PC standard-note readability mesh derives only from the authored top mesh");
+  ok &= contains(highway_renderer_c,
+                 "append_black_copy(kPcStandardRingFeatherScale,"
+                 "kPcStandardRingFeatherAlpha);"
+                 "append_black_copy(kPcStandardRingSolidScale,1.0f);",
+                 "PC standard-note readability mesh layers a feathered and solid authored silhouette");
+  ok &= contains(highway_renderer_c,
+                 "out.verts.insert(out.verts.end(),source.verts.begin(),"
+                 "source.verts.end());",
+                 "PC standard-note readability mesh retains the untouched authored cap above its outlines");
+  ok &= contains(highway_renderer_c,
+                 "pc_standard_top_mesh_,false,false,false,[&](){",
+                 "combined authored-silhouette outline disables the hard card alpha test for a softened edge");
+  ok &= contains(highway_renderer_c,
+                 "draw_authored_root_mesh(pc_standard_top_mesh_,x,g.y,tint,"
+                 "1.0f,true,0.0f,false,0.0f,true);",
+                 "solid outline feather and untouched cap render in one source-textured draw call");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshpc_standard_top_mesh_;",
+                 "highway stores the one-pass PC standard-note readability mesh");
+  ok &= contains(highway_renderer_c,
+                 "if(g.hopo){draw_hopo_top_over_body();}else{"
+                 "draw_standard_top_over_body();}",
+                 "powered HOPO notes keep the no-ring top while powered normal notes keep the black-ring top");
   ok &= contains(highway_renderer_c,
                  "draw_note_layer(bonus_spark1_mesh_,false,false);",
                  "active star power layers the first native bonus sparkle mesh from its authored origin");
@@ -7819,20 +7925,16 @@ int main() {
                  "source_restarted_shot){"
                  "clear_pending_regular_camera_after_start_like_source();}",
                  "regular gameplay cameras clear mNextShot even if a decoded key is missing");
-  ok &= contains(gameplay_c,
-                 "start_camera_shot_runtime(*key,source_restarted_shot);"
-                 "if(source_restarted_shot){"
-                 "clear_pending_regular_camera_after_start_like_source();}"
-                 "refresh_worldcrowd_actor_source_targets_for_camera();"
-                 "std::vector<CameraKey>selected_camera;",
-                 "regular gameplay cameras enter StartAnim and clear mNextShot before source-shaped camera row sampling");
-  ok &= contains(gameplay_c,
-                 "start_camera_shot_runtime(*key,source_restarted_shot);"
-                 "if(source_restarted_shot){"
-                 "clear_pending_regular_camera_after_start_like_source();}"
-                 "refresh_worldcrowd_actor_source_targets_for_camera();"
-                 "std::vector<CameraKey>selected_camera;",
-                 "regular gameplay cameras mirror CameraManager PrePoll StartShot and refresh source targets before SetPreFrame");
+  ok &= appears_before(
+      gameplay_c,
+      "start_camera_shot_runtime(*key,source_restarted_shot);",
+      "std::vector<CameraKey>selected_camera;",
+      "regular gameplay cameras enter StartAnim before source-shaped camera row sampling");
+  ok &= appears_before(
+      gameplay_c,
+      "refresh_worldcrowd_actor_source_targets_for_camera();",
+      "constfloatsource_setpreframe_blend=1.0f;",
+      "regular gameplay cameras refresh source targets before SetPreFrame");
   ok &= appears_before(
       gameplay_c,
       "if(source_restarted_shot){"
@@ -11935,11 +12037,20 @@ int main() {
                  "drum_kit_->set_default_environment(\"drummer.env\");",
                  "drum kit use-environ meshes default to the decoded drummer source environment");
   ok &= contains(gameplay_c,
-                 "if(role==\"drummer\")return\"drummer.env\";",
-                 "drummer performers use the decoded drummer source environment");
+                 "if(role==\"drummer\"&&scene_has_environment("
+                 "character_scene,\"drummer.env\")){return\"drummer.env\";}",
+                 "drummer performers select drummer.env only when the decoded scene authors it");
   ok &= contains(gameplay_c,
-                 "return\"band.env\";",
-                 "non-drummer performers use the decoded band source environment");
+                 "if(role==\"guitarist0\"){if(scene_has_environment("
+                 "character_scene,\"character.env\")){return\"character.env\";}",
+                 "guitarist performers select the decoded solo-character environment");
+  ok &= contains(gameplay_c,
+                 "if(scene_has_environment(character_scene,\"band.env\")){"
+                 "return\"band.env\";}",
+                 "band performers use band.env only when the decoded scene authors it");
+  ok &= contains(gameplay_h_c,
+                 "std::stringlighting_environment_ref;",
+                 "performers retain their resolved source environment");
   ok &= contains(gameplay_c,
                  "normalperformer/crowdsymbolsshouldnotblackenmaterials",
                  "normal symbolic LightPreset refs no longer dim performers as a fake material blackout");
@@ -12003,8 +12114,8 @@ int main() {
                        "performer lighting is refreshed before the band is drawn");
   ok &= contains(gameplay_c,
                  "world_->apply_environment_lighting_state("
-                 "performer_lighting_environment_for_role(perf.role));",
-                 "performers draw under the decoded band/drummer source environment");
+                 "perf.lighting_environment_ref);",
+                 "performers draw under their resolved source environment");
   ok &= contains(gameplay_c,
                  "drum_kit_->set_environment_color_overrides("
                  "venue_environment_colors_);",
@@ -12029,7 +12140,7 @@ int main() {
                  "drum kit receives live LightPreset animated light transforms");
   ok &= appears_before(gameplay_c,
                        "world_->apply_environment_lighting_state("
-                       "performer_lighting_environment_for_role(perf.role));",
+                       "perf.lighting_environment_ref);",
                        "perf.renderer->draw_over_scene(world_->camera());",
                        "performer source Environ lighting is applied before each band draw");
   ok &= contains(update_worldcrowd_lighting_c,
@@ -14927,7 +15038,7 @@ int main() {
                  "regular camera selection preserves the authored normal CamShot category order");
   ok &= contains(gameplay_c,
                  "std::stringcamera_source_pick_shot_scan_scope("
-                 "CameraShotModemode)",
+                 "CameraShotModemode,size_tnormal_category_cursor=0)",
                  "regular camera diagnostics can expose the expanded source category scan scope");
   ok &= contains(gameplay_c,
                  "return\"NORMAL_CAMSHOT_CATEGORIES->\"+"
@@ -15743,7 +15854,7 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_source_no_acceptable_shot("
                  "camera_source_pick_shot_category(mode),mode,low_excitement,"
-                 "walking,starpower,source_filters);",
+                 "walking,starpower,category_cursor_before,source_filters);",
                  "regular camera selector reports the same filters passed to CameraManager::PickCameraShot");
   ok &= absent(gameplay_c,
                "returncamera_state_filter_ok(key,low_excitement,walking,",
@@ -16109,6 +16220,19 @@ int main() {
   ok &= contains(gameplay_c,
                  "choose_regular_camera_key_index_by_category(",
                  "regular camera selector scans authored category buckets like CameraManager::FindCameraShot");
+  ok &= contains(gameplay_h_c,
+                 "size_tcamera_normal_category_cursor_=0;",
+                 "normal gameplay camera selection owns a persistent category cursor");
+  ok &= contains(gameplay_c,
+                 "constautocategory=kNormalCamShotCategoryOrder["
+                 "(cursor+offset)%kNormalCamShotCategoryOrder.size()];",
+                 "normal gameplay camera selection wraps across every authored category bucket");
+  ok &= contains(gameplay_c,
+                 "normal_category_cursor=category_cursor_after;",
+                 "normal gameplay camera selection advances only after an accepted category");
+  ok &= contains(gameplay_c,
+                 "camera_normal_category_cursor_=0;",
+                 "loading a song resets normal gameplay camera category selection");
   ok &= contains(gameplay_c,
                  "size_tcamera_source_camera_shots_prescan_count(",
                  "regular camera diagnostics expose a non-mutating source-shaped NumCameraShots count");
@@ -17819,9 +17943,44 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "doublenext_performer_sync_log_time=0.0;",
                  "performer sync diagnostics are rate-limited per performer");
+  ok &= contains(gameplay_h_c,
+                 "uint32_tlast_traced_performer_event_tick=UINT32_MAX;",
+                 "performer sync retains an authored-event cursor across frames");
   ok &= contains(gameplay_c,
-                 "\"[performer-sync]role=%schar=%st=%.3fplaying=%d\"",
-                 "performer sync rows expose live character playback state");
+                 "ev.tick<=perf.last_traced_performer_event_tick",
+                 "performer event trace does not lose intermediate events on a stuttered frame");
+  ok &= contains(gameplay_c,
+                 "perf.last_traced_performer_event_tick==UINT32_MAX||"
+                 "now_tick>=perf.last_traced_performer_event_tick",
+                 "performer event trace includes authored events crossed on its first sampled frame");
+  ok &= contains(gameplay_c,
+                 "\"[performer-event]song=%srole=%strack=%s\"",
+                 "performer event trace keys every authored transition by song, role, and track");
+  ok &= contains(gameplay_c,
+                 "\"[performer-sync]song=%srole=%schar=%strack=%s\"",
+                 "performer sync rows identify the song, role, character, and authored event track");
+  ok &= contains(gameplay_c,
+                 "\"t=%.3fevent=%sevent_tick=%uevent_t=%.3f\"",
+                 "performer sync rows identify the exact authored event position");
+  ok &= contains(gameplay_c,
+                 "drum_cue_crossed_this_frame_=false;",
+                 "performer tracing retains whether a drum cue crossed the current frame");
+  ok &= contains(gameplay_h_c,
+                 "booldrum_cue_crossed_this_frame_=false;",
+                 "gameplay carries one-frame drum-cue state from cue dispatch into performer tracing");
+  ok &= contains(gameplay_c,
+                 "performer_marker_changed||drummer_cue_frame||",
+                 "performer tracing forces a post-transition snapshot on authored events and drum cues");
+  ok &= contains(gameplay_c,
+                 "\"sync_reason=%splaying=%dintro=%dhand_driver=%dactive_mode=%s\"",
+                 "performer sync rows identify event, drum-cue, and periodic snapshots");
+  ok &= contains(gameplay_c,
+                 "perf.last_midi_marker!=midi_state.marker||"
+                 "perf.last_midi_marker_tick!=midi_state.marker_tick",
+                 "repeated same-text performer events remain distinct by authored tick");
+  ok &= contains(gameplay_c,
+                 "\"main_source=%sactive=%sclip_t=%.3f/%.3f\"",
+                 "performer sync rows report the player actually feeding the pose and its live clip position");
   ok &= contains(gameplay_c,
                  "perf_anim_note_cue.active?perf_anim_note_cue.tick:UINT32_MAX",
                  "performer sync rows carry the authored fret-hand cue tick");

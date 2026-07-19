@@ -32,12 +32,22 @@ target_link_libraries(ghogx_character_bind_audit PRIVATE ghogx_character)
 add_executable(ghogx_character_clip_audit char_clip_audit.cpp)
 target_link_libraries(ghogx_character_clip_audit PRIVATE ghogx_character)
 
+add_executable(ghogx_character_facefx_audit char_facefx_audit.cpp)
+target_link_libraries(ghogx_character_facefx_audit PRIVATE ghogx_character)
+
 add_executable(ghogx_character_clip_driver_flags_test
     character_clip_driver_flags_test.cpp)
 target_link_libraries(ghogx_character_clip_driver_flags_test PRIVATE
     ghogx_character)
 add_test(NAME ghogx_character_clip_driver_flags_test
          COMMAND ghogx_character_clip_driver_flags_test)
+
+add_executable(ghogx_character_facefx_materialization_test
+    character_facefx_materialization_test.cpp)
+target_link_libraries(ghogx_character_facefx_materialization_test PRIVATE
+    ghogx_character)
+add_test(NAME ghogx_character_facefx_materialization_test
+         COMMAND ghogx_character_facefx_materialization_test)
 
 add_executable(ghogx_character_clip_set_source_test
     character_clip_set_source_test.cpp)
@@ -406,6 +416,7 @@ add_test(NAME ghogx_character_source_truth_contract_test
 add_custom_target(ghogx_character_source_tests
     DEPENDS
         ghogx_character_clip_driver_flags_test
+        ghogx_character_facefx_materialization_test
         ghogx_character_clip_set_source_test
         ghogx_character_clip_display_source_test
         ghogx_character_clip_editor_source_test
@@ -462,7 +473,9 @@ if(MSVC)
 target_compile_options(ghogx_character PRIVATE /W4)
 target_compile_options(ghogx_character_bind_audit PRIVATE /W4)
 target_compile_options(ghogx_character_clip_audit PRIVATE /W4)
+target_compile_options(ghogx_character_facefx_audit PRIVATE /W4)
 target_compile_options(ghogx_character_clip_driver_flags_test PRIVATE /W4)
+target_compile_options(ghogx_character_facefx_materialization_test PRIVATE /W4)
 target_compile_options(ghogx_character_clip_set_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_clip_display_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_clip_editor_source_test PRIVATE /W4)
@@ -513,12 +526,16 @@ target_compile_options(ghogx_character_left_hand_contract_test PRIVATE /W4)
 target_compile_options(ghogx_character_eye_bridge_contract_test PRIVATE /W4)
 target_compile_options(ghogx_character_hand_driver_weight_contract_test PRIVATE /W4)
 target_compile_options(ghogx_character_ihatecompvir_inventory_test PRIVATE /W4)
-target_compile_options(ghogx_character_source_truth_contract_test PRIVATE /W4)
+target_compile_options(ghogx_character_source_truth_contract_test PRIVATE
+    /W4 /bigobj)
 else()
     target_compile_options(ghogx_character PRIVATE -Wall -Wextra)
     target_compile_options(ghogx_character_bind_audit PRIVATE -Wall -Wextra)
     target_compile_options(ghogx_character_clip_audit PRIVATE -Wall -Wextra)
+    target_compile_options(ghogx_character_facefx_audit PRIVATE -Wall -Wextra)
     target_compile_options(ghogx_character_clip_driver_flags_test PRIVATE
+        -Wall -Wextra)
+    target_compile_options(ghogx_character_facefx_materialization_test PRIVATE
         -Wall -Wextra)
     target_compile_options(ghogx_character_clip_set_source_test PRIVATE
         -Wall -Wextra)
