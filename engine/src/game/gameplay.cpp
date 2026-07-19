@@ -18134,7 +18134,7 @@ std::string camera_source_guitarist0_actually_walking_source(
 }
 
 constexpr const char* kCameraRecoveredRuntimeList =
-    "venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_intro_previous_context_bridge,camera_camshot_platform_ok_gate,camera_manager_syncobjects_category_buckets,camera_manager_random_seed_bridge,camera_one_bar_to_seek_latch_replay,camera_worldbase_beat_check_shot_bridge,camera_worldbase_downbeat_duration_bridge,camera_worldbase_script_filter_bridge,camera_manager_handle_routes,camera_manager_make_category_filters,camera_manager_onpick_return_bridge,camera_banddirector_findnext_filter_bridge,camera_manager_numcamerashots_prescan_bridge,camera_manager_onnum_return_bridge,camera_manager_first_shot_ok_hook,camera_manager_findshot_category_scan,camera_camshot_disable_bitmask_bridge,camera_manager_findshot_disabled_gate,camera_manager_shotmatches_filters,camera_camshot_radio_flags_bridge,camera_manager_findshot_moveitem,camera_manager_findshot_return_bridge,camera_manager_pickshot_return_bridge,camera_manager_pickshot_no_acceptable_warning,camera_manager_pickshot_pending,camera_manager_pickshot_same_shot_restart_bridge,camera_manager_force_shot_pending,camera_manager_force_shot_action_return_bridge,camera_manager_shotafter_order_bridge,camera_manager_shotafter_expr_return_bridge,camera_manager_cycle_shot_pending_bridge,camera_manager_cycle_shot_return_bridge,camera_manager_current_next_state,camera_manager_current_next_expr_return_bridge,camera_manager_iterate_shot_bridge,camera_manager_randomize_category_noop,camera_worlddir_camshot_overrides_disable,camera_camshot_copy_runtime_fields,camera_lifecycle,camera_manager_enter_reset_bridge,camera_camshot_endanim_bridge,camera_camshot_postprocess_select_reset,camera_camshot_force_char_lod_bridge,camera_camshot_crowd_payload_bridge,camera_camshot_crowd_message_handlers,camera_camshot_startanim_state_reset,camera_camshot_startanim_handler_noops,camera_camshot_getcam_rndcam_bridge,camera_camshot_animtarget_bridge,camera_camshot_manims_lifecycle,camera_manager_startshot_side_effects,camera_camshot_glow_spot_bridge,camera_camshot_shotok_typeswitch,camera_camshot_shotok_prev_arg_bridge,camera_current_walkspot_waypoint_bridge,camera_camshot_shot_ok_bad_waypoints,camera_camshot_check_shot_probe_boundary,camera_manager_milocamera_poll_gate,camera_manager_prepoll_poll_order,camera_camshot_setpreframe_noop,camera_manager_calcframe_units,camera_manager_poll_setframe_bridge,camera_camshot_update_target_cache,camera_camshot_setfrustum,camera_same_target_screen_offset,camera_camshot_clamp_height_bridge,camera_camshot_dofproc,camera_camshot_shake_tail,camera_camshot_setlocalxfm_tail,camera_rndcam_updatelocal_public_stub,camera_camshot_dohide_unhide_visibility,camera_visibility,camera_camshot_checkshotstarted_runtime_bridge,camera_shot_started_postswitch,camera_camshot_checkshotover_predicate_bridge,camera_shot_over,camera_camshot_setshotover_latch_bridge,camera_camshot_shot_over_next_shot_bridge,camera_camshot_cacheframes_duration,camera_camshot_endframe_duration_bridge,camera_camshot_duration_seconds,camera_camshot_getkey_looping,camera_frame_pair_timing,camera_camshot_setframe_last_pair_bridge,camera_camshot_onsetpos_boundary,camera_camshot_hastargets_boundary,camera_camshot_position_handler_return_bridge,camera_path_transanim_timing,camera_trace_complete_writer_bridge,camera_fov_anim_atframe";
+    "venue_loading,dependency_discovery,animation_routing,lighting,environ,redoctane_motion,camera_selection,camera_intro_previous_context_bridge,camera_camshot_platform_ok_gate,camera_manager_syncobjects_category_buckets,camera_manager_random_seed_bridge,camera_one_bar_to_seek_latch_replay,camera_worldbase_beat_check_shot_bridge,camera_worldbase_downbeat_duration_bridge,camera_worldbase_script_filter_bridge,camera_manager_handle_routes,camera_manager_make_category_filters,camera_manager_onpick_return_bridge,camera_banddirector_findnext_filter_bridge,camera_manager_numcamerashots_prescan_bridge,camera_manager_onnum_return_bridge,camera_manager_first_shot_ok_hook,camera_manager_findshot_category_scan,camera_camshot_disable_bitmask_bridge,camera_manager_findshot_disabled_gate,camera_manager_shotmatches_filters,camera_camshot_radio_flags_bridge,camera_manager_findshot_moveitem,camera_manager_findshot_return_bridge,camera_manager_pickshot_return_bridge,camera_manager_pickshot_no_acceptable_warning,camera_manager_pickshot_pending,camera_manager_pickshot_same_shot_restart_bridge,camera_manager_force_shot_pending,camera_manager_force_shot_action_return_bridge,camera_manager_shotafter_order_bridge,camera_manager_shotafter_expr_return_bridge,camera_manager_cycle_shot_pending_bridge,camera_manager_cycle_shot_return_bridge,camera_manager_current_next_state,camera_manager_current_next_expr_return_bridge,camera_manager_iterate_shot_bridge,camera_manager_randomize_category_noop,camera_worlddir_camshot_overrides_disable,camera_camshot_copy_runtime_fields,camera_lifecycle,camera_manager_enter_reset_bridge,camera_camshot_endanim_bridge,camera_camshot_postprocess_select_reset,camera_camshot_force_char_lod_bridge,camera_camshot_crowd_payload_bridge,camera_camshot_crowd_message_handlers,camera_camshot_startanim_state_reset,camera_camshot_startanim_handler_noops,camera_camshot_getcam_rndcam_bridge,camera_camshot_animtarget_bridge,camera_camshot_manims_lifecycle,camera_manager_startshot_side_effects,camera_camshot_glow_spot_bridge,camera_camshot_shotok_typeswitch,camera_camshot_shotok_prev_arg_bridge,camera_current_walkspot_waypoint_bridge,camera_camshot_shot_ok_bad_waypoints,camera_camshot_check_shot_probe_boundary,camera_manager_milocamera_poll_gate,camera_manager_prepoll_poll_order,camera_camshot_setpreframe_noop,camera_manager_calcframe_units,camera_manager_poll_setframe_bridge,camera_camshot_update_target_cache,camera_camshot_setfrustum,camera_same_target_screen_offset,camera_camshot_clamp_height_bridge,camera_camshot_dofproc,camera_camshot_shake_tail,camera_camshot_setlocalxfm_tail,camera_rndcam_updatelocal_projection,camera_camshot_dohide_unhide_visibility,camera_visibility,camera_camshot_checkshotstarted_runtime_bridge,camera_shot_started_postswitch,camera_camshot_checkshotover_predicate_bridge,camera_shot_over,camera_camshot_setshotover_latch_bridge,camera_camshot_shot_over_next_shot_bridge,camera_camshot_cacheframes_duration,camera_camshot_endframe_duration_bridge,camera_camshot_duration_seconds,camera_camshot_getkey_looping,camera_frame_pair_timing,camera_camshot_setframe_last_pair_bridge,camera_camshot_onsetpos_boundary,camera_camshot_hastargets_boundary,camera_camshot_position_handler_return_bridge,camera_path_transanim_timing,camera_trace_complete_writer_bridge,camera_fov_anim_atframe";
 
 constexpr size_t kCameraOpenGameplayBlockers = 4;
 
@@ -19734,51 +19734,46 @@ constexpr float kNativeValidationAspect = 16.0f / 9.0f;
 constexpr float kCamShotSourceYRatio = 0.5625f;
 constexpr float kCamShotSourceFrustumAspect = 1.0f / kCamShotSourceYRatio;
 constexpr const char* kCamShotBuildTransformAuditStatus =
-    "public_CameraShot.cpp_decl_and_Interp_calls_only;"
-    "rb2_dump_signature_locals_refs;"
-    "rb2_BuildTransform_size_0x408;rb3_BuildTransform_size_0x7D8;"
-    "binary_symbol_sizes_no_body";
+    "gh2_SLUS_214.47_0x00267008_partial_body;"
+    "Interp_outgoing_call_0x002666b8;"
+    "Interp_incoming_call_0x002666d4;"
+    "transform_lerp_0x00266754;"
+    "path_MakeTransform_0x001e0790;"
+    "remaining_projection_math_separate";
 constexpr const char* kCamShotLocalProjectSource =
-    "RndCam::UpdateLocal(public_Cam.cpp_empty;"
-    "LocalProjectXfm_binary_projection_body_unrecovered)";
+    "GH2_PS2_SLUS_214.47_RndCam::UpdateLocal_0x001b1f50_0x001b20af";
 constexpr const char* kCamShotLocalProjectAuditStatus =
-    "public_Cam.cpp_empty;doc_src_old_rndcam_fn_805CD500_stub_only;"
-    "rb2_dump_UpdateLocal_locals_only;"
-    "rb2_UpdateLocal_size_0x1D0;rb3_recomp_UpdateLocal_size_0x1E4;"
-    "binary_symbol_sizes_no_body";
+    "retail_body_recovered;LocalProjectXfm_zero_0x001b1fcc_0x001b2008;"
+    "mxx_positive_0x001b2090;mzx_negative_0x001b207c_0x001b2094";
 constexpr const char* kCamShotUpdateLocalYRatioOwner =
-    "RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered";
+    "RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_retail_body_recovered";
 constexpr const char* kCamShotUpdateLocalAuditStatus =
-    "public_Cam.cpp_empty_source_stub;"
-    "doc_src_old_rndcam_fn_805CD500_stub_only;"
-    "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;"
-    "rb2_size_0x1D0;rb3_recomp_size_0x1E4;"
-    "binary_projection_body_unrecovered";
+    "gh2_SLUS_214.47_0x001b1f50_0x001b20af;"
+    "tan_half_fov_0x001b2054_0x001b2060;"
+    "negative_reciprocal_0x001b2064_0x001b2094";
 constexpr const char* kCamShotUpdateLocalSourceSearch =
-    "public_Cam.cpp_empty_source_stub;"
-    "doc_src_old_rndcam_fn_805CD500_stub_only;"
-    "rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;"
-    "re_gh2_no_rndcam_body;band3_recomp_no_update_local_body;"
-    "SZBE69_symbols_address_size_only;SZBE69_B8_symbols_address_size_only";
+    "SLUS_214.47_SetFrustum_0x001b1ee0_calls_UpdateLocal_0x001b1f50;"
+    "retail_MIPS64_disassembly";
 constexpr const char* kCamShotVisiblePoseUnits =
-    "CameraManager,GetKey,Interp_order,OnHasTargets,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail,RndCam_UpdateLocal_public_stub";
+    "CameraManager,GetKey,Interp_outgoing_incoming_pair,BuildTransform_frame_pair_contract,OnHasTargets,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail,RndCam_UpdateLocal_projection";
 constexpr const char* kCamShotHiddenPoseBodies =
-    "CamShotFrame::BuildTransform,CamShot::SetPos,RndCam::UpdateLocal_binary_projection";
+    "CamShotFrame::BuildTransform_remaining_math,CamShot::OnSetPos_editor_path";
 
 const char* camera_source_pose_impl_tier(bool retained_ps2_trace_payload,
                                          bool source_build_transform_order) {
     if (retained_ps2_trace_payload) return "retained_ps2_payload_pose";
     if (source_build_transform_order) {
-        return "visible_interp_hidden_buildtransform";
+        return "retail_outgoing_incoming_partial_buildtransform";
     }
-    return "native_seed_or_path_hidden_setpos_buildtransform";
+    return "native_seed_or_path_partial_buildtransform";
 }
 
 const char* camera_source_pose_required_body(bool retained_ps2_trace_payload,
                                              bool source_build_transform_order) {
     if (retained_ps2_trace_payload) return "selection_predicates_only";
-    if (source_build_transform_order) return "CamShotFrame::BuildTransform";
-    return "CamShot::SetPos_or_CamShotFrame::BuildTransform";
+    if (source_build_transform_order)
+        return "CamShotFrame::BuildTransform_remaining_math";
+    return "CamShotFrame::BuildTransform_remaining_math_or_path_composition";
 }
 
 struct CameraSourceLocalProjectScale {
@@ -19805,7 +19800,10 @@ camera_source_local_project_scale_for_fov(float y_fov) {
     scale.tan_x = tan_x;
     scale.tan_y = tan_y;
     scale.local_project_m_x_x = 1.0f / tan_x;
-    scale.local_project_m_z_x = 1.0f / tan_y;
+    // GH2 PS2 retail RndCam::UpdateLocal (0x001b1f50) stores the
+    // CamShotFrame::Interp vertical denominator at camera + 0x124 as
+    // -1 / tan(y_fov / 2) (0x001b207c..0x001b2094).
+    scale.local_project_m_z_x = -1.0f / tan_y;
     if (!std::isfinite(scale.local_project_m_x_x) ||
         !std::isfinite(scale.local_project_m_z_x)) {
         return std::nullopt;
@@ -23715,37 +23713,46 @@ void apply_camera_keys(
             Gameplay::CameraKey build_key_a = *a;
             build_key_a.has_fov = true;
             build_key_a.fov = source_screen_offset_fov;
-            std::optional<CameraResultRows> build_rows_a_first;
-            std::optional<CameraResultRows> build_rows_a_second;
+            Gameplay::CameraKey build_key_b = *b;
+            build_key_b.has_fov = true;
+            build_key_b.fov = source_screen_offset_fov;
+            std::optional<CameraResultRows> build_rows_a;
+            std::optional<CameraResultRows> build_rows_b;
             if (a_target_centroid) {
-                build_rows_a_first = camera_target_list_result_rows_from_seed(
+                build_rows_a = camera_target_list_result_rows_from_seed(
                     source_seed_a, build_key_a, *a_target_centroid,
                     source_order_state_ptr, &source_order_filter_step_a,
                     &source_order_projected_delta_a);
-                float source_order_filter_step_b = 1.0f;
-                float source_order_projected_delta_b = 1.0f;
-                build_rows_a_second = camera_target_list_result_rows_from_seed(
-                    source_seed_a, build_key_a, *a_target_centroid,
+            }
+            float source_order_filter_step_b = 1.0f;
+            float source_order_projected_delta_b = 1.0f;
+            if (b_target_centroid) {
+                build_rows_b = camera_target_list_result_rows_from_seed(
+                    source_seed_b, build_key_b, *b_target_centroid,
                     source_order_state_ptr, &source_order_filter_step_b,
                     &source_order_projected_delta_b);
+            }
+            if (build_rows_b) {
                 result_filter_step = source_order_filter_step_b;
                 result_filter_projected_delta = source_order_projected_delta_b;
-            }
-            if (build_rows_a_first && build_rows_a_second) {
-                source_build_transform_result = camera_lerp_result_rows(
-                    *build_rows_a_first, *build_rows_a_second, interp_t);
-            } else if (build_rows_a_first) {
-                source_build_transform_result = *build_rows_a_first;
             } else {
-                source_build_transform_result = source_seed_a;
+                result_filter_step = source_order_filter_step_a;
+                result_filter_projected_delta =
+                    source_order_projected_delta_a;
             }
+            const CameraResultRows& outgoing_rows =
+                build_rows_a ? *build_rows_a : source_seed_a;
+            const CameraResultRows& incoming_rows =
+                build_rows_b ? *build_rows_b : source_seed_b;
+            source_build_transform_result = camera_lerp_result_rows(
+                outgoing_rows, incoming_rows, interp_t);
             source_build_transform_result->source =
-                "source_visible_current_build_transform_twice(" +
+                "source_visible_outgoing_incoming_build_transform(" +
                 source_build_transform_result->source + ")";
             submitted_result = *source_build_transform_result;
             source_build_transform_order = true;
-            source_visible_build_transform_pair = "current_frame_twice";
-            if ((build_rows_a_first || build_rows_a_second) &&
+            source_visible_build_transform_pair = "outgoing_to_incoming";
+            if ((build_rows_a || build_rows_b) &&
                 result_builder_state) {
                 *result_builder_state = source_order_state;
                 if (result_builder_state->has_filtered_target) {
@@ -23753,10 +23760,6 @@ void apply_camera_keys(
                         result_builder_state->filtered_target;
                     result_filter_candidate_valid = true;
                 }
-            }
-            if (build_rows_a_first && !build_rows_a_second) {
-                result_filter_step = source_order_filter_step_a;
-                result_filter_projected_delta = source_order_projected_delta_a;
             }
         } else {
             CameraResultBuilderState same_target_filter_state =
@@ -23789,28 +23792,34 @@ void apply_camera_keys(
             Gameplay::CameraKey build_key_a = *a;
             build_key_a.has_fov = true;
             build_key_a.fov = source_screen_offset_fov;
-            std::optional<CameraResultRows> same_target_build_rows_first;
-            std::optional<CameraResultRows> same_target_build_rows_second;
+            Gameplay::CameraKey build_key_b = *b;
+            build_key_b.has_fov = true;
+            build_key_b.fov = source_screen_offset_fov;
+            std::optional<CameraResultRows> same_target_build_rows_a;
+            std::optional<CameraResultRows> same_target_build_rows_b;
             if (a_target_centroid) {
-                same_target_build_rows_first =
-                    camera_target_list_result_rows_from_seed(
-                        source_seed_a, build_key_a, *a_target_centroid,
-                        nullptr, nullptr, nullptr, false);
-                same_target_build_rows_second =
+                same_target_build_rows_a =
                     camera_target_list_result_rows_from_seed(
                         source_seed_a, build_key_a, *a_target_centroid,
                         nullptr, nullptr, nullptr, false);
             }
-            CameraResultRows same_target_pre_lookat_result = source_seed_a;
-            if (same_target_build_rows_first && same_target_build_rows_second) {
-                same_target_pre_lookat_result = camera_lerp_result_rows(
-                    *same_target_build_rows_first,
-                    *same_target_build_rows_second, interp_t);
-            } else if (same_target_build_rows_first) {
-                same_target_pre_lookat_result = *same_target_build_rows_first;
+            if (b_target_centroid) {
+                same_target_build_rows_b =
+                    camera_target_list_result_rows_from_seed(
+                        source_seed_b, build_key_b, *b_target_centroid,
+                        nullptr, nullptr, nullptr, false);
             }
+            const CameraResultRows& same_target_outgoing_rows =
+                same_target_build_rows_a ? *same_target_build_rows_a
+                                         : source_seed_a;
+            const CameraResultRows& same_target_incoming_rows =
+                same_target_build_rows_b ? *same_target_build_rows_b
+                                         : source_seed_b;
+            CameraResultRows same_target_pre_lookat_result =
+                camera_lerp_result_rows(same_target_outgoing_rows,
+                                        same_target_incoming_rows, interp_t);
             same_target_pre_lookat_result.source =
-                "source_same_target_pre_lookat_current_build(" +
+                "source_same_target_pre_lookat_outgoing_incoming_build(" +
                 same_target_pre_lookat_result.source + ")";
             source_build_transform_result =
                 camera_source_same_target_look_at_rows(
@@ -23818,11 +23827,11 @@ void apply_camera_keys(
                     b_target_centroid, interp_t)
                     .value_or(same_target_pre_lookat_result);
             source_build_transform_result->source =
-                "source_same_target_current_build_twice(" +
+                "source_same_target_outgoing_incoming_build_pair(" +
                 source_build_transform_result->source + ")";
             submitted_result = *source_build_transform_result;
             source_build_transform_order = true;
-            source_visible_build_transform_pair = "current_frame_twice";
+            source_visible_build_transform_pair = "outgoing_to_incoming";
             source_same_target_distance_a =
                 a_target_centroid
                     ? camera_point_distance(
@@ -23864,13 +23873,13 @@ void apply_camera_keys(
         }
     } else if (!submitted_result_from_ps2_trace && !source_has_any_targets) {
         source_build_transform_result =
-            camera_lerp_result_rows(source_seed_a, source_seed_a, interp_t);
+            camera_lerp_result_rows(source_seed_a, source_seed_b, interp_t);
         source_build_transform_result->source =
-            "source_no_target_current_build_twice(" +
+            "source_no_target_outgoing_incoming_build_pair(" +
             source_build_transform_result->source + ")";
         submitted_result = *source_build_transform_result;
         source_build_transform_order = true;
-        source_visible_build_transform_pair = "current_frame_twice";
+        source_visible_build_transform_pair = "outgoing_to_incoming";
     }
     const CameraResultRows source_pre_setframe_blend_result = submitted_result;
     if (source_frustum_valid) {
@@ -24051,14 +24060,14 @@ void apply_camera_keys(
             submitted_result_from_ps2_trace
                 ? "retained_ps2_trace_payload"
                 : source_build_transform_order
-                ? "visible_Interp_order_unrecovered_BuildTransform"
+                ? "retail_Interp_outgoing_incoming_partial_BuildTransform"
                 : "native_submitted_seed_or_path";
         const char* hidden_pose_boundary =
             submitted_result_from_ps2_trace
                 ? "retained_ps2_trace_payload"
                 : source_build_transform_order
-                ? "CamShotFrame::BuildTransform"
-                : "CamShot::SetPos/BuildTransform";
+                ? "CamShotFrame::BuildTransform_remaining_math"
+                : "CamShotFrame::BuildTransform_remaining_math/path_composition";
         const char* source_pose_impl_tier =
             camera_source_pose_impl_tier(submitted_result_from_ps2_trace,
                                          source_build_transform_order);
@@ -24078,7 +24087,7 @@ void apply_camera_keys(
             submitted_result_from_ps2_trace
                 ? "selection_only_retained_pose"
                 : source_build_transform_order
-                ? "pose_current_frame"
+                ? "pose_outgoing_incoming_pair"
                 : "native_seed_or_path_boundary";
         float buildtransform_target_dist_estimate =
             std::numeric_limits<float>::quiet_NaN();
@@ -25337,9 +25346,7 @@ void apply_camera_keys(
         const char* under_venue_source_fix_required =
             !under_venue_concern
                 ? "none"
-                : same_target_vertical_flip_resolves_under_venue
-                ? "recover_RndCam_UpdateLocal_LocalProjectXfm_mzx_sign"
-                : "recover_BuildTransform_or_RndCam_UpdateLocal";
+                : "recover_remaining_BuildTransform_or_shot_selection";
         const char* source_pose_branch =
             !source_has_any_targets
                 ? "NoTargets:BuildTransform(applyScreenOffset=1)"
@@ -25386,7 +25393,7 @@ void apply_camera_keys(
             "shot_filter_branch=%d "
             "build_transform_order=%s apply_screen_offset=%d "
             "source_visible_build_pair=%s source_build_calls=%d "
-            "source_build_pair_evidence=%s frame_buildtransform_not_claimed=%d "
+            "source_build_pair_evidence=%s incoming_buildtransform_confirmed=%d "
             "source_branch=%s source_pose_branch=%s source_filter_scope=%s "
             "source_filter_state_submission=%s "
             "source_filter_state_source=%s "
@@ -25426,11 +25433,11 @@ void apply_camera_keys(
             "source_same_target_order=after_SameTargets_LookAt_before_zoom_SetFrustum "
             "same_target_axis_offsets=(right:%s%.6f up:%s%.6f) "
             "same_target_axis_z_delta=(right:%s%.6f up:%s%.6f total:%s%.6f) "
-            "same_target_vertical_flip_candidate=(%s%.3f %s%.3f %s%.3f) "
-            "same_target_vertical_flip_candidate_only=%d "
-            "local_project_z_sign=unrecovered local_project_z_source_required=%s "
-            "same_target_height=(submitted:%s%.3f vertical_flip:%s%.3f) "
-            "same_target_vertical_flip_resolves_under_venue=%d "
+            "same_target_opposite_projection_sign_candidate=(%s%.3f %s%.3f %s%.3f) "
+            "same_target_opposite_projection_sign_candidate_only=%d "
+            "local_project_z_sign=retail_negative local_project_z_source=%s "
+            "same_target_height=(submitted:%s%.3f opposite_sign:%s%.3f) "
+            "same_target_opposite_sign_resolves_under_venue=%d "
             "source_locals=CamShotFrame::Interp(BuildTransform,applyScreenOffset) "
             "source_tail=WorldXfm_blend->CamShot::Shake->SetLocalXfm "
             "final_setlocalxfm=applied "
@@ -25443,13 +25450,13 @@ void apply_camera_keys(
             source_calc_frame_prefix(*a), source_calc_frame_value(*a),
             source_calc_frame_prefix(*b), source_calc_frame_value(*b),
             result_filter_branch ? 1 : 0,
-            source_build_transform_order ? "current_frame_twice"
+            source_build_transform_order ? "outgoing_to_incoming"
                                          : "blended_seed",
             same_targets_like_camshot ? 0 : 1,
             source_visible_build_transform_pair,
             source_build_transform_order ? 2 : 0,
             source_build_transform_order
-                ? "ihatecompvir_CamShotFrame::Interp_unqualified_current_BuildTransform_twice"
+                ? "SLUS_214.47_CamShotFrame::Interp_0x002666b8_outgoing_0x002666d4_incoming"
                 : "not_on_source_BuildTransform_pair_path",
             source_build_transform_order ? 1 : 0,
             source_pose_branch, source_pose_branch,
@@ -25457,7 +25464,7 @@ void apply_camera_keys(
             source_filter_state_source,
             source_screen_offset_filtered_target_candidate ? "diagnostic_only"
                                                            : "none",
-            "rb2_dump_locals_only",
+            "gh2_ps2_partial_body_frame_pair_and_path_contract",
             kCamShotBuildTransformAuditStatus,
             "parent,targetPos,targetScreenPos,filter,iframe,"
             "LinearInterpolator,ATanInterpolator,parentPos,target,height,"
@@ -25576,9 +25583,7 @@ void apply_camera_keys(
                 ? same_target_axis_proof->vertical_flip_candidate_position[2]
                 : 0.0f,
             same_target_axis_proof ? 1 : 0,
-            same_target_vertical_flip_resolves_under_venue
-                ? "RndCam::UpdateLocal(LocalProjectXfm.m.z.x)"
-                : "none",
+            "SLUS_214.47_RndCam::UpdateLocal_0x001b207c_0x001b2094",
             std::isfinite(same_target_submitted_height) ? "" : "none/",
             std::isfinite(same_target_submitted_height)
                 ? same_target_submitted_height
@@ -28591,7 +28596,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key,
             venue_camera_rndcam_summaries_.size(),
             rndcam_payload_decoded
                 ? rndcam_summary_it->second.c_str()
-                : "source_reader=MiloEditor::RndCam.Read native_reader=milo_scene::decode_cam source_projection=RndCam::UpdateLocal_binary_projection_body_unrecovered");
+                : "source_reader=MiloEditor::RndCam.Read native_reader=milo_scene::decode_cam source_projection=GH2_PS2_RndCam::UpdateLocal_0x001b1f50_recovered");
     }
     active_camera_postprocess_ref_ = canonical_milo_ref(key.postprocess_ref);
     if (debug_venue_filters_enabled() || debug_camera_enabled()) {
@@ -38715,7 +38720,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             camera_count_csv_tokens(kCameraRecoveredRuntimeList);
                         std::fprintf(
                             stderr,
-                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=%s active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/SetPos/RndCam_binary_projection rndcam_updatelocal_public_source=empty_body hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot_native,CharWalk,SetPos,BuildTransform,RndCam_UpdateLocal_binary_projection postprocess_render_effect=deferred freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
+                            "[world] camera implementation status: pipeline_scope=normal_gameplay_camera priority=gameplay_camera source_truth=ihatecompvir recovered_runtime=%s active_hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s pose_boundary=BuildTransform/SetPos rndcam_updatelocal_source=GH2_PS2_SLUS_214.47_0x001b1f50 hidden_bodies_deferred=cam_shot_ok_rest,cam_check_shot_native,CharWalk,SetPos,BuildTransform postprocess_render_effect=deferred freecam_priority=deferred_last freecam_affects_gameplay=0 under_venue_concern=open no_dependency_change=1 og_xbox_portability_preserved=1\n",
                             kCameraRecoveredRuntimeList,
                             active_gameplay_blockers.c_str(),
                             deferred_gameplay_blockers.c_str());

@@ -36,12 +36,13 @@ struct SVtx {
 
 constexpr DWORD kFVF =
     D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1;
-struct PVtx {
+struct ParticleBillboardVertex {
   float x, y, z;
-  float size;
   D3DCOLOR color;
+  float u, v;
 };
-constexpr DWORD kParticleFVF = D3DFVF_XYZ | D3DFVF_PSIZE | D3DFVF_DIFFUSE;
+constexpr DWORD kParticleBillboardFVF =
+    D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1;
 constexpr DWORD kDefaultSceneAmbient = D3DCOLOR_XRGB(170, 170, 178);
 constexpr DWORD kSceneFillLightFirstSlot = 0;
 constexpr DWORD kDefaultSceneFillLightSlotCount = 2;
@@ -3927,12 +3928,15 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     const bool prelit_material =
         mat_obj && mat_obj->prelit && !env_enabled("GHOGX_DISABLE_PRELIT_MATERIALS");
-    const bool prelit_lighting_bypass =
-        prelit_material && env_enabled("GHOGX_ENABLE_PRELIT_LIGHTING_BYPASS");
+    // RndMat::mPreLit is renderer state, not a diagnostic hint.  The recovered
+    // WiiMat::Select path selects its light-channel count from the material and
+    // WiiMesh submits the authored vertex colours with the mesh.  Do not run
+    // that already-lit diffuse stream through our approximation lights again.
+    const bool prelit_lighting_bypass = prelit_material;
     if (prelit_lighting_bypass && has_mesh_env_color) {
-      // Diagnostic source-combine path. Prelit materials bypass D3D fixed
-      // lighting below, so fold current Environ/EnvAnim color into the same
-      // diffuse path that vertex colors and material colors use.
+      // Prelit materials bypass D3D fixed lighting below. Preserve the authored
+      // Mat.use_environ route by folding current Environ/EnvAnim colour into
+      // the same diffuse path that vertex and material colours use.
       mr *= std::clamp(mesh_env_color[0], 0.0f, 4.0f);
       mg *= std::clamp(mesh_env_color[1], 0.0f, 4.0f);
       mb *= std::clamp(mesh_env_color[2], 0.0f, 4.0f);
@@ -4324,18 +4328,16 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       start_size = std::max(0.0f, size_it->second);
       has_size_override = true;
     }
-    const float delta_size = (p.delta_size_min + p.delta_size_max) * 0.5f;
-    const float preview_size = std::max(0.0f, start_size + delta_size * 0.5f) *
-                               sample_particle_grow_shrink(
-                                   p.grow_ratio, p.shrink_ratio, 0.5f);
-    const float preview_point_size = std::clamp(
-        preview_size * 12.0f + authored_speed * 0.02f, 3.0f, 80.0f);
-    const float jitter =
-        std::max(preview_point_size * 0.25f, authored_speed * 0.015f);
-
     auto world = mul16(scene_.world_matrix(p), world_transform_);
-    std::vector<PVtx> points;
-    points.reserve(static_cast<size_t>(count));
+    // ihatecompvir's recovered WiiParticleSys::DrawShowing has four explicit
+    // Vector2 corners (v1..v4), camera-derived right/up vectors, and a scalar
+    // particle size. Mirror that source contract with world-space billboard
+    // quads. D3D point sprites are screen-sized and had been turning GH2's
+    // authored 5..80 world-unit dry-ice particles into fixed 80-pixel cards.
+    const float camera_right[3] = {view.m[0][0], view.m[1][0], view.m[2][0]};
+    const float camera_up[3] = {view.m[0][1], view.m[1][1], view.m[2][1]};
+    std::vector<ParticleBillboardVertex> billboards;
+    billboards.reserve(static_cast<size_t>(count) * 6u);
     const uint32_t seed_base = static_cast<uint32_t>(
         std::hash<std::string>{}(p.name) & 0xffffffffu);
     for (int i = 0; i < count; ++i) {
@@ -4350,15 +4352,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       const float h7 = hash01(seed + 8u);
       const float h8 = hash01(seed + 9u);
       const float phase = std::fmod(particle_time_ / lifetime + h0, 1.0f);
-      const float fade = 1.0f - phase;
       const float hashes[3] = {h1, h2, h3};
       float local[3] = {};
       for (int c = 0; c < 3; ++c) {
         const float lo = std::min(p.box_extent_min[c], p.box_extent_max[c]);
         const float hi = std::max(p.box_extent_min[c], p.box_extent_max[c]);
         local[c] = lo + (hi - lo) * hashes[c];
-        local[c] += (hash01(seed + 20u + static_cast<uint32_t>(c)) - 0.5f) *
-                    jitter;
       }
       const float speed = has_speed_override
                               ? authored_speed
@@ -4387,13 +4386,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         local[0] += std::cos(bubble_angle) * bubble_size;
         local[2] += std::sin(bubble_angle + h1 * kTwoPi) * bubble_size;
       }
-      PVtx v;
-      v.x = world[12] + local[0] * world[0] + local[1] * world[4] +
-            local[2] * world[8];
-      v.y = world[13] + local[0] * world[1] + local[1] * world[5] +
-            local[2] * world[9];
-      v.z = world[14] + local[0] * world[2] + local[1] * world[6] +
-            local[2] * world[10];
+      const float center[3] = {
+          world[12] + local[0] * world[0] + local[1] * world[4] +
+              local[2] * world[8],
+          world[13] + local[0] * world[1] + local[1] * world[5] +
+              local[2] * world[9],
+          world[14] + local[0] * world[2] + local[1] * world[6] +
+              local[2] * world[10]};
       const float particle_start_size =
           has_size_override
               ? start_size
@@ -4402,65 +4401,147 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           p.delta_size_min + (p.delta_size_max - p.delta_size_min) * h8;
       const float grow_shrink =
           sample_particle_grow_shrink(p.grow_ratio, p.shrink_ratio, phase);
-      v.size = std::clamp(
+      const float particle_size = std::clamp(
           std::max(0.0f, particle_start_size + particle_delta_size * phase) *
-                  grow_shrink * 12.0f +
-              speed * 0.02f,
-          3.0f, 80.0f);
+              grow_shrink,
+          0.0f, 10000.0f);
+      if (particle_size <= 0.0001f) continue;
       const auto cc = [](float f) -> int {
         int i = static_cast<int>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
         return std::clamp(i, 0, 255);
       };
-      const float alpha = std::clamp(mat->color[3] * (0.25f + fade * 0.75f),
-                                     0.0f, 1.0f) *
-                          std::clamp(intensity, 0.0f, 1.0f) *
-                          std::clamp(
-                              sample_particle_color_with_mid(
-                                  start_color, mid_color, end_color,
-                                  p.mid_color_ratio, phase)[3],
-                              0.0f, 1.0f);
       const std::array<float, 4> sampled_color =
           sample_particle_color_with_mid(start_color, mid_color, end_color,
                                          p.mid_color_ratio, phase);
+      const float alpha =
+          std::clamp(mat->color[3], 0.0f, 1.0f) *
+          std::clamp(intensity, 0.0f, 1.0f) *
+          std::clamp(sampled_color[3], 0.0f, 1.0f);
       const float red = mat->color[0] * sampled_color[0];
       const float green = mat->color[1] * sampled_color[1];
       const float blue = mat->color[2] * sampled_color[2];
-      v.color = D3DCOLOR_ARGB(cc(alpha), cc(red), cc(green), cc(blue));
-      points.push_back(v);
+      const D3DCOLOR color =
+          D3DCOLOR_ARGB(cc(alpha), cc(red), cc(green), cc(blue));
+      const float half_size = particle_size * 0.5f;
+      auto corner = [&](float right_scale, float up_scale, float u, float v) {
+        ParticleBillboardVertex out{};
+        out.x = center[0] + camera_right[0] * right_scale * half_size +
+                camera_up[0] * up_scale * half_size;
+        out.y = center[1] + camera_right[1] * right_scale * half_size +
+                camera_up[1] * up_scale * half_size;
+        out.z = center[2] + camera_right[2] * right_scale * half_size +
+                camera_up[2] * up_scale * half_size;
+        out.color = color;
+        out.u = u;
+        out.v = v;
+        return out;
+      };
+      const ParticleBillboardVertex top_left = corner(-1.0f, 1.0f, 0.0f, 0.0f);
+      const ParticleBillboardVertex top_right = corner(1.0f, 1.0f, 1.0f, 0.0f);
+      const ParticleBillboardVertex bottom_right =
+          corner(1.0f, -1.0f, 1.0f, 1.0f);
+      const ParticleBillboardVertex bottom_left =
+          corner(-1.0f, -1.0f, 0.0f, 1.0f);
+      billboards.push_back(top_left);
+      billboards.push_back(top_right);
+      billboards.push_back(bottom_right);
+      billboards.push_back(top_left);
+      billboards.push_back(bottom_right);
+      billboards.push_back(bottom_left);
     }
-    if (points.empty()) return;
+    if (billboards.empty()) return;
 
     DWORD old_lighting = TRUE;
+    DWORD old_zenable = TRUE;
     DWORD old_zwrite = TRUE;
+    DWORD old_cull = D3DCULL_CW;
+    DWORD old_alpha_blend = TRUE;
     DWORD old_src = D3DBLEND_SRCALPHA;
     DWORD old_dest = D3DBLEND_INVSRCALPHA;
     DWORD old_op = D3DBLENDOP_ADD;
+    DWORD old_point_sprite = FALSE;
+    DWORD old_point_scale = FALSE;
+    DWORD old_fvf = kFVF;
+    DWORD old_color_op = D3DTOP_MODULATE;
+    DWORD old_color_arg1 = D3DTA_TEXTURE;
+    DWORD old_color_arg2 = D3DTA_DIFFUSE;
+    DWORD old_alpha_op = D3DTOP_MODULATE;
+    DWORD old_alpha_arg1 = D3DTA_TEXTURE;
+    DWORD old_alpha_arg2 = D3DTA_DIFFUSE;
+    DWORD old_address_u = D3DTADDRESS_WRAP;
+    DWORD old_address_v = D3DTADDRESS_WRAP;
+    IDirect3DBaseTexture9* old_texture = nullptr;
+    D3DMATRIX old_world{};
     const BlendState blend_state = blend_state_for(mat->blend);
     dev_->GetRenderState(D3DRS_LIGHTING, &old_lighting);
+    dev_->GetRenderState(D3DRS_ZENABLE, &old_zenable);
     dev_->GetRenderState(D3DRS_ZWRITEENABLE, &old_zwrite);
+    dev_->GetRenderState(D3DRS_CULLMODE, &old_cull);
+    dev_->GetRenderState(D3DRS_ALPHABLENDENABLE, &old_alpha_blend);
     dev_->GetRenderState(D3DRS_SRCBLEND, &old_src);
     dev_->GetRenderState(D3DRS_DESTBLEND, &old_dest);
     dev_->GetRenderState(D3DRS_BLENDOP, &old_op);
+    dev_->GetRenderState(D3DRS_POINTSPRITEENABLE, &old_point_sprite);
+    dev_->GetRenderState(D3DRS_POINTSCALEENABLE, &old_point_scale);
+    dev_->GetFVF(&old_fvf);
+    dev_->GetTextureStageState(0, D3DTSS_COLOROP, &old_color_op);
+    dev_->GetTextureStageState(0, D3DTSS_COLORARG1, &old_color_arg1);
+    dev_->GetTextureStageState(0, D3DTSS_COLORARG2, &old_color_arg2);
+    dev_->GetTextureStageState(0, D3DTSS_ALPHAOP, &old_alpha_op);
+    dev_->GetTextureStageState(0, D3DTSS_ALPHAARG1, &old_alpha_arg1);
+    dev_->GetTextureStageState(0, D3DTSS_ALPHAARG2, &old_alpha_arg2);
+    dev_->GetSamplerState(0, D3DSAMP_ADDRESSU, &old_address_u);
+    dev_->GetSamplerState(0, D3DSAMP_ADDRESSV, &old_address_v);
+    dev_->GetTexture(0, &old_texture);
+    dev_->GetTransform(D3DTS_WORLD, &old_world);
+    D3DMATRIX identity{};
+    identity._11 = identity._22 = identity._33 = identity._44 = 1.0f;
+    dev_->SetTransform(D3DTS_WORLD, &identity);
     dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
+    dev_->SetRenderState(D3DRS_ZENABLE, TRUE);
     dev_->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+    dev_->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
     dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
     dev_->SetRenderState(D3DRS_BLENDOP, blend_state.op);
     dev_->SetRenderState(D3DRS_SRCBLEND, blend_state.src);
     dev_->SetRenderState(D3DRS_DESTBLEND, blend_state.dest);
-    dev_->SetRenderState(D3DRS_POINTSPRITEENABLE, TRUE);
-    dev_->SetRenderState(D3DRS_POINTSCALEENABLE, FALSE);
-    dev_->SetRenderState(D3DRS_POINTSIZE, float_to_dword(preview_point_size));
-    dev_->SetTexture(0, texture);
-    dev_->SetFVF(kParticleFVF);
-    dev_->DrawPrimitiveUP(D3DPT_POINTLIST, static_cast<UINT>(points.size()),
-                          points.data(), sizeof(PVtx));
     dev_->SetRenderState(D3DRS_POINTSPRITEENABLE, FALSE);
+    dev_->SetRenderState(D3DRS_POINTSCALEENABLE, FALSE);
+    dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+    dev_->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    dev_->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+    dev_->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    dev_->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+    dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    dev_->SetTexture(0, texture);
+    dev_->SetFVF(kParticleBillboardFVF);
+    dev_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
+                          static_cast<UINT>(billboards.size() / 3u),
+                          billboards.data(), sizeof(ParticleBillboardVertex));
+    dev_->SetTransform(D3DTS_WORLD, &old_world);
     dev_->SetRenderState(D3DRS_LIGHTING, old_lighting);
+    dev_->SetRenderState(D3DRS_ZENABLE, old_zenable);
     dev_->SetRenderState(D3DRS_ZWRITEENABLE, old_zwrite);
+    dev_->SetRenderState(D3DRS_CULLMODE, old_cull);
+    dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, old_alpha_blend);
     dev_->SetRenderState(D3DRS_SRCBLEND, old_src);
     dev_->SetRenderState(D3DRS_DESTBLEND, old_dest);
     dev_->SetRenderState(D3DRS_BLENDOP, old_op);
-    dev_->SetFVF(kFVF);
+    dev_->SetRenderState(D3DRS_POINTSPRITEENABLE, old_point_sprite);
+    dev_->SetRenderState(D3DRS_POINTSCALEENABLE, old_point_scale);
+    dev_->SetTextureStageState(0, D3DTSS_COLOROP, old_color_op);
+    dev_->SetTextureStageState(0, D3DTSS_COLORARG1, old_color_arg1);
+    dev_->SetTextureStageState(0, D3DTSS_COLORARG2, old_color_arg2);
+    dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, old_alpha_op);
+    dev_->SetTextureStageState(0, D3DTSS_ALPHAARG1, old_alpha_arg1);
+    dev_->SetTextureStageState(0, D3DTSS_ALPHAARG2, old_alpha_arg2);
+    dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, old_address_u);
+    dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, old_address_v);
+    dev_->SetTexture(0, old_texture);
+    if (old_texture) old_texture->Release();
+    dev_->SetFVF(old_fvf);
   };
 
   struct PostTextMesh {

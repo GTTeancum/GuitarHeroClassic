@@ -6699,11 +6699,23 @@ int main() {
                  "set_active_particle_systems",
                  "renderer accepts active ParticleSys event state");
   ok &= contains(renderer_c,
-                 "D3DRS_POINTSPRITEENABLE",
-                 "renderer draws ParticleSys through point sprites");
+                 "structParticleBillboardVertex",
+                 "renderer gives source ParticleSys billboards explicit textured corners");
   ok &= contains(renderer_c,
-                 "D3DFVF_PSIZE",
-                 "renderer carries ParticleSys per-particle point size");
+                 "D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1",
+                 "ParticleSys billboard vertices carry source texture coordinates");
+  ok &= contains(renderer_c,
+                 "constfloatcamera_right[3]={view.m[0][0],view.m[1][0],view.m[2][0]}",
+                 "ParticleSys billboards derive their horizontal axis from the active camera");
+  ok &= contains(renderer_c,
+                 "constfloatcamera_up[3]={view.m[0][1],view.m[1][1],view.m[2][1]}",
+                 "ParticleSys billboards derive their vertical axis from the active camera");
+  ok &= contains(renderer_c,
+                 "SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE)",
+                 "ParticleSys draw explicitly restores authored texture alpha");
+  ok &= contains(renderer_c,
+                 "DrawPrimitiveUP(D3DPT_TRIANGLELIST",
+                 "ParticleSys draw mirrors the recovered four-corner billboard path");
   ok &= contains(renderer_c,
                  "life_it->second/30.0f",
                  "renderer converts source ParticleSys life frames to seconds");
@@ -7540,8 +7552,8 @@ int main() {
                  "source_payload=%ssummaries=%zu%s\\n\"",
                  "camera StartAnim reports whether the source current RndCam is backed by loaded RndCam asset data");
   ok &= contains(gameplay_c,
-                 "source_projection=RndCam::UpdateLocal_binary_projection_body_unrecovered",
-                 "camera RndCam diagnostics do not claim hidden UpdateLocal projection recovery");
+                 "source_projection=GH2_PS2_RndCam::UpdateLocal_0x001b1f50_recovered",
+                 "camera RndCam diagnostics cite the recovered retail UpdateLocal projection body");
   ok &= absent(gameplay_c,
                "source_field=CamShot::sCurrent",
                "camera diagnostics must not claim a non-visible ihatecompvir CamShot::sCurrent field");
@@ -9001,18 +9013,20 @@ int main() {
                  "constbooldisable_mesh_lighting=debug_spotlight_solid||",
                  "debug spotlight solid remains in the lighting bypass path");
   ok &= contains(renderer_c,
-                 "constboolprelit_lighting_bypass=prelit_material&&"
-                 "env_enabled(\"GHOGX_ENABLE_PRELIT_LIGHTING_BYPASS\");",
-                 "prelit fixed-lighting bypass is an explicit source-combine diagnostic");
+                 "constboolprelit_lighting_bypass=prelit_material;",
+                 "decoded prelit materials use the source light-channel bypass by default");
+  ok &= absent(renderer_c,
+               "GHOGX_ENABLE_PRELIT_LIGHTING_BYPASS",
+               "source prelit behavior is not hidden behind a diagnostic opt-in");
   ok &= contains(renderer_c,
                  "||prelit_lighting_bypass;",
-                 "prelit diagnostic bypass shares the fixed-lighting disable path");
+                 "prelit materials share the fixed-lighting disable path");
   ok &= contains(renderer_c,
                  "if(prelit_lighting_bypass&&has_mesh_env_color)",
-                 "prelit diagnostic use-environ path keeps EnvAnim color after fixed lighting is disabled");
+                 "prelit use-environ path keeps EnvAnim color after fixed lighting is disabled");
   ok &= contains(renderer_c,
                  "mr*=std::clamp(mesh_env_color[0],0.0f,4.0f);",
-                 "prelit diagnostic use-environ path folds authored environment RGB into diffuse color");
+                 "prelit use-environ path folds authored environment RGB into diffuse color");
   ok &= contains(renderer_c,
                  "prelitmaterialdisablesfixedlighting",
                  "prelit renderer path reports the source-backed lighting bypass");
@@ -11095,9 +11109,14 @@ int main() {
                  "camera_source_local_project_scale_for_fov(floaty_fov)",
                  "CamShot local-project scale is centralized for projection and screen-offset math");
   ok &= contains(gameplay_c,
-                 "scale.local_project_m_x_x=1.0f/tan_x;"
-                 "scale.local_project_m_z_x=1.0f/tan_y;",
-                 "CamShot local-project proof exposes the denominators used by the ihatecompvir expression");
+                 "scale.local_project_m_x_x=1.0f/tan_x;",
+                 "CamShot local-project proof preserves the positive horizontal denominator from retail RndCam::UpdateLocal");
+  ok &= contains(gameplay_c,
+                 "scale.local_project_m_z_x=-1.0f/tan_y;",
+                 "CamShot local-project proof preserves the negative vertical denominator from retail RndCam::UpdateLocal");
+  ok &= absent(gameplay_c,
+               "scale.local_project_m_z_x=1.0f/tan_y;",
+               "CamShot local-project vertical denominator cannot regress to the disproven positive sign");
   ok &= contains(gameplay_c,
                  "structCameraSourceScreenOffsetTranslateProof{"
                  "floatright_offset=0.0f;floatup_offset=0.0f;"
@@ -11123,13 +11142,13 @@ int main() {
                  "proof.vertical_flip_candidate_position[axis]="
                  "rows.position[axis]+proof.right_delta[axis]-"
                  "proof.up_delta[axis];",
-                 "same-target vertical flip remains diagnostic-only until LocalProjectXfm sign is recovered");
+                 "same-target proof retains the disproven opposite projection sign as diagnostic contrast");
   ok &= contains(gameplay_c,
-                 "\"same_target_height=(submitted:%s%.3fvertical_flip:%s%.3f)\"",
-                 "same-target screen-offset diagnostics compare submitted and vertical-flip target-relative heights");
+                 "\"same_target_height=(submitted:%s%.3fopposite_sign:%s%.3f)\"",
+                 "same-target screen-offset diagnostics compare submitted and opposite-sign target-relative heights");
   ok &= contains(gameplay_c,
-                 "\"same_target_vertical_flip_resolves_under_venue=%d\"",
-                 "same-target diagnostics flag whether the vertical LocalProjectXfm sign candidate resolves under-venue placement");
+                 "\"same_target_opposite_sign_resolves_under_venue=%d\"",
+                 "same-target diagnostics retain the opposite LocalProjectXfm sign candidate as contrast");
   ok &= contains(gameplay_c,
                  "rows.screen_offset_consumed=true;",
                  "source-shaped screen-offset result marks the projection offset consumed");
@@ -11166,13 +11185,11 @@ int main() {
                  "constfloatsource_desired_screen_offset_fov=cam.fov;",
                  "source-shaped screen-offset result captures the decoded pre-zoom CamShot frustum");
   ok &= contains(gameplay_c,
-                 "\"public_Cam.cpp_empty;"
-                 "doc_src_old_rndcam_fn_805CD500_stub_only;\""
-                 "\"rb2_dump_UpdateLocal_locals_only;\""
-                 "\"rb2_UpdateLocal_size_0x1D0;"
-                 "rb3_recomp_UpdateLocal_size_0x1E4;\""
-                 "\"binary_symbol_sizes_no_body\"",
-                 "same-target LocalProjectXfm audit includes symbol-size evidence without claiming a recovered RndCam::UpdateLocal body");
+                 "\"retail_body_recovered;"
+                 "LocalProjectXfm_zero_0x001b1fcc_0x001b2008;\""
+                 "\"mxx_positive_0x001b2090;"
+                 "mzx_negative_0x001b207c_0x001b2094\"",
+                 "same-target LocalProjectXfm audit cites the recovered retail matrix writes");
   ok &= contains(gameplay_c,
                  "result_key.fov=source_screen_offset_fov;",
                  "source-shaped screen-offset result uses CamShot pre-zoom FOV like ihatecompvir Interp");
@@ -11224,25 +11241,25 @@ int main() {
                  "camera_target_list_result_rows_from_seed(",
                  "camera target-list rows can run from an already blended source seed");
   ok &= contains(gameplay_c,
-                 "std::optional<CameraResultRows>build_rows_a_first;"
-                 "std::optional<CameraResultRows>build_rows_a_second;",
-                 "non-same-target CamShot rows keep separate current-frame BuildTransform calls");
+                 "std::optional<CameraResultRows>build_rows_a;"
+                 "std::optional<CameraResultRows>build_rows_b;",
+                 "non-same-target CamShot rows keep separate outgoing and incoming BuildTransform calls");
   ok &= contains(gameplay_c,
-                 "build_rows_a_first=camera_target_list_result_rows_from_seed("
+                 "build_rows_a=camera_target_list_result_rows_from_seed("
                  "source_seed_a,build_key_a,*a_target_centroid,"
                  "source_order_state_ptr,&source_order_filter_step_a,"
                  "&source_order_projected_delta_a);",
-                 "non-same-target CamShot runs the first visible current-frame BuildTransform call");
+                 "non-same-target CamShot builds the retail outgoing frame");
   ok &= contains(gameplay_c,
-                 "build_rows_a_second=camera_target_list_result_rows_from_seed("
-                 "source_seed_a,build_key_a,*a_target_centroid,"
+                 "build_rows_b=camera_target_list_result_rows_from_seed("
+                 "source_seed_b,build_key_b,*b_target_centroid,"
                  "source_order_state_ptr,&source_order_filter_step_b,"
                  "&source_order_projected_delta_b);",
-                 "non-same-target CamShot runs the second visible current-frame BuildTransform call");
+                 "non-same-target CamShot builds the retail incoming frame");
   ok &= contains(gameplay_c,
                  "source_build_transform_result=camera_lerp_result_rows("
-                 "*build_rows_a_first,*build_rows_a_second,interp_t);",
-                 "non-same-target CamShot interpolates the two current-frame BuildTransform outputs");
+                 "outgoing_rows,incoming_rows,interp_t);",
+                 "non-same-target CamShot interpolates outgoing toward incoming");
   ok &= contains(gameplay_c,
                  "result_filter_step=source_order_filter_step_b;"
                  "result_filter_projected_delta="
@@ -11250,43 +11267,46 @@ int main() {
                  "non-same-target CamShot keeps the second BuildTransform filter state for diagnostics");
   ok &= contains(gameplay_c,
                  "*result_builder_state=source_order_state;",
-                 "non-same-target CamShot commits state after the visible current-frame BuildTransform pair");
+                 "non-same-target CamShot commits state after the retail frame pair");
   ok &= contains(gameplay_c,
                  "source_build_transform_result->source="
-                 "\"source_visible_current_build_transform_twice(\"+",
-                 "source BuildTransform rows label the visible current-frame twice provenance");
+                 "\"source_visible_outgoing_incoming_build_transform(\"+",
+                 "source BuildTransform rows label the recovered outgoing/incoming provenance");
   ok &= contains(gameplay_c,
-                 "build_key_a.fov=source_screen_offset_fov;",
-                 "source BuildTransform rows use the pre-zoom CamShot frustum");
+                 "build_key_a.fov=source_screen_offset_fov;"
+                 "Gameplay::CameraKeybuild_key_b=*b;"
+                 "build_key_b.has_fov=true;"
+                 "build_key_b.fov=source_screen_offset_fov;",
+                 "both source BuildTransform rows use the pre-zoom CamShot frustum");
   ok &= contains(gameplay_c,
                  "std::optional<CameraResultRows>"
-                 "same_target_build_rows_first;"
+                 "same_target_build_rows_a;"
                  "std::optional<CameraResultRows>"
-                 "same_target_build_rows_second;",
-                 "same-target CamShot rows keep separate current-frame BuildTransform calls");
+                 "same_target_build_rows_b;",
+                 "same-target CamShot rows keep separate outgoing and incoming BuildTransform calls");
   ok &= contains(gameplay_c,
-                 "same_target_build_rows_first="
+                 "same_target_build_rows_a="
                  "camera_target_list_result_rows_from_seed("
                  "source_seed_a,build_key_a,*a_target_centroid,nullptr,"
                  "nullptr,nullptr,false);",
-                 "same-target CamShot runs the first current transform without BuildTransform screen offset");
+                 "same-target CamShot builds outgoing without BuildTransform screen offset");
   ok &= contains(gameplay_c,
-                 "same_target_build_rows_second="
+                 "same_target_build_rows_b="
                  "camera_target_list_result_rows_from_seed("
-                 "source_seed_a,build_key_a,*a_target_centroid,nullptr,"
+                 "source_seed_b,build_key_b,*b_target_centroid,nullptr,"
                  "nullptr,nullptr,false);",
-                 "same-target CamShot runs the second current transform without BuildTransform screen offset");
+                 "same-target CamShot builds incoming without BuildTransform screen offset");
   ok &= contains(gameplay_c,
                  "same_target_pre_lookat_result=camera_lerp_result_rows("
-                 "*same_target_build_rows_first,"
-                 "*same_target_build_rows_second,interp_t);",
-                 "same-target CamShot interpolates the two visible current-frame BuildTransform outputs");
+                 "same_target_outgoing_rows,"
+                 "same_target_incoming_rows,interp_t);",
+                 "same-target CamShot interpolates outgoing toward incoming before LookAt");
   ok &= contains(gameplay_c,
-                 "\"source_same_target_pre_lookat_current_build(\"+",
-                 "same-target CamShot labels the current-frame pre-LookAt transform");
+                 "\"source_same_target_pre_lookat_outgoing_incoming_build(\"+",
+                 "same-target CamShot labels the recovered pre-LookAt frame pair");
   ok &= contains(gameplay_c,
-                 "\"source_same_target_current_build_twice(\"+",
-                 "same-target CamShot labels its visible current-frame BuildTransform pair");
+                 "\"source_same_target_outgoing_incoming_build_pair(\"+",
+                 "same-target CamShot labels its recovered BuildTransform pair");
   ok &= contains(gameplay_c,
                  "camera_source_same_target_look_at_rows("
                  "same_target_pre_lookat_result,a_target_centroid,"
@@ -11330,18 +11350,17 @@ int main() {
                  "\"same_target_axis_z_delta=(right:%s%.6fup:%s%.6ftotal:%s%.6f)\"",
                  "same-target screen-offset diagnostics expose the current right/up axis contributions");
   ok &= contains(gameplay_c,
-                 "\"same_target_vertical_flip_candidate=(%s%.3f%s%.3f%s%.3f)\""
-                 "\"same_target_vertical_flip_candidate_only=%d\""
-                 "\"local_project_z_sign=unrecovered"
-                 "local_project_z_source_required=%s\"",
-                 "same-target vertical projection sign stays diagnostic-only and names the required source proof");
+                 "\"same_target_opposite_projection_sign_candidate=(%s%.3f%s%.3f%s%.3f)\""
+                 "\"same_target_opposite_projection_sign_candidate_only=%d\""
+                 "\"local_project_z_sign=retail_negative"
+                 "local_project_z_source=%s\"",
+                 "same-target diagnostics identify the recovered retail-negative projection sign and its source");
   ok &= contains(gameplay_c,
-                 "same_target_vertical_flip_resolves_under_venue?"
-                 "\"RndCam::UpdateLocal(LocalProjectXfm.m.z.x)\":\"none\"",
-                 "same-target under-venue diagnostics require LocalProjectXfm m.z.x sign evidence");
+                 "\"SLUS_214.47_RndCam::UpdateLocal_0x001b207c_0x001b2094\"",
+                 "same-target diagnostics cite the exact retail LocalProjectXfm negative-sign instructions");
   ok &= contains(gameplay_c,
-                 "\"RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_body_unrecovered\"",
-                 "same-target screen-offset diagnostics cite the source yRatio owner for LocalProjectXfm");
+                 "\"RndCam::UpdateLocal(yRatio=TheRnd->YRatio,t)_retail_body_recovered\"",
+                 "same-target screen-offset diagnostics cite the recovered source yRatio owner for LocalProjectXfm");
   ok &= contains(gameplay_c,
                  "\"source_locals=CamShotFrame::Interp"
                  "(BuildTransform,applyScreenOffset)\""
@@ -11359,32 +11378,40 @@ int main() {
                  "\"source_key_index=a:%s%zub:%s%zu\"",
                  "camera solver rows split native submitted frame from source CalcFrame before projection details");
   ok &= contains(gameplay_c,
-                 "\"source_no_target_current_build_twice(\"",
-                 "no-target CamShots use the visible current-frame BuildTransform pair");
+                 "\"source_no_target_outgoing_incoming_build_pair(\"",
+                 "no-target CamShots use the recovered outgoing/incoming BuildTransform pair");
   ok &= contains(gameplay_c,
                  "source_build_transform_result=camera_lerp_result_rows("
-                 "source_seed_a,source_seed_a,interp_t);",
-                 "no-target CamShots explicitly represent the source current-frame BuildTransform pair");
+                 "source_seed_a,source_seed_b,interp_t);",
+                 "no-target CamShots interpolate the outgoing and incoming source poses");
+  ok &= absent(gameplay_c,
+               "camera_lerp_result_rows(source_seed_a,source_seed_a,interp_t)",
+               "camera interpolation must not hold the outgoing no-target pose through the blend");
+  ok &= absent(gameplay_c,
+               "camera_target_list_result_rows_from_seed("
+               "source_seed_a,build_key_a,*a_target_centroid,"
+               "source_order_state_ptr,&source_order_filter_step_b",
+               "camera interpolation must not rebuild the outgoing targeted pose as the incoming pose");
+  ok &= absent(gameplay_c, "current_frame_twice",
+               "camera diagnostics must not retain the disproven outgoing-twice contract");
   ok &= contains(gameplay_c,
                  "\"source_visible_build_pair=%ssource_build_calls=%d\"",
                  "camera debug logs expose the visible BuildTransform frame pair and call count");
   ok &= contains(gameplay_c,
                  "\"source_build_pair_evidence=%s"
-                 "frame_buildtransform_not_claimed=%d\"",
-                 "camera debug logs distinguish the visible current-frame BuildTransform pair from an unproven next-frame BuildTransform call");
+                 "incoming_buildtransform_confirmed=%d\"",
+                 "camera debug logs identify the recovered incoming BuildTransform call");
   ok &= contains(gameplay_c,
-                 "\"ihatecompvir_CamShotFrame::Interp_unqualified_current_"
-                 "BuildTransform_twice\"",
-                 "camera diagnostics cite the source-visible unqualified current-frame BuildTransform calls");
-  ok &= absent(gameplay_c, "frame.BuildTransform",
-               "camera runtime must not invent a next-frame BuildTransform call absent from the audited ihatecompvir source");
+                 "\"SLUS_214.47_CamShotFrame::Interp_0x002666b8_"
+                 "outgoing_0x002666d4_incoming\"",
+                 "camera diagnostics cite the exact retail outgoing and incoming callsites");
   ok &= contains(gameplay_c,
                  "source_build_transform_order?2:0",
-                 "camera debug logs report the visible current-frame BuildTransform pair as two calls");
+                 "camera debug logs report the recovered frame pair as two calls");
   ok &= contains(gameplay_c,
                  "source_build_transform_order?"
-                 "\"current_frame_twice\":\"blended_seed\"",
-                 "camera debug logs name the visible current-frame BuildTransform order");
+                 "\"outgoing_to_incoming\":\"blended_seed\"",
+                 "camera debug logs name the recovered BuildTransform order");
   ok &= contains(gameplay_c,
                  "constchar*source_pose_branch=",
                  "camera solver computes the source BuildTransform branch once for diagnostics");
@@ -11421,23 +11448,23 @@ int main() {
                  "camera debug logs classify gameplay pose rows by source-visible versus hidden camera bodies");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kCamShotVisiblePoseUnits="
-                 "\"CameraManager,GetKey,Interp_order,OnHasTargets,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail,RndCam_UpdateLocal_public_stub\";",
-                 "camera pose proof labels the visible source-covered runtime units");
+                 "\"CameraManager,GetKey,Interp_outgoing_incoming_pair,BuildTransform_frame_pair_contract,OnHasTargets,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail,RndCam_UpdateLocal_projection\";",
+                 "camera pose proof labels the recovered frame-pair runtime units");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kCamShotHiddenPoseBodies="
-                 "\"CamShotFrame::BuildTransform,CamShot::SetPos,"
-                 "RndCam::UpdateLocal_binary_projection\";",
-                 "camera pose proof labels the remaining hidden pose bodies without hiding the public UpdateLocal stub");
+                 "\"CamShotFrame::BuildTransform_remaining_math,"
+                 "CamShot::OnSetPos_editor_path\";",
+                 "camera pose proof keeps only the remaining camera math hidden");
   ok &= contains(gameplay_c,
                  "constchar*camera_source_pose_impl_tier("
                  "boolretained_ps2_trace_payload,boolsource_build_transform_order)",
                  "camera diagnostics classify active pose implementation tier");
   ok &= contains(gameplay_c,
-                 "return\"visible_interp_hidden_buildtransform\";",
-                 "camera diagnostics name the source-visible Interp path with hidden BuildTransform");
+                 "return\"retail_outgoing_incoming_partial_buildtransform\";",
+                 "camera diagnostics name the recovered Interp frame-pair path");
   ok &= contains(gameplay_c,
-                 "return\"native_seed_or_path_hidden_setpos_buildtransform\";",
-                 "camera diagnostics name the native seed/path path with hidden SetPos/BuildTransform");
+                 "return\"native_seed_or_path_partial_buildtransform\";",
+                 "camera diagnostics keep native seed/path work separate from the recovered pair");
   ok &= contains(gameplay_c,
                  "\"source_pose_impl_tier=%ssource_pose_required_body=%s\""
                  "\"source_visible_pose_units=%s"
@@ -11493,12 +11520,12 @@ int main() {
                  "submitted_result_from_ps2_trace?"
                  "\"selection_only_retained_pose\":"
                  "source_build_transform_order?"
-                 "\"pose_current_frame\":"
+                 "\"pose_outgoing_incoming_pair\":"
                  "\"native_seed_or_path_boundary\"",
                  "camera solver diagnostics classify the active per-frame proof without mixing in selection-only blockers");
   ok &= contains(gameplay_c,
-                 "\"visible_Interp_order_unrecovered_BuildTransform\"",
-                 "camera debug logs identify source-visible Interp order with unrecovered BuildTransform math");
+                 "\"retail_Interp_outgoing_incoming_partial_BuildTransform\"",
+                 "camera debug logs identify the recovered retail Interp frame pair");
   ok &= contains(gameplay_c,
                  "\"retained_ps2_trace_payload\"",
                  "camera debug logs identify retained PS2 trace payload rows separately from native source math");
@@ -11521,38 +11548,30 @@ int main() {
                  "camera debug logs expose the RndCam::UpdateLocal source-search boundary");
   ok &= contains(gameplay_c,
                  "\"update_local_y_ratio_owner=%s\"",
-                 "camera debug logs expose the unrecovered RndCam::UpdateLocal yRatio owner boundary");
+                 "camera debug logs expose the recovered RndCam::UpdateLocal yRatio owner boundary");
   ok &= contains(gameplay_c,
-                 "\"rb2_dump_locals_only\"",
-                 "camera debug logs avoid claiming a recovered BuildTransform body");
+                 "\"gh2_ps2_partial_body_frame_pair_and_path_contract\"",
+                 "camera debug logs identify the recovered GH2 frame-pair and path boundary");
   ok &= contains(gameplay_c,
-                 "\"public_CameraShot.cpp_decl_and_Interp_calls_only;\""
-                 "\"rb2_dump_signature_locals_refs;\""
-                 "\"rb2_BuildTransform_size_0x408;"
-                 "rb3_BuildTransform_size_0x7D8;\""
-                 "\"binary_symbol_sizes_no_body\"",
-                 "camera debug logs identify BuildTransform as visible calls plus locals/refs and symbol-size proof only");
+                 "\"gh2_SLUS_214.47_0x00267008_partial_body;\""
+                 "\"Interp_outgoing_call_0x002666b8;\""
+                 "\"Interp_incoming_call_0x002666d4;\""
+                 "\"transform_lerp_0x00266754;\""
+                 "\"path_MakeTransform_0x001e0790;\""
+                 "\"remaining_projection_math_separate\"",
+                 "camera debug logs cite the recovered retail BuildTransform frame-pair addresses");
   ok &= contains(gameplay_c,
-                 "\"RndCam::UpdateLocal(public_Cam.cpp_empty;\""
-                 "\"LocalProjectXfm_binary_projection_body_unrecovered)\"",
-                 "camera debug logs account for the public RndCam::UpdateLocal stub while keeping binary projection unresolved");
+                 "\"GH2_PS2_SLUS_214.47_RndCam::UpdateLocal_0x001b1f50_0x001b20af\"",
+                 "camera debug logs cite the recovered retail RndCam::UpdateLocal body");
   ok &= contains(gameplay_c,
-                 "\"public_Cam.cpp_empty_source_stub;"
-                 "\"\"doc_src_old_rndcam_fn_805CD500_stub_only;\""
-                 "\"rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;\""
-                 "\"rb2_size_0x1D0;"
-                 "rb3_recomp_size_0x1E4;\""
-                 "\"binary_projection_body_unrecovered\"",
-                 "camera debug logs identify the RndCam::UpdateLocal audit as locals/refs plus symbol-size proof only");
+                 "\"gh2_SLUS_214.47_0x001b1f50_0x001b20af;\""
+                 "\"tan_half_fov_0x001b2054_0x001b2060;\""
+                 "\"negative_reciprocal_0x001b2064_0x001b2094\"",
+                 "camera debug logs identify the recovered retail RndCam::UpdateLocal projection body");
   ok &= contains(gameplay_c,
-                 "\"public_Cam.cpp_empty_source_stub;"
-                 "\"\"doc_src_old_rndcam_fn_805CD500_stub_only;\""
-                 "\"rb2_dump_UpdateLocal_yRatio_t_refs_TheRnd;\""
-                 "\"re_gh2_no_rndcam_body;"
-                 "band3_recomp_no_update_local_body;\""
-                 "\"SZBE69_symbols_address_size_only;"
-                 "SZBE69_B8_symbols_address_size_only\"",
-                 "camera debug logs identify the full RndCam::UpdateLocal source-search boundary without claiming a recovered body");
+                 "\"SLUS_214.47_SetFrustum_0x001b1ee0_calls_UpdateLocal_0x001b1f50;\""
+                 "\"retail_MIPS64_disassembly\"",
+                 "camera debug logs identify the exact retail RndCam::UpdateLocal source path");
   ok &= contains(gameplay_c,
                  "\"parent,targetPos,targetScreenPos,filter,iframe,\"",
                  "camera debug logs include audited RB2 BuildTransform locals");
@@ -11582,8 +11601,8 @@ int main() {
                  "under_venue_concern?\"under_venue_open\":\"none\"",
                  "under-venue gameplay camera poses are labelled as open concerns, not accepted parity");
   ok &= contains(gameplay_c,
-                 "\"recover_RndCam_UpdateLocal_LocalProjectXfm_mzx_sign\"",
-                 "same-target under-venue gameplay camera poses require recovered LocalProjectXfm sign evidence");
+                 "\"recover_remaining_BuildTransform_or_shot_selection\"",
+                 "any remaining under-venue gameplay pose is no longer attributed to the recovered LocalProjectXfm sign");
   ok &= contains(gameplay_c,
                  "\"submitted_below_world_zero_and_target_no_bounds\"",
                  "camera under-venue concern falls back to target/world-zero only when venue bounds are unavailable");
@@ -16709,7 +16728,7 @@ int main() {
                  "camera_camshot_dofproc,"
                  "camera_camshot_shake_tail,"
                  "camera_camshot_setlocalxfm_tail,"
-                 "camera_rndcam_updatelocal_public_stub,"
+                 "camera_rndcam_updatelocal_projection,"
                  "camera_camshot_dohide_unhide_visibility,"
                  "camera_visibility,"
                  "camera_camshot_checkshotstarted_runtime_bridge,"
@@ -16829,12 +16848,12 @@ int main() {
                  "camera implementation status keeps CameraManager::Poll SetFrame between CalcFrame timing and CamShotFrame target cache work");
   ok &= contains(gameplay_c,
                  "camera_camshot_setlocalxfm_tail,"
-                 "camera_rndcam_updatelocal_public_stub,"
+                 "camera_rndcam_updatelocal_projection,"
                  "camera_camshot_dohide_unhide_visibility,"
                  "camera_visibility,",
-                 "camera implementation status accounts for the public RndCam::UpdateLocal empty source stub before DoHide/UnHide visibility");
+                 "camera implementation status accounts for the recovered RndCam::UpdateLocal projection before DoHide/UnHide visibility");
   ok &= contains(gameplay_c,
-                 "camera_rndcam_updatelocal_public_stub,"
+                 "camera_rndcam_updatelocal_projection,"
                  "camera_camshot_dohide_unhide_visibility,"
                  "camera_visibility,",
                  "camera implementation status keeps CamShot DoHide/UnHide visibility separate from the RndCam projection boundary");
@@ -16909,14 +16928,13 @@ int main() {
                  "camera implementation status counts frame-scoped trace-complete writer bridge before audited RndCamAnim FovKeys::AtFrame sampling");
   ok &= contains(gameplay_c,
                  "hidden_bodies_deferred=cam_shot_ok_rest,"
-                 "cam_check_shot_native,CharWalk,SetPos,BuildTransform,"
-                 "RndCam_UpdateLocal_binary_projection"
+                 "cam_check_shot_native,CharWalk,SetPos,BuildTransform"
                  "postprocess_render_effect=deferred"
                  "freecam_priority=deferred_last",
-                 "camera implementation status keeps only the unresolved RndCam binary projection body with hidden gameplay bodies ahead of FreeCam work");
+                 "camera implementation status removes the recovered RndCam projection from hidden gameplay bodies ahead of FreeCam work");
   ok &= contains(gameplay_c,
-                 "rndcam_updatelocal_public_source=empty_body",
-                 "camera implementation status names the recovered public RndCam::UpdateLocal source stub");
+                 "rndcam_updatelocal_source=GH2_PS2_SLUS_214.47_0x001b1f50",
+                 "camera implementation status names the recovered retail RndCam::UpdateLocal body");
   ok &= contains(gameplay_c,
                  "postprocess_render_effect=deferred"
                  "freecam_priority=deferred_last",
