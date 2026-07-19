@@ -19,6 +19,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 struct IDirect3DDevice9;
 struct IDirect3DTexture9;
@@ -76,10 +77,22 @@ class CharRenderer {
   // venue scene after the venue renderer has drawn its pass.
   void draw_over_scene(const ghogx::render::OrbitCamera& cam);
 
+  // WorldCrowd's source renderer keeps only CamShot-selected members as full
+  // 3-D characters. The remaining members are drawn through a camera-facing
+  // billboard built from a live character impostor texture
+  // (WorldCrowd::BuildBillboard/DrawShowing and gImpostorCamera/textures).
+  // Refresh the actor image from the current decoded pose, then batch all of
+  // that actor's flat placements into the already-rendered venue scene.
+  bool refresh_worldcrowd_impostor();
+  void draw_worldcrowd_impostors_over_scene(
+      const ghogx::render::OrbitCamera& cam,
+      const std::vector<std::array<float, 16>>& placement_worlds,
+      float source_character_height);
+
  private:
   IDirect3DTexture9* upload(const ghogx::asset::Image& img);
   void frame_camera();
-  void draw_impl(bool clear_target);
+  void draw_impl(bool clear_target, uint32_t clear_color);
 
   struct Impl;
   Impl* impl_;

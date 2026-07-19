@@ -3936,11 +3936,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     if (prelit_lighting_bypass && has_mesh_env_color) {
       // Prelit materials bypass D3D fixed lighting below. Preserve the authored
       // Mat.use_environ route by folding current Environ/EnvAnim colour into
-      // the same diffuse path that vertex and material colours use.
+      // the same diffuse path that vertex and material colours use. Harmonix
+      // RndEnviron::SetAmbientColor copies only red/green/blue; ambient alpha
+      // is not a material-opacity channel (Battle's stage.env authors it as
+      // zero while its stage and floor remain visible).
       mr *= std::clamp(mesh_env_color[0], 0.0f, 4.0f);
       mg *= std::clamp(mesh_env_color[1], 0.0f, 4.0f);
       mb *= std::clamp(mesh_env_color[2], 0.0f, 4.0f);
-      ma *= std::clamp(mesh_env_color[3], 0.0f, 1.0f);
     }
     (void)has_mesh_env_color;
     if (debug_spotlight_solid) {

@@ -1481,6 +1481,7 @@ struct CharRenderer::Impl {
   IDirect3DDevice9* dev = nullptr;
   Character character;
   OrbitCamera cam;
+  OrbitCamera impostor_cam;
   std::map<std::string, IDirect3DTexture9*> tex;  // keyed by .tex entry name
   std::map<std::string, ghogx::asset::Image> tex_images;
   std::map<std::string, const milo_scene::MatObj*> character_mats_by_name;
@@ -1503,6 +1504,10 @@ struct CharRenderer::Impl {
   bool use_scene_lighting = false;
   bool reference_base = false;
   float color_mod[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  IDirect3DTexture9* worldcrowd_impostor_tex = nullptr;
+  IDirect3DSurface9* worldcrowd_impostor_surface = nullptr;
+  IDirect3DSurface9* worldcrowd_impostor_depth = nullptr;
+  float camera_aspect_override = 0.0f;
 
   // Procedural idle animation time (seconds).
   float anim_t = 0.0f;
@@ -1526,6 +1531,12 @@ CharRenderer::~CharRenderer() {
     if (kv.second) kv.second->Release();
   for (auto& kv : impl_->prop_tex)
     if (kv.second) kv.second->Release();
+  if (impl_->worldcrowd_impostor_surface)
+    impl_->worldcrowd_impostor_surface->Release();
+  if (impl_->worldcrowd_impostor_depth)
+    impl_->worldcrowd_impostor_depth->Release();
+  if (impl_->worldcrowd_impostor_tex)
+    impl_->worldcrowd_impostor_tex->Release();
   delete impl_;
 }
 
@@ -1840,6 +1851,7 @@ void CharRenderer::frame_camera() {
   c.pitch = 0.18f;
   c.yaw = 3.14159265f;
   c.fov = 0.6f;
+  impl_->impostor_cam = c;
   std::fprintf(stderr,
                "[char3d] bind-pose extent [%.1f %.1f %.1f]..[%.1f %.1f %.1f] "
                "target=(%.1f %.1f %.1f) dist=%.1f\n",
@@ -1864,7 +1876,7 @@ void CharRenderer::update(float dt) {
     impl_->character.meshes[i].local = impl_->original_mesh_local[i];
 }
 
-void CharRenderer::draw_impl(bool clear_target) {
+void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
   auto& impl = *impl_;
   IDirect3DDevice9* dev = impl.dev;
   if (!dev) return;
@@ -1879,8 +1891,10 @@ void CharRenderer::draw_impl(bool clear_target) {
           ? static_cast<float>(win->bb_width()) /
                 static_cast<float>(win->bb_height())
           : 16.0f / 9.0f;
-  const float aspect =
-      char_camera_aspect_preset_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect);
+  const float aspect = impl.camera_aspect_override > 0.0f
+                           ? impl.camera_aspect_override
+                           : char_camera_aspect_preset_or(
+                                 "GHOGX_CAMERA_ASPECT", backbuffer_aspect);
 
   float eye[3];
   cam.eye(eye);
@@ -1910,7 +1924,7 @@ void CharRenderer::draw_impl(bool clear_target) {
 
   if (clear_target) {
     dev->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-               character_clear_color(), 1.0f, 0);
+               static_cast<D3DCOLOR>(clear_color), 1.0f, 0);
   }
   dev->BeginScene();
 
@@ -2753,12 +2767,244 @@ void CharRenderer::draw_impl(bool clear_target) {
 }
 
 void CharRenderer::draw() {
-  draw_impl(true);
+  draw_impl(true, static_cast<uint32_t>(character_clear_color()));
 }
 
 void CharRenderer::draw_over_scene(const OrbitCamera& cam) {
   impl_->cam = cam;
-  draw_impl(false);
+  draw_impl(false, 0u);
+}
+
+bool CharRenderer::refresh_worldcrowd_impostor() {
+  auto& impl = *impl_;
+  IDirect3DDevice9* dev = impl.dev;
+  if (!dev || !impl.have_bounds) return false;
+
+  // The source owns two tall gImpostorTextures and renders characters through
+  // gImpostorCamera before WorldCrowd::DrawShowing submits billboard meshes.
+  // Keep that tall silhouette shape here instead of flattening the source
+  // character into a square card.
+  constexpr UINT kImpostorWidth = 128;
+  constexpr UINT kImpostorHeight = 256;
+  if (!impl.worldcrowd_impostor_tex) {
+    if (FAILED(dev->CreateTexture(
+            kImpostorWidth, kImpostorHeight, 1, D3DUSAGE_RENDERTARGET,
+            D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
+            &impl.worldcrowd_impostor_tex, nullptr)) ||
+        !impl.worldcrowd_impostor_tex ||
+        FAILED(impl.worldcrowd_impostor_tex->GetSurfaceLevel(
+            0, &impl.worldcrowd_impostor_surface)) ||
+        !impl.worldcrowd_impostor_surface) {
+      return false;
+    }
+
+    IDirect3DSurface9* current_depth = nullptr;
+    D3DFORMAT depth_format = D3DFMT_D24S8;
+    if (SUCCEEDED(dev->GetDepthStencilSurface(&current_depth)) &&
+        current_depth) {
+      D3DSURFACE_DESC desc{};
+      if (SUCCEEDED(current_depth->GetDesc(&desc))) depth_format = desc.Format;
+      current_depth->Release();
+    }
+    if (FAILED(dev->CreateDepthStencilSurface(
+            kImpostorWidth, kImpostorHeight, depth_format,
+            D3DMULTISAMPLE_NONE, 0, TRUE,
+            &impl.worldcrowd_impostor_depth, nullptr)) ||
+        !impl.worldcrowd_impostor_depth) {
+      return false;
+    }
+  }
+
+  IDirect3DSurface9* old_target = nullptr;
+  IDirect3DSurface9* old_depth = nullptr;
+  D3DVIEWPORT9 old_viewport{};
+  IDirect3DStateBlock9* old_state = nullptr;
+  if (FAILED(dev->GetRenderTarget(0, &old_target)) || !old_target) return false;
+  dev->GetDepthStencilSurface(&old_depth);
+  dev->GetViewport(&old_viewport);
+  if (SUCCEEDED(dev->CreateStateBlock(D3DSBT_ALL, &old_state)) && old_state)
+    old_state->Capture();
+
+  const OrbitCamera saved_cam = impl.cam;
+  const auto saved_world = impl.world_transform;
+  const float saved_aspect = impl.camera_aspect_override;
+  const bool target_ok =
+      SUCCEEDED(dev->SetRenderTarget(0, impl.worldcrowd_impostor_surface)) &&
+      SUCCEEDED(dev->SetDepthStencilSurface(impl.worldcrowd_impostor_depth));
+  if (target_ok) {
+    const D3DVIEWPORT9 viewport = {0, 0, kImpostorWidth, kImpostorHeight,
+                                  0.0f, 1.0f};
+    dev->SetViewport(&viewport);
+    impl.cam = impl.impostor_cam;
+    impl.world_transform = {1, 0, 0, 0, 0, 1, 0, 0,
+                            0, 0, 1, 0, 0, 0, 0, 1};
+    impl.camera_aspect_override =
+        static_cast<float>(kImpostorWidth) /
+        static_cast<float>(kImpostorHeight);
+    draw_impl(true, 0u);
+  }
+
+  impl.cam = saved_cam;
+  impl.world_transform = saved_world;
+  impl.camera_aspect_override = saved_aspect;
+  dev->SetDepthStencilSurface(nullptr);
+  dev->SetRenderTarget(0, old_target);
+  if (old_depth) dev->SetDepthStencilSurface(old_depth);
+  dev->SetViewport(&old_viewport);
+  if (old_state) {
+    old_state->Apply();
+    old_state->Release();
+  }
+  old_target->Release();
+  if (old_depth) old_depth->Release();
+  return target_ok;
+}
+
+void CharRenderer::draw_worldcrowd_impostors_over_scene(
+    const OrbitCamera& cam,
+    const std::vector<std::array<float, 16>>& placement_worlds,
+    float source_character_height) {
+  auto& impl = *impl_;
+  IDirect3DDevice9* dev = impl.dev;
+  if (!dev || !impl.worldcrowd_impostor_tex || placement_worlds.empty() ||
+      !std::isfinite(source_character_height) || source_character_height <= 0.0f)
+    return;
+
+  IDirect3DStateBlock9* old_state = nullptr;
+  if (SUCCEEDED(dev->CreateStateBlock(D3DSBT_ALL, &old_state)) && old_state)
+    old_state->Capture();
+
+  float eye[3] = {};
+  cam.eye(eye);
+  float result_at[3] = {};
+  const float* at = cam.authored ? cam.authored_at : cam.target;
+  const float* up = cam.authored ? cam.authored_up : nullptr;
+  if (cam.result_frame.valid) {
+    for (int axis = 0; axis < 3; ++axis) {
+      result_at[axis] = cam.result_frame.position[axis] +
+                        cam.result_frame.forward[axis] * 100.0f;
+    }
+    at = result_at;
+    up = cam.result_frame.up;
+  }
+  Mat4 view = Mat4::look_at_lh(eye[0], eye[1], eye[2], at[0], at[1], at[2],
+                               up ? up[0] : 0.0f,
+                               up ? up[1] : 0.0f,
+                               up ? up[2] : 1.0f);
+  const float backbuffer_aspect =
+      impl.win->bb_height() > 0
+          ? static_cast<float>(impl.win->bb_width()) /
+                static_cast<float>(impl.win->bb_height())
+          : 16.0f / 9.0f;
+  const float aspect = char_camera_aspect_preset_or(
+      "GHOGX_CAMERA_ASPECT", backbuffer_aspect);
+  Mat4 proj = Mat4::perspective_lh(cam.fov, aspect, cam.near_z, cam.far_z);
+  proj.m[0][0] = -proj.m[0][0];
+  if ((cam.authored || cam.result_frame.valid) &&
+      !(cam.result_frame.valid && cam.result_frame.screen_offset_consumed) &&
+      !char_env_enabled("GHOGX_DISABLE_CAMERA_SCREEN_OFFSET")) {
+    constexpr float kScreenOffsetToClip = 1.0f / 768.0f;
+    proj.m[2][0] += cam.screen_offset[0] * kScreenOffsetToClip;
+    proj.m[2][1] += cam.screen_offset[1] * kScreenOffsetToClip;
+  }
+
+  struct BillboardVtx {
+    float x, y, z;
+    D3DCOLOR color;
+    float u, v;
+  };
+  constexpr DWORD kBillboardFvf =
+      D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1;
+  std::vector<BillboardVtx> verts;
+  verts.reserve(placement_worlds.size() * 6);
+  for (const auto& placement : placement_worlds) {
+    const float sx = std::sqrt(placement[0] * placement[0] +
+                               placement[1] * placement[1] +
+                               placement[2] * placement[2]);
+    const float sy = std::sqrt(placement[4] * placement[4] +
+                               placement[5] * placement[5] +
+                               placement[6] * placement[6]);
+    const float sz = std::sqrt(placement[8] * placement[8] +
+                               placement[9] * placement[9] +
+                               placement[10] * placement[10]);
+    float placement_scale = (sx + sy + sz) / 3.0f;
+    if (!std::isfinite(placement_scale) || placement_scale <= 0.001f)
+      placement_scale = 1.0f;
+    const float height = source_character_height * placement_scale;
+    const float half_width = height * 0.25f;
+    const float px = placement[12];
+    const float py = placement[13];
+    const float pz = placement[14];
+    float to_eye_x = eye[0] - px;
+    float to_eye_y = eye[1] - py;
+    float len = std::sqrt(to_eye_x * to_eye_x + to_eye_y * to_eye_y);
+    if (!std::isfinite(len) || len <= 0.001f) {
+      to_eye_x = 0.0f;
+      to_eye_y = -1.0f;
+      len = 1.0f;
+    }
+    // Upright camera-facing card: cross(world-up, to-eye).
+    const float right_x = -to_eye_y / len;
+    const float right_y = to_eye_x / len;
+    const float lx = px - right_x * half_width;
+    const float ly = py - right_y * half_width;
+    const float rx = px + right_x * half_width;
+    const float ry = py + right_y * half_width;
+    const float top = pz + height;
+    constexpr D3DCOLOR white = 0xffffffffu;
+    verts.push_back({lx, ly, pz, white, 0.0f, 1.0f});
+    verts.push_back({lx, ly, top, white, 0.0f, 0.0f});
+    verts.push_back({rx, ry, top, white, 1.0f, 0.0f});
+    verts.push_back({lx, ly, pz, white, 0.0f, 1.0f});
+    verts.push_back({rx, ry, top, white, 1.0f, 0.0f});
+    verts.push_back({rx, ry, pz, white, 1.0f, 1.0f});
+  }
+
+  dev->BeginScene();
+  D3DMATRIX identity{};
+  identity._11 = identity._22 = identity._33 = identity._44 = 1.0f;
+  D3DMATRIX dview{}, dproj{};
+  std::memcpy(&dview, &view, sizeof(dview));
+  std::memcpy(&dproj, &proj, sizeof(dproj));
+  dev->SetTransform(D3DTS_WORLD, &identity);
+  dev->SetTransform(D3DTS_VIEW, &dview);
+  dev->SetTransform(D3DTS_PROJECTION, &dproj);
+  dev->SetFVF(kBillboardFvf);
+  dev->SetTexture(0, impl.worldcrowd_impostor_tex);
+  dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+  dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+  dev->SetRenderState(D3DRS_ZENABLE, TRUE);
+  dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+  dev->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
+  dev->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+  // WorldCrowd's gImpostorMat uses alpha cut with threshold 0x80.
+  dev->SetRenderState(D3DRS_ALPHAREF, 0x80);
+  // WorldCrowd's gImpostorMat uses kSrc, not kSrcAlpha.  Alpha cut supplies
+  // the silhouette edge; accepted pixels replace the destination exactly.
+  dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+  dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
+  dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
+  dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+  dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+  dev->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+  dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+  dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+  dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+  dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+  dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+  dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+  dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+  dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+  dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
+                       static_cast<UINT>(verts.size() / 3), verts.data(),
+                       sizeof(BillboardVtx));
+  dev->SetTexture(0, nullptr);
+  dev->EndScene();
+
+  if (old_state) {
+    old_state->Apply();
+    old_state->Release();
+  }
 }
 
 // ---------------------------------------------------------------------------

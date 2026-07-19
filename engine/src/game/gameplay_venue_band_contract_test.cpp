@@ -9027,6 +9027,12 @@ int main() {
   ok &= contains(renderer_c,
                  "mr*=std::clamp(mesh_env_color[0],0.0f,4.0f);",
                  "prelit use-environ path folds authored environment RGB into diffuse color");
+  ok &= absent(renderer_c,
+               "ma*=std::clamp(mesh_env_color[3]",
+               "RndEnviron ambient alpha is not folded into material opacity");
+  ok &= contains(renderer_c,
+                 "RndEnviron::SetAmbientColorcopiesonlyred/green/blue",
+                 "renderer documents the source contract separating environment ambient color from material alpha");
   ok &= contains(renderer_c,
                  "prelitmaterialdisablesfixedlighting",
                  "prelit renderer path reports the source-backed lighting bypass");
@@ -11741,17 +11747,23 @@ int main() {
                  "apply_worldcrowd_actor_mesh_visibility(",
                  "WorldCrowd runtime applies clip-named crowd mesh variant visibility");
   ok &= contains(gameplay_c,
-                 "worldcrowd_actor_near_source_cull_radius(",
-                 "WorldCrowd runtime derives near-source render culling from decoded actor rows");
+                 "worldcrowd_actor_source_height(",
+                 "WorldCrowd runtime derives billboard height from decoded actor rows");
   ok &= contains(gameplay_c,
-                 "constfloatradius=actor.params[2];",
-                 "WorldCrowd near-source render culling uses the small decoded actor radius field");
+                 "constfloatheight=actor.params[0];",
+                 "WorldCrowd billboard rendering uses the decoded source character-height field");
   ok &= contains(gameplay_h_c,
-                 "floatnear_source_cull_radius=0.0f;",
-                 "WorldCrowd actor runtime stores the decoded near-source cull radius");
+                 "floatsource_character_height=0.0f;",
+                 "WorldCrowd actor runtime stores the decoded billboard character height");
   ok &= contains(gameplay_h_c,
                  "floatvisible_bounds_radius=0.0f;",
-                 "WorldCrowd actor runtime stores visible actor bounds for near-source culling");
+                 "WorldCrowd actor runtime stores visible actor bounds for broad camera culling");
+  ok &= contains(gameplay_h_c,
+                 "size_tanimation_ordinal=0;",
+                 "WorldCrowd actor runtime preserves a stable OnIterateFrac actor ordinal");
+  ok &= contains(gameplay_h_c,
+                 "boolworldcrowd_widescreen_=false;",
+                 "WorldCrowd runtime tracks the source widescreen fullness branch");
   ok &= contains(gameplay_h_c,
                  "std::map<std::string,ghogx::character::CharClip>"
                  "clips_by_group;",
@@ -11767,10 +11779,16 @@ int main() {
                  "WorldCrowd actor runtime tracks DTA set_fullness density");
   ok &= contains(gameplay_c,
                  "worldcrowd_actor_visible_bounds_radius(",
-                 "WorldCrowd runtime derives the body-radius part of near-source culling from visible decoded meshes");
+                 "WorldCrowd runtime derives the body-radius part of broad camera culling from visible decoded meshes");
   ok &= contains(gameplay_c,
-                 "worldcrowd_clip_group_for_event(",
-                 "WorldCrowd runtime maps native excitement to DTA crowd play_group names");
+                 "worldcrowd_clip_group_for_actor(",
+                 "WorldCrowd runtime maps native excitement through the DTA per-actor play_group mix");
+  ok &= contains(gameplay_c,
+                 "returnfrac<0.80f?\"bad\":\"ok\";",
+                 "WorldCrowd Bad event keeps the decoded 80 percent bad and 20 percent ok actor mix");
+  ok &= contains(gameplay_c,
+                 "returnfrac<0.80f?\"ok\":\"great\";",
+                 "WorldCrowd Okay event keeps the decoded 80 percent ok and 20 percent great actor mix");
   ok &= contains(gameplay_c,
                  "lighter_group==\"lighter_slow\"||"
                  "lighter_group==\"lighter_fast\"",
@@ -11781,6 +11799,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "worldcrowd_fullness_for_event(",
                  "WorldCrowd runtime maps native excitement to DTA set_fullness fractions");
+  ok &= contains(gameplay_c,
+                 "returnwidescreen?0.70f:1.0f;",
+                 "WorldCrowd Great and Peak fullness keeps the decoded widescreen 70 percent branch");
   ok &= contains(gameplay_c,
                  "worldcrowd_placement_visible_by_fullness(",
                  "WorldCrowd runtime applies DTA set_fullness to decoded placements");
@@ -11799,14 +11820,16 @@ int main() {
                  "runtime.placement_worlds,eye,runtime.fullness_fraction",
                  "WorldCrowd draw still shares the active camera eye with culling diagnostics");
   ok &= contains(draw_worldcrowd_runtime_c,
-                 "if(venue_camera_hide_crowd_){",
-                 "3D WorldCrowd actors honor authored CamShot hide_crowd visibility");
+                 "elseif(venue_camera_hide_crowd_){",
+                 "CamShot show_3d_only suppresses flat impostors after preserving selected 3D crowd members");
   ok &= contains(draw_worldcrowd_runtime_c,
-                 "hidden_camera=1",
-                 "WorldCrowd draw diagnostics expose camera-hidden actor crowds");
-  ok &= contains(draw_worldcrowd_runtime_c,
-                 "hidden_camera=0",
-                 "WorldCrowd draw diagnostics expose visible actor crowds");
+                 "++hidden_flat;",
+                 "WorldCrowd draw diagnostics expose source 3D-only flat suppression");
+  ok &= appears_before(draw_worldcrowd_runtime_c,
+                       "if(crowd_selection_draws_3d(runtime,"
+                       "placement_index)){",
+                       "elseif(venue_camera_hide_crowd_){",
+                       "CamShot show_3d_only preserves selected 3D members before flat suppression");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "active_group_summary",
                  "WorldCrowd draw diagnostics summarize active actor play_groups");
@@ -11879,39 +11902,31 @@ int main() {
                  "WorldCrowd runtime rebuild honors an active authored lighter play_group override");
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "runtime.fullness_fraction=worldcrowd_fullness_for_event("
-                 "active_venue_event_);",
+                 "active_venue_event_,worldcrowd_widescreen_);",
                  "WorldCrowd runtime initializes DTA crowd fullness from the active event");
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "runtime.visible_bounds_radius=visible_bounds_radius;",
                  "WorldCrowd runtime records visible actor bounds before renderer ownership transfer");
   ok &= contains(rebuild_worldcrowd_runtime_c,
-                 "runtime->near_source_cull_radius="
-                 "worldcrowd_actor_near_source_cull_radius(crowd,set.actor_name);",
-                 "WorldCrowd runtime assigns actor-table near-source cull radii per placement set");
-  ok &= contains(draw_worldcrowd_runtime_c,
-                 "culled_near_source",
-                 "WorldCrowd draw skips actors whose decoded source radius contains the active camera");
+                 "runtime->source_character_height=source_character_height;",
+                 "WorldCrowd runtime assigns actor-table billboard heights per placement set");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "culled_fullness",
                  "WorldCrowd draw skips placements above the active DTA fullness fraction");
-  ok &= contains(draw_worldcrowd_runtime_c,
-                 "constboolforeground_cull_enabled="
-                 "camera_cull_enabled&&diagnostic_camera_shot_.empty()&&"
-                 "!venue_camera_has_crowd_selection_&&"
-                 "!venue_camera_crowd_face_camera_&&"
-                 "env_value(\"GHOGX_DISABLE_WORLDCROWD_FOREGROUND_CULL\")"
-                 "==nullptr;",
-                 "WorldCrowd foreground culling preserves explicit camera crowd shots");
-  ok &= contains(draw_worldcrowd_runtime_c,
-                 "constfloatforeground_clear_depth=",
-                 "WorldCrowd foreground culling derives its clear depth from the active camera target");
-  ok &= contains(draw_worldcrowd_runtime_c,
-                 "++culled_foreground;",
-                 "WorldCrowd draw tracks playable foreground crowd culling separately");
+  ok &= absent(draw_worldcrowd_runtime_c,
+               "culled_near_source",
+               "WorldCrowd draw no longer invents a near-camera actor deletion rule");
+  ok &= absent(draw_worldcrowd_runtime_c,
+               "culled_foreground",
+               "WorldCrowd draw no longer invents a playable-foreground actor deletion rule");
   ok &= contains(update_worldcrowd_runtime_c,
                  "runtime.fullness_fraction=worldcrowd_fullness_for_event("
-                 "active_venue_event_);",
+                 "active_venue_event_,worldcrowd_widescreen_);",
                  "WorldCrowd runtime updates DTA fullness when song excitement changes");
+  ok &= contains(update_worldcrowd_runtime_c,
+                 "runtime.animation_ordinal,"
+                 "worldcrowd_actor_runtime_.size()",
+                 "WorldCrowd runtime applies OnIterateFrac across the complete actor list");
   ok &= contains(update_worldcrowd_runtime_c,
                  "runtime.clips_by_group.find(desired_group)",
                  "WorldCrowd runtime switches authored play_group clips when excitement changes");
@@ -14874,64 +14889,18 @@ int main() {
   ok &= contains(gameplay_c,
                  "env_float(\"GHOGX_DEBUG_BACKING_CAMERA_STRIDE\",0.50f)",
                  "backing camera diagnostics are rate-limited during captures");
+  ok &= absent(gameplay_c,
+               "append_worldcrowd_floor_meshes_for_venue_chars(venue_scene,"
+               "venue_chars_scene_for_load);",
+               "WorldCrowd placement meshes must not be appended to the visible venue draw list");
   ok &= contains(gameplay_c,
-                 "placement_mesh_refs.insert(canonical_milo_ref(crowd.area_mesh));",
-                 "WorldCrowd placement mesh refs are sourced from decoded chars MILO data");
+                 "WorldCrowdplacementmeshesretainedasnon-draw"
+                 "placementdata",
+                 "venue load documents the source placement-data-only WorldCrowd mesh contract");
   ok &= contains(gameplay_c,
-                 "material==\"ray_blocker.mat\"||material==\"invisible.mat\"",
-                 "WorldCrowd helper ray blockers stay out of crowd floor draws");
-  ok &= contains(gameplay_c,
-                 "append_worldcrowd_floor_meshes_for_venue_chars(venue_scene,"
-                 "venue_chars_scene_for_load);",
-                 "venue renderer receives decoded WorldCrowd placement meshes as the authored crowd floor");
-  ok &= contains(gameplay_c,
-                 "for(constchar*name:{\"floor.mat\",\"tile_dark.mat\","
-                 "\"street_asphalt.mat\"})",
-                 "WorldCrowd floor cleanup prefers RedOctane's grey floor material before tile trim and arena asphalt");
-  ok &= contains(gameplay_c,
-                 "if(constautofloor_mat=dst_floor_mat()){"
-                 "conststd::stringoriginal_material=draw_mesh.material;"
-                 "constautofloor_env=dst_floor_environment(*floor_mat);"
-                 "constautofloor_uv=dst_floor_uv_projection(*floor_mat,mesh,chars_scene);"
-                 "draw_mesh.material=*floor_mat;",
-                 "WorldCrowd floor cleanup replaces placement color with a venue-authored floor material");
-  ok &= contains(gameplay_c,
-                 "structFloorUvProjection{",
-                 "WorldCrowd floor cleanup has a venue-floor UV projection model");
-  ok &= contains(gameplay_c,
-                 "autodst_floor_uv_projection=",
-                 "WorldCrowd floor cleanup searches decoded venue floors for repeated floor UVs");
-  ok &= contains(gameplay_c,
-                 "constfloatsource_scale_u=source_u_span/source_width;",
-                 "WorldCrowd floor cleanup preserves the authored floor texture repeat scale");
-  ok &= contains(gameplay_c,
-                 "vertex.u=world[0]*floor_uv->u[0]+",
-                 "WorldCrowd floor cleanup projects placement footprint UVs from venue floor coordinates");
-  ok &= contains(gameplay_c,
-                 "\"[world]venueWorldCrowdflooruvcleanup:mesh=%s\"",
-                 "WorldCrowd floor cleanup logs the projected UV range");
-  ok &= contains(gameplay_c,
-                 "cleanup_group.environment_ref=*floor_env;",
-                 "WorldCrowd floor cleanup attaches the venue-authored floor environment");
-  ok &= contains(gameplay_c,
-                 "cleanup_group.children.push_back(draw_mesh.name);",
-                 "WorldCrowd floor cleanup maps the placement footprint into the floor environment group");
-  ok &= contains(gameplay_c,
-                 "\"[world]venueWorldCrowdfloorenvironmentsource:\"",
-                 "WorldCrowd floor cleanup logs the authored environment source mesh");
-  ok &= contains(gameplay_c,
-                 "if(constautofloor_tint=dst_floor_tint(*floor_mat)){"
-                 "for(auto&vertex:draw_mesh.verts){",
-                 "WorldCrowd floor cleanup inherits venue-authored baked floor tint");
-  ok &= contains(gameplay_c,
-                 "\"[world]venueWorldCrowdfloormeshesappended:%zusource=%s\\n\"",
-                 "WorldCrowd crowd-floor merge is logged during venue validation");
-  ok &= contains(gameplay_c,
-                 "push_unique_ref(venue_extra_visual_sources,chars_milo);",
-                 "WorldCrowd crowd-floor materials load textures from the chars MILO");
-  ok &= contains(gameplay_c,
-                 "venue_crowd_meshes_.erase(\"Crowd_area.mesh\");",
-                 "WorldCrowd crowd floor is not hidden by CamShot hide_crowd actor visibility");
+                 "venue_chars_scene_for_load.world_crowds.size(),"
+                 "chars_milo.c_str()",
+                 "venue diagnostics count non-draw WorldCrowd placement objects from the decoded chars MILO");
   ok &= contains(gameplay_c,
                  "\"[world]venuefloormesh:mesh=%smaterial=%stexture=%s\"",
                  "venue diagnostics report real floor geometry and material state");
@@ -14970,40 +14939,31 @@ int main() {
                  "\"[world]WorldCrowddraw:enabled=1actors=%zu\"",
                  "WorldCrowd draw diagnostics report live actor count");
   ok &= contains(gameplay_c,
-                 "placements=%zudrawn=%zu",
-                 "WorldCrowd draw diagnostics report placement and draw counts");
+                 "placements=%zudrawn_3d=%zudrawn_flat=%zu",
+                 "WorldCrowd draw diagnostics separate selected 3D and flat-impostor counts");
   ok &= contains(gameplay_c,
                  "culled_fullness=%zu",
                  "WorldCrowd draw diagnostics report DTA fullness culling");
   ok &= contains(gameplay_c,
-                 "culled_near_source=%zu",
-                 "WorldCrowd draw diagnostics report near-camera source culling");
-  ok &= contains(gameplay_c,
                  "culled_camera=%zu",
                  "WorldCrowd draw diagnostics report broad camera-cone culling");
   ok &= contains(gameplay_c,
-                 "culled_foreground=%zu",
-                 "WorldCrowd draw diagnostics report playable foreground culling");
+                 "hidden_flat=%zumissing_impostor=%zu",
+                 "WorldCrowd draw diagnostics expose 3D-only suppression and failed impostor coverage");
   ok &= contains(gameplay_c,
                  "GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL",
                  "WorldCrowd camera-cone cull keeps an explicit A/B disable");
-  ok &= contains(gameplay_c,
-                 "GHOGX_DISABLE_WORLDCROWD_FOREGROUND_CULL",
-                 "WorldCrowd foreground cull keeps an explicit A/B disable");
-  ok &= contains(gameplay_c,
-                 "!venue_camera_has_crowd_selection_&&"
-                 "!venue_camera_crowd_face_camera_",
-                 "WorldCrowd foreground cull does not suppress explicitly selected camera crowds");
-  ok &= contains(gameplay_c,
-                 "foreground_ndc_y<-0.52f",
-                 "WorldCrowd foreground cull clears lower-screen audience-floor coverage");
+  ok &= absent(gameplay_c,
+               "GHOGX_DISABLE_WORLDCROWD_FOREGROUND_CULL",
+               "WorldCrowd uses the decoded 3D/impostor split instead of a synthetic foreground cull");
   ok &= contains(gameplay_c,
                  "!(cam.result_frame.valid&&"
                  "cam.result_frame.has_custom_projection)",
                  "WorldCrowd camera-cone cull avoids custom projection shots");
   ok &= contains(gameplay_c,
-                 "std::max(10.0f,runtime.visible_bounds_radius+3.0f)",
-                 "WorldCrowd camera-cone cull keeps a broad actor-radius margin");
+                 "std::max(runtime.visible_bounds_radius,"
+                 "runtime.source_character_height)+3.0f",
+                 "WorldCrowd camera-cone cull covers both decoded 3D bounds and billboard height");
   ok &= contains(gameplay_c,
                  "camera_cross_axis(camera_up,camera_forward)",
                  "WorldCrowd camera-cone cull derives a camera-space basis");
@@ -15020,9 +14980,22 @@ int main() {
   ok &= absent(gameplay_c,
                "!unselected_worldcrowd_actor_draw_enabled()",
                "normal WorldCrowd draw no longer requires a source-selected CamShot 3D crowd");
-  ok &= contains(gameplay_c,
-                 "if(!venue_camera_has_crowd_selection_)returntrue;",
-                 "missing CamShot crowd selection lets authored WorldCrowd draw by normal fullness/camera rules");
+  ok &= absent(gameplay_c,
+               "if(!venue_camera_has_crowd_selection_)returntrue;",
+               "missing CamShot crowd selection must not promote every crowd placement to full 3D");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "if(crowd_selection_draws_3d(runtime,placement_index)){",
+                 "only exact CamShot actor and placement pairs are promoted to full 3D");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "flat_worlds.push_back(placement_world);",
+                 "unselected crowd placements remain in the source flat-impostor path");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "runtime.renderer->refresh_worldcrowd_impostor()",
+                 "WorldCrowd refreshes each actor's animated impostor before flat drawing");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "draw_worldcrowd_impostors_over_scene("
+                 "cam,flat_worlds,runtime.source_character_height);",
+                 "WorldCrowd batches unselected placements through the decoded actor-height billboard path");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "for(constauto&selection:"
                  "venue_camera_crowd_selections_){",
@@ -15036,6 +15009,28 @@ int main() {
   ok &= contains(draw_worldcrowd_runtime_c,
                  "entries=%zutotal_pairs=%zu",
                  "WorldCrowd draw diagnostics expose aggregate CamShot crowd selection state");
+  ok &= contains(char_renderer_h_c,
+                 "boolrefresh_worldcrowd_impostor();",
+                 "character renderer exposes the source live-impostor refresh contract");
+  ok &= contains(char_renderer_h_c,
+                 "draw_worldcrowd_impostors_over_scene(",
+                 "character renderer exposes source WorldCrowd billboard batching");
+  ok &= contains(char_renderer_c,
+                 "twotallgImpostorTexturesandrenderscharactersthrough",
+                 "WorldCrowd impostor renderer documents the recovered source texture-camera contract");
+  ok &= contains(char_renderer_c,
+                 "constexprUINTkImpostorWidth=128;"
+                 "constexprUINTkImpostorHeight=256;",
+                 "WorldCrowd impostor texture preserves a tall character silhouette");
+  ok &= contains(char_renderer_c,
+                 "dev->SetRenderState(D3DRS_ALPHAREF,0x80);",
+                 "WorldCrowd billboard alpha cut mirrors gImpostorMat's source 0x80 threshold");
+  ok &= contains(char_renderer_c,
+                 "dev->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_ONE);",
+                 "WorldCrowd billboard draw mirrors gImpostorMat's source kSrc blend");
+  ok &= contains(char_renderer_c,
+                 "dev->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_ZERO);",
+                 "WorldCrowd source blend replaces accepted alpha-cut pixels");
   ok &= contains(gameplay_c,
                  "if(!worldcrowd_actor_runtime_enabled())return;",
                  "WorldCrowd actor rebuild/update/draw share the same runtime gate");

@@ -1367,12 +1367,14 @@ class Gameplay {
     std::string active_group;
     std::vector<std::array<float, 16>> placement_worlds;
     std::vector<PlacementRef> placement_refs;
-    float near_source_cull_radius = 0.0f;
+    size_t animation_ordinal = 0;
+    float source_character_height = 0.0f;
     float visible_bounds_radius = 0.0f;
     float fullness_fraction = 1.0f;
   };
   std::map<std::string, WorldCrowdActorRuntime> worldcrowd_actor_runtime_;
   size_t worldcrowd_actor_runtime_placements_ = 0;
+  bool worldcrowd_widescreen_ = false;
   std::string last_worldcrowd_actor_lighting_key_;
   double next_worldcrowd_actor_draw_log_time_ = 0.0;
   double last_worldcrowd_actor_source_sample_time_ = -1.0;

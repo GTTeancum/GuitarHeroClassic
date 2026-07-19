@@ -9326,14 +9326,14 @@ void apply_worldcrowd_actor_mesh_visibility(
     }
 }
 
-float worldcrowd_actor_near_source_cull_radius(
+float worldcrowd_actor_source_height(
     const ghogx::milo_scene::WorldCrowdObj& crowd,
     std::string_view actor_name) {
     for (const auto& actor : crowd.actors) {
         if (actor.name != actor_name) continue;
-        const float radius = actor.params[2];
-        return std::isfinite(radius) && radius > 0.0f && radius < 1000.0f
-                   ? radius
+        const float height = actor.params[0];
+        return std::isfinite(height) && height > 0.0f && height < 1000.0f
+                   ? height
                    : 0.0f;
     }
     return 0.0f;
@@ -9364,25 +9364,30 @@ float worldcrowd_actor_visible_bounds_radius(
     return std::sqrt(rx * rx + ry * ry + rz * rz);
 }
 
-std::string worldcrowd_clip_group_for_event(std::string_view venue_event) {
-    switch (venue_excitement_level(venue_event)) {
-        case 0:
-        case 1:
-            return "bad";
-        case 2:
-            return "ok";
-        default:
-            return "great";
-    }
-}
-
-std::string worldcrowd_clip_group_for_event(
-    std::string_view venue_event, std::string_view lighter_group) {
+std::string worldcrowd_clip_group_for_actor(
+    std::string_view venue_event, std::string_view lighter_group,
+    size_t actor_ordinal, size_t actor_count) {
     if ((lighter_group == "lighter_slow" || lighter_group == "lighter_fast") &&
         venue_excitement_level(venue_event) >= 3) {
         return std::string(lighter_group);
     }
-    return worldcrowd_clip_group_for_event(venue_event);
+    const float frac = actor_count > 0
+                           ? (static_cast<float>(actor_ordinal) + 0.5f) /
+                                 static_cast<float>(actor_count)
+                           : 0.0f;
+    // world/gen/crowd.dta drives WorldCrowd::OnIterateFrac across the actor
+    // Character list: boot is all bad, bad is 80% bad/20% ok, okay is 80%
+    // ok/20% great, and great/peak are all great (or the active lighter cue).
+    switch (venue_excitement_level(venue_event)) {
+        case 0:
+            return "bad";
+        case 1:
+            return frac < 0.80f ? "bad" : "ok";
+        case 2:
+            return frac < 0.80f ? "ok" : "great";
+        default:
+            return "great";
+    }
 }
 
 bool scene_has_environment(const ghogx::milo_scene::Scene& scene,
@@ -9416,7 +9421,8 @@ std::string source_performer_proxy_environment(
     return {};
 }
 
-float worldcrowd_fullness_for_event(std::string_view venue_event) {
+float worldcrowd_fullness_for_event(std::string_view venue_event,
+                                    bool widescreen) {
     // Source: world/crowd.dta crowd_update set_fullness rows.
     switch (venue_excitement_level(venue_event)) {
         case 0:
@@ -9426,7 +9432,7 @@ float worldcrowd_fullness_for_event(std::string_view venue_event) {
         case 2:
             return 0.50f;
         default:
-            return 1.0f;
+            return widescreen ? 0.70f : 1.0f;
     }
 }
 
@@ -33737,6 +33743,11 @@ void Gameplay::refresh_worldcrowd_actor_source_targets_for_camera() {
 void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
     worldcrowd_actor_runtime_.clear();
     worldcrowd_actor_runtime_placements_ = 0;
+    worldcrowd_widescreen_ =
+        win.bb_height() > 0 &&
+        static_cast<float>(win.bb_width()) /
+                static_cast<float>(win.bb_height()) >
+            1.50f;
     if (!worldcrowd_actor_runtime_enabled()) return;
     if (!venue_chars_scene_loaded_) return;
 
@@ -33790,9 +33801,10 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
             }
         }
         ghogx::character::CharClip clip;
-        std::string active_group =
-            worldcrowd_clip_group_for_event(
-                active_venue_event_, active_worldcrowd_lighter_group_);
+        const size_t animation_ordinal = worldcrowd_actor_runtime_.size();
+        std::string active_group = worldcrowd_clip_group_for_actor(
+            active_venue_event_, active_worldcrowd_lighter_group_,
+            animation_ordinal, animation_ordinal + 1);
         if (auto it = clips_by_group.find(active_group);
             it != clips_by_group.end()) {
             clip = it->second;
@@ -33820,8 +33832,9 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
         runtime.clip = std::move(clip);
         runtime.clips_by_group = std::move(clips_by_group);
         runtime.active_group = std::move(active_group);
-        runtime.fullness_fraction =
-            worldcrowd_fullness_for_event(active_venue_event_);
+        runtime.animation_ordinal = animation_ordinal;
+        runtime.fullness_fraction = worldcrowd_fullness_for_event(
+            active_venue_event_, worldcrowd_widescreen_);
         runtime.visible_bounds_radius = visible_bounds_radius;
         runtime.renderer =
             std::make_unique<ghogx::character::CharRenderer>(win);
@@ -33864,9 +33877,11 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
                 ++crowd_actor_index;
                 continue;
             }
-            runtime->near_source_cull_radius =
-                worldcrowd_actor_near_source_cull_radius(crowd,
-                                                         set.actor_name);
+            const float source_character_height =
+                worldcrowd_actor_source_height(crowd, set.actor_name);
+            if (source_character_height > 0.0f) {
+                runtime->source_character_height = source_character_height;
+            }
             runtime->placement_worlds.reserve(
                 runtime->placement_worlds.size() + set.placements.size());
             runtime->placement_refs.reserve(runtime->placement_refs.size() +
@@ -33891,11 +33906,12 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
     if (worldcrowd_actor_runtime_placements_ > 0) {
         std::fprintf(stderr,
                      "[world] WorldCrowd runtime ready: actors=%zu "
-                     "placements=%zu basis=%s\n",
+                     "placements=%zu basis=%s widescreen=%d\n",
                      worldcrowd_actor_runtime_.size(),
                      worldcrowd_actor_runtime_placements_,
                      worldcrowd_render_area_local_basis() ? "area_local"
-                                                          : "placement");
+                                                          : "placement",
+                     worldcrowd_widescreen_ ? 1 : 0);
     }
 }
 
@@ -33910,11 +33926,11 @@ void Gameplay::update_worldcrowd_actor_runtime(float dt) {
     for (auto& [actor_path, runtime] : worldcrowd_actor_runtime_) {
         (void)actor_path;
         if (!runtime.renderer) continue;
-        const std::string desired_group =
-            worldcrowd_clip_group_for_event(
-                active_venue_event_, active_worldcrowd_lighter_group_);
-        runtime.fullness_fraction =
-            worldcrowd_fullness_for_event(active_venue_event_);
+        const std::string desired_group = worldcrowd_clip_group_for_actor(
+            active_venue_event_, active_worldcrowd_lighter_group_,
+            runtime.animation_ordinal, worldcrowd_actor_runtime_.size());
+        runtime.fullness_fraction = worldcrowd_fullness_for_event(
+            active_venue_event_, worldcrowd_widescreen_);
         auto desired_clip = runtime.clips_by_group.find(desired_group);
         if (desired_clip == runtime.clips_by_group.end()) {
             desired_clip = runtime.clips_by_group.find("ok");
@@ -34092,8 +34108,8 @@ void Gameplay::draw_worldcrowd_actor_runtime(
             std::fprintf(
                 stderr,
                 "[world] WorldCrowd draw: enabled=0 actors=%zu placements=%zu "
-                "drawn=0 culled_fullness=0 culled_near_source=0 "
-                "culled_camera=0 culled_foreground=0 hidden_camera=0 "
+                "drawn_3d=0 drawn_flat=0 culled_fullness=0 "
+                "culled_camera=0 hidden_flat=0 "
                 "basis=%s face_camera=%d "
                 "event=%s groups=%s eye=(0.000 0.000 0.000) t=%.3f\n",
                 worldcrowd_actor_runtime_.size(),
@@ -34109,25 +34125,6 @@ void Gameplay::draw_worldcrowd_actor_runtime(
     float eye[3] = {0.0f, 0.0f, 0.0f};
     cam.eye(eye);
     const std::array<float, 3> camera_ref = {eye[0], eye[1], eye[2]};
-    if (venue_camera_hide_crowd_) {
-        if (should_log_worldcrowd()) {
-            std::fprintf(
-                stderr,
-                "[world] WorldCrowd draw: enabled=1 actors=%zu placements=%zu "
-                "drawn=0 culled_fullness=0 culled_near_source=0 "
-                "culled_camera=0 culled_foreground=0 hidden_camera=1 "
-                "basis=%s face_camera=%d "
-                "event=%s groups=%s eye=(%.3f %.3f %.3f) t=%.3f\n",
-                worldcrowd_actor_runtime_.size(),
-                worldcrowd_actor_runtime_placements_,
-                worldcrowd_render_area_local_basis() ? "area_local"
-                                                     : "placement",
-                venue_camera_crowd_face_camera_ ? 1 : 0,
-                active_venue_event_.c_str(), active_group_summary().c_str(),
-                eye[0], eye[1], eye[2], song_time_);
-        }
-        return;
-    }
     auto camera_forward =
         cam.result_frame.valid
             ? std::array<float, 3>{cam.result_frame.forward[0],
@@ -34162,25 +34159,13 @@ void Gameplay::draw_worldcrowd_actor_runtime(
     const bool camera_cull_enabled =
         !env_value("GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL") &&
         !(cam.result_frame.valid && cam.result_frame.has_custom_projection);
-    const bool foreground_cull_enabled =
-        camera_cull_enabled && diagnostic_camera_shot_.empty() &&
-        !venue_camera_has_crowd_selection_ &&
-        !venue_camera_crowd_face_camera_ &&
-        env_value("GHOGX_DISABLE_WORLDCROWD_FOREGROUND_CULL") == nullptr;
     const float tan_y = std::tan(cam.fov * 0.5f) * 1.35f;
-    const float tan_x = tan_y * kNativeValidationAspect;
-    const std::array<float, 3> target_delta = {
-        cam.target[0] - eye[0], cam.target[1] - eye[1],
-        cam.target[2] - eye[2]};
-    const float target_depth = camera_dot_axis(target_delta, camera_forward);
-    const float foreground_clear_depth =
-        std::isfinite(target_depth) && target_depth > 1.0f
-            ? std::max(40.0f, target_depth * 0.82f)
-            : 0.0f;
-    auto crowd_selection_allows =
+    const float tan_x =
+        tan_y * (worldcrowd_widescreen_ ? (16.0f / 9.0f)
+                                        : kNativeValidationAspect);
+    auto crowd_selection_draws_3d =
         [&](const WorldCrowdActorRuntime& runtime,
             size_t placement_index) -> bool {
-        if (!venue_camera_has_crowd_selection_) return true;
         if (placement_index >= runtime.placement_refs.size()) return false;
         const auto& ref = runtime.placement_refs[placement_index];
         const std::string placement_crowd_name =
@@ -34200,12 +34185,12 @@ void Gameplay::draw_worldcrowd_actor_runtime(
         }
         return false;
     };
-    size_t drawn = 0;
-    size_t culled_camshot_selection = 0;
-    size_t culled_near_source = 0;
+    size_t drawn_3d = 0;
+    size_t drawn_flat = 0;
     size_t culled_fullness = 0;
     size_t culled_camera = 0;
-    size_t culled_foreground = 0;
+    size_t hidden_flat = 0;
+    size_t missing_impostor = 0;
     if (world_) world_->apply_environment_lighting_state("crowd.env");
     for (auto& [actor_path, runtime] : worldcrowd_actor_runtime_) {
         (void)actor_path;
@@ -34214,39 +34199,23 @@ void Gameplay::draw_worldcrowd_actor_runtime(
         const auto visible_by_fullness =
             worldcrowd_placement_visible_by_fullness(
                 runtime.placement_worlds, eye, runtime.fullness_fraction);
+        std::vector<std::array<float, 16>> flat_worlds;
+        flat_worlds.reserve(runtime.placement_worlds.size());
         size_t placement_index = 0;
         for (const auto& placement_world : runtime.placement_worlds) {
-            if (!crowd_selection_allows(runtime, placement_index)) {
-                ++culled_camshot_selection;
-                ++placement_index;
-                continue;
-            }
-            if (!venue_camera_has_crowd_selection_ &&
-                (placement_index >= visible_by_fullness.size() ||
-                 !visible_by_fullness[placement_index])) {
+            if (placement_index >= visible_by_fullness.size() ||
+                !visible_by_fullness[placement_index]) {
                 ++culled_fullness;
                 ++placement_index;
                 continue;
             }
-            if (runtime.near_source_cull_radius > 0.0f) {
-                const float cull_radius =
-                    runtime.near_source_cull_radius +
-                    runtime.visible_bounds_radius;
-                const float dx = placement_world[12] - eye[0];
-                const float dy = placement_world[13] - eye[1];
-                const float dz = placement_world[14] - eye[2];
-                const float dist_sq = dx * dx + dy * dy + dz * dz;
-                const float radius_sq = cull_radius * cull_radius;
-                if (dist_sq < radius_sq) {
-                    ++culled_near_source;
-                    ++placement_index;
-                    continue;
-                }
-            }
             if (camera_cull_enabled && std::isfinite(tan_x) &&
                 std::isfinite(tan_y) && tan_x > 0.0f && tan_y > 0.0f) {
                 const float radius =
-                    std::max(10.0f, runtime.visible_bounds_radius + 3.0f);
+                    std::max(10.0f,
+                             std::max(runtime.visible_bounds_radius,
+                                      runtime.source_character_height) +
+                                 3.0f);
                 const std::array<float, 3> delta = {
                     placement_world[12] - eye[0], placement_world[13] - eye[1],
                     placement_world[14] - eye[2]};
@@ -34265,66 +34234,64 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                     ++placement_index;
                     continue;
                 }
-                const float foreground_ndc_y =
-                    (depth > 0.001f && std::isfinite(vertical))
-                        ? camera_dot_axis(delta, camera_up) /
-                              (depth * tan_y)
-                        : 0.0f;
-                const bool lower_screen_foreground =
-                    depth > radius && std::isfinite(foreground_ndc_y) &&
-                    foreground_ndc_y < -0.52f;
-                if (foreground_cull_enabled &&
-                    ((foreground_clear_depth > 0.0f && depth > -radius &&
-                      depth - radius < foreground_clear_depth) ||
-                     lower_screen_foreground)) {
-                    ++culled_foreground;
-                    ++placement_index;
-                    continue;
-                }
             }
-            const auto draw_world =
-                venue_camera_crowd_face_camera_
-                    ? worldcrowd_face_camera_source_world(placement_world,
-                                                          camera_ref)
-                    : placement_world;
-            runtime.renderer->set_world_transform(draw_world);
-            runtime.renderer->draw_over_scene(cam);
-            ++drawn;
+            if (crowd_selection_draws_3d(runtime, placement_index)) {
+                const auto draw_world =
+                    venue_camera_crowd_face_camera_
+                        ? worldcrowd_face_camera_source_world(placement_world,
+                                                              camera_ref)
+                        : placement_world;
+                runtime.renderer->set_world_transform(draw_world);
+                runtime.renderer->draw_over_scene(cam);
+                ++drawn_3d;
+            } else if (venue_camera_hide_crowd_) {
+                // Source m3DOnly/show_3d_only keeps the CamShot-selected 3-D
+                // list and suppresses only WorldCrowd's flat impostors.
+                ++hidden_flat;
+            } else {
+                flat_worlds.push_back(placement_world);
+            }
             ++placement_index;
+        }
+        if (!flat_worlds.empty()) {
+            if (runtime.source_character_height > 0.0f &&
+                runtime.renderer->refresh_worldcrowd_impostor()) {
+                runtime.renderer->draw_worldcrowd_impostors_over_scene(
+                    cam, flat_worlds, runtime.source_character_height);
+                drawn_flat += flat_worlds.size();
+            } else {
+                missing_impostor += flat_worlds.size();
+            }
         }
     }
     const bool log_worldcrowd = should_log_worldcrowd();
     if (log_worldcrowd ||
         (debug_camera_enabled() &&
-         (culled_camshot_selection > 0 || culled_near_source > 0 ||
-          culled_fullness > 0))) {
+         (culled_fullness > 0 || missing_impostor > 0))) {
         std::fprintf(stderr,
                      "[world] WorldCrowd draw: enabled=1 actors=%zu "
-                     "placements=%zu drawn=%zu culled_selection=%zu "
+                     "placements=%zu drawn_3d=%zu drawn_flat=%zu "
                      "selection=%d:%s:%zu entries=%zu total_pairs=%zu "
-                     "culled_fullness=%zu "
-                     "culled_near_source=%zu culled_camera=%zu "
-                     "culled_foreground=%zu hidden_camera=0 basis=%s "
+                     "culled_fullness=%zu culled_camera=%zu "
+                     "hidden_flat=%zu missing_impostor=%zu basis=%s "
                      "face_camera=%d event=%s groups=%s "
-                     "eye=(%.3f %.3f %.3f) foreground_depth=%.2f t=%.3f\n",
+                     "eye=(%.3f %.3f %.3f) t=%.3f\n",
                       worldcrowd_actor_runtime_.size(),
-                      worldcrowd_actor_runtime_placements_, drawn,
-                      culled_camshot_selection,
+                      worldcrowd_actor_runtime_placements_, drawn_3d,
+                      drawn_flat,
                       venue_camera_has_crowd_selection_ ? 1 : 0,
                       venue_camera_crowd_selection_ref_.c_str(),
                       venue_camera_crowd_selection_pairs_.size(),
                       venue_camera_crowd_selections_.size(),
                       camera_crowd_selection_pair_count(
                           venue_camera_crowd_selections_),
-                      culled_fullness, culled_near_source, culled_camera,
-                     culled_foreground,
+                      culled_fullness, culled_camera, hidden_flat,
+                     missing_impostor,
                      worldcrowd_render_area_local_basis() ? "area_local"
                                                           : "placement",
                      venue_camera_crowd_face_camera_ ? 1 : 0,
                      active_venue_event_.c_str(), active_group_summary().c_str(),
-                     eye[0], eye[1], eye[2],
-                     foreground_clear_depth,
-                     song_time_);
+                     eye[0], eye[1], eye[2], song_time_);
     }
 }
 
@@ -35771,22 +35738,17 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             "[world] venue character lighting objects appended: lights=%zu environs=%zu source=%s\n",
                             lights_added, environs_added, chars_milo.c_str());
                     }
-                    const size_t worldcrowd_floor_meshes =
-                        append_worldcrowd_floor_meshes_for_venue_chars(
-                            venue_scene, venue_chars_scene_for_load);
-                    if (worldcrowd_floor_meshes > 0) {
-                        push_unique_ref(venue_extra_visual_sources, chars_milo);
-                        if (debug_venue_filters_enabled()) {
-                            std::fprintf(
-                                stderr,
-                                "[world] venue WorldCrowd floor meshes appended: %zu source=%s\n",
-                                worldcrowd_floor_meshes, chars_milo.c_str());
-                        }
-                    } else if (debug_venue_filters_enabled() &&
-                               !venue_chars_scene_for_load.world_crowds.empty()) {
+                    // Source WorldCrowd keeps mPlacementMesh as placement data,
+                    // while CreateMeshes builds its visible RndMultiMesh
+                    // billboards. The placement mesh is not appended to the
+                    // WorldDir draw list. Drawing it exposed Stone's authored
+                    // crowd-area editor colors as blue/magenta "floor holes".
+                    if (debug_venue_filters_enabled() &&
+                        !venue_chars_scene_for_load.world_crowds.empty()) {
                         std::fprintf(
                             stderr,
-                            "[world] venue WorldCrowd floor meshes: none appended source=%s\n",
+                            "[world] venue WorldCrowd placement meshes retained as non-draw placement data: %zu source=%s\n",
+                            venue_chars_scene_for_load.world_crowds.size(),
                             chars_milo.c_str());
                     }
                 }
