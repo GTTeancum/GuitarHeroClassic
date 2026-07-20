@@ -80,9 +80,9 @@ constexpr float kDefaultCamNear = 50.0f;
 constexpr float kDefaultCamFar = 200.0f;
 constexpr float kDefaultCamZStart = 0.0f;
 constexpr float kDefaultCamZEnd = 0.1f;
-constexpr float kDefaultBurnNormalY = 0.0f;
-constexpr float kDefaultBurnWhammyY = 10.0f;
-constexpr float kDefaultBurnBonusY = 20.0f;
+constexpr float kDefaultBurnNormalFrame = 0.0f;
+constexpr float kDefaultBurnWhammyFrame = 10.0f;
+constexpr float kDefaultBurnBonusFrame = 20.0f;
 // PCSX2 rail/tail measurements keep the source track art as the base, then
 // apply one measured root-space correction so track meshes, lane positions,
 // tails, and smashers stay locked together. The 4:3 value comes from the live
@@ -440,6 +440,52 @@ float sample_particle_grow_shrink(float grow_ratio, float shrink_ratio,
                       1.0f);
   }
   return 1.0f;
+}
+
+std::array<float, 4> sample_particle_anim_color(
+    const std::vector<HighwayRenderer::ParticleColorAnimKey>& keys,
+    float frame, const std::array<float, 4>& fallback) {
+  if (keys.empty() || !std::isfinite(frame)) return fallback;
+  if (keys.size() == 1 || frame <= keys.front().frame) {
+    return keys.front().color;
+  }
+  if (frame >= keys.back().frame) return keys.back().color;
+  for (size_t i = 1; i < keys.size(); ++i) {
+    if (frame > keys[i].frame) continue;
+    const auto& a = keys[i - 1];
+    const auto& b = keys[i];
+    const float t = std::clamp(
+        (frame - a.frame) / std::max(0.001f, b.frame - a.frame),
+        0.0f, 1.0f);
+    std::array<float, 4> out{};
+    for (size_t channel = 0; channel < out.size(); ++channel) {
+      out[channel] =
+          a.color[channel] + (b.color[channel] - a.color[channel]) * t;
+    }
+    return out;
+  }
+  return keys.back().color;
+}
+
+std::array<float, 2> sample_particle_anim_vector2(
+    const std::vector<HighwayRenderer::ParticleVector2AnimKey>& keys,
+    float frame, const std::array<float, 2>& fallback) {
+  if (keys.empty() || !std::isfinite(frame)) return fallback;
+  if (keys.size() == 1 || frame <= keys.front().frame) {
+    return keys.front().value;
+  }
+  if (frame >= keys.back().frame) return keys.back().value;
+  for (size_t i = 1; i < keys.size(); ++i) {
+    if (frame > keys[i].frame) continue;
+    const auto& a = keys[i - 1];
+    const auto& b = keys[i];
+    const float t = std::clamp(
+        (frame - a.frame) / std::max(0.001f, b.frame - a.frame),
+        0.0f, 1.0f);
+    return {a.value[0] + (b.value[0] - a.value[0]) * t,
+            a.value[1] + (b.value[1] - a.value[1]) * t};
+  }
+  return keys.back().value;
 }
 
 // Camera (track.cam, decoded) with PCSX2 rail/strikeline corrections applied.
@@ -1365,6 +1411,17 @@ struct MatAnimColorKeys {
   std::vector<MatAnimAlphaKey> alpha_keys;
 };
 
+struct TrackParticleAnim {
+  std::string particle;
+  std::string keys_owner;
+  std::vector<HighwayRenderer::ParticleColorAnimKey> start_color_keys;
+  std::vector<HighwayRenderer::ParticleColorAnimKey> end_color_keys;
+  std::vector<HighwayRenderer::ParticleVector2AnimKey> emit_rate_keys;
+  std::vector<HighwayRenderer::ParticleVector2AnimKey> speed_keys;
+  std::vector<HighwayRenderer::ParticleVector2AnimKey> life_keys;
+  std::vector<HighwayRenderer::ParticleVector2AnimKey> start_size_keys;
+};
+
 float clamp_color(float value) {
   if (!std::isfinite(value)) return 1.0f;
   return std::clamp(value, 0.0f, 1.0f);
@@ -1482,8 +1539,118 @@ HighwayRenderer::SideRailColorState side_rail_color_from_anim(
   out.r = key.rgb[0];
   out.g = key.rgb[1];
   out.b = key.rgb[2];
-  out.a = key.alpha;
+  // RndMatAnim::SetFrame sends ColorKeys through RndMat::SetColor, and
+  // SetColor copies RGB only.  Material alpha is a separate AlphaKeys channel.
+  // The GH2 neutral rail color key even contains non-semantic low bits in its
+  // fourth component, so treating that component as alpha hides the white
+  // source mesh.
+  out.a = 1.0f;
+  if (!it->second.alpha_keys.empty()) {
+    out.a = use_last_key ? it->second.alpha_keys.back().alpha
+                         : it->second.alpha_keys.front().alpha;
+  }
   out.ok = true;
+  return out;
+}
+
+std::map<std::string, TrackParticleAnim> load_track_particle_anims(
+    const std::string& hdr_path, const std::string& ark_path) {
+  std::map<std::string, TrackParticleAnim> out;
+  try {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    auto entry = ark.find("track/gen/track.milo_ps2");
+    if (!entry) entry = ark.find("../../system/run/track/gen/track.milo_ps2");
+    if (!entry) return out;
+    const auto bytes = ark.read_entry(*entry, {ark_path});
+    const auto hdr = gh::milo::parse_header(bytes);
+    const auto payload = gh::milo::inflate_payload(bytes, hdr);
+    const auto dir = gh::milo::parse_directory(payload);
+
+    auto read_count = [](const uint8_t* body, size_t size, size_t& pos,
+                         uint32_t& count) {
+      return read_u32(body, size, pos, count) && count <= 4096;
+    };
+    auto read_color_keys = [&](const uint8_t* body, size_t size, size_t& pos,
+                               std::vector<HighwayRenderer::ParticleColorAnimKey>& keys) {
+      uint32_t count = 0;
+      if (!read_count(body, size, pos, count)) return false;
+      keys.clear();
+      keys.reserve(count);
+      for (uint32_t i = 0; i < count; ++i) {
+        HighwayRenderer::ParticleColorAnimKey key;
+        for (float& channel : key.color) {
+          if (!read_f32(body, size, pos, channel)) return false;
+        }
+        if (!read_f32(body, size, pos, key.frame) || key.frame < 0.0f)
+          return false;
+        keys.push_back(key);
+      }
+      std::sort(keys.begin(), keys.end(), [](const auto& a, const auto& b) {
+        return a.frame < b.frame;
+      });
+      return true;
+    };
+    auto read_vector2_keys = [&](const uint8_t* body, size_t size, size_t& pos,
+                                 std::vector<HighwayRenderer::ParticleVector2AnimKey>& keys) {
+      uint32_t count = 0;
+      if (!read_count(body, size, pos, count)) return false;
+      keys.clear();
+      keys.reserve(count);
+      for (uint32_t i = 0; i < count; ++i) {
+        HighwayRenderer::ParticleVector2AnimKey key;
+        if (!read_f32(body, size, pos, key.value[0]) ||
+            !read_f32(body, size, pos, key.value[1]) ||
+            !read_f32(body, size, pos, key.frame) || key.frame < 0.0f) {
+          return false;
+        }
+        keys.push_back(key);
+      }
+      std::sort(keys.begin(), keys.end(), [](const auto& a, const auto& b) {
+        return a.frame < b.frame;
+      });
+      return true;
+    };
+
+    for (const auto& de : dir.entries) {
+      if (de.type != "ParticleSysAnim" ||
+          de.offset + de.size > payload.size()) {
+        continue;
+      }
+      const auto* body = payload.data() + de.offset;
+      const size_t size = static_cast<size_t>(de.size);
+      if (size < 29) continue;
+      uint32_t revision = 0;
+      std::memcpy(&revision, body, sizeof(revision));
+      if ((revision & 0xffffu) != 3u) continue;
+
+      // GH2 rev-3 source order is Object, RndAnimatable, particle target,
+      // start/end colors, emit rate, keys owner, then speed/life/start size.
+      // Object plus RndAnimatable occupies 25 bytes in the retail entries.
+      size_t pos = 25;
+      auto particle = read_milo_string(body, size, pos);
+      if (!particle) continue;
+      TrackParticleAnim anim;
+      anim.particle = *particle;
+      if (!read_color_keys(body, size, pos, anim.start_color_keys) ||
+          !read_color_keys(body, size, pos, anim.end_color_keys) ||
+          !read_vector2_keys(body, size, pos, anim.emit_rate_keys)) {
+        continue;
+      }
+      auto owner = read_milo_string(body, size, pos);
+      if (!owner) continue;
+      anim.keys_owner = *owner;
+      if (!read_vector2_keys(body, size, pos, anim.speed_keys) ||
+          !read_vector2_keys(body, size, pos, anim.life_keys) ||
+          !read_vector2_keys(body, size, pos, anim.start_size_keys) ||
+          pos != size) {
+        continue;
+      }
+      out[de.name] = std::move(anim);
+    }
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[highway] track ParticleSysAnim load: %s\n",
+                 ex.what());
+  }
   return out;
 }
 
@@ -1496,62 +1663,80 @@ HighwayRenderer::ColorAnimState mat_anim_color_curve(
   if (!it->second.keys.empty()) {
     out.keys.reserve(it->second.keys.size());
     out.has_rgb = true;
-    out.has_alpha = true;
     for (const auto& key : it->second.keys) {
       out.keys.push_back(HighwayRenderer::ColorAnimKey{
-          key.rgb[0], key.rgb[1], key.rgb[2], key.alpha, key.frame});
-    }
-  } else if (!it->second.alpha_keys.empty()) {
-    out.keys.reserve(it->second.alpha_keys.size());
-    out.has_alpha = true;
-    for (const auto& key : it->second.alpha_keys) {
-      out.keys.push_back(
-          HighwayRenderer::ColorAnimKey{1.0f, 1.0f, 1.0f, key.alpha,
-                                        key.frame});
+          key.rgb[0], key.rgb[1], key.rgb[2], key.frame});
     }
   }
-  out.ok = !out.keys.empty();
+  if (!it->second.alpha_keys.empty()) {
+    out.alpha_keys.reserve(it->second.alpha_keys.size());
+    out.has_alpha = true;
+    for (const auto& key : it->second.alpha_keys) {
+      out.alpha_keys.push_back(
+          HighwayRenderer::ColorAnimAlphaKey{key.alpha, key.frame});
+    }
+  }
+  out.ok = !out.keys.empty() || !out.alpha_keys.empty();
   return out;
 }
 
 HighwayRenderer::SideRailColorState sample_color_anim(
     const HighwayRenderer::ColorAnimState& anim, float frame) {
   HighwayRenderer::SideRailColorState out;
-  if (!anim.ok || anim.keys.empty() || !std::isfinite(frame)) return out;
-  if (frame <= anim.keys.front().frame || anim.keys.size() == 1) {
-    const auto& key = anim.keys.front();
-    out.r = key.r;
-    out.g = key.g;
-    out.b = key.b;
-    out.a = key.a;
-    out.ok = true;
-    return out;
+  if (!anim.ok || !std::isfinite(frame)) return out;
+  out.ok = true;
+  if (!anim.keys.empty()) {
+    const auto sample_rgb = [&]() {
+      if (frame <= anim.keys.front().frame || anim.keys.size() == 1) {
+        return anim.keys.front();
+      }
+      for (size_t i = 1; i < anim.keys.size(); ++i) {
+        const auto& prev = anim.keys[i - 1];
+        const auto& next = anim.keys[i];
+        if (frame > next.frame) continue;
+        const float span = std::max(0.001f, next.frame - prev.frame);
+        const float t =
+            std::clamp((frame - prev.frame) / span, 0.0f, 1.0f);
+        return HighwayRenderer::ColorAnimKey{
+            prev.r + (next.r - prev.r) * t,
+            prev.g + (next.g - prev.g) * t,
+            prev.b + (next.b - prev.b) * t, frame};
+      }
+      return anim.keys.back();
+    }();
+    out.r = sample_rgb.r;
+    out.g = sample_rgb.g;
+    out.b = sample_rgb.b;
   }
-  for (size_t i = 1; i < anim.keys.size(); ++i) {
-    const auto& prev = anim.keys[i - 1];
-    const auto& next = anim.keys[i];
-    if (frame > next.frame) continue;
-    const float span = std::max(0.001f, next.frame - prev.frame);
-    const float t = std::clamp((frame - prev.frame) / span, 0.0f, 1.0f);
-    out.r = prev.r + (next.r - prev.r) * t;
-    out.g = prev.g + (next.g - prev.g) * t;
-    out.b = prev.b + (next.b - prev.b) * t;
-    out.a = prev.a + (next.a - prev.a) * t;
-    out.ok = true;
-    return out;
+  if (!anim.alpha_keys.empty()) {
+    if (frame <= anim.alpha_keys.front().frame ||
+        anim.alpha_keys.size() == 1) {
+      out.a = anim.alpha_keys.front().a;
+    } else {
+      out.a = anim.alpha_keys.back().a;
+      for (size_t i = 1; i < anim.alpha_keys.size(); ++i) {
+        const auto& prev = anim.alpha_keys[i - 1];
+        const auto& next = anim.alpha_keys[i];
+        if (frame > next.frame) continue;
+        const float span = std::max(0.001f, next.frame - prev.frame);
+        const float t =
+            std::clamp((frame - prev.frame) / span, 0.0f, 1.0f);
+        out.a = prev.a + (next.a - prev.a) * t;
+        break;
+      }
+    }
   }
-  const auto& key = anim.keys.back();
-  out.r = key.r;
-  out.g = key.g;
-  out.b = key.b;
-  out.a = key.a;
   out.ok = true;
   return out;
 }
 
 float color_anim_last_frame(const HighwayRenderer::ColorAnimState& anim) {
-  if (!anim.ok || anim.keys.empty()) return 0.0f;
-  return anim.keys.back().frame;
+  if (!anim.ok) return 0.0f;
+  float frame = anim.keys.empty() ? 0.0f : anim.keys.back().frame;
+  if (!anim.alpha_keys.empty()) {
+    frame = std::max(frame, anim.alpha_keys.back().frame);
+  }
+  return frame;
 }
 
 float color_anim_peak_dark_frame(const HighwayRenderer::ColorAnimState& anim) {
@@ -2466,7 +2651,8 @@ void HighwayRenderer::draw_runtime_particles(
     float x_scale,
     bool apply_depth_fade,
     float depth_fade_top_y,
-    float depth_fade_alpha_dist) const {
+    float depth_fade_alpha_dist,
+    float state_frame) const {
   intensity = std::clamp(std::isfinite(intensity) ? intensity : 0.0f, 0.0f,
                          1.0f);
   if (!dev_ || particles.empty() || intensity <= 0.001f) return;
@@ -2499,7 +2685,52 @@ void HighwayRenderer::draw_runtime_particles(
   dev_->SetRenderState(D3DRS_POINTSCALEENABLE, FALSE);
   dev_->SetFVF(kParticleFvf);
 
-  for (const RuntimeParticleSystem& particle : particles) {
+  for (const RuntimeParticleSystem& source_particle : particles) {
+    RuntimeParticleSystem particle = source_particle;
+    if (state_frame >= 0.0f) {
+      auto apply_color_keys = [&](const auto& keys,
+                                  std::array<float, 4>& low,
+                                  std::array<float, 4>& high) {
+        if (keys.empty()) return;
+        const std::array<float, 4> original_low = low;
+        const std::array<float, 4> sampled =
+            sample_particle_anim_color(keys, state_frame, low);
+        for (size_t channel = 0; channel < sampled.size(); ++channel) {
+          high[channel] = sampled[channel] + high[channel] - original_low[channel];
+        }
+        low = sampled;
+      };
+      // Mirrors RndParticleSysAnim::SetFrame: color keys replace the low
+      // endpoint while retaining the authored low/high delta; Vector2 keys
+      // replace the corresponding particle-system range.
+      apply_color_keys(particle.anim_start_color_keys,
+                       particle.start_color_low, particle.start_color_high);
+      apply_color_keys(particle.anim_end_color_keys,
+                       particle.end_color_low, particle.end_color_high);
+      if (!particle.anim_speed_keys.empty()) {
+        const auto speed = sample_particle_anim_vector2(
+            particle.anim_speed_keys, state_frame,
+            {particle.speed_min, particle.speed_max});
+        particle.speed_min = speed[0];
+        particle.speed_max = speed[1];
+      }
+      if (!particle.anim_life_keys.empty()) {
+        const auto life_frames = sample_particle_anim_vector2(
+            particle.anim_life_keys, state_frame,
+            {particle.lifetime_min * 30.0f,
+             particle.lifetime_max * 30.0f});
+        particle.lifetime_min = std::max(0.05f, life_frames[0] / 30.0f);
+        particle.lifetime_max =
+            std::max(particle.lifetime_min, life_frames[1] / 30.0f);
+      }
+      if (!particle.anim_start_size_keys.empty()) {
+        const auto start_size = sample_particle_anim_vector2(
+            particle.anim_start_size_keys, state_frame,
+            {particle.start_size_min, particle.start_size_max});
+        particle.start_size_min = start_size[0];
+        particle.start_size_max = start_size[1];
+      }
+    }
     if (!particle.ok || particle.texture_name.empty()) continue;
     IDirect3DTexture9* particle_tex = tex(particle.texture_name);
     if (!particle_tex) continue;
@@ -2686,9 +2917,9 @@ void HighwayRenderer::load_track_graphics_config(const std::string& hdr_path,
   cam_far_ = kDefaultCamFar;
   cam_z_start_ = kDefaultCamZStart;
   cam_z_end_ = kDefaultCamZEnd;
-  burn_normal_y_ = kDefaultBurnNormalY;
-  burn_whammy_y_ = kDefaultBurnWhammyY;
-  burn_bonus_y_ = kDefaultBurnBonusY;
+  burn_normal_frame_ = kDefaultBurnNormalFrame;
+  burn_whammy_frame_ = kDefaultBurnWhammyFrame;
+  burn_bonus_frame_ = kDefaultBurnBonusFrame;
   slot_color_names_ = kDefaultSlotColorNames;
   slot_lane_colors_ = kDefaultSlotLaneColors;
   track_speed_ = kDefaultTrackSpeed;
@@ -2730,11 +2961,12 @@ void HighwayRenderer::load_track_graphics_config(const std::string& hdr_path,
       }
       if (auto particles_node = gh::dtb::find_keyed(tree, "particles")) {
         if (auto burn_node = gh::dtb::find_keyed(*particles_node, "burn")) {
-          burn_normal_y_ =
-              keyed_child_float(*burn_node, "normal", burn_normal_y_);
-          burn_whammy_y_ =
-              keyed_child_float(*burn_node, "whammy", burn_whammy_y_);
-          burn_bonus_y_ = keyed_child_float(*burn_node, "bonus", burn_bonus_y_);
+          burn_normal_frame_ =
+              keyed_child_float(*burn_node, "normal", burn_normal_frame_);
+          burn_whammy_frame_ =
+              keyed_child_float(*burn_node, "whammy", burn_whammy_frame_);
+          burn_bonus_frame_ =
+              keyed_child_float(*burn_node, "bonus", burn_bonus_frame_);
         }
       }
       if (!std::isfinite(top_y_) || top_y_ <= kStrikeY) top_y_ = kDefaultTopY;
@@ -2771,14 +3003,14 @@ void HighwayRenderer::load_track_graphics_config(const std::string& hdr_path,
           cam_z_end_ > 1.0f) {
         cam_z_end_ = kDefaultCamZEnd;
       }
-      if (!std::isfinite(burn_normal_y_)) {
-        burn_normal_y_ = kDefaultBurnNormalY;
+      if (!std::isfinite(burn_normal_frame_)) {
+        burn_normal_frame_ = kDefaultBurnNormalFrame;
       }
-      if (!std::isfinite(burn_whammy_y_)) {
-        burn_whammy_y_ = kDefaultBurnWhammyY;
+      if (!std::isfinite(burn_whammy_frame_)) {
+        burn_whammy_frame_ = kDefaultBurnWhammyFrame;
       }
-      if (!std::isfinite(burn_bonus_y_)) {
-        burn_bonus_y_ = kDefaultBurnBonusY;
+      if (!std::isfinite(burn_bonus_frame_)) {
+        burn_bonus_frame_ = kDefaultBurnBonusFrame;
       }
 
       if (auto speed_node = gh::dtb::find_keyed(tree, "track_speed")) {
@@ -2809,11 +3041,11 @@ void HighwayRenderer::load_track_graphics_config(const std::string& hdr_path,
 
     std::fprintf(
         stderr,
-        "[highway] track_graphics.dtb: width=%.3f lane=%.3f horizon=%.3f remove=%.3f alpha=%.3f tail=%.3f tight=%.3f horizon_tail_clip=%.3f nowbar_tail_clip=%.3f cam_near=%.3f cam_far=%.3f cam_z=%.3f..%.3f burn_y=%.3f/%.3f/%.3f slots=%s/%s/%s/%s/%s speeds=%.3f/%.3f/%.3f/%.3f yps=%.3f(%s)\n",
+        "[highway] track_graphics.dtb: width=%.3f lane=%.3f horizon=%.3f remove=%.3f alpha=%.3f tail=%.3f tight=%.3f horizon_tail_clip=%.3f nowbar_tail_clip=%.3f cam_near=%.3f cam_far=%.3f cam_z=%.3f..%.3f burn_frame=%.3f/%.3f/%.3f slots=%s/%s/%s/%s/%s speeds=%.3f/%.3f/%.3f/%.3f yps=%.3f(%s)\n",
         board_half_x_ * 2.0f, lane_spacing_, top_y_, remove_y_, alpha_dist_,
         tail_glow_width_, tail_glow_tight_width_, horizon_tail_clip_,
         nowbar_tail_clip_, cam_near_, cam_far_, cam_z_start_, cam_z_end_,
-        burn_normal_y_, burn_whammy_y_, burn_bonus_y_,
+        burn_normal_frame_, burn_whammy_frame_, burn_bonus_frame_,
         slot_color_names_[0].c_str(), slot_color_names_[1].c_str(),
         slot_color_names_[2].c_str(), slot_color_names_[3].c_str(),
         slot_color_names_[4].c_str(), track_speed_[0], track_speed_[1],
@@ -2840,7 +3072,9 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
   for (auto& mesh : held_tail_mesh_) mesh = RuntimeMesh{};
   for (auto& material : held_tail_line_material_) material = RuntimeLineMaterial{};
   held_tight_tail_mesh_ = RuntimeMesh{};
+  held_tight_tail_line_material_ = RuntimeLineMaterial{};
   burn_castlight_mesh_ = RuntimeMesh{};
+  burn_castlight_color_anim_ = ColorAnimState{};
   burn_tail_particles_.clear();
   smash_normal_particles_.clear();
   smash_bonus_particles_.clear();
@@ -2867,9 +3101,15 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
   gem_glow_mesh_ = RuntimeMesh{};
   star_phrase_tail_mesh_ = RuntimeMesh{};
   star_tail_mesh_ = RuntimeMesh{};
+  star_tail_line_material_ = RuntimeLineMaterial{};
   whammy_tail_mesh_ = RuntimeMesh{};
   whammy_tail_line_material_ = RuntimeLineMaterial{};
   bonus_tail_mesh_ = RuntimeMesh{};
+  bonus_glow_tail_mesh_ = RuntimeMesh{};
+  bonus_tail_line_material_ = RuntimeLineMaterial{};
+  sustain_visual_states_.clear();
+  whammy_envelope_ = 0.0f;
+  last_sustain_visual_time_ = -1.0;
   bonus_gem_mesh_ = RuntimeMesh{};
   bonus_gem_overlay_mesh_ = RuntimeMesh{};
   gem_sparkle_mesh_ = RuntimeMesh{};
@@ -2956,6 +3196,8 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
   if (ghogx::milo_scene::load_scene(hdr_path, ark_path,
                                     "track/gen/track.milo_ps2",
                                     track_scene)) {
+    const auto track_particle_anims =
+        load_track_particle_anims(hdr_path, ark_path);
     std::vector<std::string> track_env_light_refs;
     if (const auto* track_env = track_scene.find_environ("track.env")) {
       track_env_light_refs = track_env->lights;
@@ -3335,6 +3577,21 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
       out.bubble_period_max = particle->bubble_period_max;
       out.bubble_size_min = particle->bubble_size_min;
       out.bubble_size_max = particle->bubble_size_max;
+      std::string anim_name = particle_name;
+      if (anim_name.size() >= 5 &&
+          anim_name.rfind(".part") == anim_name.size() - 5) {
+        anim_name.replace(anim_name.size() - 5, 5, ".panim");
+      }
+      const auto anim_it = track_particle_anims.find(anim_name);
+      if (anim_it != track_particle_anims.end() &&
+          anim_it->second.particle == particle_name) {
+        out.anim_start_color_keys = anim_it->second.start_color_keys;
+        out.anim_end_color_keys = anim_it->second.end_color_keys;
+        out.anim_emit_rate_keys = anim_it->second.emit_rate_keys;
+        out.anim_speed_keys = anim_it->second.speed_keys;
+        out.anim_life_keys = anim_it->second.life_keys;
+        out.anim_start_size_keys = anim_it->second.start_size_keys;
+      }
       out.ok = true;
       return out;
     };
@@ -3482,6 +3739,8 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
     pc_standard_top_mesh_ = make_pc_standard_top_mesh(gem_top_mesh_);
     gem_glow_mesh_ = convert_mesh("glow.mesh");
     held_tight_tail_mesh_ = convert_mesh("tail02.mesh", "tail_glow_tight.mat");
+    held_tight_tail_line_material_ =
+        convert_line_material("tail_glow_tight.mat");
     burn_castlight_mesh_ = convert_mesh("burn_castlight.mesh");
     auto append_particle = [&](std::vector<RuntimeParticleSystem>& dst,
                                const char* particle_name,
@@ -3522,6 +3781,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                     "smash_combo.view");
     star_phrase_tail_mesh_ = convert_mesh("tail02.mesh", "tail_star.mat");
     star_tail_mesh_ = convert_mesh("tail02.mesh", "tail_glow_star.mat");
+    star_tail_line_material_ = convert_line_material("tail_glow_star.mat");
     if (!star_tail_mesh_.ok) {
       star_tail_mesh_ = convert_mesh("tail02.mesh", "tail_glow_tight.mat");
     }
@@ -3532,6 +3792,10 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
     whammy_tail_line_material_ =
         convert_line_material("tail_glow_whammy.mat");
     bonus_tail_mesh_ = convert_mesh("tail02.mesh", "tail_bonus.mat");
+    bonus_glow_tail_mesh_ =
+        convert_mesh("tail02.mesh", "tail_glow_bonus.mat");
+    bonus_tail_line_material_ =
+        convert_line_material("tail_glow_bonus.mat");
     bonus_gem_mesh_ = convert_mesh("gem_bonus.mesh");
     bonus_gem_overlay_mesh_ = convert_mesh("gem_bonus2.mesh");
     gem_sparkle_mesh_ = convert_mesh("gem_sparkle.mesh");
@@ -3670,6 +3934,8 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
         side_rail_anims, "smash_flamelight_starcollect.mnm");
     bonus_hit_flame_color_anim_ =
         mat_anim_color_curve(side_rail_anims, "smash_flamelight_bonus.mnm");
+    burn_castlight_color_anim_ =
+        mat_anim_color_curve(side_rail_anims, "burn_castlight.mnm");
     if (!bonus_hit_flame_color_anim_.ok && star_collect_flame_color_anim_.ok) {
       bonus_hit_flame_color_anim_ = star_collect_flame_color_anim_;
     }
@@ -4091,19 +4357,22 @@ void HighwayRenderer::draw(double song_time, const ghogx::chart::Chart& chart,
                            const std::vector<FoFiXSessionSustain>* active_sustains,
                            bool star_power_active,
                            bool whammy_active,
-                            const float star_collect_flash[5],
-                            const float miss_flash[5],
-                            const float star_miss_flash[5],
-                            int combo_multiplier,
+                           float whammy_axis,
+                           const float star_collect_flash[5],
+                           const float miss_flash[5],
+                           const float star_miss_flash[5],
+                           const uint8_t hit_phrase_state[5],
+                           int combo_multiplier,
                              float bad_feedback_flash,
                              float rock_fill,
                              float star_power_flash,
                              float surface_flash) {
   draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
             lookahead_sec, true, consumed_notes, active_sustains,
-            star_power_active, whammy_active, star_collect_flash, miss_flash,
-            star_miss_flash, combo_multiplier, bad_feedback_flash, rock_fill,
-            star_power_flash, surface_flash);
+            star_power_active, whammy_active, whammy_axis,
+            star_collect_flash, miss_flash,
+            star_miss_flash, hit_phrase_state, combo_multiplier,
+            bad_feedback_flash, rock_fill, star_power_flash, surface_flash);
 }
 
 void HighwayRenderer::draw_over_scene(double song_time,
@@ -4116,19 +4385,22 @@ void HighwayRenderer::draw_over_scene(double song_time,
                                        const std::vector<FoFiXSessionSustain>* active_sustains,
                                        bool star_power_active,
                                        bool whammy_active,
+                                       float whammy_axis,
                                        const float star_collect_flash[5],
-                                        const float miss_flash[5],
-                                        const float star_miss_flash[5],
-                                        int combo_multiplier,
+                                       const float miss_flash[5],
+                                       const float star_miss_flash[5],
+                                       const uint8_t hit_phrase_state[5],
+                                       int combo_multiplier,
                                         float bad_feedback_flash,
                                         float rock_fill,
                                         float star_power_flash,
                                         float surface_flash) {
   draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
             lookahead_sec, false, consumed_notes, active_sustains,
-            star_power_active, whammy_active, star_collect_flash, miss_flash,
-            star_miss_flash, combo_multiplier, bad_feedback_flash, rock_fill,
-            star_power_flash, surface_flash);
+            star_power_active, whammy_active, whammy_axis,
+            star_collect_flash, miss_flash,
+            star_miss_flash, hit_phrase_state, combo_multiplier,
+            bad_feedback_flash, rock_fill, star_power_flash, surface_flash);
 }
 
 void HighwayRenderer::draw_debug_note_counter_overlay(
@@ -4447,10 +4719,12 @@ void HighwayRenderer::draw_impl(double song_time,
                                  const std::vector<FoFiXSessionSustain>* active_sustains,
                                  bool star_power_active,
                                  bool whammy_active,
+                                 float whammy_axis,
                                  const float star_collect_flash[5],
-                                  const float miss_flash[5],
-                                  const float star_miss_flash[5],
-                                  int combo_multiplier,
+                                 const float miss_flash[5],
+                                 const float star_miss_flash[5],
+                                 const uint8_t hit_phrase_state[5],
+                                 int combo_multiplier,
                                   float bad_feedback_flash,
                                   float rock_fill,
                                   float star_power_flash,
@@ -5220,8 +5494,94 @@ void HighwayRenderer::draw_impl(double song_time,
         tail_near_y + 1.0f,
         source_fade_top_y - std::max(horizon_tail_clip_, alpha_dist_ * 0.5f));
     const bool debug_tails = env_enabled("GHOGX_DEBUG_HIGHWAY_TAILS");
-    const bool whammy_tail_deformation_enabled =
-        env_enabled("GHOGX_DEBUG_HIGHWAY_WHAMMY_TAIL_DEFORMATION");
+    // GemRepTemplate::SetupTailVerts (0x826A0100) uses 30 sections at the
+    // normal/high video setting.  The X360 track config supplies horizon_y
+    // 120 and remove_y -15, so each section spans exactly 4.5 authored units.
+    // Tail::Poll (0x8269EAD0) converts each ring's authored Y distance to a
+    // delay-line age with floor(y * 0.5); it never stretches the last 30
+    // samples over the currently visible sustain.
+    constexpr int kRetailTailSections = 30;
+    constexpr float kRetailTailSectionLength =
+        (120.0f - (-15.0f)) / static_cast<float>(kRetailTailSections);
+    constexpr float kRetailHistoryAgePerY = 0.5f;
+    auto whammy_history_sample = [](const SustainVisualState* visual,
+                                    size_t age) {
+      if (!visual) return 1.0f;
+      const size_t clamped_age =
+          std::min(age, visual->whammy_history.size() - 1);
+      const size_t sample =
+          (visual->whammy_cursor + visual->whammy_history.size() -
+           clamped_age) %
+          visual->whammy_history.size();
+      return 1.0f + visual->whammy_history[sample];
+    };
+    // GH2 X360 Track::Poll (0x8269A778) advances the global whammy blend by
+    // exactly 0.1 per update and Tail::Poll (0x8269EAD0) writes -3 times the
+    // signed whammy axis into a 100-sample history for every live tail.  Keep
+    // that state on the renderer clock so the body and glow consume one shared
+    // source-shaped curve.
+    if (last_sustain_visual_time_ >= 0.0 &&
+        song_time + 0.000001 < last_sustain_visual_time_) {
+      sustain_visual_states_.clear();
+      whammy_envelope_ = 0.0f;
+      last_sustain_visual_time_ = -1.0;
+    }
+    if (last_sustain_visual_time_ < 0.0 ||
+        std::abs(song_time - last_sustain_visual_time_) > 0.000001) {
+      whammy_envelope_ = std::clamp(
+          whammy_envelope_ + (whammy_active ? 0.1f : -0.1f), 0.0f, 1.0f);
+      std::set<uint64_t> live_tail_keys;
+      if (active_sustains) {
+        for (const auto& sustain : *active_sustains) {
+          const uint64_t key =
+              sustain.source_index != static_cast<size_t>(-1)
+                  ? static_cast<uint64_t>(sustain.source_index)
+                  : (UINT64_C(1) << 63) |
+                        static_cast<uint64_t>(sustain.source_tick);
+          live_tail_keys.insert(key);
+          SustainVisualState& visual = sustain_visual_states_[key];
+          // Tail::Poll advances the circular cursor before writing the current
+          // filtered bar value.  The cursor therefore always names the newest
+          // sample consumed by the tail geometry below.
+          visual.whammy_cursor =
+              (visual.whammy_cursor + 1) % visual.whammy_history.size();
+          visual.whammy_history[visual.whammy_cursor] =
+              -3.0f * std::clamp(whammy_axis, -1.0f, 1.0f);
+          const float sustain_y0 = tail_near_y;
+          const float sustain_y1 = std::min(
+              note_y(sustain.end_time), tail_far_y);
+          const float sustain_len = std::max(0.0f, sustain_y1 - sustain_y0);
+          const int live_sections = std::clamp(
+              static_cast<int>(sustain_len / kRetailTailSectionLength), 0,
+              kRetailTailSections);
+          float sample_y =
+              sustain_len - live_sections * kRetailTailSectionLength;
+          float max_body_scale = whammy_history_sample(&visual, 0);
+          for (int section = 0; section < live_sections - 1; ++section) {
+            const size_t age = static_cast<size_t>(
+                std::max(0.0f,
+                         std::floor(sample_y * kRetailHistoryAgePerY)));
+            max_body_scale =
+                std::max(max_body_scale,
+                         whammy_history_sample(&visual, age));
+            sample_y += kRetailTailSectionLength;
+          }
+          const float target_glow_scale =
+              1.0f + 0.5f * (max_body_scale - 1.0f);
+          visual.glow_width_scale +=
+              (target_glow_scale - visual.glow_width_scale) * 0.2f;
+        }
+      }
+      for (auto it = sustain_visual_states_.begin();
+           it != sustain_visual_states_.end();) {
+        if (live_tail_keys.find(it->first) == live_tail_keys.end()) {
+          it = sustain_visual_states_.erase(it);
+        } else {
+          ++it;
+        }
+      }
+      last_sustain_visual_time_ = song_time;
+    }
     const std::optional<std::string> tail_layer_only =
         env_string_nonempty("GHOGX_HIGHWAY_TAIL_LAYER_ONLY");
     auto tail_layer_visible = [&](const char* source_label) {
@@ -5229,10 +5589,6 @@ void HighwayRenderer::draw_impl(double song_time,
       const char* label =
           source_label && source_label[0] ? source_label : "<unknown>";
       if (*tail_layer_only == label) return true;
-      if (*tail_layer_only == "held_body") {
-        return std::strcmp(label, "held_body_detail") == 0 ||
-               std::strcmp(label, "held_body_fill") == 0;
-      }
       return false;
     };
     auto material_fill_color = [](const RuntimeMesh* mesh, D3DCOLOR fallback,
@@ -5262,15 +5618,11 @@ void HighwayRenderer::draw_impl(double song_time,
                                     bool whammy_tail, double on,
                                     double off,
                                     TailWidthProfileKind width_profile,
-                                    float center_offset_px_720) {
+                                    float center_offset_px_720,
+                                    const SustainVisualState* visual) {
       if (lane < 0 || lane >= 5) return;
       if (y1 <= y0) return;
       if (!tail_layer_visible(source_label)) return;
-      if (active_segment && source_label &&
-          std::strcmp(source_label, "held_lane") == 0 && !star_tail &&
-          !whammy_tail) {
-        return;
-      }
       const bool measured_body_width =
           width_profile != TailWidthProfileKind::kNone;
       if (debug_tails && tail_debug_budget < 96) {
@@ -5313,7 +5665,9 @@ void HighwayRenderer::draw_impl(double song_time,
         ++tail_debug_budget;
       }
       auto draw_tail_section = [&](float sy0, float sy1,
-                                    float section_half_width) {
+                                   float section_half_width,
+                                   float near_history_scale,
+                                   float far_history_scale) {
         const float cy = (sy0 + sy1) * 0.5f, hy = (sy1 - sy0) * 0.5f;
         if (hy <= 0.0001f) return;
         const float center_x =
@@ -5321,38 +5675,66 @@ void HighwayRenderer::draw_impl(double song_time,
             local_tail_x_offset_for_screen_px(lane, cy,
                                               center_offset_px_720);
         if (mesh && mesh->ok) {
+          const float mesh_hx =
+              std::max(0.001f, (mesh->max_x - mesh->min_x) * 0.5f);
+          const float source_half_width =
+              measured_body_width ? section_half_width : mesh_hx;
           const float root_half_width =
-              highway_root.scale_x(section_half_width);
-        const float mesh_hx =
-            std::max(0.001f, (mesh->max_x - mesh->min_x) * 0.5f);
-        const float mesh_hy =
-            std::max(0.001f, (mesh->max_y - mesh->min_y) * 0.5f);
-        const HighwayBlendState tail_blend_state =
-            highway_blend_state_for(mesh->blend);
-        DWORD prev_tail_src_blend = D3DBLEND_SRCALPHA;
-        DWORD prev_tail_dest_blend = D3DBLEND_INVSRCALPHA;
-        DWORD prev_tail_blend_op = D3DBLENDOP_ADD;
-        dev_->GetRenderState(D3DRS_SRCBLEND, &prev_tail_src_blend);
-        dev_->GetRenderState(D3DRS_DESTBLEND, &prev_tail_dest_blend);
-        dev_->GetRenderState(D3DRS_BLENDOP, &prev_tail_blend_op);
-        dev_->SetRenderState(D3DRS_BLENDOP, tail_blend_state.op);
-        dev_->SetRenderState(D3DRS_SRCBLEND, tail_blend_state.src);
-        dev_->SetRenderState(D3DRS_DESTBLEND, tail_blend_state.dest);
-        draw_runtime_mesh_scaled_with_texture(
-            *mesh, mesh->texture_name,
-            center_x - mesh->center_x * (root_half_width / mesh_hx),
-            cy - mesh->center_y * (hy / mesh_hy), color,
-            root_half_width / mesh_hx, hy / mesh_hy, 1.0f, true, 0.0f,
-            0.0f, true, 0.0f, false, 0.0f, true, source_fade_top_y,
-            source_fade_alpha_dist);
-        dev_->SetRenderState(D3DRS_BLENDOP, prev_tail_blend_op);
-        dev_->SetRenderState(D3DRS_SRCBLEND, prev_tail_src_blend);
-        dev_->SetRenderState(D3DRS_DESTBLEND, prev_tail_dest_blend);
-        return;
-      }
-      V3 q[4];
-      flat_quad(q, center_x, cy, kGemZ - 0.02f,
-                   highway_root.scale_x(section_half_width), hy, color);
+              highway_root.scale_x(source_half_width);
+          const float mesh_hy =
+              std::max(0.001f, (mesh->max_y - mesh->min_y) * 0.5f);
+          RuntimeMesh tapered_mesh;
+          const RuntimeMesh* section_mesh = mesh;
+          if (std::abs(near_history_scale - 1.0f) > 0.0001f ||
+              std::abs(far_history_scale - 1.0f) > 0.0001f) {
+            tapered_mesh = *mesh;
+            const float mesh_y_span = std::max(0.001f, mesh->max_y - mesh->min_y);
+            for (MeshVertex& vertex : tapered_mesh.verts) {
+              const float rel_y =
+                  std::clamp((vertex.y - mesh->min_y) / mesh_y_span, 0.0f,
+                             1.0f);
+              const float history_scale =
+                  near_history_scale +
+                  (far_history_scale - near_history_scale) * rel_y;
+              vertex.x = mesh->center_x +
+                         (vertex.x - mesh->center_x) * history_scale;
+            }
+            section_mesh = &tapered_mesh;
+          }
+          const HighwayBlendState tail_blend_state =
+              highway_blend_state_for(mesh->blend);
+          DWORD prev_tail_src_blend = D3DBLEND_SRCALPHA;
+          DWORD prev_tail_dest_blend = D3DBLEND_INVSRCALPHA;
+          DWORD prev_tail_blend_op = D3DBLENDOP_ADD;
+          dev_->GetRenderState(D3DRS_SRCBLEND, &prev_tail_src_blend);
+          dev_->GetRenderState(D3DRS_DESTBLEND, &prev_tail_dest_blend);
+          dev_->GetRenderState(D3DRS_BLENDOP, &prev_tail_blend_op);
+          dev_->SetRenderState(D3DRS_BLENDOP, tail_blend_state.op);
+          dev_->SetRenderState(D3DRS_SRCBLEND, tail_blend_state.src);
+          dev_->SetRenderState(D3DRS_DESTBLEND, tail_blend_state.dest);
+          draw_runtime_mesh_scaled_with_texture(
+              *section_mesh, section_mesh->texture_name,
+              center_x - mesh->center_x * (root_half_width / mesh_hx),
+              cy - mesh->center_y * (hy / mesh_hy), color,
+              root_half_width / mesh_hx, hy / mesh_hy, 1.0f, true, 0.0f,
+              0.0f, true, 0.0f, false, 0.0f, true, source_fade_top_y,
+              source_fade_alpha_dist);
+          dev_->SetRenderState(D3DRS_BLENDOP, prev_tail_blend_op);
+          dev_->SetRenderState(D3DRS_SRCBLEND, prev_tail_src_blend);
+          dev_->SetRenderState(D3DRS_DESTBLEND, prev_tail_dest_blend);
+          return;
+        }
+        V3 q[4];
+        flat_quad(q, center_x, cy, kGemZ - 0.02f,
+                  highway_root.scale_x(section_half_width), hy, color);
+        const float near_hx =
+            highway_root.scale_x(section_half_width * near_history_scale);
+        const float far_hx =
+            highway_root.scale_x(section_half_width * far_history_scale);
+        q[0].x = center_x - far_hx;
+        q[1].x = center_x + far_hx;
+        q[2].x = center_x - near_hx;
+        q[3].x = center_x + near_hx;
         q[0].c = faded_tail_color(color, sy0);
         q[1].c = faded_tail_color(color, sy0);
         q[2].c = faded_tail_color(color, sy1);
@@ -5375,7 +5757,7 @@ void HighwayRenderer::draw_impl(double song_time,
           const float rel_mid = (rel_far + rel_near) * 0.5f;
           const float y_mid = (sy_far + sy_near) * 0.5f;
           draw_tail_section(sy_near, sy_far,
-                            section_half_at(rel_mid, y_mid));
+                            section_half_at(rel_mid, y_mid), 1.0f, 1.0f);
         };
         const auto draw_profile = [&](const auto& profile,
                                       int subdivisions_per_interval = 1) {
@@ -5403,8 +5785,44 @@ void HighwayRenderer::draw_impl(double song_time,
         } else {
           draw_profile(kPcsx2WhammyBodyWidthProfile4x3);
         }
+      } else if (visual) {
+        // Exact live-ring layout from Tail::Poll (0x8269EAD0): unused
+        // sections collapse at the near end, the first live section carries
+        // the length remainder, all remaining sections stay 4.5 units apart,
+        // the final live ring has half amplitude, and the cap closes at zero.
+        const float len = std::max(0.0f, y1 - y0);
+        const int live_sections = std::clamp(
+            static_cast<int>(len / kRetailTailSectionLength), 0,
+            kRetailTailSections);
+        float sample_y = len - live_sections * kRetailTailSectionLength;
+        std::vector<std::pair<float, float>> rings;
+        rings.reserve(static_cast<size_t>(live_sections) + 2);
+        rings.emplace_back(y0, whammy_history_sample(visual, 0));
+        for (int section = 0; section < live_sections - 1; ++section) {
+          const size_t age = static_cast<size_t>(
+              std::max(0.0f,
+                       std::floor(sample_y * kRetailHistoryAgePerY)));
+          rings.emplace_back(y0 + sample_y,
+                             whammy_history_sample(visual, age));
+          sample_y += kRetailTailSectionLength;
+        }
+        if (live_sections > 0) {
+          const size_t age = static_cast<size_t>(
+              std::max(0.0f,
+                       std::floor(sample_y * kRetailHistoryAgePerY)));
+          const float full_scale = whammy_history_sample(visual, age);
+          rings.emplace_back(y0 + sample_y,
+                             1.0f + (full_scale - 1.0f) * 0.5f);
+        }
+        rings.emplace_back(y1, 0.0f);
+        for (size_t ring = 1; ring < rings.size(); ++ring) {
+          if (rings[ring].first <= rings[ring - 1].first + 0.0001f) continue;
+          draw_tail_section(rings[ring - 1].first, rings[ring].first,
+                            half_width, rings[ring - 1].second,
+                            rings[ring].second);
+        }
       } else {
-        draw_tail_section(y0, y1, half_width);
+        draw_tail_section(y0, y1, half_width, 1.0f, 1.0f);
       }
     };
     auto draw_tail_line_y = [&](int lane, float y0, float y1,
@@ -5516,7 +5934,6 @@ void HighwayRenderer::draw_impl(double song_time,
         dev_->SetRenderState(D3DRS_ALPHAREF, source_alpha_ref);
       }
 
-      const float cx = lane_x(lane);
       const float z = kGemZ - 0.015f;
       auto half_at = [&](float rel, float y) {
         if (!measured_body_width) return highway_root.scale_x(half_width);
@@ -5534,11 +5951,13 @@ void HighwayRenderer::draw_impl(double song_time,
         const float yn = world_y_at(rel_near);
         const float hxf = half_at(rel_far, yf);
         const float hxn = half_at(rel_near, yn);
+        const float cxf = lane_x(lane);
+        const float cxn = lane_x(lane);
         V3 q[4] = {
-            {cx - hxf, yf, z, 0.0f, 0.0f, 1.0f, line_color(yf), 0.0f, 0.5f},
-            {cx + hxf, yf, z, 0.0f, 0.0f, 1.0f, line_color(yf), 1.0f, 0.5f},
-            {cx - hxn, yn, z, 0.0f, 0.0f, 1.0f, line_color(yn), 0.0f, 0.5f},
-            {cx + hxn, yn, z, 0.0f, 0.0f, 1.0f, line_color(yn), 1.0f, 0.5f},
+            {cxf - hxf, yf, z, 0.0f, 0.0f, 1.0f, line_color(yf), 0.0f, 0.5f},
+            {cxf + hxf, yf, z, 0.0f, 0.0f, 1.0f, line_color(yf), 1.0f, 0.5f},
+            {cxn - hxn, yn, z, 0.0f, 0.0f, 1.0f, line_color(yn), 0.0f, 0.5f},
+            {cxn + hxn, yn, z, 0.0f, 0.0f, 1.0f, line_color(yn), 1.0f, 0.5f},
         };
         draw_quad(dev_, texture, q, true, material->intensify,
                   material->texture_wrap);
@@ -5580,42 +5999,55 @@ void HighwayRenderer::draw_impl(double song_time,
                                   bool whammy_tail,
                                   TailWidthProfileKind width_profile =
                                       TailWidthProfileKind::kNone,
-                                  float center_offset_px_720 = 0.0f) {
+                                  float center_offset_px_720 = 0.0f,
+                                  const SustainVisualState* visual = nullptr) {
       if (off < song_time - trail) return;
       if (on > song_time + lead) return;
       const float y0 = std::max(note_y(on), tail_near_y);
       const float y1 = std::min(note_y(off), tail_far_y);
       draw_tail_segment_y(lane, y0, y1, source_label, mesh, texture,
                           half_width, color, active_segment, star_tail,
-                          whammy_tail, on, off, width_profile,
-                          center_offset_px_720);
+                           whammy_tail, on, off, width_profile,
+                           center_offset_px_720, visual);
     };
-    auto draw_whammy_tail_segment = [&](int lane, double on, double off,
-                                        const RuntimeLineMaterial* material,
-                                        float half_width, D3DCOLOR color) {
-      if (off < song_time - trail) return;
-      if (on > song_time + lead) return;
+    auto draw_tail_line_segment = [&](int lane, double on, double off,
+                                      const char* source_label,
+                                      const RuntimeLineMaterial* material,
+                                      float half_width, D3DCOLOR color,
+                                      bool active, bool star, bool whammy) {
+      if (off < song_time - trail || on > song_time + lead) return false;
       const float y0 = std::max(note_y(on), tail_near_y);
       const float y1 = std::min(note_y(off), tail_far_y);
-      if (y1 <= y0) return;
-
-      draw_tail_line_y(lane, y0, y1, "held_whammy_source_line", material,
-                       half_width, color, true, true, true, on, off,
-                       TailWidthProfileKind::kWhammyBody);
+      if (y1 <= y0) return false;
+      return draw_tail_line_y(lane, y0, y1, source_label, material,
+                              half_width, color, active, star, whammy,
+                              on, off, TailWidthProfileKind::kNone);
     };
-    auto draw_normal_tail_line_detail = [&](int lane, double on, double off,
-                                            const RuntimeLineMaterial* material,
-                                            float half_width,
-                                            D3DCOLOR color) {
-      if (off < song_time - trail) return;
-      if (on > song_time + lead) return;
-      const float y0 = std::max(note_y(on), tail_near_y);
-      const float y1 = std::min(note_y(off), tail_far_y);
-      if (y1 <= y0) return;
-
-      draw_tail_line_y(lane, y0, y1, "held_body_detail", material,
-                       half_width, color, true, false, false, on, off,
-                       TailWidthProfileKind::kNormalBodyDetail);
+    auto blend_mesh_color = [](const RuntimeMesh& from,
+                               const RuntimeMesh& to, float amount) {
+      RuntimeMesh out = from;
+      const float t = std::clamp(amount, 0.0f, 1.0f);
+      if (from.verts.size() != to.verts.size()) return out;
+      for (size_t i = 0; i < out.verts.size(); ++i) {
+        out.verts[i].r += (to.verts[i].r - from.verts[i].r) * t;
+        out.verts[i].g += (to.verts[i].g - from.verts[i].g) * t;
+        out.verts[i].b += (to.verts[i].b - from.verts[i].b) * t;
+        out.verts[i].a += (to.verts[i].a - from.verts[i].a) * t;
+      }
+      for (size_t i = 0; i < out.material_color.size(); ++i) {
+        out.material_color[i] +=
+            (to.material_color[i] - from.material_color[i]) * t;
+      }
+      return out;
+    };
+    auto blend_line_color = [](const RuntimeLineMaterial& from,
+                               const RuntimeLineMaterial& to, float amount) {
+      RuntimeLineMaterial out = from;
+      const float t = std::clamp(amount, 0.0f, 1.0f);
+      for (size_t i = 0; i < out.color.size(); ++i) {
+        out.color[i] += (to.color[i] - from.color[i]) * t;
+      }
+      return out;
     };
     for (size_t note_index = 0; note_index < notes.size(); ++note_index) {
       if (consumed_notes && note_index < consumed_notes->size() &&
@@ -5628,253 +6060,176 @@ void HighwayRenderer::draw_impl(double song_time,
       if (on > song_time + lead) break;
       if (n.tick_off <= n.tick_on + sustain_min) continue;
       const int lane = std::clamp(n.lane, 0, 4);
-      const RuntimeMesh* mesh = nullptr;
-      const char* source_label = "flat";
-      if (bonus_highway_active && bonus_tail_mesh_.ok) {
-        mesh = &bonus_tail_mesh_;
-        source_label = "bonus";
-      } else if (n.star_power && star_phrase_tail_mesh_.ok) {
-        mesh = &star_phrase_tail_mesh_;
-        source_label = "star_phrase";
-      } else if (tail_mesh_[lane].ok) {
-        mesh = &tail_mesh_[lane];
-        source_label = "lane";
-      }
-      const bool draw_incoming_normal_body =
-          !bonus_highway_active && !n.star_power && tail_mesh_[lane].ok;
-      if (draw_incoming_normal_body) {
-        const D3DCOLOR incoming_body_solid_tint =
-            material_fill_color(&tail_mesh_[lane], slot_lane_colors_[lane],
-                                kIncomingNormalBodyFillAlpha4x3);
-        draw_tail_segment(lane, on, off, "incoming_body", &tail_mesh_[lane],
-                          raw_tail, tail_glow_width_,
-                          D3DCOLOR_ARGB(225, 255, 255, 255), false, false,
-                          false);
-        draw_tail_segment(lane, on, off, "incoming_body", nullptr, nullptr,
-                          tail_glow_width_ *
-                              kIncomingNormalBodyFillWidthScale4x3,
-                          incoming_body_solid_tint, false, false, false);
-      } else {
-        draw_tail_segment(lane, on, off, source_label, mesh, raw_tail,
-                          tail_glow_width_,
-                          mesh ? D3DCOLOR_ARGB(225, 255, 255, 255)
-                               : slot_lane_colors_[lane],
-                          false, n.star_power, false);
-      }
-      if (!bonus_highway_active && held_tight_tail_mesh_.ok) {
-        const float incoming_tight_half_width =
-            n.star_power ? tail_glow_tight_width_
-                         : normal_held_tight_core_width(
-                               tail_glow_tight_width_);
-        draw_tail_segment(lane, on, off, "incoming_tight",
-                          &held_tight_tail_mesh_, held_tail,
-                          incoming_tight_half_width,
-                          D3DCOLOR_ARGB(225, 255, 255, 255), false,
-                          n.star_power, false);
+      const bool bonus = bonus_highway_active;
+      const bool star = !bonus && n.star_power;
+      const RuntimeMesh* body =
+          bonus && bonus_tail_mesh_.ok
+              ? &bonus_tail_mesh_
+              : (tail_mesh_[lane].ok ? &tail_mesh_[lane] : nullptr);
+      draw_tail_segment(lane, on, off,
+                        bonus ? "incoming_bonus_body" : "incoming_lane_body",
+                        body, raw_tail, tail_glow_width_,
+                        body ? D3DCOLOR_ARGB(255, 255, 255, 255)
+                             : slot_lane_colors_[lane],
+                        false, star, false);
+
+      const RuntimeLineMaterial* glow =
+          bonus ? (bonus_tail_line_material_.ok
+                       ? &bonus_tail_line_material_ : nullptr)
+                : (star ? (held_tight_tail_line_material_.ok
+                               ? &held_tight_tail_line_material_ : nullptr)
+                        : (held_tail_line_material_[lane].ok
+                               ? &held_tail_line_material_[lane] : nullptr));
+      const float glow_width = star ? tail_glow_tight_width_
+                                    : tail_glow_width_;
+      if (!draw_tail_line_segment(
+              lane, on, off,
+              bonus ? "incoming_bonus_glow"
+                    : (star ? "incoming_star_tight_glow"
+                            : "incoming_lane_glow"),
+              glow, glow_width, D3DCOLOR_ARGB(255, 255, 255, 255),
+              false, star, false)) {
+        const RuntimeMesh* glow_mesh =
+            bonus ? (bonus_glow_tail_mesh_.ok
+                         ? &bonus_glow_tail_mesh_ : nullptr)
+                  : (star ? (held_tight_tail_mesh_.ok
+                                 ? &held_tight_tail_mesh_ : nullptr)
+                          : (held_tail_mesh_[lane].ok
+                                 ? &held_tail_mesh_[lane] : nullptr));
+        draw_tail_segment(lane, on, off,
+                          star ? "incoming_star_tight_glow_mesh"
+                               : "incoming_glow_mesh",
+                          glow_mesh, held_tail, glow_width,
+                          D3DCOLOR_ARGB(255, 255, 255, 255),
+                          false, star, false);
       }
     }
     if (active_sustains) {
       for (const auto& sustain : *active_sustains) {
+        const uint64_t sustain_key =
+            sustain.source_index != static_cast<size_t>(-1)
+                ? static_cast<uint64_t>(sustain.source_index)
+                : (UINT64_C(1) << 63) |
+                      static_cast<uint64_t>(sustain.source_tick);
+        const auto visual_it = sustain_visual_states_.find(sustain_key);
+        const SustainVisualState* visual =
+            visual_it != sustain_visual_states_.end() ? &visual_it->second
+                                                      : nullptr;
         for (int lane = 0; lane < 5; ++lane) {
           if ((sustain.mask & (1u << lane)) == 0) continue;
-          const bool sustain_star_tail = sustain.star_power_tail;
-          const bool sustain_whammy_tail = whammy_active && sustain_star_tail;
-          auto draw_flat_tail_fallback = [&](D3DCOLOR color) {
-            DWORD prev_dest_blend = D3DBLEND_INVSRCALPHA;
-            dev_->GetRenderState(D3DRS_DESTBLEND, &prev_dest_blend);
-            dev_->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
-            draw_tail_segment(lane, sustain.start_time, sustain.end_time,
-                              "flat_held", nullptr, held_tail,
-                              tail_glow_tight_width_, color, true,
-                              sustain_star_tail, sustain_whammy_tail);
-            dev_->SetRenderState(D3DRS_DESTBLEND, prev_dest_blend);
-          };
+          const bool retail_bonus = bonus_highway_active;
+          const bool retail_star =
+              !retail_bonus && sustain.star_power_tail;
+          const bool retail_whammy = whammy_active;
 
-          if (bonus_highway_active) {
-            const RuntimeMesh* bonus_tail =
-                bonus_tail_mesh_.ok ? &bonus_tail_mesh_ : nullptr;
-            const D3DCOLOR bonus_tail_color =
-                bonus_tail
-                    ? D3DCOLOR_ARGB(kActiveBonusTailAlpha, 255, 255, 255)
-                    : D3DCOLOR_ARGB(kActiveBonusTailAlpha, 150, 225, 255);
-            draw_tail_segment(lane, sustain.start_time, sustain.end_time,
-                              "bonus_held", bonus_tail, held_tail,
-                              tail_glow_tight_width_, bonus_tail_color,
-                              true, sustain_star_tail, sustain_whammy_tail);
-            if (!bonus_tail) {
-              draw_flat_tail_fallback(D3DCOLOR_ARGB(225, 150, 225, 255));
-            }
-            continue;
-          }
-
-          const RuntimeMesh* lane_body_tail =
+          const RuntimeMesh* lane_body =
               tail_mesh_[lane].ok ? &tail_mesh_[lane] : nullptr;
-          const RuntimeMesh* lane_held_tail =
-              held_tail_mesh_[lane].ok ? &held_tail_mesh_[lane] : nullptr;
-          const RuntimeLineMaterial* lane_held_line =
-              held_tail_line_material_[lane].ok ? &held_tail_line_material_[lane]
-                                                : nullptr;
-          const RuntimeMesh* lane_normal_body_tail =
-              lane_held_tail ? lane_held_tail : lane_body_tail;
-          const RuntimeMesh* lane_normal_fill_tail =
-              lane_body_tail ? lane_body_tail : lane_normal_body_tail;
-          const bool use_normal_tail_line_detail =
-              lane_held_line != nullptr &&
-              !env_enabled("GHOGX_DISABLE_HIGHWAY_NORMAL_TAIL_SOURCE_LINE");
-          const bool debug_whammy_line_only =
-              sustain_whammy_tail &&
-              env_enabled("GHOGX_DEBUG_HIGHWAY_WHAMMY_LINE_ONLY");
-          const bool allow_whammy_source_line =
-              sustain_whammy_tail &&
-              (whammy_tail_deformation_enabled || debug_whammy_line_only);
-          const bool draw_measured_whammy_body =
-              sustain_whammy_tail && whammy_tail_deformation_enabled;
-          const bool draw_normal_held_body =
-              !sustain_star_tail && !sustain_whammy_tail &&
-              lane_normal_body_tail;
-          if (!debug_whammy_line_only && draw_normal_held_body) {
-            const D3DCOLOR normal_body_solid_tint =
-                material_fill_color(lane_normal_fill_tail,
-                                    slot_lane_colors_[lane],
-                                    kNormalHeldBodyFillAlpha4x3);
-            if (held_tight_tail_mesh_.ok) {
-              draw_tail_segment(lane, sustain.start_time, sustain.end_time,
-                                "held_tight_underlay",
-                                &held_tight_tail_mesh_, held_tail,
-                                tail_glow_tight_width_,
-                                D3DCOLOR_ARGB(
-                                    kNormalHeldTightUnderlayAlpha4x3,
-                                    255, 255, 255),
-                                true, false, false);
+          RuntimeMesh blended_star_body;
+          const RuntimeMesh* retail_body =
+              retail_bonus && bonus_tail_mesh_.ok ? &bonus_tail_mesh_
+                                                  : lane_body;
+          if (retail_star && retail_body && star_phrase_tail_mesh_.ok &&
+              whammy_envelope_ > 0.0f) {
+            blended_star_body = blend_mesh_color(
+                *retail_body, star_phrase_tail_mesh_, whammy_envelope_);
+            retail_body = &blended_star_body;
+          }
+          draw_tail_segment(
+              lane, sustain.start_time, sustain.end_time,
+              retail_bonus ? "held_bonus_body" : "held_lane_body",
+              retail_body, raw_tail, tail_glow_width_,
+              retail_body ? D3DCOLOR_ARGB(255, 255, 255, 255)
+                          : slot_lane_colors_[lane],
+              true, retail_star, retail_whammy,
+              TailWidthProfileKind::kNone, 0.0f, visual);
+
+          RuntimeLineMaterial blended_star_glow;
+          const RuntimeLineMaterial* retail_glow = nullptr;
+          if (retail_bonus) {
+            retail_glow = bonus_tail_line_material_.ok
+                              ? &bonus_tail_line_material_ : nullptr;
+          } else if (retail_star) {
+            retail_glow = star_tail_line_material_.ok
+                              ? &star_tail_line_material_ : nullptr;
+            if (retail_glow && whammy_tail_line_material_.ok &&
+                whammy_envelope_ > 0.0f) {
+              blended_star_glow = blend_line_color(
+                  *retail_glow, whammy_tail_line_material_,
+                  whammy_envelope_);
+              retail_glow = &blended_star_glow;
             }
-            if (use_normal_tail_line_detail) {
-              draw_normal_tail_line_detail(
-                  lane, sustain.start_time, sustain.end_time, lane_held_line,
-                  tail_glow_width_, D3DCOLOR_ARGB(245, 255, 255, 255));
-            } else {
-              draw_tail_segment(lane, sustain.start_time, sustain.end_time,
-                                "held_body_detail", lane_normal_body_tail,
-                                held_tail, tail_glow_width_,
-                                D3DCOLOR_ARGB(245, 255, 255, 255), true,
-                                false, false,
-                                TailWidthProfileKind::kNormalBodyDetail);
-            }
-            draw_tail_segment(lane, sustain.start_time, sustain.end_time,
-                              "held_body_fill", nullptr, nullptr,
-                              tail_glow_width_, normal_body_solid_tint, true,
-                              false, false,
-                              TailWidthProfileKind::kNormalBodyFill);
-            if (held_tight_tail_mesh_.ok) {
-              const float join_y0 = tail_near_y;
-              const float join_y1 =
-                  std::min(tail_far_y,
-                           tail_near_y + kNormalHeldTightJoinWorldLength4x3);
-              if (join_y1 > join_y0) {
-                draw_tail_segment_y(
-                    lane, join_y0, join_y1, "held_tight_join",
-                    &held_tight_tail_mesh_, held_tail, tail_glow_tight_width_,
-                    D3DCOLOR_ARGB(kNormalHeldTightJoinAlpha4x3, 255, 255, 255),
-                    true, false, false, sustain.start_time,
-                    sustain.end_time, TailWidthProfileKind::kNormalTightJoin,
-                    0.0f);
-              }
-              draw_tail_segment(
+          } else {
+            retail_glow = held_tail_line_material_[lane].ok
+                              ? &held_tail_line_material_[lane] : nullptr;
+          }
+          const float retail_glow_width =
+              tail_glow_width_ *
+              (visual ? visual->glow_width_scale : 1.0f);
+          if (!draw_tail_line_segment(
                   lane, sustain.start_time, sustain.end_time,
-                  "held_tight_edge", &held_tight_tail_mesh_, held_tail,
-                  normal_held_tight_core_width(tail_glow_tight_width_) *
-                      kNormalHeldTightEdgeWidthScale4x3,
-                  D3DCOLOR_ARGB(kNormalHeldTightEdgeAlpha4x3, 255, 255, 255),
-                  true, false, false, TailWidthProfileKind::kNone,
-                  kNormalHeldTightEdgeOffsetPx720);
-            }
+                  retail_bonus
+                      ? "held_bonus_glow"
+                      : (retail_star ? "held_star_glow"
+                                     : "held_lane_glow"),
+                  retail_glow, retail_glow_width,
+                  D3DCOLOR_ARGB(255, 255, 255, 255), true, retail_star,
+                  retail_whammy)) {
+            const RuntimeMesh* retail_glow_mesh =
+                retail_bonus
+                    ? (bonus_glow_tail_mesh_.ok ? &bonus_glow_tail_mesh_
+                                                : nullptr)
+                    : (retail_star
+                           ? (star_tail_mesh_.ok ? &star_tail_mesh_ : nullptr)
+                           : (held_tail_mesh_[lane].ok
+                                  ? &held_tail_mesh_[lane] : nullptr));
+            draw_tail_segment(
+                lane, sustain.start_time, sustain.end_time,
+                "held_glow_mesh", retail_glow_mesh, held_tail,
+                tail_glow_width_, D3DCOLOR_ARGB(255, 255, 255, 255),
+                true, retail_star, retail_whammy,
+                TailWidthProfileKind::kNone, 0.0f, visual);
           }
-          if (!debug_whammy_line_only && !draw_normal_held_body) {
-            draw_tail_segment(lane, sustain.start_time, sustain.end_time,
-                              "held_lane", lane_held_tail, held_tail,
-                              tail_glow_width_,
-                              D3DCOLOR_ARGB(245, 255, 255, 255),
-                              true, sustain_star_tail, sustain_whammy_tail,
-                              draw_measured_whammy_body
-                                  ? TailWidthProfileKind::kWhammyBody
-                                  : TailWidthProfileKind::kNone);
-          }
-          if (!lane_held_tail && !draw_normal_held_body &&
-              !debug_whammy_line_only) {
-            draw_flat_tail_fallback(slot_lane_colors_[lane]);
-          }
-          if (held_tight_tail_mesh_.ok && !debug_whammy_line_only &&
-              !draw_normal_held_body) {
-            const float active_tight_half_width =
-                (!sustain_star_tail && !sustain_whammy_tail)
-                    ? normal_held_tight_core_width(tail_glow_tight_width_)
-                    : tail_glow_tight_width_;
-            draw_tail_segment(lane, sustain.start_time, sustain.end_time,
-                              "held_tight", &held_tight_tail_mesh_, held_tail,
-                              active_tight_half_width,
-                              D3DCOLOR_ARGB(255, 255, 255, 255),
-                              true, sustain_star_tail, sustain_whammy_tail);
-          }
-          const float burn_y =
-              kStrikeY +
-              (bonus_highway_active
-                   ? burn_bonus_y_
-                   : (sustain_whammy_tail ? burn_whammy_y_ : burn_normal_y_));
-          const bool normal_non_whammy_sustain =
-              !bonus_highway_active && !sustain_star_tail &&
-              !sustain_whammy_tail;
-          const bool source_burn_state_active =
-              !normal_non_whammy_sustain ||
-              env_enabled("GHOGX_FORCE_HIGHWAY_NORMAL_SUSTAIN_BURN");
-          const bool draw_burn_layer =
-              source_burn_state_active &&
-              (!tail_layer_only || *tail_layer_only == "burn");
-          if (draw_burn_layer && !burn_tail_particles_.empty()) {
+
+          // The decoded 0/10/20 values select frames on
+          // burn_tail_state.view. They are not Y translations.
+          const float retail_burn_y = kStrikeY;
+          const float retail_burn_frame =
+              retail_bonus ? burn_bonus_frame_
+                           : (retail_whammy ? burn_whammy_frame_
+                                            : burn_normal_frame_);
+          const bool retail_draw_burn =
+              !tail_layer_only || *tail_layer_only == "burn";
+          if (retail_draw_burn && !burn_tail_particles_.empty()) {
             draw_runtime_particles(burn_tail_particles_, lane_x(lane),
-                                   burn_y, song_time, 1.0f, false,
-                                   highway_root.x_scale);
+                                   retail_burn_y, song_time, 1.0f, false,
+                                   highway_root.x_scale, false, 0.0f, 0.0f,
+                                   retail_burn_frame);
           }
-          if (draw_burn_layer && burn_castlight_mesh_.ok) {
+          if (retail_draw_burn && burn_castlight_mesh_.ok) {
             const HighwayBlendState burn_blend_state =
                 highway_blend_state_for(burn_castlight_mesh_.blend);
-            DWORD prev_burn_src_blend = D3DBLEND_SRCALPHA;
-            DWORD prev_burn_dest_blend = D3DBLEND_INVSRCALPHA;
-            DWORD prev_burn_blend_op = D3DBLENDOP_ADD;
-            dev_->GetRenderState(D3DRS_SRCBLEND, &prev_burn_src_blend);
-            dev_->GetRenderState(D3DRS_DESTBLEND, &prev_burn_dest_blend);
-            dev_->GetRenderState(D3DRS_BLENDOP, &prev_burn_blend_op);
+            DWORD previous_src = D3DBLEND_SRCALPHA;
+            DWORD previous_dest = D3DBLEND_INVSRCALPHA;
+            DWORD previous_op = D3DBLENDOP_ADD;
+            dev_->GetRenderState(D3DRS_SRCBLEND, &previous_src);
+            dev_->GetRenderState(D3DRS_DESTBLEND, &previous_dest);
+            dev_->GetRenderState(D3DRS_BLENDOP, &previous_op);
             dev_->SetRenderState(D3DRS_BLENDOP, burn_blend_state.op);
             dev_->SetRenderState(D3DRS_SRCBLEND, burn_blend_state.src);
             dev_->SetRenderState(D3DRS_DESTBLEND, burn_blend_state.dest);
+            const SideRailColorState burn_castlight_color =
+                sample_color_anim(burn_castlight_color_anim_,
+                                  retail_burn_frame);
             draw_authored_root_mesh(
-                burn_castlight_mesh_, lane_x(lane), burn_y,
-                D3DCOLOR_ARGB(255, 255, 255, 255), 1.0f, true, 0.0f,
+                burn_castlight_mesh_, lane_x(lane), retail_burn_y,
+                side_rail_d3d_color(burn_castlight_color), 1.0f, true, 0.0f,
                 false, 0.0f, true);
-            dev_->SetRenderState(D3DRS_BLENDOP, prev_burn_blend_op);
-            dev_->SetRenderState(D3DRS_SRCBLEND, prev_burn_src_blend);
-            dev_->SetRenderState(D3DRS_DESTBLEND, prev_burn_dest_blend);
+            dev_->SetRenderState(D3DRS_BLENDOP, previous_op);
+            dev_->SetRenderState(D3DRS_SRCBLEND, previous_src);
+            dev_->SetRenderState(D3DRS_DESTBLEND, previous_dest);
           }
-          const RuntimeMesh* active_star_tail =
-              star_tail_mesh_.ok ? &star_tail_mesh_ : nullptr;
-          if (sustain.star_power_tail &&
-              (allow_whammy_source_line
-                   ? whammy_tail_line_material_.ok
-                   : active_star_tail != nullptr)) {
-            // Star/whammy tail materials already carry the source cyan. Keep
-            // the runtime tint neutral so RGB is not multiplied twice.
-            const D3DCOLOR star_tail_color =
-                D3DCOLOR_ARGB(kActiveStarTailAlpha, 255, 255, 255);
-            if (allow_whammy_source_line && whammy_tail_line_material_.ok) {
-              draw_whammy_tail_segment(lane, sustain.start_time,
-                                        sustain.end_time,
-                                        &whammy_tail_line_material_,
-                                        tail_glow_width_, star_tail_color);
-            } else {
-              draw_tail_segment(lane, sustain.start_time, sustain.end_time,
-                                "held_star", active_star_tail, held_tail,
-                                tail_glow_width_, star_tail_color,
-                                true, true, false);
-            }
-          }
+          continue;
+
         }
       }
     }
@@ -6955,13 +7310,10 @@ void HighwayRenderer::draw_impl(double song_time,
         env_enabled("GHOGX_DEBUG_HIGHWAY_HIT_FEEDBACK");
     const bool disable_hit_flames =
         env_enabled("GHOGX_DISABLE_HIGHWAY_HIT_FLAMES");
-    constexpr int kHitDebugBudgetPerComboTier = 80;
-    static std::array<int, 4> hit_debug_budget_by_combo_tier = {};
+    constexpr int kHitDebugBudgetPerPhraseState = 80;
+    static std::array<int, 4> hit_debug_budget_by_phrase_state = {};
     const bool force_combo_lightning =
         env_enabled("GHOGX_FORCE_HIGHWAY_COMBO_LIGHTNING");
-    const int combo_tier = force_combo_lightning
-                               ? 3
-                               : std::clamp(combo_multiplier - 1, 0, 3);
     auto anim_frame = [](float duration, float intensity) {
       if (!std::isfinite(duration) || duration <= 0.001f) return 0.0f;
       return (1.0f - std::min(1.0f, intensity)) * duration;
@@ -7009,15 +7361,27 @@ void HighwayRenderer::draw_impl(double song_time,
       const float f = hit_flash[lane];
       if (f <= 0.01f) continue;
       const int a = static_cast<int>(std::min(1.0f, f) * 255);
+      const int phrase_state = force_combo_lightning
+                                   ? 3
+                                   : (hit_phrase_state
+                                          ? std::clamp<int>(
+                                                hit_phrase_state[lane], 0, 3)
+                                          : 0);
+      // Retail SlotViews::Hit passes PlayerState::phraseState into the
+      // controller stack.  combo1 is enabled for Hitting or Complete; the
+      // two combo2/lightning controllers are enabled only for Complete.
+      const bool combo1_active = phrase_state == 2 || phrase_state == 3;
+      const bool combo2_active = phrase_state == 3;
       int combo_layers = 0;
-      if (combo_tier > 0 && !smash_combo_particles_.empty() &&
+      if (combo1_active && !smash_combo_particles_.empty() &&
           !env_enabled("GHOGX_DISABLE_HIGHWAY_COMBO_PARTICLES")) {
         draw_runtime_particles(smash_combo_particles_, lane_x(lane), kStrikeY,
                                song_time, f, true, highway_root.x_scale);
       }
-      if (combo_tier > 0 &&
+      if (combo2_active &&
           !env_enabled("GHOGX_DISABLE_HIGHWAY_COMBO_LIGHTNING")) {
-        for (int i = 0; i < combo_tier; ++i) {
+        for (int i = 0; i < static_cast<int>(combo_lightning_mesh_.size());
+             ++i) {
           if (!combo_lightning_mesh_[i].ok) continue;
           ++combo_layers;
           const int layer_alpha =
@@ -7092,20 +7456,23 @@ void HighwayRenderer::draw_impl(double song_time,
       }
       const int star_a =
           static_cast<int>(std::min(1.0f, star_f) * 255.0f);
-      const int hit_debug_combo_slot = std::clamp(combo_tier, 0, 3);
+      const int hit_debug_phrase_slot = std::clamp(phrase_state, 0, 3);
       if (debug_hit_feedback &&
-          hit_debug_budget_by_combo_tier[hit_debug_combo_slot] <
-              kHitDebugBudgetPerComboTier) {
+          hit_debug_budget_by_phrase_state[hit_debug_phrase_slot] <
+              kHitDebugBudgetPerPhraseState) {
         std::fprintf(stderr,
-                     "[highway-hit] lane=%d f=%.3f alpha=%d combo_tier=%d "
-                     "combo_forced=%d combo_layers=%d base=%s base_mesh=%d "
+                     "[highway-hit] lane=%d f=%.3f alpha=%d phrase_state=%d "
+                     "combo1=%d combo2=%d combo_forced=%d combo_layers=%d "
+                     "base=%s base_mesh=%d "
                      "star_collect=%d "
                      "star_alpha=%d fallback_tex=%d authored_origin=1 "
                      "base_anim=%d base_color_anim=%d star_anim=%d "
                      "star_color_anim=%d combo_mesh=%d/%d/%d "
                      "combo_anim=%d/%d/%d combo_color_anim=%d/%d/%d\n",
-                     lane, f, a, combo_tier, force_combo_lightning ? 1 : 0,
-                     combo_layers, base_flame_label,
+                     lane, f, a, phrase_state, combo1_active ? 1 : 0,
+                     combo2_active ? 1 : 0,
+                     force_combo_lightning ? 1 : 0, combo_layers,
+                     base_flame_label,
                      base_flame_mesh ? 1 : 0,
                      (!disable_hit_flames && star_f > 0.01f &&
                       star_collect_flame_mesh_.ok)
@@ -7134,7 +7501,7 @@ void HighwayRenderer::draw_impl(double song_time,
                      combo_lightning_color_anim_[0].ok ? 1 : 0,
                      combo_lightning_color_anim_[1].ok ? 1 : 0,
                      combo_lightning_color_anim_[2].ok ? 1 : 0);
-        ++hit_debug_budget_by_combo_tier[hit_debug_combo_slot];
+        ++hit_debug_budget_by_phrase_state[hit_debug_phrase_slot];
       }
       static int hit_anim_detail_debug_budget = 0;
       auto draw_flame_mesh = [&](const char* label, const RuntimeMesh& mesh,

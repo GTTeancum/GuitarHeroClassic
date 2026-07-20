@@ -739,7 +739,7 @@ class Gameplay {
   // fret_mask — current button bitmask:
   //             bit0=Green  bit1=Red  bit2=Yellow  bit3=Blue
   //             bit4=Orange bit5=Strum bit6=Star power bit7=Whammy.
-  void tick(float dt, uint32_t fret_mask);
+  void tick(float dt, uint32_t fret_mask, float whammy_axis = 0.0f);
 
   // Draw the highway for this frame. Creates the HighwayRenderer on first call.
   void draw(ghogx::render::Window& win);
@@ -923,8 +923,9 @@ class Gameplay {
   bool apply_lighting_event_visibility(const std::string& event_name,
                                        bool log);
   bool update_gameplay_session_mirror(uint32_t fret_mask,
-                                      bool emit_presentation,
-                                      bool session_already_ticked = false);
+                                       bool emit_presentation,
+                                       bool session_already_ticked = false,
+                                       float whammy_axis = 0.0f);
   void sync_consumed_notes_from_gameplay_session();
   std::unordered_set<std::string> composed_lighting_hidden_meshes() const;
   std::map<std::string, float> composed_lighting_material_alpha() const;
@@ -1481,6 +1482,9 @@ class Gameplay {
   // Per-lane hit-flame intensity (1.0 on hit, decays to 0). Drives the
   // strikeline flames in the renderer.
   float lane_flash_[5] = {};
+  // Per-lane retail PlayerState::phraseState captured on the hit that started
+  // lane_flash_: 0=none, 1=missed, 2=hitting, 3=complete.
+  uint8_t hit_phrase_state_[5] = {};
   float star_collect_flash_[5] = {};
   float miss_flash_[5] = {};
   float star_miss_flash_[5] = {};
@@ -1490,6 +1494,7 @@ class Gameplay {
 
   // Previous-frame fret mask for edge detection.
   uint32_t prev_fret_mask_  = 0;
+  float prev_whammy_axis_ = 0.0f;
   bool diagnostic_autoplay_ = false;
   uint32_t diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
   std::string diagnostic_character_override_;

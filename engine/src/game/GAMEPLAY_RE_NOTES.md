@@ -14709,3 +14709,189 @@ Rejected native probe:
   camera sweep diagnostics now log every accepted pending shot, not only
   changed-name selections, and stamp `changed=` so same-shot restarts are
   auditable without changing selection or transform math.
+
+2026-07-20 retail hit-feedback / lightning contract (Xbox 360 XEX, confirmed
+against PS2 retail):
+
+- The Xbox 360 retail `SlotViews::Hit` equivalent at `0x8269B058` receives the
+  current `PlayerState::phraseState` as its final integer argument. The direct
+  `GemManager::Hit` caller at `0x826983C0` forwards that value, and the gameplay
+  caller at `0x822E2748` obtains it immediately after scoring through the
+  four-byte getter at `0x822C6C28` (`player + 0xA4`, field `+0x54`).
+- The surrounding `GetPlayerState` implementation at `0x822C6FF0` copies that
+  same field into offset `0x0C` of the output state. This matches the public
+  Harmonix `PlayerState` contract: `kPhraseNone=0`, `kPhraseMissed=1`,
+  `kPhraseHitting=2`, `kPhraseComplete=3`.
+- In `0x8269B058`, the combo1 controller is enabled only for phrase states 2
+  and 3. The two combo2 controllers, which drive the authored
+  `smash_combo_lightning.view` stack, are enabled only for state 3. No streak
+  multiplier is read by this path. The previous native implementation's
+  `combo_multiplier - 1` gate and tiered one/two/three lightning-layer count
+  were therefore not retail behavior.
+- Native hit presentation now captures the phrase state at the instant each
+  lane is hit. A clean in-progress star phrase emits combo1; the clean final
+  star emits combo1 plus the complete authored lightning stack; ordinary hits
+  and hits in a missed phrase emit neither. Multiplier changes remain limited
+  to the separately authored highway-surface flash path.
+
+2026-07-20 retail highway side-rail contract:
+
+- The retail `track.milo_ps2` object `track_side_rails5.mesh` spans
+  `x=-10.16..10.16`, binds `track_side_rails.mat`, uses blend mode 3, and has
+  no texture. It is the authored white-border geometry; no replacement PC
+  border quad is required.
+- `side_rails_none.mnm` has RGB ColorKeys but no AlphaKeys. The fourth word in
+  the serialized ColorKey is not material alpha. Public Harmonix
+  `RndMatAnim::SetFrame` calls `RndMat::SetColor` for ColorKeys and
+  `RndMat::SetAlpha` only for the independent AlphaKeys list; `RndMat::SetColor`
+  copies RGB without changing alpha.
+- Native had decoded that fourth ColorKey word as alpha. On the neutral rail
+  state it interpreted raw bits `0x00000403` as a near-zero float and made the
+  correct source mesh disappear. Color and alpha animation keys are now parsed
+  and sampled independently, with material alpha retained at 1 when no
+  AlphaKeys exist. This restores the source white side rails rather than
+  inventing new geometry.
+
+2026-07-20 retail sustain-tail / whammy controller contract (Xbox 360 XEX):
+
+- Tail construction/configuration is rooted at `0x826A0270`. The decoded
+  manager fields are lane body materials at `+0..+16`, lane glow materials at
+  `+20..+36`, `tail_miss` at `+40`, `tail_star` at `+44`, `tail_bonus` at
+  `+48`, `tail_glow_star` at `+52`, `tail_glow_whammy` at `+56`,
+  `tail_glow_bonus` at `+60`, and `tail_glow_tight` at `+64`. The config fields
+  at `+116/+120/+124/+128/+132/+136` resolve to broad width `1.5`, tight width
+  `0.7`, `fps=30`, `sparkle_len`, the 20/30 sample counts, and sample step.
+- Tail type/state selection at `0x8269E7F0` is exact: type 0 normal uses the
+  lane body and lane glow; type 1 star uses the lane body and tight glow before
+  hit; type 2 bonus uses `tail_bonus` and `tail_glow_bonus`. Miss state uses
+  `tail_miss` and disables the glow. The previous native incoming-star
+  `tail_star` body and always-on synthetic fill/tight layers were not source
+  behavior and have been removed from the live path.
+- The hit transition at `0x8269E2C8` sets lifecycle state 2, enables the glow
+  at width `1.5`, and changes a type-1 star tail's glow to
+  `tail_glow_star`. Thus held normal/star/bonus tails each render one body and
+  one matching broad glow pass. `tail_star` is not a permanent incoming star
+  body; `0x8269EAD0` uses it as the target color for a live type-1 body while
+  the whammy envelope rises.
+- Track update `0x8269A778` advances the global whammy envelope toward 1 or 0
+  by exactly `0.1` per update. Active tail update `0x8269EAD0` stores the
+  signed whammy axis multiplied by `-3` in a 100-sample circular history. It
+  advances the cursor before writing the current sample. Curve generation does
+  not stretch all 100 samples over the sustain: the high-quality path emits a
+  fixed-distance 30-ring strip, selects recent history by authored distance,
+  halves the final live ring, and closes the far end at zero width. Native now
+  mirrors that ordering and local ring sampling for every active tail; it is no
+  longer a star-only diagnostic switch or a full-tail interpolation.
+- `GemRepTemplate::SetupTailVerts` at `0x826A0100` chooses 30 sections on the
+  normal/high video path and computes the authored section length from the
+  platform track extent. The X360 `track_graphics.dta` branch is
+  `horizon_y=120`, `remove_y=-15`, yielding an exact `4.5` units per section.
+  `0x8269EAD0` uses `floor(section_y * 0.5)` as the delay-line age. Short tails
+  collapse unused rings at Y zero, begin live rings at the length remainder,
+  retain the fixed 4.5-unit spacing, halve the last live ring, and place the
+  zero-width cap at the exact tail length. Native now mirrors this mapping;
+  the rejected pass instead distributed consecutive ages evenly over whatever
+  clipped length happened to remain, which visually flattened bar motion.
+- For active type-1 tails, `0x8269EAD0` interpolates the lane-body color toward
+  `tail_star` and the `tail_glow_star` color toward `tail_glow_whammy` by the
+  same envelope. Native mirrors both interpolations while leaving type-0 lane
+  and type-2 bonus materials unchanged.
+- X360 `RndLine` geometry generation in the `0x821F7B58..0x821F84FC` family
+  multiplies the normalized perpendicular directly by object field `+216`
+  before emitting the plus/minus edge vertices. This proves the configured
+  `1.5` and `0.7` values are centerline-to-edge half-widths, not full widths.
+- The `0/10/20` values selected by the BurnTail controller are animation frames
+  on `burn_tail_state.view` (normal/whammy/bonus), not world-space Y offsets.
+  Native now keeps the burn group anchored at the strikeline instead of moving
+  it ten or twenty track units toward the camera.
+
+2026-07-20 retail BurnTail state channels (track.milo_ps2 plus public Harmonix
+`RndParticleSysAnim`/`RndMatAnim` source):
+
+- `burn_tail_state.view` contains exactly three animatable children:
+  `burn_tail_base.panim`, `burn_castlight.mnm`, and `burn_tail_big.panim`.
+  The source `RndParticleSysAnim::SetFrame` samples start/end color, emit-rate,
+  speed, life, and start-size keys. For color, it replaces the low endpoint and
+  preserves the ParticleSys's authored low/high delta. Vector2 keys replace the
+  corresponding min/max range. `RndMatAnim::SetFrame` applies the material RGB
+  key independently of alpha.
+- At frame 0 (normal), `burn_tail_base.panim` samples speed `0.3..0.4`; at frame
+  10 (whammy) it remains `0.3..0.4`; at frame 20 (bonus) it becomes `0.3..1.0`.
+  Its start/end color keys also change at each of those three frames.
+- `burn_tail_big.panim` samples speed `0.3..0.4` at frame 0 and
+  `0.002..0.03` at frames 10 and 20. Its authored start-size range is
+  `0.2..3.5` at all three state frames, and its start/end colors change with
+  the selected state.
+- `burn_castlight.mnm` samples RGB `(1.0,0.6,0.15)` at frame 0,
+  `(0.15,0.4,0.7)` at frame 10, and `(0.15,0.6,1.0)` at frame 20. It has no
+  AlphaKeys, so source material alpha is retained.
+- Native now decodes these retail ParticleSysAnim and MatAnim rows at load,
+  selects frame 0/10/20 from normal/whammy/bonus sustain state, and applies the
+  sampled particle colors/ranges and cast-light color while leaving the entire
+  group fixed at the strikeline.
+
+2026-07-20 retail sustain body/glow geometry correction (Xbox 360 XEX):
+
+- Tail construction around `0x8269E560` creates the `RndLine` at Tail `+0x10`
+  and assigns its width from the manager's broad-width field (`1.5`). The
+  object at Tail `+0x14` is the separately cloned/generated duration body.
+  Retail `tail02.mesh` bounds are `x=-0.430..0.430`; the prior native pass
+  incorrectly stretched that authored body to the glow line's `1.5` width.
+- The body-generation helper at `0x8269E3E0` writes output X as the source
+  template vertex X multiplied by its width-scale argument. `0x8269EAD0`
+  supplies `1 + history_sample`, where each history sample is the raw signed
+  whammy axis multiplied by `-3`. The decoded guitar-controller range is
+  `0..-1`, so the retail width scale is `1..4`: physical bar travel widens each
+  body section about the fixed lane center. It is not a centerline translation.
+- Geometry history is independent of the global whammy envelope. The envelope
+  controls the type-1 body/glow material color interpolation; zero samples
+  naturally travel through the 100-entry ring after whammy release. Native no
+  longer multiplies stored geometry history by that envelope or snaps the
+  curve straight when the envelope reaches zero.
+- After generating the body sections, `0x8269EAD0` tracks the maximum sampled
+  `1 + history`, targets `1 + 0.5 * (maximum - 1)`, and low-pass filters Tail
+  `+0x1B8` toward it with factor `0.2`. This preserves width scale `1` at rest.
+  The centered `RndLine` width is the broad width multiplied by that filtered
+  scale. Native now keeps this glow width state per live sustain instead of
+  bending the line or collapsing the no-input glow to half width.
+
+2026-07-20 retail whammy earning contract (Xbox 360 XEX plus `scoring.dtb`):
+
+- Controller filtering at `0x8234FF18` calibrates the rest position, computes
+  `(raw - rest) / (rest + 1)`, and dispatches that filtered analog value to the
+  player. With the normal zero rest position, full physical travel is `-1`.
+- `GemPlayer::FilteredWhammyBar` at `0x822C8438` runs while a hittable/held tail
+  is active and whammy earning is enabled. It measures absolute bar velocity as
+  `(new_axis - previous_axis) / (current_time - previous_time)`, compares it to
+  loaded `whammy_speed=0.05`, and records the time of sufficiently fast motion.
+  The player's whammying state remains true until loaded `whammy_timeout=0.5`
+  seconds elapses after the last qualifying movement. Merely holding a digital
+  whammy flag or leaving the analog bar stationary does not start earning.
+- `Player::Poll` at `0x822DBD60` awards loaded `whammy_rate=0.034` meter per
+  second while that moving-bar state is true and star power is not deployed.
+  Award magnitude is not proportional to axis displacement. In native's
+  0..100 meter representation this is a fixed `3.4` units per second. The prior
+  beat/8 start delay and digital on/off approximation were not retail behavior
+  and have been removed; the live filtered axis now reaches the session scorer.
+- Live validation on main-setlist song `strutter` used the generated chart
+  input plus an analog sweep through the same gameplay axis path. The
+  1.494-second star sustain at tick 151680 completed its phrase at `0.25`, then
+  moving-bar awards raised the meter through `0.26..0.30`; the approximately
+  `0.05` extra meter agrees with `0.034 * 1.494`. The full-stack live capture at
+  `engine/out/runtime_proofs/highway-whammy-full-stack-strutter-20260720/`
+  visibly carries the fixed-distance width lobes through the body while the
+  independent glow remains centered.
+
+2026-07-20 visible stored-star-meter correction (revised after live review):
+
+- `amp_inside_bar.mesh` is the thin inner tube. It is permanent, spans the full
+  glass length at every stored-power value, and must not be clipped or scaled
+  by fill. The attempted 0/25/50/75/100 pass that clipped this mesh was rejected
+  in live review and is not the desired meter contract.
+- Stored-power progression belongs exclusively to the larger surrounding
+  `amp_tube_glow_meter.mesh`. Its screen-left endpoint stays fixed while only
+  its screen-right edge advances with gameplay fill; the complete authored UV
+  range is retained on the scaled glow so its feathered texture remains
+  visible at the first 25% award.
+  `amp_inside_bar_path.mesh` is also retained at full length. Glass, chrome,
+  caps, ready glow, particles, and lightning remain independent.

@@ -8,6 +8,7 @@
 #include <d3d9.h>
 #include <xinput.h>
 
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -50,6 +51,7 @@ struct Window::Impl {
   int gh_strum_prev = 0;
   unsigned char lt_now = 0;  // XInput left trigger (0-255)
   unsigned char rt_now = 0;  // XInput right trigger (0-255)
+  float gh_whammy_axis = 0.0f;
 };
 
 namespace {
@@ -285,6 +287,7 @@ void Window::pump() {
   impl_->gh_strum_prev = impl_->gh_strum_now;
   uint32_t gh = 0;
   int gh_strum = 0;
+  float gh_whammy_axis = 0.0f;
   XINPUT_STATE xs = {};
   if (XInputGetState(0, &xs) == ERROR_SUCCESS) {
     pad = xs.Gamepad.wButtons;
@@ -317,8 +320,17 @@ void Window::pump() {
     if ((pad & XINPUT_GAMEPAD_BACK) || (pad & XINPUT_GAMEPAD_Y))
       gh |= (1u << 6);
     // Whammy/killswitch: right-stick vertical axis in either direction.
-    if (xs.Gamepad.sThumbRY > kStrumDead || xs.Gamepad.sThumbRY < -kStrumDead)
+    if (xs.Gamepad.sThumbRY > kStrumDead || xs.Gamepad.sThumbRY < -kStrumDead) {
       gh |= (1u << 7);
+      const float divisor = xs.Gamepad.sThumbRY < 0 ? 32768.0f : 32767.0f;
+      const float stick = static_cast<float>(xs.Gamepad.sThumbRY) / divisor;
+      // Harmonix GuitarController returns zero at rest and negative travel:
+      // traditional_whammy_val is -(RX + 1) / 2, negative_rx_whammy_val is
+      // -RX, and the result is clamped against a zero upper bound. Keep both
+      // convenient PC stick directions, but normalize either to that retail
+      // [-1, 0] controller contract before gameplay consumes it.
+      gh_whammy_axis = -std::abs(stick);
+    }
   }
   impl_->pad_now = pad;
 
@@ -333,13 +345,17 @@ void Window::pump() {
     gh |= (1u << 5);
   }
   if (impl_->key_now[VK_SHIFT] || impl_->key_now['H']) gh |= (1u << 6);
-  if (impl_->key_now['K'])       gh |= (1u << 7);
+  if (impl_->key_now['K']) {
+    gh |= (1u << 7);
+    gh_whammy_axis = -1.0f;
+  }
   if ((gh & (1u << 5)) != 0 && gh_strum != 0 &&
       gh_strum != impl_->gh_strum_prev) {
     impl_->gh_prev &= ~(1u << 5);
   }
   impl_->gh_now = gh;
   impl_->gh_strum_now = gh_strum;
+  impl_->gh_whammy_axis = gh_whammy_axis;
 }
 
 uint32_t Window::guitar_input_edge() const {
@@ -348,6 +364,10 @@ uint32_t Window::guitar_input_edge() const {
 
 uint32_t Window::guitar_input_held() const {
   return impl_->gh_now & (0x1Fu | (1u << 7));
+}
+
+float Window::guitar_whammy_axis() const {
+  return impl_->gh_whammy_axis;
 }
 
 bool Window::action_pressed(Action a) const {

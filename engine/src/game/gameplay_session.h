@@ -54,6 +54,9 @@ struct FoFiXSessionEvent {
   double rock_fill = 0.0;
   double star_power_fill = 0.0;
   bool failed = false;
+  // Retail GH2 PlayerState::phraseState at the instant of the event:
+  // 0=none, 1=missed, 2=hitting, 3=complete.
+  uint8_t phrase_state = 0;
 };
 
 struct FoFiXSessionSustain {
@@ -72,7 +75,7 @@ class FoFiXGameplaySession {
   static FoFiXGameplaySession FromChart(const ghogx::chart::Chart& chart,
                                         int difficulty);
 
-  void tick(double song_time, uint32_t fret_mask);
+  void tick(double song_time, uint32_t fret_mask, float whammy_axis = 0.0f);
   void seek_without_scoring(double song_time);
   uint32_t diagnostic_autoplay_mask(double song_time,
                                     bool activate_star_power = false);
@@ -131,7 +134,7 @@ class FoFiXGameplaySession {
   void update_sustains(double song_time,
                        double dt_seconds,
                        uint32_t held_frets,
-                       bool whammy);
+                       float whammy_axis);
   void start_sustain(size_t start, size_t end, double song_time);
   void clear_hopo_strict_state();
   void update_hopo_strict_state(size_t start, size_t end, bool hopo_input);
@@ -150,6 +153,11 @@ class FoFiXGameplaySession {
   FoFiXHitWindow hit_window_;
   double beat_seconds_ = 0.5;
   double last_time_ = 0.0;
+  float last_whammy_axis_ = 0.0f;
+  double last_whammy_sample_time_ = 0.0;
+  double last_fast_whammy_time_ = -1.0e30;
+  bool has_whammy_sample_ = false;
+  bool whammying_ = false;
   uint32_t prev_fret_mask_ = 0;
   uint32_t diagnostic_autoplay_last_strum_tick_ = UINT32_MAX;
   size_t next_note_ = 0;

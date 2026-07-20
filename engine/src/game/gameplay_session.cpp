@@ -11,6 +11,8 @@ namespace ghogx::game {
 namespace {
 
 constexpr double kGh2WhammyStarPowerPerSecond = 0.034 * 100.0;
+constexpr double kGh2WhammySpeed = 0.05;
+constexpr double kGh2WhammyTimeoutSeconds = 0.5;
 
 int popcount5(uint32_t mask) {
   int count = 0;
@@ -175,6 +177,9 @@ FoFiXSessionEvent FoFiXGameplaySession::make_event(
   event.rock_fill = fofix_rock_fill(rock_);
   event.star_power_fill = fofix_star_power_fill(star_power_);
   event.failed = fofix_rock_failed(rock_);
+  event.phrase_state = star_phrase_active_
+                           ? static_cast<uint8_t>(star_phrase_missed_ ? 1 : 2)
+                           : 0;
   return event;
 }
 
@@ -235,11 +240,10 @@ void FoFiXGameplaySession::award_sustain(const ActiveSustain& sustain,
 void FoFiXGameplaySession::update_sustains(double song_time,
                                            double dt_seconds,
                                            uint32_t held_frets,
-                                           bool whammy) {
-  if (active_sustains_.empty()) return;
+                                           float whammy_axis) {
   std::vector<ActiveSustain> keep;
   keep.reserve(active_sustains_.size());
-  bool whammy_awarded = false;
+  const ActiveSustain* whammy_sustain = nullptr;
   for (const ActiveSustain& sustain : active_sustains_) {
     if (song_time >= sustain.end_time) {
       award_sustain(sustain, sustain.end_time);
@@ -249,24 +253,49 @@ void FoFiXGameplaySession::update_sustains(double song_time,
       award_sustain(sustain, song_time);
       continue;
     }
-    if (whammy && sustain.star_power_tail && !whammy_awarded &&
-        song_time - sustain.start_time > sustain.beat_seconds / 8.0) {
-      const double before = star_power_.value;
-      star_power_.value =
-          std::clamp(star_power_.value +
-                             std::max(0.0, dt_seconds) *
-                             kGh2WhammyStarPowerPerSecond,
-                     0.0, 100.0);
-      if (star_power_.value > before) {
-        whammy_awarded = true;
-        last_events_.push_back(make_event(FoFiXSessionEventType::StarPowerWhammy,
-                                          song_time, sustain.mask,
-                                          sustain.gem_count, 0,
-                                          sustain.source_index,
-                                          sustain.source_tick));
-      }
-    }
+    if (sustain.star_power_tail && !whammy_sustain) whammy_sustain = &sustain;
     keep.push_back(sustain);
+  }
+
+  // GemPlayer::FilteredWhammyBar (0x822C8438) does not treat the whammy bar
+  // as a digital held input.  It measures filtered-axis velocity against the
+  // loaded whammy_speed (0.05), then keeps Player::mWhammying alive for the
+  // loaded whammy_timeout (0.5 seconds).  Player::Poll (0x822DBD60) awards the
+  // fixed whammy_rate (0.034 meter/second) while that state is live.
+  const float filtered_axis = std::clamp(whammy_axis, -1.0f, 1.0f);
+  const double sample_dt = has_whammy_sample_
+                               ? song_time - last_whammy_sample_time_
+                               : 0.0;
+  bool fast_whammy = false;
+  if (whammy_sustain && sample_dt > 0.0) {
+    const double speed =
+        std::abs(static_cast<double>(filtered_axis - last_whammy_axis_)) /
+        sample_dt;
+    fast_whammy = speed > kGh2WhammySpeed;
+    if (fast_whammy) last_fast_whammy_time_ = song_time;
+    whammying_ = fast_whammy ||
+                 song_time - last_fast_whammy_time_ <
+                     kGh2WhammyTimeoutSeconds;
+  } else {
+    whammying_ = false;
+    if (!whammy_sustain) last_fast_whammy_time_ = -1.0e30;
+  }
+  last_whammy_axis_ = filtered_axis;
+  last_whammy_sample_time_ = song_time;
+  has_whammy_sample_ = true;
+
+  if (whammy_sustain && whammying_) {
+    const double before = star_power_.value;
+    star_power_.value =
+        std::clamp(star_power_.value + std::max(0.0, dt_seconds) *
+                                              kGh2WhammyStarPowerPerSecond,
+                   0.0, 100.0);
+    if (star_power_.value > before) {
+      last_events_.push_back(make_event(
+          FoFiXSessionEventType::StarPowerWhammy, song_time,
+          whammy_sustain->mask, whammy_sustain->gem_count, 0,
+          whammy_sustain->source_index, whammy_sustain->source_tick));
+    }
   }
   active_sustains_ = std::move(keep);
 }
@@ -395,10 +424,11 @@ void FoFiXGameplaySession::apply_hit(size_t start,
     if (i < consumed_.size()) consumed_[i] = 1;
   }
   ++hits_;
-  last_events_.push_back(make_event(FoFiXSessionEventType::Hit, song_time,
-                                    mask, gem_count, award.points,
-                                    notes_[start].source_index,
-                                    notes_[start].source_tick));
+  FoFiXSessionEvent hit_event = make_event(
+      FoFiXSessionEventType::Hit, song_time, mask, gem_count, award.points,
+      notes_[start].source_index, notes_[start].source_tick);
+  if (completes_clean_star_phrase) hit_event.phrase_state = 3;
+  last_events_.push_back(hit_event);
   if (completes_clean_star_phrase) finish_star_phrase();
 }
 
@@ -444,6 +474,11 @@ void FoFiXGameplaySession::apply_overstrum(uint32_t held_frets) {
 void FoFiXGameplaySession::seek_without_scoring(double song_time) {
   last_events_.clear();
   last_time_ = std::max(0.0, song_time);
+  last_whammy_axis_ = 0.0f;
+  last_whammy_sample_time_ = last_time_;
+  last_fast_whammy_time_ = -1.0e30;
+  has_whammy_sample_ = false;
+  whammying_ = false;
   prev_fret_mask_ = 0;
   diagnostic_autoplay_last_strum_tick_ = UINT32_MAX;
   active_sustains_.clear();
@@ -672,7 +707,8 @@ void FoFiXGameplaySession::copy_active_sustains(
   }
 }
 
-void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
+void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask,
+                                float whammy_axis) {
   last_events_.clear();
   const double dt = std::max(0.0, song_time - last_time_);
   last_time_ = std::max(last_time_, song_time);
@@ -704,11 +740,12 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   const uint32_t held_frets = fret_mask & 0x1fu;
   const uint32_t pressed_frets = held_frets & ~previous_held_frets;
   const uint32_t released_frets = previous_held_frets & ~held_frets;
-  const bool whammy = (fret_mask & (1u << 7)) != 0;
-  if (strummed)
-    active_sustains_.clear();
-  else
-    update_sustains(song_time, dt, held_frets, whammy);
+  const float filtered_whammy_axis =
+      (fret_mask & (1u << 7)) != 0
+          ? std::clamp(whammy_axis, -1.0f, 1.0f)
+          : 0.0f;
+  if (strummed) active_sustains_.clear();
+  update_sustains(song_time, dt, held_frets, filtered_whammy_axis);
   bool hit_this_frame = false;
   bool overstrum_candidate_seen = false;
   size_t overstrum_candidate_start = 0;

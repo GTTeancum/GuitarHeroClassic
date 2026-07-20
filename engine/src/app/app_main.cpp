@@ -30,6 +30,8 @@
 //                                      add a real star-power button edge
 //   ghogx_app --diagnostic-guitar-script-whammy
 //                                      hold whammy on generated star sustains
+//   ghogx_app --diagnostic-guitar-script-whammy-sweep
+//                                      sweep the proof-only whammy axis while held
 //   ghogx_app --debug-note-counter     show note count + next STANDARD/STAR/HOPO
 //   ghogx_app --aspect <4:3|16:9>      render aspect preset (default: 4:3)
 //   ghogx_app --diagnostic-character <c>
@@ -193,6 +195,7 @@ struct DiagnosticChartScriptWindow {
   double end_sec = 0.0;
   double hit_offset_sec = -(1.0 / 120.0);
   bool whammy_star_sustains = false;
+  bool whammy_sweep = false;
   std::optional<double> star_power_at_sec;
 };
 
@@ -316,7 +319,7 @@ std::optional<DiagnosticChartScriptWindow> parse_diagnostic_chart_script_window(
           ? -(1.0 / 120.0)
           : std::strtod(spec.substr(offset_colon + 1).c_str(), nullptr);
   return DiagnosticChartScriptWindow{start_sec, end_sec, hit_offset_sec, false,
-                                     std::nullopt};
+                                     false, std::nullopt};
 }
 
 bool diagnostic_hide_hud_enabled() {
@@ -432,7 +435,24 @@ class AppEngine : public ghogx::Engine {
           fret_mask |= *diagnostic_guitar_mask_ & 0xffu;
         }
       }
-      gameplay_.tick(dt, fret_mask);
+      float whammy_axis = win_->guitar_whammy_axis();
+      if ((fret_mask & (1u << 7)) != 0 &&
+          diagnostic_chart_script_window_ &&
+          diagnostic_chart_script_window_->whammy_sweep) {
+        // Proof-only stand-in for a physical bar moving through its unipolar
+        // travel. The live controller path above remains the direct signed
+        // axis consumed by the decoded Tail::Poll contract.
+        constexpr double kSweepHz = 2.0;
+        constexpr double kTau = 6.28318530717958647692;
+        whammy_axis = static_cast<float>(
+            -(0.5 - 0.5 * std::cos(gameplay_.song_time() * kTau * kSweepHz)));
+      } else if ((fret_mask & (1u << 7)) != 0 &&
+          std::abs(whammy_axis) < 0.0001f) {
+        // Harmonix guitar-controller whammy output is clamped to [-1, 0].
+        // Scripted digital whammy therefore uses full negative travel.
+        whammy_axis = -1.0f;
+      }
+      gameplay_.tick(dt, fret_mask, whammy_axis);
       if (gameplay_.failed()) {
         std::fprintf(stderr, "[ghogx] song failed; final score %d\n",
                      gameplay_.score());
@@ -2772,6 +2792,9 @@ int main(int argc, char** argv) {
       const bool whammy_star_sustains =
           diagnostic_chart_script_window &&
           diagnostic_chart_script_window->whammy_star_sustains;
+      const bool whammy_sweep =
+          diagnostic_chart_script_window &&
+          diagnostic_chart_script_window->whammy_sweep;
       const std::optional<double> star_power_at_sec =
           diagnostic_chart_script_window
               ? diagnostic_chart_script_window->star_power_at_sec
@@ -2781,6 +2804,7 @@ int main(int argc, char** argv) {
       if (diagnostic_chart_script_window) {
         diagnostic_chart_script_window->whammy_star_sustains =
             whammy_star_sustains;
+        diagnostic_chart_script_window->whammy_sweep = whammy_sweep;
         diagnostic_chart_script_window->star_power_at_sec = star_power_at_sec;
       }
     } else if (std::strcmp(argv[i], "--diagnostic-guitar-script-star-power-at") == 0 &&
@@ -2795,6 +2819,14 @@ int main(int argc, char** argv) {
         diagnostic_chart_script_window = DiagnosticChartScriptWindow{};
       }
       diagnostic_chart_script_window->whammy_star_sustains = true;
+    } else if (std::strcmp(
+                   argv[i],
+                   "--diagnostic-guitar-script-whammy-sweep") == 0) {
+      if (!diagnostic_chart_script_window) {
+        diagnostic_chart_script_window = DiagnosticChartScriptWindow{};
+      }
+      diagnostic_chart_script_window->whammy_star_sustains = true;
+      diagnostic_chart_script_window->whammy_sweep = true;
     } else if (std::strcmp(argv[i], "--debug-note-counter") == 0) {
       debug_note_counter = true;
     } else if ((std::strcmp(argv[i], "--aspect") == 0 ||
@@ -3206,11 +3238,13 @@ int main(int argc, char** argv) {
     std::fprintf(
         stderr,
         "[ghogx] diagnostic chart guitar script requested: %.3f..%.3f "
-        "hit_offset=%.4f whammy_star_sustains=%d star_power_at=%.3f\n",
+        "hit_offset=%.4f whammy_star_sustains=%d whammy_sweep=%d "
+        "star_power_at=%.3f\n",
         diagnostic_chart_script_window->start_sec,
         diagnostic_chart_script_window->end_sec,
         diagnostic_chart_script_window->hit_offset_sec,
         diagnostic_chart_script_window->whammy_star_sustains ? 1 : 0,
+        diagnostic_chart_script_window->whammy_sweep ? 1 : 0,
         diagnostic_chart_script_window->star_power_at_sec
             ? *diagnostic_chart_script_window->star_power_at_sec
             : -1.0);

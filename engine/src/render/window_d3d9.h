@@ -91,6 +91,11 @@ class Window {
   // Fret and whammy keys are held; strum/star power are edge-only.
   uint32_t guitar_input_held() const;
 
+  // Signed whammy position in [-1, 1]. Keyboard whammy supplies +1. The
+  // held bit above remains the thresholded gameplay action; this value keeps
+  // the analog travel needed by the retail sustain-tail controller.
+  float guitar_whammy_axis() const;
+
   // Opaque implementation state (Win32 + D3D9); defined in the .cpp. Public
   // only so the window-proc can reach it; callers never touch it.
   struct Impl;

@@ -404,7 +404,7 @@ int main() {
         {3.0, 3.0, kRed, false, true},
     });
     session.tick(1.0, kGreen | kStrum);
-    session.tick(1.25, kGreen | kRed | kWhammy);
+    session.tick(1.25, kGreen | kRed | kWhammy, -0.25f);
     std::vector<FoFiXSessionSustain> sustains;
     session.copy_active_sustains(sustains);
     CHECK(session.star_power_fill() > 0.008 &&
@@ -573,19 +573,36 @@ int main() {
         {3.0, 3.0, kRed, false, true},
     });
     session.tick(1.0, kGreen | kStrum);
-    session.tick(1.05, kGreen | kWhammy);
-    CHECK(session.star_power_fill() == 0.0,
-          "FoFiX whammy waits for a valid held sustain length");
-    session.tick(1.25, kGreen | kWhammy);
-    CHECK(session.star_power_fill() > 0.005 &&
-              session.star_power_fill() < 0.007,
-          "digital whammy adds FoFiX-style star power on valid star sustains");
+    session.tick(1.05, kGreen | kWhammy, -0.1f);
+    CHECK(session.star_power_fill() > 0.0016 &&
+              session.star_power_fill() < 0.0018,
+          "moving whammy begins GH2 star-power gain immediately on a held star sustain");
+    session.tick(1.25, kGreen | kWhammy, -0.1f);
+    CHECK(session.star_power_fill() > 0.008 &&
+              session.star_power_fill() < 0.009,
+          "GH2 whammy timeout keeps fixed-rate star-power gain alive after bar motion");
     CHECK(session.last_events().size() == 1 &&
               session.last_events()[0].type ==
                   FoFiXSessionEventType::StarPowerWhammy &&
               session.last_events()[0].mask == kGreen &&
-              session.last_events()[0].star_power_fill > 0.005,
-          "FoFiX whammy gain is surfaced for native presentation");
+              session.last_events()[0].star_power_fill > 0.008,
+          "GH2 moving-bar whammy gain is surfaced for native presentation");
+    session.tick(1.8, kGreen | kWhammy, -0.1f);
+    CHECK(session.star_power_fill() > 0.008 &&
+              session.star_power_fill() < 0.009 &&
+              session.last_events().empty(),
+          "stationary whammy stops earning after the decoded GH2 timeout");
+  }
+
+  {
+    FoFiXGameplaySession session({
+        {1.0, 2.0, kGreen, false, true},
+        {3.0, 3.0, kRed, false, true},
+    });
+    session.tick(1.0, kGreen | kStrum);
+    session.tick(1.25, kGreen | kWhammy, 0.0f);
+    CHECK(session.star_power_fill() == 0.0 && session.last_events().empty(),
+          "holding a digital whammy flag without bar motion does not earn star power");
   }
 
   {
@@ -616,6 +633,10 @@ int main() {
         make_note(2.0, 2.0, kYellow, false, false),
     });
     session.tick(1.0, kGreen | kStrum);
+    CHECK(session.last_events().size() == 1 &&
+              session.last_events()[0].type == FoFiXSessionEventType::Hit &&
+              session.last_events()[0].phrase_state == 2,
+          "star phrase hit reports retail kPhraseHitting state");
     session.tick(1.1, kGreen);
     session.tick(1.5, kRed | kStrum);
     CHECK(session.star_power_fill() > 0.249 &&
@@ -623,6 +644,7 @@ int main() {
           "completed star phrase awards quarter meter on final star hit");
     CHECK(session.last_events().size() == 2 &&
               session.last_events()[0].type == FoFiXSessionEventType::Hit &&
+              session.last_events()[0].phrase_state == 3 &&
               session.last_events()[1].type ==
                   FoFiXSessionEventType::StarPhraseComplete &&
               session.last_events()[1].star_power_fill > 0.249 &&

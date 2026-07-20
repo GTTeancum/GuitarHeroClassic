@@ -47,11 +47,15 @@ class HighwayRenderer {
     float r = 1.0f;
     float g = 1.0f;
     float b = 1.0f;
+    float frame = 0.0f;
+  };
+  struct ColorAnimAlphaKey {
     float a = 1.0f;
     float frame = 0.0f;
   };
   struct ColorAnimState {
     std::vector<ColorAnimKey> keys;
+    std::vector<ColorAnimAlphaKey> alpha_keys;
     bool has_rgb = false;
     bool has_alpha = false;
     bool ok = false;
@@ -82,6 +86,14 @@ class HighwayRenderer {
     bool has_scale = false;
     std::array<float, 3> scale = {1.0f, 1.0f, 1.0f};
   };
+  struct ParticleColorAnimKey {
+    std::array<float, 4> color = {1.0f, 1.0f, 1.0f, 1.0f};
+    float frame = 0.0f;
+  };
+  struct ParticleVector2AnimKey {
+    std::array<float, 2> value = {0.0f, 0.0f};
+    float frame = 0.0f;
+  };
 
   // Load the GH2 track texture set natively from track/gen/track.milo_ps2.
   // `surface_ref` is the resolved guitarist highway bitmap entry; empty keeps
@@ -107,9 +119,11 @@ class HighwayRenderer {
             const std::vector<FoFiXSessionSustain>* active_sustains = nullptr,
             bool star_power_active = false,
             bool whammy_active = false,
+            float whammy_axis = 0.0f,
             const float star_collect_flash[5] = nullptr,
              const float miss_flash[5] = nullptr,
              const float star_miss_flash[5] = nullptr,
+             const uint8_t hit_phrase_state[5] = nullptr,
              int combo_multiplier = 1,
              float bad_feedback_flash = 0.0f,
              float rock_fill = 1.0f,
@@ -122,9 +136,11 @@ class HighwayRenderer {
                        const std::vector<FoFiXSessionSustain>* active_sustains = nullptr,
                        bool star_power_active = false,
                        bool whammy_active = false,
+                       float whammy_axis = 0.0f,
                        const float star_collect_flash[5] = nullptr,
                         const float miss_flash[5] = nullptr,
                         const float star_miss_flash[5] = nullptr,
+                        const uint8_t hit_phrase_state[5] = nullptr,
                         int combo_multiplier = 1,
                         float bad_feedback_flash = 0.0f,
                         float rock_fill = 1.0f,
@@ -188,6 +204,11 @@ class HighwayRenderer {
     bool texture_wrap = false;
     bool ok = false;
   };
+  struct SustainVisualState {
+    std::array<float, 100> whammy_history = {};
+    size_t whammy_cursor = 0;
+    float glow_width_scale = 1.0f;
+  };
   struct RuntimeParticleSystem {
     std::string name;
     std::string texture_name;
@@ -224,6 +245,12 @@ class HighwayRenderer {
     float bubble_period_max = 10.0f;
     float bubble_size_min = 1.0f;
     float bubble_size_max = 1.0f;
+    std::vector<ParticleColorAnimKey> anim_start_color_keys;
+    std::vector<ParticleColorAnimKey> anim_end_color_keys;
+    std::vector<ParticleVector2AnimKey> anim_emit_rate_keys;
+    std::vector<ParticleVector2AnimKey> anim_speed_keys;
+    std::vector<ParticleVector2AnimKey> anim_life_keys;
+    std::vector<ParticleVector2AnimKey> anim_start_size_keys;
     bool ok = false;
   };
 
@@ -235,9 +262,11 @@ class HighwayRenderer {
                  const std::vector<FoFiXSessionSustain>* active_sustains,
                   bool star_power_active,
                   bool whammy_active,
+                  float whammy_axis,
                   const float star_collect_flash[5],
                    const float miss_flash[5],
                    const float star_miss_flash[5],
+                   const uint8_t hit_phrase_state[5],
                    int combo_multiplier,
                    float bad_feedback_flash,
                    float rock_fill,
@@ -326,7 +355,8 @@ class HighwayRenderer {
       float origin_y, double song_time, float intensity = 1.0f,
       bool one_shot = false, float x_scale = 1.0f,
       bool apply_depth_fade = false, float depth_fade_top_y = 0.0f,
-      float depth_fade_alpha_dist = 0.0f) const;
+      float depth_fade_alpha_dist = 0.0f,
+      float state_frame = -1.0f) const;
   void configure_source_lighting() const;
   void load_track_graphics_config(const std::string& hdr_path,
                                   const std::string& ark_path);
@@ -348,9 +378,9 @@ class HighwayRenderer {
   float cam_far_ = 200.0f;
   float cam_z_start_ = 0.0f;
   float cam_z_end_ = 0.1f;
-  float burn_normal_y_ = 0.0f;
-  float burn_whammy_y_ = 10.0f;
-  float burn_bonus_y_ = 20.0f;
+  float burn_normal_frame_ = 0.0f;
+  float burn_whammy_frame_ = 10.0f;
+  float burn_bonus_frame_ = 20.0f;
   std::array<std::string, 5> slot_color_names_ = {
       "green", "red", "yellow", "blue", "orange"};
   std::array<uint32_t, 5> slot_lane_colors_ = {
@@ -365,7 +395,9 @@ class HighwayRenderer {
   std::array<RuntimeMesh, 5> held_tail_mesh_;
   std::array<RuntimeLineMaterial, 5> held_tail_line_material_;
   RuntimeMesh held_tight_tail_mesh_;
+  RuntimeLineMaterial held_tight_tail_line_material_;
   RuntimeMesh burn_castlight_mesh_;
+  ColorAnimState burn_castlight_color_anim_;
   std::vector<RuntimeParticleSystem> burn_tail_particles_;
   std::vector<RuntimeParticleSystem> smash_normal_particles_;
   std::vector<RuntimeParticleSystem> smash_bonus_particles_;
@@ -385,9 +417,12 @@ class HighwayRenderer {
   RuntimeMesh gem_glow_mesh_;
   RuntimeMesh star_phrase_tail_mesh_;
   RuntimeMesh star_tail_mesh_;
+  RuntimeLineMaterial star_tail_line_material_;
   RuntimeMesh whammy_tail_mesh_;
   RuntimeLineMaterial whammy_tail_line_material_;
   RuntimeMesh bonus_tail_mesh_;
+  RuntimeMesh bonus_glow_tail_mesh_;
+  RuntimeLineMaterial bonus_tail_line_material_;
   RuntimeMesh bonus_gem_mesh_;
   RuntimeMesh bonus_gem_overlay_mesh_;
   RuntimeMesh gem_sparkle_mesh_;
@@ -462,6 +497,9 @@ class HighwayRenderer {
   bool track_environment_color_ok_ = false;
   std::vector<RuntimeLight> track_lights_;
   std::string loaded_surface_ref_;
+  std::map<uint64_t, SustainVisualState> sustain_visual_states_;
+  float whammy_envelope_ = 0.0f;
+  double last_sustain_visual_time_ = -1.0;
   bool selected_surface_loaded_ = false;
   bool loaded_ = false;
 };

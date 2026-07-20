@@ -34772,6 +34772,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                 lane_hit_[lane] = true;
                 hit_flash_mask_ |= (1u << lane);
                 lane_flash_[lane] = 1.0f;
+                hit_phrase_state_[lane] = event.phrase_state;
                 if (star_collect) star_collect_flash_[lane] = 1.0f;
                 apply_venue_event(player_fret_hit_event(lane), false);
             }
@@ -34935,8 +34936,13 @@ void Gameplay::sync_consumed_notes_from_gameplay_session() {
     }
 }
 
-void Gameplay::tick(float dt, uint32_t fret_mask) {
+void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
     if (!chart_loaded_) return;
+
+    const float live_whammy_axis =
+        (fret_mask & (1u << 7)) != 0
+            ? std::clamp(whammy_axis, -1.0f, 1.0f)
+            : 0.0f;
 
     // On the first tick, start the audio. Diagnostic song-start can begin at a
     // nonzero clock, so this must be explicit instead of keyed to song_time_.
@@ -35190,9 +35196,11 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     if (failed_) {
         active_sustains_.clear();
         bad_gameplay_feedback_this_frame =
-            update_gameplay_session_mirror(fret_mask, true);
+            update_gameplay_session_mirror(fret_mask, true, false,
+                                           live_whammy_axis);
         update_presentation_after_gameplay();
         prev_fret_mask_ = fret_mask;
+        prev_whammy_axis_ = live_whammy_axis;
         print_score_summary();
         return;
     }
@@ -35213,9 +35221,11 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     if (gameplay_session_mirror_) {
         bad_gameplay_feedback_this_frame =
             update_gameplay_session_mirror(
-                fret_mask, true, gameplay_session_already_ticked);
+                fret_mask, true, gameplay_session_already_ticked,
+                live_whammy_axis);
         update_presentation_after_gameplay();
         prev_fret_mask_ = fret_mask;
+        prev_whammy_axis_ = live_whammy_axis;
         print_score_summary();
         return;
     }
@@ -35397,6 +35407,12 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             lane_hit_[n.lane] = true;
             hit_flash_mask_ |= (1u << n.lane);
             lane_flash_[n.lane] = 1.0f;
+            hit_phrase_state_[n.lane] = static_cast<uint8_t>(
+                completes_clean_star_phrase
+                    ? 3
+                    : (star_phrase_active_
+                           ? (star_phrase_missed_ ? 1 : 2)
+                           : 0));
             if (n.star_power) star_collect_flash_[n.lane] = 1.0f;
             if (i < consumed.size()) consumed[i] = 1;
             apply_venue_event(player_fret_hit_event(n.lane), false);
@@ -35598,11 +35614,12 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     if (next_note_idx_ >= notes.size()) {
         finish_star_phrase();
     }
-    update_gameplay_session_mirror(fret_mask, false);
+    update_gameplay_session_mirror(fret_mask, false, false, live_whammy_axis);
 
     update_presentation_after_gameplay();
 
     prev_fret_mask_ = fret_mask;
+    prev_whammy_axis_ = live_whammy_axis;
 
     // Print score summary once per second.
     print_score_summary();
@@ -37211,6 +37228,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
     }
 
     const bool highway_whammy_active = (prev_fret_mask_ & (1u << 7)) != 0;
+    const float highway_whammy_axis =
+        highway_whammy_active ? prev_whammy_axis_ : 0.0f;
     if (world_) {
         const double dt = (last_anim_time_ < 0.0)
                               ? 0.0
@@ -39616,10 +39635,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                           std::clamp(difficulty_, 0, 3)],
                                       &active_session_sustains_,
                                       star_power_.active,
-                                      highway_whammy_active,
+                                       highway_whammy_active,
+                                       highway_whammy_axis,
                                       star_collect_flash_,
                                       miss_flash_,
                                       star_miss_flash_,
+                                      hit_phrase_state_,
                                       multiplier_,
                                       bad_highway_flash_,
                                       fofix_rock_fill(rock_),
@@ -40059,9 +40080,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &active_session_sustains_,
                                   star_power_.active,
                                   highway_whammy_active,
+                                  highway_whammy_axis,
                                   star_collect_flash_,
                                   miss_flash_,
                                   star_miss_flash_,
+                                  hit_phrase_state_,
                                   multiplier_,
                                   bad_highway_flash_,
                                   fofix_rock_fill(rock_),
@@ -40089,9 +40112,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                    &active_session_sustains_,
                    star_power_.active,
                    highway_whammy_active,
+                   highway_whammy_axis,
                    star_collect_flash_,
                    miss_flash_,
                    star_miss_flash_,
+                   hit_phrase_state_,
                    multiplier_,
                    bad_highway_flash_,
                    fofix_rock_fill(rock_),
