@@ -14895,3 +14895,148 @@ against PS2 retail):
   visible at the first 25% award.
   `amp_inside_bar_path.mesh` is also retained at full length. Glass, chrome,
   caps, ready glow, particles, and lightning remain independent.
+
+2026-07-20 LightPreset spotlight controller correction (public Harmonix source,
+GH2 PS2 retail layout, and native theatre validation):
+
+- `LightPreset::SpotlightEntry::Load` serializes intensity, orientation
+  quaternion, packed color, target, and per-keyframe flare-enabled state in
+  that order. `LightPreset::Animate` asserts the spotlight reference and state
+  arrays have equal sizes and applies state `i` to spotlight `i`. The previous
+  native route discarded quaternion/flare data, collapsed entries by target
+  mesh, then guessed spotlight ownership; shared and null targets therefore
+  lost authored state.
+- Source-decoded keyframes now retain every spotlight entry and its exact
+  `mSpotlights[i]` reference, including null-target entries. Runtime activation
+  applies those paired rows directly. Target-based inference remains only for
+  the older fallback scanner.
+- Preset color and orientation are gated by each decoded Spotlight object's
+  `animate_color_from_preset` / `animate_orientation_from_preset` flags.
+  Explicit null targets remain null so saved quaternion orientation can drive
+  the fixture, and the serialized flare bit now controls the authored flare.
+- The earlier `0.08/0.18/0.45/0.75/1.0` excitement exposure multiplier had no
+  LightPreset source contract and compounded the already-authored preset
+  selection. It has been removed from spotlight intensity and venue/lighting
+  material alpha; decoded preset and animation values now reach rendering
+  unchanged.
+- `Spotlight::UpdateTransforms` constructs the lens basis from
+  `(-size,0,0)`, `(0,0,size)`, `(0,size,0)` before multiplying by the fixture
+  world rotation. Generated native lenses now use that exact basis rather than
+  scaling two axes of the fixture transform.
+- The later RB3 `ComputeSpotBlend(i,f)` five-way stagger was not imported: the
+  GH2 retail executable audit did not establish that later transition helper
+  as GH2 behavior. Native retains the existing GH2 fade until retail evidence
+  says otherwise.
+- Validation: `ghogx_milo_scene_test`, the venue/band contract test plus import
+  guard, and the app import guard pass. A 600-frame live `cantyouhearme` /
+  theatre run at 30 Hz cleanly applied all 44 serialized spotlight rows for
+  every observed keyframe (`source_paired_spots=44`, `active_spots=44`), with
+  zero inferred/target-bucket fixtures, zero misses, and `failed=0`.
+
+2026-07-20 stored-star glow accepted approximation after live review:
+
+- The retail `amp_inside_bar.mesh`, `amp_inside_bar_path.mesh`, and
+  `amp_tube_glow_meter.mesh` all serialize `star_meter.view` as their transform
+  parent. The wide glow is also drawn through `star_meter_ready.view`, but that
+  drawable grouping does not replace its transform parent.
+- Two attempts to reveal the decoded wide glow directly were rejected in live
+  review: screen-X shortening produced a detached cyan wedge, while source-
+  mesh clipping still did not reproduce retail placement. Those attempts are
+  not retained as a claimed retail contract.
+- The accepted native result is deliberately a band-aid, not a decoded retail
+  implementation. It remaps the wide glow into the decoded
+  `amp_inside_bar.mesh` tube bounds with a small halo and reveals that aligned
+  glow from left to right. The thin tube and path remain fixed at full length.
+  This is the stopping point for the meter until a future dedicated RE pass.
+- The 25/50/100-percent sanity captures are under
+  `engine/out/runtime_proofs/star-meter-tube-band-aid-20260720/`.
+
+2026-07-20 source-backed environment and performer lighting correction:
+
+- The exact GH2 Xbox 360 platform path supersedes the earlier later-engine
+  `mLightsApprox` interpretation for directional-light application. RTTI maps
+  `DxEnviron::Select` at `0x8230B758`; its type-1 helper at `0x8230B150` reads
+  `WorldXfm().m.y`, negates it, and writes that surface-to-light vector to
+  shader constants `0x40 + lightIndex`. It copies the authored RGBA at the
+  light's `+0xB4..+0xC0` unchanged into `0x48 + lightIndex`, including the
+  authored 7x rim value.
+- Native PC rendering uses D3D9 fixed-function lighting rather than the X360
+  shader. `D3DLIGHT9::Direction` is the emitted-light travel direction, the
+  opposite convention from GH2's surface-to-light vector. The faithful bridge
+  is therefore `+WorldXfm().m.y` (matrix elements `4..6`), not the previously
+  guessed `-WorldXfm().m.z`. Fake-spot aim remains on its separate `-Z` path;
+  the correction does not rotate venue spotlights or scale authored colors.
+- Public Harmonix `RndEnviron` source stores `mAmbientColor` and
+  `mLightsApprox` as separate channels and exposes separate
+  `ambient_color`/`lights_approx` properties. Native had averaged every
+  approximate light back into ambient while also installing it as a D3D
+  directional light. Bright authoring, especially the 7x character rim,
+  therefore saturated performer ambient to white and erased the intended
+  directionality. Native now submits approximate lights only through the
+  directional-light slots and leaves authored ambient unchanged.
+- Decoded LightPreset `EnvironmentEntry` and `EnvLightEntry` rows already own
+  performer/crowd color, intensity, range, type, orientation, and transition.
+  The older preset-name fallback applied a second material tint and reduced
+  `blackout` materials to `0.04`, even when the authored blackout keyframe kept
+  nonzero brown/blue character lights. All name/adjective/excitement material
+  multipliers are removed; character and crowd materials remain at identity
+  while their selected `character.env`, `band.env`, `drummer.env`, or
+  `crowd.env` supplies the light state.
+- `LightPreset::Animate` applies serialized spotlight entries in source order.
+  Festival presets repeat spotlight object references, so the later row for a
+  repeated fixture is the state retail leaves installed. Native now resolves
+  repeats with later-entry-wins behavior instead of sorting first and retaining
+  an arbitrary duplicate.
+- Active LightPreset diagnostics across the lighting proof set observed only
+  types 0 and 1 (21 and 95 logged rows respectively). No active row entered the
+  legacy `RndLight` enum range where GH2's old-object type remap could alter the
+  value, so no speculative LightPreset remap was added.
+- Cross-venue runtime coverage is under
+  `engine/out/runtime_proofs/lighting-cross-venue-20260720/`: arena, battle,
+  big, Festival, small1, theatre, and stone all decoded without light/environ
+  failures or unmatched preset references. Small2 is covered separately by
+  the `institutionalized`, `youreallygotme`, and `monkeywrench` lighting runs.
+- The post-fix Festival validation is
+  `engine/out/runtime_proofs/lighting-festival-later-wins-killinginthenameof-20260720/`.
+  It runs the main-setlist song from 100 to 110 seconds, remains in
+  `state=playing`, cycles the blue/green/lavender keyframes, pairs all 145
+  serialized spotlight states directly, resolves them to 65 active fixtures,
+  and uses zero inferred fixtures. All four band roles select decoded scene
+  lighting; the log confirms lit character meshes under `character.env` and
+  `band.env`.
+- `ghogx_milo_scene_test`, `ghogx_gameplay_session_test`, and
+  `ghogx_gameplay_venue_band_contract_test` all pass after this correction.
+
+2026-07-20 PS2/OG-Xbox-scale performer light-range correction:
+
+- A direct audit of decoded GH2 PS2 `metal1`, `metal_singer`, `metal_bass`,
+  and `metal_drummer` materials found that the main body surfaces consistently
+  author both `use_environ=1` and `prelit=1`. A first native interpretation
+  disabled directional lighting for those surfaces and folded only Environ RGB
+  into diffuse. The bounded `woman` / Festival run under
+  `engine/out/runtime_proofs/lighting-prelit-env-woman-fest-20260720/` rejected
+  that interpretation: it removed the harsh green band but left Axel nearly
+  black in the frame-450 close-up.
+- The character format already explains the missing distinction: skinned
+  character meshes repurpose the serialized vertex-color bytes as bone weights.
+  `prelit` therefore cannot be treated as a generic character-lighting bypass;
+  it describes how a real diffuse-color stream participates where one exists.
+  `use_environ` remains the source gate for character venue lighting.
+- Festival also authors shader-domain character lights above normalized color
+  range, including the `char_rim_lighting.lit` value `(7,7,7)`. Passing that
+  directly to a fixed-function `D3DCOLORVALUE` saturates the guitarist and
+  creates the brutal facial band. For character draws only, over-range
+  directional RGB is now divided by its largest component. This preserves hue,
+  direction, the exact authored values of every in-range light, and restores
+  the untouched venue light after the performer draw.
+- This is deliberately a DX8-era approximation: four existing fixed-function
+  directional slots, vertex normals, material diffuse, and authored ambient.
+  It adds no programmable shader, normal map, or Xbox 360 rendering feature.
+- Focused character, MILO scene, gameplay-session, and venue/band contract
+  tests pass. Runtime coverage is under
+  `engine/out/runtime_proofs/lighting-fixed-range-stop-fest-20260720/` and
+  `engine/out/runtime_proofs/lighting-fixed-range-heartshapedbox-arena-20260720/`.
+  The Festival close-ups keep Axel readable across warm and purple states with
+  no saturated green facial band; the Arena guard pass keeps Glam1 readable
+  under its separate character environment and also finishes in playing state
+  with zero gameplay failures.

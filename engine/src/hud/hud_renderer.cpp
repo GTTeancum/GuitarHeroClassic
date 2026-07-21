@@ -4123,27 +4123,46 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         }
         return drew;
       };
-  auto append_scaled_fill =
+  auto append_contained_meter_glow =
       [&](const std::vector<Quad>& source, float alpha_scale,
-          const StarClipRange& source_range) {
-        if (!source_range.ok || !(source_range.max_x > source_range.min_x)) {
+          const StarClipRange& source_range,
+          const StarClipRange& tube_range) {
+        if (!source_range.ok || !tube_range.ok ||
+            !(source_range.max_x > source_range.min_x) ||
+            !(source_range.max_z > source_range.min_z) ||
+            !(tube_range.max_x > tube_range.min_x) ||
+            !(tube_range.max_z > tube_range.min_z)) {
           return false;
         }
+
+        // This is deliberately a visual band-aid, not a retail-behavior
+        // claim. Keep the reconstructed broad glow centered on the permanent
+        // tube and reveal it along the tube's axis. A small symmetric vertical
+        // pad preserves a halo without allowing the glow to detach below it.
+        StarClipRange glow_bounds = tube_range;
+        const float tube_height = tube_range.max_z - tube_range.min_z;
+        glow_bounds.min_z -= tube_height * 0.15f;
+        glow_bounds.max_z += tube_height * 0.15f;
+
         bool drew = false;
         for (const Quad& src : source) {
-          Quad q = src;
-          // Source X is mirrored by HUD projection. Keep the screen-left end
-          // fixed and move only the broad glow's screen-right edge with fill.
-          // Preserving the complete source UV range keeps the authored glow
-          // visible at the first 25 percent award instead of clipping into its
-          // transparent feathered edge.
-          for (Quad::V& v : q.verts) {
-            v.wx = source_range.max_x -
-                   (source_range.max_x - v.wx) * fill;
+          Quad aligned = src;
+          for (Quad::V& v : aligned.verts) {
+            const float tx = std::clamp(
+                (v.wx - source_range.min_x) /
+                    (source_range.max_x - source_range.min_x),
+                0.0f, 1.0f);
+            const float tz = std::clamp(
+                (v.wz - source_range.min_z) /
+                    (source_range.max_z - source_range.min_z),
+                0.0f, 1.0f);
+            v.wx = tube_range.min_x +
+                   tx * (tube_range.max_x - tube_range.min_x);
+            v.wz = glow_bounds.min_z +
+                   tz * (glow_bounds.max_z - glow_bounds.min_z);
           }
-          q.color = scale_argb_alpha(q.color, alpha_scale);
-          out.push_back(std::move(q));
-          drew = true;
+          drew |= append_clipped_quad(aligned, std::nullopt, nullptr,
+                                      alpha_scale, tube_range, &glow_bounds);
         }
         return drew;
       };
@@ -4312,8 +4331,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (fill > 0.005f && meter_fill_glow &&
       debug_star_layer_matches("tube_meter", "wide_glow", "stored")) {
     drew_native_fill_glow =
-        append_scaled_fill(native_star_fill_glow_, tube_meter_alpha,
-                           tube_meter_range);
+        append_contained_meter_glow(native_star_fill_glow_, tube_meter_alpha,
+                                    tube_meter_range, core_fill_range);
     drew_native_fill |= drew_native_fill_glow;
   }
   if (tube_glow && debug_star_layer_matches("ready", "tube_glow")) {
@@ -4480,9 +4499,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "glass_material_mode=base_plus_cleartube_layer "
         "core_color_mode=source_lit_key_frame "
         "tube_meter_alpha_mode=source_peak_key_frame "
-        "tube_meter_mode=scaled_left_to_right_source_glow "
-        "tube_meter_u_mode=complete_source_uv_on_scaled_glow "
-        "tube_meter_containment=amp_tube_glow_meter_source_z "
+        "tube_meter_mode=approximate_tube_aligned_glow_reveal "
+        "tube_meter_u_mode=source_uv_preserved_on_aligned_glow "
+        "tube_meter_containment=amp_inside_bar_bounds_plus_halo "
         "ready_mesh_frame_mode=source_msnm_filter_stretch "
         "ready_glow_cap_occlusion=chrome_after_ready_glow "
         "ready_view_order=after_star_meter_view "
@@ -4509,7 +4528,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "path_clip_world_x=%.3f path_source_width=%.3f "
         "core_z_range=%.3f..%.3f tube_meter_z_range=%.3f..%.3f "
         "core_fill_layer=amp_inside_bar.mesh full_inside_glass_length "
-        "wide_fill_layer=amp_tube_glow_meter.mesh scaled "
+        "wide_fill_layer=amp_tube_glow_meter.mesh tube_aligned_band_aid "
         "thin_path_layer=amp_inside_bar_path.mesh full_width "
         "core_color_frame=%.2f "
         "path_uv_keys=%zu path_uv_frame=%.2f "

@@ -136,6 +136,44 @@ struct D3DStateCache {
   std::array<bool, 8> textures_valid{};
 };
 
+// The venue renderer owns fixed-function light slots 0..3 for approximate
+// directional lights. Character draws temporarily fit shader-domain colors to
+// fixed-function D3DCOLORVALUE range, then restore the exact venue state before
+// the next scene pass or performer selects its own Environ.
+struct ScopedCharacterSceneLightRange {
+  explicit ScopedCharacterSceneLightRange(IDirect3DDevice9* device,
+                                           bool enabled)
+      : dev(device) {
+    if (!dev || !enabled) return;
+    for (DWORD slot = 0; slot < original.size(); ++slot) {
+      D3DLIGHT9 light{};
+      if (FAILED(dev->GetLight(slot, &light))) continue;
+      original[slot] = light;
+      const auto rgb = source_character_fixed_function_light_rgb(
+          light.Diffuse.r, light.Diffuse.g, light.Diffuse.b);
+      if (rgb[0] == light.Diffuse.r && rgb[1] == light.Diffuse.g &&
+          rgb[2] == light.Diffuse.b) {
+        continue;
+      }
+      light.Diffuse.r = rgb[0];
+      light.Diffuse.g = rgb[1];
+      light.Diffuse.b = rgb[2];
+      changed[slot] = SUCCEEDED(dev->SetLight(slot, &light));
+    }
+  }
+
+  ~ScopedCharacterSceneLightRange() {
+    if (!dev) return;
+    for (DWORD slot = 0; slot < original.size(); ++slot) {
+      if (changed[slot]) dev->SetLight(slot, &original[slot]);
+    }
+  }
+
+  IDirect3DDevice9* dev = nullptr;
+  std::array<D3DLIGHT9, 4> original{};
+  std::array<bool, 4> changed{};
+};
+
 bool read_char_env_enabled(const char* name) {
   char* value = nullptr;
   size_t len = 0;
@@ -1968,6 +2006,8 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
     set_light(0, 0.3f, -0.6f, -0.5f, 0.6f);  // key from front-above
     set_light(1, -0.4f, 0.6f, -0.3f, 0.3f);  // fill from behind
   }
+  ScopedCharacterSceneLightRange scene_light_range(
+      dev, impl.use_scene_lighting);
   D3DMATERIAL9 mtrl{};
   mtrl.Diffuse.r = mtrl.Diffuse.g = mtrl.Diffuse.b = mtrl.Diffuse.a = 1.0f;
   mtrl.Ambient.r = mtrl.Ambient.g = mtrl.Ambient.b = mtrl.Ambient.a = 1.0f;
@@ -2096,9 +2136,11 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
         material_it != impl.character_mats_by_name.end()
             ? material_it->second
             : nullptr;
-    const bool scene_lit_mesh =
-        !eye_mesh &&
-        (!impl.use_scene_lighting || (material && material->use_environ));
+    const SourceCharacterMaterialLightingPlan material_lighting =
+        source_character_material_lighting_plan(
+            impl.use_scene_lighting, eye_mesh,
+            material && material->use_environ,
+            material && material->prelit);
     const bool hair_point_bone =
         character_mesh_uses_char_hair_point_bone(impl.character, m);
     // GH2 Mat.ng.cull is the source of truth for character surfaces.  Some
@@ -2111,22 +2153,27 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
     d3d_state.render(D3DRS_CULLMODE, mesh_cull_mode);
     d3d_state.render(D3DRS_ZWRITEENABLE,
                      material_depth_write_enabled(material) ? TRUE : FALSE);
-    d3d_state.render(D3DRS_LIGHTING, scene_lit_mesh ? TRUE : FALSE);
+    d3d_state.render(D3DRS_LIGHTING,
+                     material_lighting.fixed_function_lighting ? TRUE : FALSE);
     if (debug_lighting) {
       static std::set<std::string> logged_character_lighting;
       const std::string key = m.name + "|" + m.material + "|" +
                               (impl.use_scene_lighting ? "scene" : "viewer") +
-                              "|" + (scene_lit_mesh ? "lit" : "unlit");
+                              "|" +
+                              (material_lighting.fixed_function_lighting
+                                   ? "fixed_lit"
+                                   : "unlit");
       if (logged_character_lighting.insert(key).second) {
         std::fprintf(stderr,
                      "[char3d] performer lighting mesh=%s material=%s "
-                     "scene=%d use_env=%d prelit=%d lit=%d "
+                     "scene=%d use_env=%d prelit=%d fixed_lit=%d "
                      "color_mod=(%.3f %.3f %.3f %.3f)\n",
                      m.name.c_str(), m.material.c_str(),
                      impl.use_scene_lighting ? 1 : 0,
                      material && material->use_environ ? 1 : 0,
                      material && material->prelit ? 1 : 0,
-                     scene_lit_mesh ? 1 : 0, impl.color_mod[0],
+                     material_lighting.fixed_function_lighting ? 1 : 0,
+                     impl.color_mod[0],
                      impl.color_mod[1], impl.color_mod[2],
                      impl.color_mod[3]);
       }

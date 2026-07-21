@@ -52,7 +52,6 @@ constexpr DWORD kAuthoredLightFirstSlot =
 constexpr DWORD kAuthoredLightSlotCount = 4;
 constexpr float kMaxAuthoredLightColor = 64.0f;
 constexpr float kApproxDirectionalScale = 1.0f;
-constexpr float kApproxFillScale = 0.45f;
 
 struct D3DStateCache {
   explicit D3DStateCache(IDirect3DDevice9* device) : dev(device) {}
@@ -361,11 +360,20 @@ std::string environ_lighting_debug_signature(
   return key;
 }
 
-std::array<float, 3> authored_light_direction_from_world(
+std::array<float, 3> authored_fake_spot_direction_from_world(
     const std::array<float, 16>& light_world) {
   // RndLight aim follows the Trans -Z axis. The RedOctane band/drummer lights
   // are directional and their -Z rows consistently point down toward the band.
   return {-light_world[8], -light_world[9], -light_world[10]};
+}
+
+std::array<float, 3> authored_directional_emission_from_world(
+    const std::array<float, 16>& light_world) {
+  // GH2 X360 DxEnviron::Select's type-1 helper (0x8230B150) writes
+  // -WorldXfm().m.y as its surface-to-light shader vector. D3DLIGHT9::Direction
+  // instead stores the direction emitted light travels, so the fixed-function
+  // equivalent is the opposite vector: +WorldXfm().m.y.
+  return {light_world[4], light_world[5], light_world[6]};
 }
 
 bool is_authored_real_environment_light_type(int light_type) {
@@ -2458,6 +2466,223 @@ void draw_debug_pick_face_axis(IDirect3DDevice9* dev, int width, int height,
   dev->DrawPrimitiveUP(D3DPT_LINELIST, 6, verts, sizeof(DebugLineVertex));
 }
 
+milo_scene::Vertex generated_spotlight_vertex(float x, float y, float z,
+                                              float nx, float ny, float nz,
+                                              float u, float v,
+                                              float alpha = 1.0f,
+                                              float color = 1.0f) {
+  milo_scene::Vertex out{};
+  out.px = x;
+  out.py = y;
+  out.pz = z;
+  out.nx = nx;
+  out.ny = ny;
+  out.nz = nz;
+  out.r = color;
+  out.g = color;
+  out.b = color;
+  out.a = alpha;
+  out.u = u;
+  out.v = v;
+  return out;
+}
+
+void finish_generated_spotlight_mesh(milo_scene::MeshObj& mesh) {
+  mesh.vertex_count = static_cast<uint32_t>(mesh.verts.size());
+  mesh.face_count = static_cast<uint32_t>(mesh.indices.size() / 3u);
+  mesh.decoded = !mesh.verts.empty() && !mesh.indices.empty();
+  if (!mesh.decoded) return;
+  for (int c = 0; c < 3; ++c) {
+    mesh.bb_min[c] = std::numeric_limits<float>::infinity();
+    mesh.bb_max[c] = -std::numeric_limits<float>::infinity();
+  }
+  for (const auto& vertex : mesh.verts) {
+    const float p[3] = {vertex.px, vertex.py, vertex.pz};
+    for (int c = 0; c < 3; ++c) {
+      mesh.bb_min[c] = std::min(mesh.bb_min[c], p[c]);
+      mesh.bb_max[c] = std::max(mesh.bb_max[c], p[c]);
+    }
+  }
+}
+
+milo_scene::MeshObj make_generated_spotlight_beam(
+    const milo_scene::SpotlightObj& spot) {
+  milo_scene::MeshObj mesh;
+  mesh.name = "__generated_beam__" + spot.name;
+  mesh.material = spot.material;
+  mesh.showing = true;
+  const float length = std::max(0.0f, spot.beam_length);
+  const float top_radius = std::max(0.0f, spot.beam_top_radius);
+  const float bottom_radius = std::max(0.0f, spot.beam_bottom_radius);
+  if (length <= 0.0001f || mesh.material.empty() ||
+      (top_radius <= 0.0001f && bottom_radius <= 0.0001f)) {
+    return mesh;
+  }
+
+  constexpr float kTwoPi = 6.28318530717958647692f;
+  if (spot.beam_is_cone) {
+    // GH2 retail BuildCone (SLUS 0x002776e0) creates three rings of 16
+    // vertices. The last vertex closes a 15-section circumference. The middle
+    // ring marks the start of the authored bottom fade; only the final ring's
+    // alpha is zero.
+    constexpr int kConeSections = 15;
+    constexpr int kRingVerts = kConeSections + 1;
+    const float bottom_fade =
+        std::min(length, std::max(0.0f, length * spot.beam_bottom_border));
+    const float fade_start = length - bottom_fade;
+    const float fade_t = fade_start / length;
+    const float fade_radius =
+        top_radius + (bottom_radius - top_radius) * fade_t;
+    mesh.verts.reserve(kRingVerts * 3u);
+    mesh.indices.reserve(kConeSections * 12u);
+    for (int ring = 0; ring < 3; ++ring) {
+      const float axial = ring == 0 ? 0.0f : (ring == 1 ? fade_start : length);
+      const float radius =
+          ring == 0 ? top_radius : (ring == 1 ? fade_radius : bottom_radius);
+      const float alpha = ring == 2 ? 0.0f : 1.0f;
+      for (int i = 0; i < kRingVerts; ++i) {
+        const float u = static_cast<float>(i) / kConeSections;
+        const float theta = u * kTwoPi;
+        const float c = std::cos(theta);
+        const float s = std::sin(theta);
+        mesh.verts.push_back(generated_spotlight_vertex(
+            radius * c, axial, radius * s, c, 0.0f, s, u,
+            axial / length, alpha));
+      }
+    }
+    for (int ring = 0; ring < 2; ++ring) {
+      const uint16_t a = static_cast<uint16_t>(ring * kRingVerts);
+      const uint16_t b = static_cast<uint16_t>((ring + 1) * kRingVerts);
+      for (int i = 0; i < kConeSections; ++i) {
+        const uint16_t a0 = static_cast<uint16_t>(a + i);
+        const uint16_t a1 = static_cast<uint16_t>(a + i + 1);
+        const uint16_t b0 = static_cast<uint16_t>(b + i);
+        const uint16_t b1 = static_cast<uint16_t>(b + i + 1);
+        mesh.indices.insert(mesh.indices.end(),
+                            {a0, b0, a1, a1, b0, b1});
+      }
+    }
+  } else {
+    // GH2 retail BuildBeam (SLUS 0x00277c18) is a four-vertex ribbon at each
+    // longitudinal row, not a solid frustum. It interpolates the side-border
+    // widths along the shaft and subdivides the opaque and bottom-fade spans
+    // at approximately 15 world units per row. The original mesh uses -Z as
+    // its axial coordinate; this renderer maps that axis to its spotlight
+    // target axis (+Y) while preserving the recovered row data exactly.
+    const float bottom_fade =
+        std::max(0.0f, length * spot.beam_bottom_border);
+    const float top_length = length - bottom_fade;
+    const int bottom_rows =
+        std::max(1, static_cast<int>(std::lround(bottom_fade / 15.0f)));
+    const int top_rows =
+        std::max(4, static_cast<int>(std::lround(top_length / 15.0f)));
+    const int rows = top_rows + bottom_rows;
+    const float top_inner = spot.beam_top_side_border * top_radius;
+    const float bottom_inner =
+        spot.beam_bottom_side_border * bottom_radius;
+    const float fade_start_radius =
+        top_radius + (bottom_radius - top_radius) * (top_length / length);
+    const float top_radius_step =
+        (fade_start_radius - top_radius) / static_cast<float>(top_rows);
+    const float bottom_radius_step =
+        (bottom_radius - fade_start_radius) /
+        static_cast<float>(bottom_rows);
+    float radius = top_radius;
+    mesh.verts.reserve(static_cast<size_t>(rows) * 4u);
+    mesh.indices.reserve(static_cast<size_t>(std::max(0, rows - 1)) * 18u);
+    for (int row = 0; row < rows; ++row) {
+      float axial = 0.0f;
+      float intensity = 1.0f;
+      if (row == rows - 1) {
+        axial = length;
+        intensity = 0.0f;
+      } else if (row >= top_rows) {
+        const int fade_row = row - top_rows;
+        axial = top_length +
+                static_cast<float>(fade_row) * bottom_fade /
+                    static_cast<float>(bottom_rows);
+        intensity =
+            1.0f - static_cast<float>(fade_row) /
+                       static_cast<float>(bottom_rows);
+      } else {
+        axial = static_cast<float>(row) * top_length /
+                static_cast<float>(top_rows);
+      }
+
+      const float along = axial / length;
+      const float inner = top_inner + (bottom_inner - top_inner) * along;
+      const float inner_u =
+          radius > 0.0001f ? inner / (radius + radius) : 0.5f;
+      const float left_inner = std::max(inner - radius, 0.0f);
+      const float right_inner = std::max(radius - inner, 0.0f);
+      mesh.verts.push_back(generated_spotlight_vertex(
+          -radius, axial, 0.0f, 0, 0, 0, 0.0f, along, 0.0f, 0.0f));
+      mesh.verts.push_back(generated_spotlight_vertex(
+          left_inner, axial, 0.0f, 0, 0, 0, inner_u, along, intensity,
+          intensity));
+      mesh.verts.push_back(generated_spotlight_vertex(
+          right_inner, axial, 0.0f, 0, 0, 0, 1.0f - inner_u, along,
+          intensity, intensity));
+      mesh.verts.push_back(generated_spotlight_vertex(
+          radius, axial, 0.0f, 0, 0, 0, 1.0f, along, 0.0f, 0.0f));
+      radius += row < top_rows ? top_radius_step : bottom_radius_step;
+    }
+    for (int row = 0; row + 1 < rows; ++row) {
+      const uint16_t a = static_cast<uint16_t>(row * 4);
+      const uint16_t b = static_cast<uint16_t>((row + 1) * 4);
+      for (int band = 0; band < 3; ++band) {
+        const uint16_t a0 = static_cast<uint16_t>(a + band);
+        const uint16_t a1 = static_cast<uint16_t>(a + band + 1);
+        const uint16_t b0 = static_cast<uint16_t>(b + band);
+        const uint16_t b1 = static_cast<uint16_t>(b + band + 1);
+        mesh.indices.insert(mesh.indices.end(),
+                            {a0, b0, a1, a1, b0, b1});
+      }
+    }
+  }
+  finish_generated_spotlight_mesh(mesh);
+  return mesh;
+}
+
+milo_scene::MeshObj make_generated_spotlight_disc(const char* name,
+                                                   bool square) {
+  milo_scene::MeshObj mesh;
+  mesh.name = name;
+  mesh.showing = true;
+  if (square) {
+    // Local X/Z plane; callers provide either the camera-facing flare basis or
+    // the source lens basis.
+    mesh.verts = {
+        generated_spotlight_vertex(-1, 0, 1, 0, -1, 0, 0, 0),
+        generated_spotlight_vertex(1, 0, 1, 0, -1, 0, 1, 0),
+        generated_spotlight_vertex(1, 0, -1, 0, -1, 0, 1, 1),
+        generated_spotlight_vertex(-1, 0, -1, 0, -1, 0, 0, 1),
+    };
+    mesh.indices = {0, 1, 2, 0, 2, 3};
+  } else {
+    constexpr int kSegments = 24;
+    constexpr float kTwoPi = 6.28318530717958647692f;
+    mesh.verts.reserve(kSegments + 1u);
+    mesh.indices.reserve(kSegments * 3u);
+    mesh.verts.push_back(
+        generated_spotlight_vertex(0, 0, 0, 0, -1, 0, 0.5f, 0.5f));
+    for (int i = 0; i < kSegments; ++i) {
+      const float theta = static_cast<float>(i) / kSegments * kTwoPi;
+      const float c = std::cos(theta);
+      const float s = std::sin(theta);
+      mesh.verts.push_back(generated_spotlight_vertex(
+          c, 0, s, 0, -1, 0, c * 0.5f + 0.5f, 0.5f - s * 0.5f));
+    }
+    for (int i = 0; i < kSegments; ++i) {
+      mesh.indices.insert(mesh.indices.end(),
+                          {0, static_cast<uint16_t>(i + 1),
+                           static_cast<uint16_t>((i + 1) % kSegments + 1)});
+    }
+  }
+  finish_generated_spotlight_mesh(mesh);
+  return mesh;
+}
+
 }  // namespace
 
 MiloSceneRenderer::MaterialUvSamplerDecision choose_material_uv_sampler(
@@ -2711,9 +2936,11 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
     has_env_color = true;
   }
 
-  std::array<float, 3> approx_fill = {0.0f, 0.0f, 0.0f};
   std::vector<ApproxLightCandidate> approx_directional_lights;
   size_t approx_lights = 0;
+  // RndEnviron keeps ambient_color and lights_approx as separate source
+  // channels. Submit approximate lights as directional lights here; folding
+  // them into ambient double-counts them and erases their directionality.
   if (!env_enabled("GHOGX_DISABLE_ENVIRON_APPROX_LIGHTS")) {
     for (const auto& ref : env->lights) {
       const auto* light = scene_.find_light(ref);
@@ -2731,12 +2958,6 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
         if (state_it->second.has_type) light_type = state_it->second.type;
       }
       if (!is_authored_approx_environment_light_type(light_type)) continue;
-      approx_fill[0] +=
-          std::clamp(light_color[0], 0.0f, kMaxAuthoredLightColor);
-      approx_fill[1] +=
-          std::clamp(light_color[1], 0.0f, kMaxAuthoredLightColor);
-      approx_fill[2] +=
-          std::clamp(light_color[2], 0.0f, kMaxAuthoredLightColor);
       auto light_world = xfm_to_mat4(light->world_stored);
       if (const auto xfm_it = mesh_transform_offsets_.find(ref);
           xfm_it != mesh_transform_offsets_.end()) {
@@ -2744,21 +2965,14 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
       }
       ApproxLightCandidate candidate;
       candidate.ref = ref;
-      candidate.direction = authored_light_direction_from_world(light_world);
+      candidate.direction =
+          authored_directional_emission_from_world(light_world);
       candidate.color = light_color;
       candidate.score = std::max({std::fabs(light_color[0]),
                                   std::fabs(light_color[1]),
                                   std::fabs(light_color[2])});
       approx_directional_lights.push_back(candidate);
       ++approx_lights;
-    }
-    if (has_env_color && approx_lights > 0) {
-      const float inv_count = 1.0f / static_cast<float>(approx_lights);
-      for (int c = 0; c < 3; ++c) {
-        env_color[c] = std::clamp(
-            env_color[c] + approx_fill[c] * inv_count * kApproxFillScale,
-            0.0f, 1.0f);
-      }
     }
   }
   if (has_env_color) dev_->SetRenderState(D3DRS_AMBIENT,
@@ -2802,7 +3016,8 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
     dl.Diffuse.a = std::clamp(light_color[3], 0.0f, 1.0f);
     if (!is_authored_real_environment_light_type(light_type)) continue;
     if (light_type == 2) {
-      const auto direction = authored_light_direction_from_world(light_world);
+      const auto direction =
+          authored_fake_spot_direction_from_world(light_world);
       const float dx = direction[0];
       const float dy = direction[1];
       const float dz = direction[2];
@@ -3106,6 +3321,17 @@ void MiloSceneRenderer::set_scene(
       if (!mesh.empty()) spotlight_template_meshes_.insert(mesh);
     }
   }
+  generated_spotlight_beams_.clear();
+  for (const auto& spot : scene_.spotlights) {
+    auto beam = make_generated_spotlight_beam(spot);
+    if (beam.decoded) {
+      generated_spotlight_beams_.emplace(spot.name, std::move(beam));
+    }
+  }
+  generated_spotlight_disc_ =
+      make_generated_spotlight_disc("__generated_spotlight_disc__", false);
+  generated_spotlight_flare_ =
+      make_generated_spotlight_disc("__generated_spotlight_flare__", true);
   active_spotlight_filter_ = false;
   active_spotlights_.clear();
   mesh_environments_.clear();
@@ -3606,7 +3832,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       dl.Diffuse.a = std::clamp(light_color[3], 0.0f, 1.0f);
       if (!is_authored_real_environment_light_type(light_type)) continue;
       if (light_type == 2) {
-        const auto direction = authored_light_direction_from_world(light_world);
+        const auto direction =
+            authored_fake_spot_direction_from_world(light_world);
         float dx = direction[0];
         float dy = direction[1];
         float dz = direction[2];
@@ -3797,7 +4024,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
                                      cc_env(mesh_env_color[2]));
     }
     if (mesh_env && !env_enabled("GHOGX_DISABLE_ENVIRON_APPROX_LIGHTS")) {
-      std::array<float, 3> approx_fill = {0.0f, 0.0f, 0.0f};
       size_t approx_lights = 0;
       for (const auto& ref : mesh_env->lights) {
         const auto* light = scene_.find_light(ref);
@@ -3815,38 +4041,17 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           if (state_it->second.has_type) light_type = state_it->second.type;
         }
         if (!is_authored_approx_environment_light_type(light_type)) continue;
-        approx_fill[0] +=
-            std::clamp(light_color[0], 0.0f, kMaxAuthoredLightColor);
-        approx_fill[1] +=
-            std::clamp(light_color[1], 0.0f, kMaxAuthoredLightColor);
-        approx_fill[2] +=
-            std::clamp(light_color[2], 0.0f, kMaxAuthoredLightColor);
         const auto light_world = sampled_light_world(*light, ref);
         ApproxLightCandidate candidate;
         candidate.ref = ref;
-        candidate.direction = authored_light_direction_from_world(light_world);
+        candidate.direction =
+            authored_directional_emission_from_world(light_world);
         candidate.color = light_color;
         candidate.score = std::max({std::fabs(light_color[0]),
                                     std::fabs(light_color[1]),
                                     std::fabs(light_color[2])});
         approx_directional_lights.push_back(candidate);
         ++approx_lights;
-      }
-      if (has_mesh_env_color && approx_lights > 0) {
-        const float inv_count = 1.0f / static_cast<float>(approx_lights);
-        for (int c = 0; c < 3; ++c) {
-          mesh_env_color[c] = std::clamp(
-              mesh_env_color[c] +
-                  approx_fill[c] * inv_count * kApproxFillScale,
-              0.0f, 1.0f);
-        }
-        const auto cc_env = [](float f) -> int {
-          int i = static_cast<int>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
-          return i < 0 ? 0 : (i > 255 ? 255 : i);
-        };
-        mesh_ambient = D3DCOLOR_XRGB(cc_env(mesh_env_color[0]),
-                                     cc_env(mesh_env_color[1]),
-                                     cc_env(mesh_env_color[2]));
       }
     }
     d3d_state.render(D3DRS_AMBIENT, mesh_ambient);
@@ -5245,21 +5450,70 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       if (active_spotlight_filter_ && active_it == active_spotlights_.end()) {
         continue;
       }
-      if (spot.group == "superflare_cannon.grp") continue;
-      if (!spot.has_transform || spot.group.empty()) continue;
+      if (env_enabled("GHOGX_LOG_SPOTLIGHT_AUTHORING")) {
+        static std::unordered_set<std::string> logged_spotlight_authoring;
+        const std::string key = spot.name + "|" + spot.group + "|" +
+                                spot.target + "|" + spot.material;
+        if (logged_spotlight_authoring.insert(key).second) {
+          std::fprintf(
+              stderr,
+              "[milo_scene] Spotlight authoring spot=%s group=%s target=%s "
+              "beam={cone=%d length=%.3f bottom=%.3f top=%.3f "
+              "top_side=%.3f bottom_side=%.3f bottom_border=%.3f "
+              "offset=%.3f angle=(%.3f %.3f) mat=%s} "
+              "floor={scale=%.3f height=%.3f mat=%s} "
+              "flare={mat=%s size=(%.3f %.3f) range=(%.3f %.3f) "
+              "steps=%d offset=%.3f enabled=%d visibility=%d} "
+              "lens={mat=%s size=%.3f offset=%.3f}\n",
+              spot.name.c_str(), spot.group.c_str(), spot.target.c_str(),
+              spot.beam_is_cone ? 1 : 0, spot.beam_length,
+              spot.beam_bottom_radius, spot.beam_top_radius,
+              spot.beam_top_side_border, spot.beam_bottom_side_border,
+              spot.beam_bottom_border, spot.beam_offset,
+              spot.beam_target_offset[0], spot.beam_target_offset[1],
+              spot.material.c_str(), spot.spot_scale, spot.spot_height,
+              spot.disc_material.c_str(), spot.flare_material.c_str(),
+              spot.flare_size[0], spot.flare_size[1], spot.flare_range[0],
+              spot.flare_range[1], spot.flare_steps, spot.flare_offset,
+              spot.flare_enabled ? 1 : 0,
+              spot.flare_visibility_test ? 1 : 0,
+              spot.lens_material.c_str(), spot.lens_size,
+              spot.lens_offset);
+        }
+      }
+      if (!spot.has_transform) continue;
       const auto group_it = groups_by_name_.find(spot.group);
       const milo_scene::GroupObj* group =
           group_it == groups_by_name_.end() ? nullptr : group_it->second;
-      if (!group) continue;
       auto spot_world = xfm_to_mat4(spot.world_stored);
-      if (active_it != active_spotlights_.end() &&
-          !active_it->second.target_mesh.empty() &&
-          !env_enabled("GHOGX_DISABLE_SPOTLIGHT_TARGET_AIM")) {
-        if (const auto target_it =
-                meshes_by_name_.find(active_it->second.target_mesh);
+      const bool has_preset_target =
+          active_it != active_spotlights_.end() &&
+          active_it->second.has_target_override;
+      const std::string target_ref = has_preset_target
+                                         ? active_it->second.target_mesh
+                                         : spot.target;
+      const milo_scene::MeshObj* target_mesh = nullptr;
+      if (!target_ref.empty()) {
+        if (const auto target_it = meshes_by_name_.find(target_ref);
             target_it != meshes_by_name_.end() && target_it->second) {
-          const auto& target = *target_it->second;
-          const auto target_world = scene_.world_matrix(target);
+          target_mesh = target_it->second;
+        }
+      }
+      if (!target_mesh && active_it != active_spotlights_.end() &&
+          active_it->second.has_rotation &&
+          spot.animate_orientation_from_preset) {
+        float preset_rotation[3][3];
+        quat_xyzw_to_row_rot(active_it->second.rotation_xyzw,
+                             preset_rotation);
+        for (int r = 0; r < 3; ++r) {
+          for (int c = 0; c < 3; ++c) {
+            spot_world[r * 4 + c] = preset_rotation[r][c];
+          }
+        }
+      }
+      if (target_mesh &&
+          !env_enabled("GHOGX_DISABLE_SPOTLIGHT_TARGET_AIM")) {
+          const auto target_world = scene_.world_matrix(*target_mesh);
           const float origin[3] = {spot_world[12], spot_world[13],
                                    spot_world[14]};
           const float target_pos[3] = {target_world[12], target_world[13],
@@ -5305,9 +5559,22 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
               spot_world[10] = aim_up[2];
             }
           }
-        }
       }
-      spot_world = mul16(spot_world, world_transform_);
+      auto light_can_world = spot_world;
+      light_can_world[12] += spot_world[4] * spot.light_can_offset;
+      light_can_world[13] += spot_world[5] * spot.light_can_offset;
+      light_can_world[14] += spot_world[6] * spot.light_can_offset;
+      auto beam_world = spot_world;
+      // Spotlight::UpdateTransforms sets BeamDef::mBeam local position to
+      // (0, offset, 0). Keep that authored translation on the unrotated
+      // spotlight trajectory; it is independent of the shaft mesh's shape.
+      beam_world[12] += spot_world[4] * spot.beam_offset;
+      beam_world[13] += spot_world[5] * spot.beam_offset;
+      beam_world[14] += spot_world[6] * spot.beam_offset;
+      const auto spot_draw_world = mul16(spot_world, world_transform_);
+      const auto beam_draw_world = mul16(beam_world, world_transform_);
+      const auto light_can_draw_world =
+          mul16(light_can_world, world_transform_);
       if (additive_blend_) {
         if (!active_spotlight_filter_ || active_it == active_spotlights_.end())
           continue;
@@ -5323,70 +5590,175 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
             const auto& m = *circle_it->second;
             const std::string* mat =
                 spot.circle_material.empty() ? nullptr : &spot.circle_material;
-            draw_mesh_with_world(m, spot_world, mat, &active_it->second);
+            draw_mesh_with_world(m, spot_draw_world, mat, &active_it->second);
             drew_circle = true;
           }
         }
-        for (const auto& child : group->children) {
-          if (child == spot.circle_mesh && drew_circle) continue;
-          if (hidden_meshes_.find(child) != hidden_meshes_.end()) continue;
-          const auto child_it = meshes_by_name_.find(child);
-          if (child_it == meshes_by_name_.end() || !child_it->second) continue;
-          const auto& m = *child_it->second;
-          draw_mesh_with_world(m, spot_world, nullptr, &active_it->second);
-          if (env_enabled("GHOGX_LOG_SPOTLIGHT_MESHES")) {
-            const auto wv = mul16(spot_world, view_arr);
-            const auto wvp = mul16(wv, proj_arr);
-            float min_x = std::numeric_limits<float>::infinity();
-            float min_y = std::numeric_limits<float>::infinity();
-            float max_x = -std::numeric_limits<float>::infinity();
-            float max_y = -std::numeric_limits<float>::infinity();
-            size_t in_front = 0;
-            size_t on_screen = 0;
-            for (const auto& v : m.verts) {
-              const float x =
-                  v.px * wvp[0] + v.py * wvp[4] + v.pz * wvp[8] + wvp[12];
-              const float y =
-                  v.px * wvp[1] + v.py * wvp[5] + v.pz * wvp[9] + wvp[13];
-              const float w =
-                  v.px * wvp[3] + v.py * wvp[7] + v.pz * wvp[11] + wvp[15];
-              if (w <= 0.001f) continue;
-              ++in_front;
-              const float nx = x / w;
-              const float ny = y / w;
-              min_x = std::min(min_x, nx);
-              max_x = std::max(max_x, nx);
-              min_y = std::min(min_y, ny);
-              max_y = std::max(max_y, ny);
-              if (nx >= -1.0f && nx <= 1.0f && ny >= -1.0f && ny <= 1.0f)
-                ++on_screen;
+        if (group) {
+          for (const auto& child : group->children) {
+            if (child == spot.circle_mesh && drew_circle) continue;
+            if (hidden_meshes_.find(child) != hidden_meshes_.end()) continue;
+            const auto child_it = meshes_by_name_.find(child);
+            if (child_it == meshes_by_name_.end() || !child_it->second)
+              continue;
+            const auto& m = *child_it->second;
+            draw_mesh_with_world(m, light_can_draw_world, nullptr,
+                                 &active_it->second);
+            if (env_enabled("GHOGX_LOG_SPOTLIGHT_MESHES")) {
+              std::fprintf(
+                  stderr,
+                  "[milo_scene] spotlight light-can spot=%s mesh=%s "
+                  "material=%s world_pos=(%.2f %.2f %.2f)\n",
+                  spot.name.c_str(), m.name.c_str(), m.material.c_str(),
+                  light_can_draw_world[12], light_can_draw_world[13],
+                  light_can_draw_world[14]);
             }
-            std::fprintf(stderr,
-                         "[milo_scene] spotlight draw spot=%s mesh=%s material=%s world_pos=(%.2f %.2f %.2f) clip_verts=%zu/%zu on_screen=%zu ndc=(%.2f %.2f)..(%.2f %.2f)\n",
-                         spot.name.c_str(), m.name.c_str(),
-                         m.material.c_str(), spot_world[12], spot_world[13],
-                         spot_world[14], in_front, m.verts.size(), on_screen,
-                         min_x, min_y, max_x, max_y);
           }
         }
         for (const auto& child : spot.instance_meshes) {
           if (child == spot.target) continue;
           if (child == spot.circle_mesh && drew_circle) continue;
-          if (std::find(group->children.begin(), group->children.end(),
-                        child) != group->children.end()) {
+          if (group && std::find(group->children.begin(), group->children.end(),
+                                 child) != group->children.end()) {
             continue;
           }
           if (hidden_meshes_.find(child) != hidden_meshes_.end()) continue;
           const auto child_it = meshes_by_name_.find(child);
           if (child_it == meshes_by_name_.end() || !child_it->second) continue;
           const auto& m = *child_it->second;
-          draw_mesh_with_world(m, spot_world, nullptr, &active_it->second);
+          draw_mesh_with_world(m, spot_draw_world, nullptr,
+                               &active_it->second);
           if (env_enabled("GHOGX_LOG_SPOTLIGHT_MESHES")) {
             std::fprintf(stderr,
                          "[milo_scene] spotlight direct mesh spot=%s mesh=%s material=%s world_pos=(%.2f %.2f %.2f)\n",
                          spot.name.c_str(), m.name.c_str(),
-                         m.material.c_str(), spot_world[12], spot_world[13],
-                         spot_world[14]);
+                         m.material.c_str(), spot_draw_world[12],
+                         spot_draw_world[13], spot_draw_world[14]);
+          }
+        }
+
+        if (!env_enabled("GHOGX_DISABLE_GENERATED_SPOTLIGHT_ACCESSORIES")) {
+          // Spotlight::Generate builds the shaft at load time, while
+          // SpotlightDrawer::DrawWorld submits beam, floor spot, lens, and
+          // flare accessories only for the active preset entries.
+          if (const auto beam_it = generated_spotlight_beams_.find(spot.name);
+              beam_it != generated_spotlight_beams_.end()) {
+            draw_mesh_with_world(beam_it->second, beam_draw_world, nullptr,
+                                 &active_it->second);
+          }
+
+          if (target_mesh && !spot.disc_material.empty() &&
+              spot.spot_scale > 0.0001f) {
+            const auto target_world = scene_.world_matrix(*target_mesh);
+            const float forward[3] = {spot_world[4], spot_world[5],
+                                      spot_world[6]};
+            if (std::fabs(forward[2]) > 0.001f) {
+              const float plane_z = target_world[14] + spot.spot_height;
+              const float t = (plane_z - spot_world[14]) / forward[2];
+              if (std::isfinite(t) && t >= 0.0f) {
+                float along_x = forward[0];
+                float along_y = forward[1];
+                const float along_len =
+                    std::sqrt(along_x * along_x + along_y * along_y);
+                if (along_len > 0.001f) {
+                  along_x /= along_len;
+                  along_y /= along_len;
+                } else {
+                  along_x = 0.0f;
+                  along_y = 1.0f;
+                }
+                const float major =
+                    spot.spot_scale /
+                    std::max(0.08f, std::fabs(forward[2]));
+                auto floor_world = identity16();
+                floor_world[0] = -along_y * spot.spot_scale;
+                floor_world[1] = along_x * spot.spot_scale;
+                floor_world[2] = 0.0f;
+                floor_world[4] = 0.0f;
+                floor_world[5] = 0.0f;
+                floor_world[6] = 1.0f;
+                floor_world[8] = along_x * major;
+                floor_world[9] = along_y * major;
+                floor_world[10] = 0.0f;
+                floor_world[12] = spot_world[12] + forward[0] * t;
+                floor_world[13] = spot_world[13] + forward[1] * t;
+                floor_world[14] = plane_z;
+                floor_world = mul16(floor_world, world_transform_);
+                draw_mesh_with_world(generated_spotlight_disc_, floor_world,
+                                     &spot.disc_material,
+                                     &active_it->second);
+              }
+            }
+          }
+
+          if (!spot.lens_material.empty() && spot.lens_size > 0.0001f) {
+            auto lens_world = identity16();
+            // Spotlight::UpdateTransforms constructs the lens basis as
+            // (-size,0,0), (0,0,size), (0,size,0), then multiplies it by the
+            // spotlight's world rotation.
+            for (int c = 0; c < 3; ++c) {
+              lens_world[c] = -spot_world[c] * spot.lens_size;
+              lens_world[4 + c] = spot_world[8 + c] * spot.lens_size;
+              lens_world[8 + c] = spot_world[4 + c] * spot.lens_size;
+            }
+            lens_world[12] += spot_world[4] * spot.lens_offset;
+            lens_world[13] += spot_world[5] * spot.lens_offset;
+            lens_world[14] += spot_world[6] * spot.lens_offset;
+            lens_world[12] += spot_world[12];
+            lens_world[13] += spot_world[13];
+            lens_world[14] += spot_world[14];
+            lens_world = mul16(lens_world, world_transform_);
+            draw_mesh_with_world(generated_spotlight_disc_, lens_world,
+                                 &spot.lens_material, &active_it->second);
+          }
+
+          const bool flare_enabled =
+              active_it->second.has_flare_enabled
+                  ? active_it->second.flare_enabled
+                  : spot.flare_enabled;
+          if (flare_enabled && !spot.flare_material.empty() &&
+              std::max(spot.flare_size[0], spot.flare_size[1]) > 0.0001f) {
+            float forward[3] = {spot_draw_world[4], spot_draw_world[5],
+                                spot_draw_world[6]};
+            const float forward_len =
+                std::sqrt(forward[0] * forward[0] +
+                          forward[1] * forward[1] +
+                          forward[2] * forward[2]);
+            if (forward_len > 0.001f) {
+              for (float& component : forward) component /= forward_len;
+            }
+            const float center[3] = {
+                spot_draw_world[12] + forward[0] * spot.flare_offset,
+                spot_draw_world[13] + forward[1] * spot.flare_offset,
+                spot_draw_world[14] + forward[2] * spot.flare_offset};
+            const float dx = center[0] - eye[0];
+            const float dy = center[1] - eye[1];
+            const float dz = center[2] - eye[2];
+            const float distance = std::max(
+                0.001f, std::sqrt(dx * dx + dy * dy + dz * dz));
+            float size = spot.flare_size[0];
+            if (spot.flare_range[1] > spot.flare_range[0] + 0.001f) {
+              const float range_t = std::clamp(
+                  (distance - spot.flare_range[0]) /
+                      (spot.flare_range[1] - spot.flare_range[0]),
+                  0.0f, 1.0f);
+              size += (spot.flare_size[1] - spot.flare_size[0]) * range_t;
+            }
+            const float half_size =
+                std::max(0.0001f, size * distance *
+                                      std::tan(cam_.fov * 0.5f));
+            auto flare_world = identity16();
+            flare_world[0] = view.m[0][0] * half_size;
+            flare_world[1] = view.m[1][0] * half_size;
+            flare_world[2] = view.m[2][0] * half_size;
+            flare_world[8] = view.m[0][1] * half_size;
+            flare_world[9] = view.m[1][1] * half_size;
+            flare_world[10] = view.m[2][1] * half_size;
+            flare_world[12] = center[0];
+            flare_world[13] = center[1];
+            flare_world[14] = center[2];
+            draw_mesh_with_world(generated_spotlight_flare_, flare_world,
+                                 &spot.flare_material, &active_it->second);
           }
         }
         if (env_enabled("GHOGX_LOG_ALPHA_MESHES")) {
@@ -5395,7 +5767,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
             std::fprintf(stderr,
                          "[milo_scene] active spotlight name=%s group=%s children=%zu direct=%zu circle=%s target=%s intensity=%.3f color=(%.3f %.3f %.3f)\n",
                          spot.name.c_str(), spot.group.c_str(),
-                         group->children.size(), spot.instance_meshes.size(),
+                         group ? group->children.size() : 0u,
+                         spot.instance_meshes.size(),
                          spot.circle_mesh.c_str(),
                          active_it->second.target_mesh.c_str(),
                          active_it->second.intensity, active_it->second.r,
@@ -5407,11 +5780,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         }
         continue;
       }
-      for (const auto& child : group->children) {
-        if (hidden_meshes_.find(child) != hidden_meshes_.end()) continue;
-        const auto child_it = meshes_by_name_.find(child);
-        if (child_it == meshes_by_name_.end() || !child_it->second) continue;
-        draw_mesh_with_world(*child_it->second, spot_world);
+      if (group) {
+        for (const auto& child : group->children) {
+          if (hidden_meshes_.find(child) != hidden_meshes_.end()) continue;
+          const auto child_it = meshes_by_name_.find(child);
+          if (child_it == meshes_by_name_.end() || !child_it->second) continue;
+          draw_mesh_with_world(*child_it->second, light_can_draw_world);
+        }
       }
     }
   }

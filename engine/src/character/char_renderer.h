@@ -119,4 +119,39 @@ std::array<float, 16> source_character_mesh_submission_world(
 // covered alongside the skin equation itself.
 bool source_character_mesh_renders_decoded_skinning(const SkinnedMesh& mesh);
 
+// Character meshes repurpose the serialized vertex-color bytes as skin
+// weights, so RndMat.prelit cannot be treated as a generic lighting bypass on
+// this path. RndMat.use_environ remains the gate for venue lighting, while the
+// standalone viewer keeps its diagnostic lights independently of scene state.
+struct SourceCharacterMaterialLightingPlan {
+  bool fixed_function_lighting = false;
+};
+
+inline SourceCharacterMaterialLightingPlan
+source_character_material_lighting_plan(bool use_scene_lighting, bool eye_mesh,
+                                        bool use_environ, bool prelit) {
+  (void)prelit;
+  return {!eye_mesh && (!use_scene_lighting || use_environ)};
+}
+
+// GH2's authored shader-domain light colors can exceed 1.0 (the Festival
+// character rim reaches 7.0). A DX8/9 fixed-function D3DCOLORVALUE is a
+// normalized channel, so preserve hue while fitting only over-range lights to
+// that hardware-era interval. In-range authored lights remain byte-for-byte
+// equivalent as floats.
+inline std::array<float, 3> source_character_fixed_function_light_rgb(
+    float r, float g, float b) {
+  r = r < 0.0f ? 0.0f : r;
+  g = g < 0.0f ? 0.0f : g;
+  b = b < 0.0f ? 0.0f : b;
+  float peak = r > g ? r : g;
+  peak = peak > b ? peak : b;
+  if (peak > 1.0f) {
+    r /= peak;
+    g /= peak;
+    b /= peak;
+  }
+  return {r, g, b};
+}
+
 }  // namespace ghogx::character

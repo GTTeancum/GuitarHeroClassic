@@ -1575,8 +1575,9 @@ int main() {
       hud_renderer_c,
       "drew_native_core|=append_full_fill_uv(native_star_fill_,fill_core_color,"
       "1.0f,0.0f,0.0f);",
-      "drew_native_fill_glow=append_scaled_fill(native_star_fill_glow_,"
-      "tube_meter_alpha,tube_meter_range);",
+      "drew_native_fill_glow=append_contained_meter_glow("
+      "native_star_fill_glow_,tube_meter_alpha,tube_meter_range,"
+      "core_fill_range);",
       "star-power stored-power glow overlays the full-length source tube");
   ok &= appears_before(
       hud_renderer_c,
@@ -1604,8 +1605,9 @@ int main() {
                "star-power HUD must not keep the rejected duplicate core emission layer");
   ok &= appears_before(
       hud_renderer_c,
-      "drew_native_fill_glow=append_scaled_fill(native_star_fill_glow_,"
-      "tube_meter_alpha,tube_meter_range);",
+      "drew_native_fill_glow=append_contained_meter_glow("
+      "native_star_fill_glow_,tube_meter_alpha,tube_meter_range,"
+      "core_fill_range);",
       "\"[hud-star-power]fill=%.3fready=%dactive=%dtube_glow=%d",
       "star-power diagnostics run after the source tube-meter glow append");
   ok &= appears_before(
@@ -1676,9 +1678,10 @@ int main() {
                  "\"tube_glow\")){if(!native_star_ready_mesh_glow_.empty()){",
                  "star-power ready view owns the source tube glow draw path");
   ok &= contains(hud_renderer_c,
-                 "drew_native_fill_glow=append_scaled_fill("
-                 "native_star_fill_glow_,tube_meter_alpha,tube_meter_range);",
-                 "star-power meter moves only the broad source glow edge");
+                 "drew_native_fill_glow=append_contained_meter_glow("
+                 "native_star_fill_glow_,tube_meter_alpha,tube_meter_range,"
+                 "core_fill_range);",
+                 "star-power meter keeps the broad glow contained inside the fixed tube");
   ok &= contains(hud_renderer_c,
                  "constboolmeter_fill_glow=fill>0.005f;",
                  "star-power tube-meter glow follows stored fill rather than only ready state");
@@ -1740,21 +1743,21 @@ int main() {
                  "\"tube_filter_frame=%.2ftube_filter_alpha=%.3f\"",
                  "star-power diagnostics report source-filter tube-meter alpha sampling");
   ok &= contains(hud_renderer_c,
-                 "\"tube_meter_mode=scaled_left_to_right_source_glow\"",
-                 "star-power tube-meter grows only the thick glow from the left");
+                 "\"tube_meter_mode=approximate_tube_aligned_glow_reveal\"",
+                 "star-power tube-meter documents the accepted aligned-glow approximation");
   ok &= contains(hud_renderer_c,
-                 "\"tube_meter_u_mode=complete_source_uv_on_scaled_glow\"",
-                 "star-power tube-meter preserves the complete authored glow while changing its length");
+                 "\"tube_meter_u_mode=source_uv_preserved_on_aligned_glow\"",
+                 "star-power tube-meter preserves source UV interpolation on the aligned glow");
   ok &= contains(hud_renderer_c,
-                 "\"tube_meter_containment=amp_tube_glow_meter_source_z\"",
-                 "star-power diagnostics report source tube-meter self-containment for the wide glow");
+                 "\"tube_meter_containment=amp_inside_bar_bounds_plus_halo\"",
+                 "star-power diagnostics report the band-aid glow containment bounds");
   ok &= contains(hud_renderer_c,
                  "\"ready_glow_cap_occlusion=chrome_after_ready_glow\"",
                  "star-power diagnostics report cap occlusion for the source ready glow");
   ok &= contains(hud_renderer_c,
-                 "append_scaled_fill(native_star_fill_glow_,tube_meter_alpha,"
-                 "tube_meter_range);",
-                 "star-power meter scales only the source amp_tube_glow_meter layer");
+                 "append_contained_meter_glow(native_star_fill_glow_,"
+                 "tube_meter_alpha,tube_meter_range,core_fill_range);",
+                 "star-power meter reveals only the aligned amp_tube_glow_meter layer");
   ok &= contains(hud_renderer_c,
                  "\"fill_color_keys=%zufirst=(%.3f,%.3f,%.3f,%.3f@%.2f)\"",
                  "star-power diagnostics expose the decoded source broad-fill color keys");
@@ -1774,8 +1777,8 @@ int main() {
                  "\"core_fill_layer=amp_inside_bar.meshfull_inside_glass_length\"",
                  "star-power diagnostics identify the full-length source thin tube");
   ok &= contains(hud_renderer_c,
-                 "\"wide_fill_layer=amp_tube_glow_meter.meshscaled\"",
-                 "star-power diagnostics keep moving fill bound to the wide glow only");
+                 "\"wide_fill_layer=amp_tube_glow_meter.meshtube_aligned_band_aid\"",
+                 "star-power diagnostics identify the accepted aligned-glow band-aid");
   ok &= contains(hud_renderer_c,
                  "\"thin_path_layer=amp_inside_bar_path.meshfull_width\"",
                  "star-power diagnostics keep the thin blue path line full-width");
@@ -8284,6 +8287,9 @@ int main() {
                  "transition_fade_seconds);",
                  "lighting keyframes update the shared transition target");
   ok &= contains(gameplay_c,
+                 "for(auto&spot:spots)final_by_name[spot.name]=std::move(spot);",
+                 "repeated source Spotlight refs resolve in serialized order with the final row winning");
+  ok &= contains(gameplay_c,
                  "apply_lighting_preset_environment_light_state(",
                  "lighting keyframes apply decoded Environ/Light state like ihatecompvir LightPreset::Animate");
   ok &= contains(gameplay_c,
@@ -8877,11 +8883,17 @@ int main() {
                  "std::clamp(light_color[0],0.0f,kMaxAuthoredLightColor)",
                  "authored D3D light setup preserves overbright source intensity");
   ok &= contains(renderer_c,
-                 "std::array<float,3>authored_light_direction_from_world(",
+                 "std::array<float,3>authored_fake_spot_direction_from_world(",
                  "renderer centralizes authored fake-spot .lit aim");
   ok &= contains(renderer_c,
                  "return{-light_world[8],-light_world[9],-light_world[10]};",
                  "fake-spot .lit aim uses the authored Trans -Z axis");
+  ok &= contains(renderer_c,
+                 "std::array<float,3>authored_directional_emission_from_world(",
+                 "renderer keeps GH2 directional-light emission distinct from fake-spot aim");
+  ok &= contains(renderer_c,
+                 "return{light_world[4],light_world[5],light_world[6]};",
+                 "D3D directional emission is the opposite of GH2 X360's -WorldXfm().m.y surface-to-light vector");
   ok &= contains(renderer_c,
                  "boolis_authored_real_environment_light_type(intlight_type)",
                  "renderer classifies source real Environ lights explicitly");
@@ -8897,9 +8909,9 @@ int main() {
   ok &= contains(renderer_c,
                  "GHOGX_DISABLE_ENVIRON_APPROX_LIGHTS",
                  "approximate Environ fill remains A/B switchable");
-  ok &= contains(renderer_c,
-                 "approx_fill[c]*inv_count*kApproxFillScale",
-                 "source approximate Environ lights contribute clamped fill instead of normal-only darkness");
+  ok &= absent(renderer_c,
+               "approx_fill[c]*inv_count*kApproxFillScale",
+               "source approximate Environ lights must not be double-counted into ambient");
   ok &= contains(renderer_c,
                  "structApproxLightCandidate",
                  "renderer keeps source approximate light candidates separate from real Environ lights");
@@ -8923,8 +8935,11 @@ int main() {
                  "light.Type=D3DLIGHT_DIRECTIONAL;",
                  "approximate Environ lights are applied as directional lighting, not point/fake-spot real lights");
   ok &= contains(renderer_c,
-                 "candidate.direction=authored_light_direction_from_world(light_world);",
-                 "overlay approximate Environ lights use the authored Trans -Z axis");
+                 "dev->LightEnable(kSceneFillLightFirstSlot+static_cast<DWORD>(i),TRUE);",
+                 "installed approximate Environ light slots are enabled for character and scene shading");
+  ok &= contains(renderer_c,
+                 "candidate.direction=authored_directional_emission_from_world(light_world);",
+                 "overlay directional Environ lights use the source-backed GH2 X360 Y-axis contract");
   ok &= contains(renderer_c,
                  "constautolight_world=sampled_light_world(*light,ref);",
                  "venue approximate Environ lights use sampled source Light transforms");
@@ -8956,7 +8971,7 @@ int main() {
                  "if(!is_authored_real_environment_light_type(light_type))continue;",
                  "source approximate Environ lights are not counted as real point/fake-spot Environ lights");
   ok &= contains(renderer_c,
-                 "constautodirection=authored_light_direction_from_world("
+                 "constautodirection=authored_fake_spot_direction_from_world("
                  "light_world);",
                  "fake-spot .lit TransAnim updates authored light direction");
   ok &= contains(renderer_c,
@@ -11976,18 +11991,29 @@ int main() {
   ok &= contains(char_renderer_c,
                  "\"[char3d]proplightingmesh=%smaterial=%sscene=%d\"",
                  "performer prop lighting diagnostics expose source material lighting state");
+  ok &= contains(char_renderer_h_c,
+                 "structSourceCharacterMaterialLightingPlan{"
+                 "boolfixed_function_lighting=false;};",
+                 "character renderer exposes the source material lighting decision for focused coverage");
+  ok &= contains(char_renderer_h_c,
+                 "(void)prelit;"
+                 "return{!eye_mesh&&(!use_scene_lighting||use_environ)};",
+                 "character lighting preserves the source use-environment gate without misreading skin-weight colors as prelit diffuse");
   ok &= contains(char_renderer_c,
-                 "constboolscene_lit_mesh="
-                 "!eye_mesh&&(!impl.use_scene_lighting||"
-                 "(material&&material->use_environ));",
-                 "scene-lighting character composites honor source material use-environment flags");
+                 "material_lighting.fixed_function_lighting?TRUE:FALSE);",
+                 "environment materials retain the fixed-function DX8-era light path");
+  ok &= contains(char_renderer_h_c,
+                 "if(peak>1.0f){r/=peak;g/=peak;b/=peak;}",
+                 "over-range shader light colors preserve hue when fitted to fixed-function range");
   ok &= contains(char_renderer_c,
-                 "d3d_state.render(D3DRS_LIGHTING,"
-                 "scene_lit_mesh?TRUE:FALSE);",
-                 "source use-environment materials inherit active venue lighting through the cached D3D state path");
-  ok &= absent(char_renderer_c,
-               "impl.use_scene_lighting?FALSE:(eye_mesh?FALSE:TRUE)",
-               "scene-lighting character composites must not disable inherited venue lights");
+                 "structScopedCharacterSceneLightRange{",
+                 "performer light-range adaptation is scoped to character draws");
+  ok &= contains(char_renderer_c,
+                 "std::array<D3DLIGHT9,4>original{};",
+                 "character light-range adaptation covers only the four approximate directional slots");
+  ok &= contains(char_renderer_c,
+                 "if(changed[slot])dev->SetLight(slot,&original[slot]);",
+                 "character light-range adaptation restores exact venue state after each performer");
   ok &= contains(char_renderer_c,
                  "constboolprop_scene_lit="
                  "!impl.use_scene_lighting||"
@@ -12057,19 +12083,19 @@ int main() {
                  "std::stringlighting_environment_ref;",
                  "performers retain their resolved source environment");
   ok &= contains(gameplay_c,
-                 "normalperformer/crowdsymbolsshouldnotblackenmaterials",
-                 "normal symbolic LightPreset refs no longer dim performers as a fake material blackout");
+                 "DecodedLightPresetEnvironmentEntryandEnvLightEntrystateownsthe",
+                 "decoded LightPreset environment and light state exclusively owns performer/crowd lighting");
   ok &= absent(gameplay_c,
                "lower.find(\"low\")!=std::string::npos",
                "low-named decoded performer/crowd light refs stay authored light/env state, not material blackout");
+  ok &= absent(gameplay_c,
+               "lower.find(\"blackout\")!=std::string::npos",
+               "blackout names must not trigger a second material-darkening fallback");
   ok &= contains(gameplay_c,
-                 "lower.find(\"blackout\")!=std::string::npos",
-                 "only explicit blackout refs activate the performer/crowd material-darkening fallback");
-  ok &= contains(gameplay_c,
-                 "mod.intensity=1.0f;",
+                 "floatintensity=1.0f;",
                  "normal excitement performer/crowd material modulation remains readable");
   ok &= contains(gameplay_c,
-                 "mod.r=mod.g=mod.b=1.0f;",
+                 "floatr=1.0f;floatg=1.0f;floatb=1.0f;",
                  "normal symbolic performer/crowd refs use identity material modulation");
   ok &= absent(gameplay_c,
                "mod.intensity=0.65f;",
@@ -12077,6 +12103,9 @@ int main() {
   ok &= absent(gameplay_c,
                "mod.intensity=0.78f;",
                "normal symbolic performer/crowd refs must not dim band materials at okay excitement");
+  ok &= absent(gameplay_c,
+               "mod.intensity=0.04f;",
+               "decoded blackout light state must not be multiplied by a fabricated four-percent material clamp");
   ok &= contains(gameplay_c,
                  "boolperformer_scene_lighting_enabled(){"
                  "returnenv_value(\"GHOGX_DISABLE_PERFORMER_SCENE_LIGHTING\")"
@@ -12152,21 +12181,23 @@ int main() {
                  "mod.low?1:0",
                  "WorldCrowd lighting reports decoded low/bad symbolic rig state");
   ok &= contains(gameplay_c,
-                 "lighting_spot_exposure_for_event(active_venue_event_);",
-                 "lighting spot overlays are exposure-scaled by the authored venue excitement state");
+                 "preset->source_order_decoded&&std::any_of(",
+                 "source-decoded LightPreset spotlight entries retain their authored index pairing");
   ok &= contains(gameplay_c,
-                 "out.intensity*=spotlight_exposure;",
-                 "decoded spotlight target activation is preserved while low-excitement additive overlays are dimmed");
+                 "lighting_spots_by_name_.find(state.spotlight)",
+                 "each source spotlight state is applied to its serialized spotlight reference");
+  ok &= contains(gameplay_c,
+                 "out.has_flare_enabled=state->has_flare_enabled;",
+                 "LightPreset flare state reaches the renderer");
   ok &= contains(gameplay_h_c,
                  "composed_venue_material_alpha()const;",
                  "gameplay exposes a composed venue material-alpha map");
   ok &= contains(gameplay_c,
-                 "is_excitement_scaled_venue_highlight_material(material,"
-                 "meshes)",
-                 "low-excitement venue exposure applies to authored floor/crowd highlight materials");
+                 "returnvenue_material_alpha_;",
+                 "venue materials preserve authored animation alpha without synthetic excitement scaling");
   ok &= contains(gameplay_c,
-                 "authored_alpha*exposure",
-                 "venue highlight exposure preserves decoded material alpha before scaling");
+                 "returnlighting_material_alpha_;",
+                 "lighting overlay materials preserve authored animation alpha without synthetic excitement scaling");
   ok &= contains(gameplay_c,
                  "world_->set_material_alpha_multipliers("
                  "composed_venue_material_alpha());",

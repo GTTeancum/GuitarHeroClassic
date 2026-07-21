@@ -1,4 +1,5 @@
 #include "character/char_mesh.h"
+#include "character/char_renderer.h"
 
 #include <array>
 #include <cmath>
@@ -277,6 +278,57 @@ ghogx::character::CharHair make_two_strand_hair() {
 
 int main() {
   std::printf("character_mesh_decode_test\n");
+  const auto viewer_body =
+      ghogx::character::source_character_material_lighting_plan(
+          false, false, true, true);
+  CHECK(viewer_body.fixed_function_lighting);
+
+  const auto viewer_eye =
+      ghogx::character::source_character_material_lighting_plan(
+          false, true, true, true);
+  CHECK(!viewer_eye.fixed_function_lighting);
+
+  const auto scene_prelit =
+      ghogx::character::source_character_material_lighting_plan(
+          true, false, true, true);
+  CHECK(scene_prelit.fixed_function_lighting);
+
+  const auto scene_nonprelit =
+      ghogx::character::source_character_material_lighting_plan(
+          true, false, true, false);
+  CHECK(scene_nonprelit.fixed_function_lighting);
+
+  const auto scene_no_environment =
+      ghogx::character::source_character_material_lighting_plan(
+          true, false, false, false);
+  CHECK(!scene_no_environment.fixed_function_lighting);
+
+  const auto scene_nonprelit_eye =
+      ghogx::character::source_character_material_lighting_plan(
+          true, true, true, false);
+  CHECK(!scene_nonprelit_eye.fixed_function_lighting);
+
+  const auto in_range_light =
+      ghogx::character::source_character_fixed_function_light_rgb(
+          0.25f, 0.5f, 1.0f);
+  CHECK(approx(in_range_light[0], 0.25f));
+  CHECK(approx(in_range_light[1], 0.5f));
+  CHECK(approx(in_range_light[2], 1.0f));
+
+  const auto rim_light =
+      ghogx::character::source_character_fixed_function_light_rgb(
+          7.0f, 7.0f, 7.0f);
+  CHECK(approx(rim_light[0], 1.0f));
+  CHECK(approx(rim_light[1], 1.0f));
+  CHECK(approx(rim_light[2], 1.0f));
+
+  const auto colored_overbright =
+      ghogx::character::source_character_fixed_function_light_rgb(
+          0.35f, 4.0f, 4.0f);
+  CHECK(approx(colored_overbright[0], 0.0875f));
+  CHECK(approx(colored_overbright[1], 1.0f));
+  CHECK(approx(colored_overbright[2], 1.0f));
+
   const auto dtb_int =
       ghogx::milo_scene::source_milo_editor_dtb_node_payload_plan(0x00);
   CHECK(dtb_int.known_node_type);

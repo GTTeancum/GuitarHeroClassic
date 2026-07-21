@@ -365,9 +365,15 @@ class Gameplay {
   };
   struct LightingPreset {
     struct TargetState {
+      std::string spotlight;
       std::string target;
+      size_t source_index = SIZE_MAX;
       float intensity = 0.0f;
       float color[3] = {1.0f, 1.0f, 1.0f};
+      float rotation_xyzw[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+      bool has_rotation = false;
+      bool flare_enabled = true;
+      bool has_flare_enabled = false;
     };
     struct EnvironmentState {
       std::string target;
@@ -437,6 +443,8 @@ class Gameplay {
     float default_color[3] = {1.0f, 1.0f, 1.0f};
     float default_intensity = 1.0f;
     bool has_default_state = false;
+    bool animate_color_from_preset = true;
+    bool animate_orientation_from_preset = true;
   };
   struct VenueMeshAnim {
     struct Frame {

@@ -88,10 +88,15 @@ class MiloSceneRenderer {
   struct SpotlightState {
     std::string name;
     std::string target_mesh;
+    bool has_target_override = false;
     float r = 1.0f;
     float g = 1.0f;
     float b = 1.0f;
     float intensity = 1.0f;
+    std::array<float, 4> rotation_xyzw = {0.0f, 0.0f, 0.0f, 1.0f};
+    bool has_rotation = false;
+    bool flare_enabled = true;
+    bool has_flare_enabled = false;
   };
   explicit MiloSceneRenderer(Window& win);
   ~MiloSceneRenderer();
@@ -276,6 +281,11 @@ class MiloSceneRenderer {
   milo_scene::Scene scene_;
   std::vector<const milo_scene::MeshObj*> ordered_draw_meshes_;
   std::unordered_set<std::string> spotlight_template_meshes_;
+  // Spotlight::Generate builds these runtime meshes when a Spotlight is
+  // loaded. GH2's MILO stores their dimensions/materials, not their vertices.
+  std::map<std::string, milo_scene::MeshObj> generated_spotlight_beams_;
+  milo_scene::MeshObj generated_spotlight_disc_;
+  milo_scene::MeshObj generated_spotlight_flare_;
   std::map<std::string, const milo_scene::MatObj*> materials_by_name_;
   std::map<std::string, const milo_scene::MeshObj*> meshes_by_name_;
   std::map<std::string, const milo_scene::GroupObj*> groups_by_name_;

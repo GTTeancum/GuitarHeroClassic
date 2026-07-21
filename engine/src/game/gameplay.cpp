@@ -7545,6 +7545,10 @@ struct DecodedLightPresetSpotEntry {
     std::string target;
     float intensity = 0.0f;
     float color[3] = {1.0f, 1.0f, 1.0f};
+    float rotation_xyzw[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    bool has_rotation = false;
+    bool flare_enabled = true;
+    bool has_flare_enabled = false;
 };
 
 struct DecodedLightPresetEnvironmentEntry {
@@ -7585,7 +7589,14 @@ DecodedLightPresetSpotEntry read_light_preset_spot_entry_like_ihatecompvir(
     MiloCursor& r, uint16_t revision) {
     DecodedLightPresetSpotEntry out;
     out.intensity = std::clamp(r.f32(), 0.0f, kMaxAuthoredGameLightColor);
-    for (int i = 0; i < 4; ++i) (void)r.f32();  // direction quaternion
+    float rotation_length_squared = 0.0f;
+    for (int i = 0; i < 4; ++i) {
+        out.rotation_xyzw[i] = r.f32();
+        rotation_length_squared +=
+            out.rotation_xyzw[i] * out.rotation_xyzw[i];
+    }
+    out.has_rotation = std::isfinite(rotation_length_squared) &&
+                       rotation_length_squared > 0.000001f;
     for (int i = 0; i < 4; ++i) {
         const float c = r.f32();
         if (i < 3)
@@ -7597,7 +7608,8 @@ DecodedLightPresetSpotEntry read_light_preset_spot_entry_like_ihatecompvir(
         if (out.target.empty()) out.target = legacy_target;
     }
     if (revision > 1) {
-        (void)r.boolean();  // flare enabled
+        out.flare_enabled = r.boolean();
+        out.has_flare_enabled = true;
         if (revision < 9) (void)r.i32();
     }
     return out;
@@ -7717,19 +7729,28 @@ void apply_source_light_preset_keyframes(
     for (auto& decoded : decoded_keyframes) {
         auto& keyframe = decoded.keyframe;
         for (size_t i = 0; i < decoded.spot_entries.size(); ++i) {
+            Gameplay::LightingPreset::TargetState state;
             if (i < preset.spot_refs.size()) {
                 add_unique_lighting_ref(keyframe.spot_refs,
                                         preset.spot_refs[i]);
+                state.spotlight = preset.spot_refs[i];
             }
             const auto& entry = decoded.spot_entries[i];
-            if (!is_spotlight_target_mesh(entry.target)) continue;
-            add_unique_lighting_ref(keyframe.mesh_targets, entry.target);
-            Gameplay::LightingPreset::TargetState state;
+            if (is_spotlight_target_mesh(entry.target)) {
+                add_unique_lighting_ref(keyframe.mesh_targets, entry.target);
+            }
+            state.source_index = i;
             state.target = entry.target;
             state.intensity = entry.intensity;
             state.color[0] = entry.color[0];
             state.color[1] = entry.color[1];
             state.color[2] = entry.color[2];
+            for (int c = 0; c < 4; ++c) {
+                state.rotation_xyzw[c] = entry.rotation_xyzw[c];
+            }
+            state.has_rotation = entry.has_rotation;
+            state.flare_enabled = entry.flare_enabled;
+            state.has_flare_enabled = entry.has_flare_enabled;
             keyframe.target_states.push_back(std::move(state));
         }
         for (size_t i = 0; i < decoded.environment_entries.size(); ++i) {
@@ -8348,21 +8369,6 @@ uint32_t venue_excitement_level(std::string_view venue_event) {
     return 2;
 }
 
-float lighting_spot_exposure_for_event(std::string_view venue_event) {
-    switch (venue_excitement_level(venue_event)) {
-        case 0:
-            return 0.08f;
-        case 1:
-            return 0.18f;
-        case 2:
-            return 0.45f;
-        case 3:
-            return 0.75f;
-        default:
-            return 1.0f;
-    }
-}
-
 bool venue_excitement_is_high(std::string_view venue_event) {
     return venue_excitement_level(venue_event) >= 3;
 }
@@ -8532,15 +8538,18 @@ using SpotlightState = ghogx::render::MiloSceneRenderer::SpotlightState;
 
 std::vector<SpotlightState> sorted_unique_spotlight_states(
     std::vector<SpotlightState> spots) {
-    std::sort(spots.begin(), spots.end(), [](const auto& a, const auto& b) {
-        return a.name < b.name;
-    });
-    spots.erase(std::unique(spots.begin(), spots.end(),
-                            [](const auto& a, const auto& b) {
-                                return a.name == b.name;
-                            }),
-                spots.end());
-    return spots;
+    // LightPreset::Animate applies the serialized SpotlightEntry array in
+    // source order. Festival presets legally repeat Spotlight references, so
+    // the final row for a repeated object is the state retail leaves installed.
+    std::map<std::string, SpotlightState> final_by_name;
+    for (auto& spot : spots) final_by_name[spot.name] = std::move(spot);
+    std::vector<SpotlightState> out;
+    out.reserve(final_by_name.size());
+    for (auto& [name, state] : final_by_name) {
+        (void)name;
+        out.push_back(std::move(state));
+    }
+    return out;
 }
 
 bool nearly_same(float a, float b) {
@@ -8553,11 +8562,24 @@ bool same_spotlight_states(const std::vector<SpotlightState>& a,
     for (size_t i = 0; i < a.size(); ++i) {
         if (a[i].name != b[i].name ||
             a[i].target_mesh != b[i].target_mesh ||
+            a[i].has_target_override != b[i].has_target_override ||
             !nearly_same(a[i].r, b[i].r) ||
             !nearly_same(a[i].g, b[i].g) ||
             !nearly_same(a[i].b, b[i].b) ||
-            !nearly_same(a[i].intensity, b[i].intensity)) {
+            !nearly_same(a[i].intensity, b[i].intensity) ||
+            a[i].has_rotation != b[i].has_rotation ||
+            a[i].has_flare_enabled != b[i].has_flare_enabled ||
+            (a[i].has_flare_enabled &&
+             a[i].flare_enabled != b[i].flare_enabled)) {
             return false;
+        }
+        if (a[i].has_rotation) {
+            for (int c = 0; c < 4; ++c) {
+                if (!nearly_same(a[i].rotation_xyzw[c],
+                                 b[i].rotation_xyzw[c])) {
+                    return false;
+                }
+            }
         }
     }
     return true;
@@ -9450,88 +9472,25 @@ PerformerCrowdLightingMod performer_crowd_lighting_mod_for(
     const Gameplay::LightingPreset::Keyframe* keyframe,
     std::string_view venue_event) {
     PerformerCrowdLightingMod mod;
-    std::string symbolic_tone_text;
-    auto append_tone_text = [&](std::string_view text) {
-        if (text.empty()) return;
-        if (!symbolic_tone_text.empty()) symbolic_tone_text.push_back(' ');
-        symbolic_tone_text += lower_ascii(text);
-    };
     auto scan_ref = [&](const std::string& ref) {
         if (is_performer_or_crowd_lit_ref(ref) ||
             is_performer_or_crowd_env_ref(ref)) {
             mod.symbolic = true;
-            const std::string lower = lower_ascii(ref);
-            append_tone_text(lower);
-            // ihatecompvir LightPreset::Animate applies low-named
-            // performer/crowd refs as RndLight/RndEnviron state. Only an
-            // explicit blackout should fall back to material darkening here.
-            if (lower.find("blackout") != std::string::npos) {
-                mod.low = true;
-            }
         }
     };
     if (preset) {
-        append_tone_text(preset->name);
-        append_tone_text(preset->adjective);
         for (const auto& ref : preset->lit_refs) scan_ref(ref);
         for (const auto& ref : preset->env_refs) scan_ref(ref);
     }
     if (keyframe) {
-        append_tone_text(keyframe->name);
         for (const auto& ref : keyframe->lit_refs) scan_ref(ref);
         for (const auto& ref : keyframe->env_refs) scan_ref(ref);
     }
-
-    if (!mod.symbolic) return mod;
-
-    const bool explicit_blackout =
-        mod.low || (preset && preset->adjective == "blackout");
-    if (!explicit_blackout) {
-        // ihatecompvir LightPreset::Animate applies these refs to light/env
-        // state; normal performer/crowd symbols should not blacken materials.
-        // Keep the material path at identity instead of faking darker lights.
-        mod.intensity = 1.0f;
-        mod.r = mod.g = mod.b = 1.0f;
-        return mod;
-    }
-
-    if (mod.low) {
-        switch (venue_excitement_level(venue_event)) {
-            case 0:
-                mod.intensity = 0.08f;
-                break;
-            case 1:
-                mod.intensity = 0.16f;
-                break;
-            default:
-                mod.intensity = 0.18f;
-                break;
-        }
-    }
-    if (preset && preset->adjective == "blackout") mod.intensity = 0.04f;
-    mod.r = mod.g = mod.b = mod.intensity;
-
-    const auto has_tone = [&](std::string_view token) {
-        return symbolic_tone_text.find(token) != std::string::npos;
-    };
-    if (has_tone("teal")) {
-        mod.r *= 0.45f;
-        mod.g *= 0.85f;
-        mod.b *= 1.10f;
-    } else if (has_tone("yellow") || has_tone("orange")) {
-        mod.r *= 1.18f;
-        mod.g *= 0.82f;
-        mod.b *= 0.30f;
-    } else if (has_tone("bad") || has_tone("grim") || mod.low) {
-        mod.r *= 1.20f;
-        mod.g *= 0.55f;
-        mod.b *= 0.22f;
-    } else if (has_tone("white")) {
-        mod.r = mod.g = mod.b = mod.intensity;
-    }
-    if (preset && preset->adjective == "blackout") {
-        mod.r = mod.g = mod.b = mod.intensity;
-    }
+    // Decoded LightPreset EnvironmentEntry and EnvLightEntry state owns the
+    // performer/crowd color and intensity. Keep material modulation at identity
+    // for every preset, including blackout, so those authored channels are not
+    // applied a second time as a name-based tint or darkness multiplier.
+    (void)venue_event;
     return mod;
 }
 
@@ -26333,6 +26292,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     prev_fret_mask_  = 0;
     diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
     for (float& flash : lane_flash_) flash = 0.0f;
+    for (uint8_t& state : hit_phrase_state_) state = 0;
     for (float& flash : star_collect_flash_) flash = 0.0f;
     for (float& flash : miss_flash_) flash = 0.0f;
     for (float& flash : star_miss_flash_) flash = 0.0f;
@@ -26875,39 +26835,8 @@ std::unordered_set<std::string> Gameplay::composed_venue_hidden_meshes() const {
     return hidden;
 }
 
-bool is_excitement_scaled_venue_highlight_material(
-    const std::string& material,
-    const std::vector<std::string>& meshes) {
-    const std::string mat = lower_ascii(material);
-    if (mat.find("highlight") == std::string::npos &&
-        mat.find("floor_hot") == std::string::npos) {
-        return false;
-    }
-    for (const auto& mesh : meshes) {
-        const std::string lower = lower_ascii(mesh);
-        if (lower.find("crowd") != std::string::npos ||
-            lower.find("floor") != std::string::npos ||
-            lower.find("hot") != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
-}
-
 std::map<std::string, float> Gameplay::composed_venue_material_alpha() const {
-    std::map<std::string, float> out = venue_material_alpha_;
-    if (active_venue_event_.empty()) return out;
-    const float exposure = lighting_spot_exposure_for_event(active_venue_event_);
-    if (exposure >= 0.999f) return out;
-    for (const auto& [material, meshes] : venue_material_meshes_) {
-        if (!is_excitement_scaled_venue_highlight_material(material, meshes))
-            continue;
-        const auto alpha_it = out.find(material);
-        const float authored_alpha =
-            alpha_it == out.end() ? 1.0f : alpha_it->second;
-        out[material] = clamp_material_alpha(authored_alpha * exposure);
-    }
-    return out;
+    return venue_material_alpha_;
 }
 
 std::vector<Gameplay::CameraKey::CrowdRef> camera_crowd_selections_like_source(
@@ -32427,19 +32356,7 @@ std::unordered_set<std::string> Gameplay::composed_lighting_hidden_meshes() cons
 }
 
 std::map<std::string, float> Gameplay::composed_lighting_material_alpha() const {
-    std::map<std::string, float> out = lighting_material_alpha_;
-    if (active_venue_event_.empty()) return out;
-    const float exposure = lighting_spot_exposure_for_event(active_venue_event_);
-    if (exposure >= 0.999f) return out;
-    for (const auto& [material, meshes] : lighting_material_meshes_) {
-        if (!is_excitement_scaled_venue_highlight_material(material, meshes))
-            continue;
-        const auto alpha_it = out.find(material);
-        const float authored_alpha =
-            alpha_it == out.end() ? 1.0f : alpha_it->second;
-        out[material] = clamp_material_alpha(authored_alpha * exposure);
-    }
-    return out;
+    return lighting_material_alpha_;
 }
 
 void Gameplay::update_active_lighting_material_anims() {
@@ -33442,11 +33359,20 @@ Gameplay::interpolated_lighting_spots() const {
         const auto& from = lighting_transition_from_[i];
         const auto& to = lighting_transition_to_[i];
         SpotlightState spot = to;
-        if (spot.target_mesh.empty()) spot.target_mesh = from.target_mesh;
+        if (!spot.has_target_override && from.has_target_override) {
+            spot.target_mesh = from.target_mesh;
+            spot.has_target_override = true;
+        }
         spot.r = mix_lighting(from.r, to.r, t);
         spot.g = mix_lighting(from.g, to.g, t);
         spot.b = mix_lighting(from.b, to.b, t);
         spot.intensity = mix_lighting(from.intensity, to.intensity, t);
+        if (from.has_rotation && to.has_rotation) {
+            const std::array<float, 4> from_rotation = from.rotation_xyzw;
+            const std::array<float, 4> to_rotation = to.rotation_xyzw;
+            spot.rotation_xyzw = slerp_quat_xyzw(
+                from_rotation, to_rotation, static_cast<float>(t));
+        }
         if (spot.intensity > 0.001f || t < 1.0) out.push_back(std::move(spot));
     }
     return sorted_unique_spotlight_states(std::move(out));
@@ -34670,10 +34596,11 @@ Gameplay::build_diagnostic_guitar_script_from_chart(
 
 bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                                               bool emit_presentation,
-                                              bool session_already_ticked) {
+                                              bool session_already_ticked,
+                                              float whammy_axis) {
     if (!gameplay_session_mirror_) return false;
     if (!session_already_ticked) {
-        gameplay_session_mirror_->tick(song_time_, fret_mask);
+        gameplay_session_mirror_->tick(song_time_, fret_mask, whammy_axis);
     }
 
     bool bad_gameplay_feedback = false;
@@ -36138,11 +36065,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                          spot.target,
                          spot.material,
                          spot.group,
-                         {spot.default_color[0],
+         {spot.default_color[0],
                           spot.default_color[1],
                           spot.default_color[2]},
                          spot.default_intensity,
-                         spot.has_default_state});
+                         spot.has_default_state,
+                         spot.animate_color_from_preset,
+                         spot.animate_orientation_from_preset});
                     const LightingSpotlight* cached_spot =
                         &lighting_spotlights_.back();
                     lighting_spots_by_name_[cached_spot->name] = cached_spot;
@@ -39794,13 +39723,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         size_t inferred_spots = 0;
                         std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
                             active_spots;
-                        float spotlight_exposure =
-                            lighting_spot_exposure_for_event(
-                                active_venue_event_);
-                        if (preset->adjective == "blackout") {
-                            spotlight_exposure =
-                                std::min(spotlight_exposure, 0.04f);
-                        }
                         auto push_spot = [&](const LightingSpotlight& spot,
                                              const LightingPreset::TargetState* state) {
                             ghogx::render::MiloSceneRenderer::SpotlightState out;
@@ -39813,72 +39735,109 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 out.intensity = spot.default_intensity;
                             }
                             if (state) {
-                                out.target_mesh = state->target;
-                                out.r = state->color[0];
-                                out.g = state->color[1];
-                                out.b = state->color[2];
-                                out.intensity = state->intensity;
+                                if (spot.animate_orientation_from_preset) {
+                                    out.target_mesh = state->target;
+                                    out.has_target_override = true;
+                                    out.has_rotation = state->has_rotation;
+                                    for (int c = 0; c < 4; ++c) {
+                                        out.rotation_xyzw[c] =
+                                            state->rotation_xyzw[c];
+                                    }
+                                }
+                                if (spot.animate_color_from_preset) {
+                                    out.r = state->color[0];
+                                    out.g = state->color[1];
+                                    out.b = state->color[2];
+                                    out.intensity = state->intensity;
+                                }
+                                if (spot.animate_color_from_preset ||
+                                    spot.animate_orientation_from_preset) {
+                                    out.flare_enabled = state->flare_enabled;
+                                    out.has_flare_enabled =
+                                        state->has_flare_enabled;
+                                }
                             }
-                            out.intensity *= spotlight_exposure;
                             active_spots.push_back(std::move(out));
                         };
                         size_t mesh_target_spots = 0;
-                        for (const auto& target : keyframe.mesh_targets) {
-                            const auto target_it =
-                                lighting_spots_by_target_.find(target);
-                            if (target_it == lighting_spots_by_target_.end())
-                                continue;
-                            const auto state_it = states_by_target.find(target);
-                            for (const LightingSpotlight* spot : target_it->second) {
-                                if (!spot) continue;
-                                if (!preset_has_spot(spot->name)) continue;
-                                ++mesh_target_spots;
-                                push_spot(*spot,
-                                          state_it == states_by_target.end()
-                                              ? nullptr
-                                              : state_it->second);
-                            }
-                        }
                         size_t direct_spots = 0;
-                        for (const auto& spot_ref : keyframe.spot_refs) {
-                            const auto spot_it =
-                                lighting_spots_by_name_.find(spot_ref);
-                            if (spot_it == lighting_spots_by_name_.end())
-                                continue;
-                            if (!preset_has_spot(spot_it->second->name))
-                                continue;
-                            ++direct_spots;
-                            const auto state_it =
-                                states_by_target.find(spot_it->second->target);
-                            push_spot(*spot_it->second,
-                                      state_it == states_by_target.end()
-                                          ? nullptr
-                                          : state_it->second);
-                        }
-                        for (const auto& state : keyframe.target_states) {
-                            if (const auto target_it =
-                                    lighting_spots_by_target_.find(state.target);
-                                target_it != lighting_spots_by_target_.end()) {
-                                for (const LightingSpotlight* spot : target_it->second) {
-                                    if (!spot) continue;
-                                    if (!preset_has_spot(spot->name)) continue;
-                                    ++inferred_spots;
-                                    push_spot(*spot, &state);
-                                }
-                                continue;
-                            }
-                            for (const auto& spot_name :
-                                 infer_spotlight_names_from_target(
-                                     state.target)) {
+                        size_t source_paired_spots = 0;
+                        const bool has_source_spot_pairs =
+                            preset->source_order_decoded &&
+                            std::any_of(
+                                keyframe.target_states.begin(),
+                                keyframe.target_states.end(),
+                                [](const LightingPreset::TargetState& state) {
+                                    return !state.spotlight.empty();
+                                });
+                        if (has_source_spot_pairs) {
+                            for (const auto& state : keyframe.target_states) {
                                 const auto spot_it =
-                                    lighting_spots_by_name_.find(spot_name);
+                                    lighting_spots_by_name_.find(state.spotlight);
                                 if (spot_it == lighting_spots_by_name_.end())
                                     continue;
                                 if (!preset_has_spot(spot_it->second->name))
                                     continue;
-                                ++inferred_spots;
+                                ++source_paired_spots;
                                 push_spot(*spot_it->second, &state);
-                                break;
+                            }
+                        } else {
+                            for (const auto& target : keyframe.mesh_targets) {
+                                const auto target_it =
+                                    lighting_spots_by_target_.find(target);
+                                if (target_it == lighting_spots_by_target_.end())
+                                    continue;
+                                const auto state_it = states_by_target.find(target);
+                                for (const LightingSpotlight* spot : target_it->second) {
+                                    if (!spot) continue;
+                                    if (!preset_has_spot(spot->name)) continue;
+                                    ++mesh_target_spots;
+                                    push_spot(*spot,
+                                              state_it == states_by_target.end()
+                                                  ? nullptr
+                                                  : state_it->second);
+                                }
+                            }
+                            for (const auto& spot_ref : keyframe.spot_refs) {
+                                const auto spot_it =
+                                    lighting_spots_by_name_.find(spot_ref);
+                                if (spot_it == lighting_spots_by_name_.end())
+                                    continue;
+                                if (!preset_has_spot(spot_it->second->name))
+                                    continue;
+                                ++direct_spots;
+                                const auto state_it = states_by_target.find(
+                                    spot_it->second->target);
+                                push_spot(*spot_it->second,
+                                          state_it == states_by_target.end()
+                                              ? nullptr
+                                              : state_it->second);
+                            }
+                            for (const auto& state : keyframe.target_states) {
+                                if (const auto target_it =
+                                        lighting_spots_by_target_.find(state.target);
+                                    target_it != lighting_spots_by_target_.end()) {
+                                    for (const LightingSpotlight* spot : target_it->second) {
+                                        if (!spot) continue;
+                                        if (!preset_has_spot(spot->name)) continue;
+                                        ++inferred_spots;
+                                        push_spot(*spot, &state);
+                                    }
+                                    continue;
+                                }
+                                for (const auto& spot_name :
+                                     infer_spotlight_names_from_target(
+                                         state.target)) {
+                                    const auto spot_it =
+                                        lighting_spots_by_name_.find(spot_name);
+                                    if (spot_it == lighting_spots_by_name_.end())
+                                        continue;
+                                    if (!preset_has_spot(spot_it->second->name))
+                                        continue;
+                                    ++inferred_spots;
+                                    push_spot(*spot_it->second, &state);
+                                    break;
+                                }
                             }
                         }
                         active_spots =
@@ -39911,12 +39870,40 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 env_light_targets.venue_light_colors,
                                 env_light_targets.venue_light_state_overrides,
                                 env_light_targets.venue_light_transforms);
+                        if (env_value("GHOGX_LOG_LIGHT_PRESET_VALUES")) {
+                            for (const auto& state : keyframe.environment_states) {
+                                std::fprintf(
+                                    stderr,
+                                    "[world] LightPreset env value: preset=%s keyframe=%s target=%s ambient=(%.3f %.3f %.3f %.3f) fog=%d range=(%.3f %.3f) fog_color=(%.3f %.3f %.3f %.3f)\n",
+                                    preset->name.c_str(), keyframe.name.c_str(),
+                                    state.target.c_str(), state.color[0],
+                                    state.color[1], state.color[2],
+                                    state.color[3], state.fog_enabled ? 1 : 0,
+                                    state.fog_start, state.fog_end,
+                                    state.fog_color[0], state.fog_color[1],
+                                    state.fog_color[2], state.fog_color[3]);
+                            }
+                            for (const auto& state : keyframe.light_states) {
+                                std::fprintf(
+                                    stderr,
+                                    "[world] LightPreset light value: preset=%s keyframe=%s target=%s type=%d color=(%.3f %.3f %.3f %.3f) pos=(%.3f %.3f %.3f) rot=(%.3f %.3f %.3f %.3f) range=%.3f\n",
+                                    preset->name.c_str(), keyframe.name.c_str(),
+                                    state.target.c_str(), state.type,
+                                    state.color[0], state.color[1],
+                                    state.color[2], state.color[3],
+                                    state.position[0], state.position[1],
+                                    state.position[2], state.rotation_xyzw[0],
+                                    state.rotation_xyzw[1],
+                                    state.rotation_xyzw[2],
+                                    state.rotation_xyzw[3], state.range);
+                            }
+                        }
                         set_lighting_preset_env_light_targets(
                             std::move(env_light_targets),
                             transition_fade_seconds);
                         std::fprintf(
                             stderr,
-                            "[world] lighting keyframe active: %s[%llu] '%s' span=0x%llx..0x%llx targets=%llu target_states=%llu static_targeted_spots=%llu direct_spots=%llu inferred_spots=%llu active_spots=%llu duration_frames=%.3f fade_frames=%.3f fade_seconds=%.3f t=%.3f\n",
+                            "[world] lighting keyframe active: %s[%llu] '%s' span=0x%llx..0x%llx targets=%llu target_states=%llu source_paired_spots=%llu static_targeted_spots=%llu direct_spots=%llu inferred_spots=%llu active_spots=%llu duration_frames=%.3f fade_frames=%.3f fade_seconds=%.3f t=%.3f\n",
                             preset->name.c_str(),
                             static_cast<unsigned long long>(keyframe_index),
                             keyframe.name.c_str(),
@@ -39928,6 +39915,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 keyframe.mesh_targets.size()),
                             static_cast<unsigned long long>(
                                 keyframe.target_states.size()),
+                            static_cast<unsigned long long>(source_paired_spots),
                             static_cast<unsigned long long>(mesh_target_spots),
                             static_cast<unsigned long long>(direct_spots),
                             static_cast<unsigned long long>(inferred_spots),
