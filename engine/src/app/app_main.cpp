@@ -3078,9 +3078,14 @@ int main(int argc, char** argv) {
       std::fprintf(stderr, "[ghogx] --menu requires --ark-dir\n");
       return 2;
     }
-    return ghogx::ui::run_menu_mode(hdr, ark, screenshot_path, screenshot_frame,
-                                    max_frames, render_size.width,
-                                    render_size.height, fixed_dt);
+    ghogx::ui::MenuRunOptions menu_options;
+    menu_options.gameplay_autoplay = diagnostic_autoplay;
+    menu_options.automate_full_loop = env_flag("GHOGX_MENU_AUTO_LOOP");
+    menu_options.preferred_song = song_name;
+    menu_options.preferred_difficulty = difficulty;
+    return ghogx::ui::run_menu_mode(
+        hdr, ark, screenshot_path, screenshot_frame, max_frames,
+        render_size.width, render_size.height, fixed_dt, menu_options);
   }
 
   // --scene: dedicated 3-D MILO scene viewer (venue/stage/track geometry).

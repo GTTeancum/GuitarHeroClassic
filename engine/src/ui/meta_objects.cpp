@@ -669,6 +669,7 @@ GameConfig::GameConfig(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("ga
   set_property(Symbol("game_screen"), DataNode::Sym(Symbol("game_screen")));
   set_property(Symbol("continue_screen"), DataNode::Sym(Symbol("main_screen")));
   set_property(Symbol("lose_screen"), DataNode::Sym(Symbol("lose_screen")));
+  set_property(Symbol("win_screen"), DataNode::Sym(Symbol("endgame_screen")));
   set_property(Symbol("venue"), DataNode::Sym(default_venue(db_)));
   Symbol default_guitar = db_ ? db_->first_guitar() : Symbol();
   if (default_guitar.valid()) {
@@ -725,6 +726,13 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
   if (std::strcmp(m, "set_quickplay") == 0) {
     set_property(Symbol("mode"), DataNode::Sym(Symbol("quickplay")));
     set_property(Symbol("quickplay"), DataNode::Sym(Symbol("TRUE")));
+    // The complete screen's SELECT SONG route returns to the Quickplay song
+    // browser.  This value is normally populated by the retail game config
+    // object, outside the UI scripts themselves.
+    set_property(Symbol("continue_screen"),
+                 DataNode::Sym(Symbol("qp_selsong_screen")));
+    set_property(Symbol("win_screen"),
+                 DataNode::Sym(Symbol("endgame_screen")));
     return true;
   }
   if (std::strcmp(m, "get_venue") == 0) {

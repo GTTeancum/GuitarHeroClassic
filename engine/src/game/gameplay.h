@@ -829,6 +829,7 @@ class Gameplay {
       std::optional<double> star_power_at_sec = std::nullopt) const;
   int    score()     const { return score_; }
   int    streak()    const { return streak_; }
+  int    longest_streak() const { return longest_streak_; }
   int    multiplier()const { return multiplier_; }
   int    hit_count() const { return hit_count_; }
   int    miss_count() const { return miss_count_; }
@@ -1511,6 +1512,7 @@ class Gameplay {
 
   int      score_          = 0;
   int      streak_         = 0;
+  int      longest_streak_ = 0;
   int      multiplier_     = 1;
   int      hit_count_      = 0;
   int      miss_count_     = 0;

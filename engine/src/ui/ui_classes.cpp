@@ -462,6 +462,10 @@ bool credits_panel_lifecycle(Symbol cls, Symbol msg) {
 bool slider_class(Symbol cls) {
   return cls == Symbol("UISlider") || cls == Symbol("BandSlider");
 }
+
+bool text_entry_class(Symbol cls) {
+  return cls == Symbol("UITextEntry") || cls == Symbol("BandTextEntry");
+}
 int slider_steps(Object& obj) {
   return std::max(1, node_int(obj.get_property(Symbol("num_steps")), 1));
 }
@@ -901,6 +905,14 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
   }
   if (std::strcmp(m, "send_select") == 0 ||
       std::strcmp(m, "mock_select") == 0) {
+    if (text_entry_class(cls_)) {
+      set_property(Symbol("done"), kTrue());
+      finish_component_select(*this);
+      if (mgr_ && mgr_->current_screen())
+        mgr_->current_screen()->handle_property(Symbol("TEXT_ENTRY_MSG"),
+                                                DataArray());
+      return true;
+    }
     if (slider_class(cls_)) {
       if (slider_scroll_selected(*this)) {
         slider_reset_selection(*this);
@@ -955,8 +967,12 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
     out = kTrue();
     return true;
   }
-  if (std::strcmp(m, "resume_input") == 0 || std::strcmp(m, "is_done") == 0) {
-    out = std::strcmp(m, "is_done") == 0 ? kFalse() : DataNode();
+  if (std::strcmp(m, "resume_input") == 0) {
+    set_property(Symbol("done"), kFalse());
+    return true;
+  }
+  if (std::strcmp(m, "is_done") == 0) {
+    out = node_bool(get_property(Symbol("done"))) ? kTrue() : kFalse();
     return true;
   }
   if (std::strcmp(m, "set_text_entry") == 0) {

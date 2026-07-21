@@ -1888,6 +1888,17 @@ int main(int argc, char** argv) {
             .as_symbol()
             .value_or(Symbol()) == Symbol("focused"));
 
+  // BandTextEntry::ResumeInput reopens editing and selecting a completed name
+  // reports IsDone.  endgame.dtb uses that exact state to advance from the
+  // high-score name entry to the completion screen.
+  ui::UiObject text_entry(Symbol("BandTextEntry"));
+  text_entry.handle_property(Symbol("resume_input"), DataArray());
+  CHECK(!truthy(text_entry.handle_property(Symbol("is_done"), DataArray())));
+  text_entry.handle_property(Symbol("send_select"), DataArray());
+  CHECK(truthy(text_entry.handle_property(Symbol("is_done"), DataArray())));
+  text_entry.handle_property(Symbol("resume_input"), DataArray());
+  CHECK(!truthy(text_entry.handle_property(Symbol("is_done"), DataArray())));
+
   // Script-set label text is runtime state on the MILO child object. The menu
   // renderer resolves this same object name and prefers the live `text` and
   // `showing` values over the static MILO token/visibility.

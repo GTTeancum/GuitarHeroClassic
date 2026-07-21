@@ -37,10 +37,13 @@ endif()
 
 # Windowed menu presentation. GH2 menus are 3-D MILO scenes, so this reuses the
 # MiloSceneRenderer; WIN32/D3D9-only (its deps are the WIN32 render targets).
-add_library(ghogx_ui_render STATIC menu_app.cpp menu_app.h)
+add_library(ghogx_ui_render STATIC
+    menu_app.cpp menu_app.h
+    pss_video_player_win32.cpp pss_video_player_win32.h)
 target_include_directories(ghogx_ui_render PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_ui_render PUBLIC
-    ghogx_ui_core ghogx_render ghogx_milo_scene ghogx_asset ghogx_menu_font ark_v3 milo)
+    ghogx_ui_core ghogx_render ghogx_milo_scene ghogx_asset ghogx_menu_font
+    ghogx_game ghogx_hud ark_v3 milo)
 if(MSVC)
     target_compile_options(ghogx_ui_render PRIVATE /W4)
 endif()

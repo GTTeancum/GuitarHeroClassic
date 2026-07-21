@@ -26493,6 +26493,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     next_note_idx_= 0;
     score_        = 0;
     streak_       = 0;
+    longest_streak_ = 0;
     multiplier_   = 1;
     hit_count_    = 0;
     miss_count_   = 0;
@@ -35141,6 +35142,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
     }
     score_ = gameplay_session_mirror_->score();
     streak_ = gameplay_session_mirror_->streak();
+    longest_streak_ = std::max(longest_streak_, streak_);
     multiplier_ = gameplay_session_mirror_->multiplier();
     hit_count_ = gameplay_session_mirror_->hits();
     miss_count_ = gameplay_session_mirror_->misses();
@@ -35605,6 +35607,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         }
         score_ = state.score;
         streak_ = state.streak;
+        longest_streak_ = std::max(longest_streak_, streak_);
         multiplier_ = state.multiplier;
     };
 

@@ -6,11 +6,14 @@
 #include "ui/menu_font.h"
 #include "ui/menu_labels.h"
 #include "ui/meta_objects.h"
+#include "ui/pss_video_player_win32.h"
 #include "ui/screen_loader.h"
 #include "ui/screen_manager.h"
 #include "ui/ui_classes.h"
 
 #include "asset/milo_image.h"
+#include "game/gameplay.h"
+#include "hud/hud_renderer.h"
 #include "milo_scene/milo_scene.h"
 #include "render/milo_scene_renderer.h"
 #include "render/window_d3d9.h"
@@ -22,16 +25,28 @@
 
 #include "ark_v3.h"
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <d3d9.h>
+
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
 #include <cctype>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
 #include <cstring>
+#include <filesystem>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -43,6 +58,118 @@ namespace ghogx::ui {
 namespace {
 
 using Action = ghogx::render::Window::Action;
+
+struct OverlayVertex {
+  float x, y, z, rhw;
+  D3DCOLOR color;
+  float u, v;
+};
+
+constexpr DWORD kOverlayFvf =
+    D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1;
+
+IDirect3DTexture9* upload_overlay_texture(IDirect3DDevice9* dev,
+                                          const asset::Image& image) {
+  if (!dev || !image.valid()) return nullptr;
+  IDirect3DTexture9* texture = nullptr;
+  if (FAILED(dev->CreateTexture(static_cast<UINT>(image.width),
+                                static_cast<UINT>(image.height), 1, 0,
+                                D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &texture,
+                                nullptr))) {
+    return nullptr;
+  }
+  D3DLOCKED_RECT locked{};
+  if (FAILED(texture->LockRect(0, &locked, nullptr, 0))) {
+    texture->Release();
+    return nullptr;
+  }
+  for (int y = 0; y < image.height; ++y) {
+    auto* dst = static_cast<std::uint8_t*>(locked.pBits) + y * locked.Pitch;
+    const auto* src = image.rgba.data() +
+                      static_cast<std::size_t>(y) * image.width * 4u;
+    for (int x = 0; x < image.width; ++x) {
+      dst[x * 4 + 0] = src[x * 4 + 2];
+      dst[x * 4 + 1] = src[x * 4 + 1];
+      dst[x * 4 + 2] = src[x * 4 + 0];
+      dst[x * 4 + 3] = src[x * 4 + 3];
+    }
+  }
+  texture->UnlockRect(0);
+  return texture;
+}
+
+class YouRockOverlay {
+ public:
+  ~YouRockOverlay() {
+    if (atlas_) atlas_->Release();
+  }
+
+  bool load(IDirect3DDevice9* dev, const MenuFont& font) {
+    if (atlas_) return true;
+    font_ = &font;
+    atlas_ = upload_overlay_texture(dev, font.atlas());
+    return atlas_ != nullptr;
+  }
+
+  void draw(IDirect3DDevice9* dev, int width, int height, float phase) {
+    if (!dev || !font_ || !atlas_) return;
+    float native_width = 0.0f;
+    const auto glyphs = font_->layout("YOU ROCK!", &native_width);
+    if (glyphs.empty() || native_width <= 0.0f) return;
+
+    const float pulse = 1.0f + 0.035f * std::sin(phase * 8.0f);
+    const float target_width = static_cast<float>(width) * 0.68f * pulse;
+    const float scale = target_width / native_width;
+    const float cap = font_->line_height() * scale;
+    const float origin_x = (static_cast<float>(width) - target_width) * 0.5f;
+    const float origin_y = static_cast<float>(height) * 0.28f - cap * 0.5f;
+
+    dev->BeginScene();
+    dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+    dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+    dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+    dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    dev->SetFVF(kOverlayFvf);
+    dev->SetTexture(0, atlas_);
+    dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+    dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+    for (const auto& glyph : glyphs) {
+      const float x0 = origin_x + glyph.x0 * scale;
+      const float y0 = origin_y + glyph.y0 * scale;
+      const float x1 = origin_x + glyph.x1 * scale;
+      const float y1 = origin_y + glyph.y1 * scale;
+      const OverlayVertex quad[4] = {
+          {x0 - 0.5f, y0 - 0.5f, 0.0f, 1.0f, 0xffffffffu,
+           glyph.u0, glyph.v0},
+          {x1 - 0.5f, y0 - 0.5f, 0.0f, 1.0f, 0xffffffffu,
+           glyph.u1, glyph.v0},
+          {x0 - 0.5f, y1 - 0.5f, 0.0f, 1.0f, 0xffffffffu,
+           glyph.u0, glyph.v1},
+          {x1 - 0.5f, y1 - 0.5f, 0.0f, 1.0f, 0xffffffffu,
+           glyph.u1, glyph.v1},
+      };
+      dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad,
+                           sizeof(OverlayVertex));
+    }
+    dev->SetTexture(0, nullptr);
+    dev->EndScene();
+  }
+
+ private:
+  const MenuFont* font_ = nullptr;
+  IDirect3DTexture9* atlas_ = nullptr;
+};
 
 std::unordered_set<std::string> compute_disabled(ScreenManager& mgr,
                                                  Object* screen = nullptr);  // fwd
@@ -1320,9 +1447,21 @@ std::string panel_file(Object* panel) {
   if (!panel) return {};
   DataNode f = panel->get_property(Symbol("file"));
   if (f.empty()) f = panel->handle_property(Symbol("file"), DataArray());
-  if (auto sym = f.as_symbol()) return std::string(sym->c_str());
-  if (auto text = f.as_string()) return std::string(*text);
-  return {};
+  std::string file;
+  if (auto sym = f.as_symbol()) file = sym->c_str();
+  if (auto text = f.as_string()) file = std::string(*text);
+  // endgame.dtb formats the difficulty enum into win_%s.milo.  Retail's data
+  // formatter strips kDifficulty; the generic interpreter deliberately keeps
+  // symbol spelling intact, so bridge that one source conversion here.
+  static const std::unordered_map<std::string, std::string> kWinDifficulty = {
+      {"win_kDifficultyEasy.milo", "win_easy.milo"},
+      {"win_kDifficultyMedium.milo", "win_medium.milo"},
+      {"win_kDifficultyHard.milo", "win_hard.milo"},
+      {"win_kDifficultyExpert.milo", "win_expert.milo"},
+  };
+  if (const auto it = kWinDifficulty.find(file); it != kWinDifficulty.end())
+    return it->second;
+  return file;
 }
 
 std::unordered_set<std::string> hidden_meshes_from_live_views(
@@ -3775,7 +3914,7 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
 int run_menu_mode(const std::string& hdr, const std::string& ark,
                   const std::string& screenshot_path, int screenshot_frame,
                   int max_frames, int window_width, int window_height,
-                  float fixed_dt) {
+                  float fixed_dt, const MenuRunOptions& options) {
   // 1. Boot the menu logic engine: classes, all screens (verbatim), game-side.
   register_ui_classes();
   ScreenManager mgr;
@@ -3810,6 +3949,13 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   helvetica_font.load(hdr, ark, "ui/gen/helveticablackcondensed.milo_ps2");
   MenuFont helvetica_black_font;
   helvetica_black_font.load(hdr, ark, "ui/gen/helveticablack.milo_ps2");
+  std::vector<asset::Image> boot_slides;
+  for (const char* source : {"ui/gen/pub_splash.milo_ps2",
+                             "ui/gen/activision_splash.milo_ps2",
+                             "ui/gen/harmonix_splash.milo_ps2"}) {
+    asset::Image slide = asset::load_milo_texture(hdr, ark, source);
+    if (slide.valid()) boot_slides.push_back(std::move(slide));
+  }
   std::map<std::string, std::string> locale = load_locale(arkr, arks);
   seed_source_list_layouts(hdr, ark, mgr, db, locale);
   const MenuMaterialAnim loading_word_material_anim = extract_menu_material_anim(
@@ -3856,6 +4002,60 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   ghogx::render::MiloSceneRenderer guitar_renderer(*win);
   ghogx::render::MiloSceneRenderer transition_renderer(*win);
   ghogx::render::MiloSceneRenderer transition_guitar_renderer(*win);
+  ghogx::game::Gameplay gameplay;
+  ghogx::hud::HudRenderer gameplay_hud;
+  YouRockOverlay you_rock_overlay;
+  auto* d3d = static_cast<IDirect3DDevice9*>(win->device_ptr());
+  const bool hud_ready = gameplay_hud.load(d3d, hdr, ark);
+  you_rock_overlay.load(d3d, rockletters_font.valid() ? rockletters_font
+                                                     : impact_font);
+
+  enum class RuntimePhase { BootLogos, IntroVideo, Menus, Gameplay, YouRock };
+  const bool explicit_start_screen = std::getenv("GHOGX_MENU_START_SCREEN") != nullptr;
+  RuntimePhase phase =
+      options.play_boot_presentation && !explicit_start_screen
+          ? RuntimePhase::BootLogos
+          : RuntimePhase::Menus;
+  float phase_seconds = 0.0f;
+  float screen_seconds = 0.0f;
+  PssVideoPlayerWin32 intro_video;
+  bool intro_video_started = false;
+  bool gameplay_loaded = false;
+  bool gameplay_results_committed = false;
+  bool auto_loop_completed = false;
+  std::string automated_screen;
+  int loaded_difficulty = std::clamp(options.preferred_difficulty, 0, 3);
+  std::string loaded_song;
+
+  const std::filesystem::path intro_path =
+      std::filesystem::path(hdr).parent_path().parent_path() / "videos" /
+      "intro.pss";
+  auto route_after_intro = [&]() {
+    intro_video.close();
+    Object* campaign = mgr.resolve_object(Symbol("campaign"));
+    const int profiles = campaign
+                             ? campaign->handle_property(Symbol("num_profiles"),
+                                                         DataArray())
+                                   .as_int()
+                                   .value_or(0)
+                             : 0;
+    Symbol target = profiles > 0 ? Symbol("splash_screen")
+                                 : Symbol("guitar_help_screen");
+    if (!mgr.find_object(target)) target = Symbol("splash_screen");
+    if (!mgr.find_object(target)) target = Symbol("main_screen");
+    mgr.goto_screen(target);
+    phase = RuntimePhase::Menus;
+    phase_seconds = 0.0f;
+    screen_seconds = 0.0f;
+    std::fprintf(stderr, "[boot] intro complete -> %s\n", target.c_str());
+  };
+
+  auto start_intro_video = [&]() {
+    phase = RuntimePhase::IntroVideo;
+    phase_seconds = 0.0f;
+    intro_video_started = intro_video.open(intro_path.string());
+    if (!intro_video_started) route_after_intro();
+  };
   // GH2 PS2 menu cameras are authored for a 4:3 frame. Keep the renderer-wide
   // GHOGX_CAMERA_ASPECT override available for diagnostics, but do not let a
   // widescreen backbuffer silently stretch source-authored menu geometry.
@@ -4060,6 +4260,195 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   size_t nav_i = 0;
   const uint64_t kNavStep = 5;
 
+  auto current_song_index = [&]() -> std::size_t {
+    Object* game = mgr.resolve_object(Symbol("game"));
+    const int value =
+        game ? game->get_property(Symbol("song_index")).as_int().value_or(0)
+             : 0;
+    if (db.song_count() == 0) return 0;
+    return std::min<std::size_t>(static_cast<std::size_t>(std::max(0, value)),
+                                 db.song_count() - 1);
+  };
+  auto current_difficulty = [&]() -> int {
+    Object* player = mgr.resolve_object(Symbol("player0"));
+    const Symbol value =
+        player ? player->get_property(Symbol("difficulty"))
+                     .as_symbol()
+                     .value_or(Symbol("kDifficultyMedium"))
+               : Symbol("kDifficultyMedium");
+    if (value == Symbol("kDifficultyEasy")) return 0;
+    if (value == Symbol("kDifficultyHard")) return 2;
+    if (value == Symbol("kDifficultyExpert")) return 3;
+    return 1;
+  };
+  auto set_selected_song = [&](std::size_t index) {
+    if (db.song_count() == 0) return;
+    index = std::min(index, db.song_count() - 1);
+    if (Object* list = mgr.resolve_object(Symbol("ss_song.lst")))
+      list->handle_property(Symbol("set_selected"),
+                            one_arg(DataNode::Int(static_cast<int>(index))));
+    if (Object* panel = mgr.find_object(Symbol("sel_song_panel")))
+      panel->set_property(Symbol("ss_song_selected"),
+                          DataNode::Int(static_cast<int>(index)));
+    if (Object* game = mgr.resolve_object(Symbol("game")))
+      game->handle_property(Symbol("set_song_index"),
+                            one_arg(DataNode::Int(static_cast<int>(index))));
+  };
+  auto preferred_song_index = [&]() -> std::size_t {
+    if (options.preferred_song.empty()) return current_song_index();
+    for (std::size_t i = 0; i < db.song_count(); ++i) {
+      if (options.preferred_song == db.song_key(i).c_str()) return i;
+    }
+    return current_song_index();
+  };
+  auto prepare_gameplay = [&]() -> bool {
+    const std::size_t index = current_song_index();
+    const Symbol song = db.song_key(index);
+    if (!song.valid()) {
+      std::fprintf(stderr, "[flow] no selected song at index %zu\n", index);
+      return false;
+    }
+    loaded_song = song.c_str();
+    loaded_difficulty = current_difficulty();
+    gameplay.set_diagnostic_autoplay(options.gameplay_autoplay);
+    gameplay.set_deterministic_clock(fixed_dt > 0.0f);
+    if (!gameplay.load_song(hdr, ark, loaded_song, loaded_difficulty)) {
+      std::fprintf(stderr, "[flow] gameplay load failed: %s diff=%d\n",
+                   loaded_song.c_str(), loaded_difficulty);
+      return false;
+    }
+    gameplay_loaded = true;
+    gameplay_results_committed = false;
+    std::fprintf(stderr, "[flow] gameplay ready: %s diff=%d autoplay=%d\n",
+                 loaded_song.c_str(), loaded_difficulty,
+                 options.gameplay_autoplay ? 1 : 0);
+    return true;
+  };
+  auto commit_gameplay_results = [&]() {
+    if (gameplay_results_committed) return;
+    gameplay_results_committed = true;
+    const int hit = std::max(0, gameplay.hit_count());
+    const int miss = std::max(0, gameplay.miss_count());
+    const int total = hit + miss;
+    const int percent = total > 0
+                            ? static_cast<int>(std::lround(
+                                  100.0 * static_cast<double>(hit) / total))
+                            : 0;
+    const int stars = percent >= 95 ? 5 : percent >= 80 ? 4 : 3;
+    const float average_multiplier =
+        total > 0
+            ? std::clamp(static_cast<float>(gameplay.score()) /
+                             (50.0f * static_cast<float>(total)),
+                         1.0f, 4.0f)
+            : 1.0f;
+    if (Object* player = mgr.resolve_object(Symbol("player0"))) {
+      player->set_property(Symbol("score"), DataNode::Int(gameplay.score()));
+      player->set_property(Symbol("percent_hit"), DataNode::Int(percent));
+      player->set_property(Symbol("percent_complete"), DataNode::Int(100));
+      player->set_property(Symbol("longest_streak"),
+                           DataNode::Int(gameplay.longest_streak()));
+      player->set_property(Symbol("gems_hit"), DataNode::Int(hit));
+      player->set_property(Symbol("gems_passed"), DataNode::Int(miss));
+      player->set_property(Symbol("avg_multiplier"),
+                           DataNode::Float(average_multiplier));
+      player->set_property(Symbol("num_stars"), DataNode::Int(stars));
+      player->set_property(Symbol("star_rating"), DataNode::Int(stars));
+      player->set_property(Symbol("sp_phrases"), DataNode::Int(0));
+    }
+    if (Object* game = mgr.resolve_object(Symbol("game"))) {
+      game->set_property(Symbol("song_duration_sec"),
+                         DataNode::Float(static_cast<float>(gameplay.song_time())));
+    }
+    std::fprintf(stderr,
+                 "[flow] results committed: score=%d hit=%d miss=%d percent=%d "
+                 "streak=%d stars=%d\n",
+                 gameplay.score(), hit, miss, percent,
+                 gameplay.longest_streak(), stars);
+  };
+  auto draw_gameplay = [&](bool show_you_rock) {
+    gameplay.draw(*win);
+    if (hud_ready) {
+      ghogx::hud::HudState state;
+      state.score = gameplay.score();
+      state.streak = gameplay.streak();
+      state.multiplier = gameplay.multiplier() *
+                         (gameplay.star_power_active() ? 2 : 1);
+      state.sp_fill = gameplay.star_power_fill();
+      state.sp_active = gameplay.star_power_active();
+      state.rock_fill = gameplay.rock_fill();
+      state.anim_seconds = static_cast<float>(gameplay.song_time());
+      state.track_intro_active = gameplay.track_intro_active();
+      gameplay_hud.draw(d3d, state);
+    }
+    if (show_you_rock)
+      you_rock_overlay.draw(d3d, win->bb_width(), win->bb_height(),
+                            phase_seconds);
+  };
+
+  auto automate_current_screen = [&]() -> bool {
+    if (!options.automate_full_loop || auto_loop_completed || !shown)
+      return false;
+    const std::string screen = shown->name().c_str();
+    if (automated_screen == screen) return false;
+    const float dwell = (screen == "endgame_screen" ||
+                         screen == "endgame_stats_screen")
+                            ? 2.5f
+                            : (screen == "complete_screen" ? 2.0f : 0.65f);
+    if (screen_seconds < dwell) return false;
+    if (screen == "guitar_help_screen" || screen == "splash_screen") {
+      automated_screen = screen;
+      do_confirm(mgr);
+      return true;
+    }
+    if (screen == "main_screen") {
+      Object* panel = mgr.find_object(Symbol("main_panel"));
+      set_panel_focus(mgr, panel, "main_quickspin.btn");
+      automated_screen = screen;
+      do_confirm(mgr);
+      return true;
+    }
+    if (screen == "qp_selsong_screen") {
+      set_selected_song(preferred_song_index());
+      automated_screen = screen;
+      do_confirm(mgr);
+      return true;
+    }
+    if (screen == "qp_diff_screen") {
+      Object* panel = mgr.find_object(Symbol("sel_difficulty_panel"));
+      set_panel_focus(
+          mgr, panel,
+          "sd_diff" +
+              std::to_string(std::clamp(options.preferred_difficulty, 0, 3) +
+                             1) +
+              ".btn");
+      automated_screen = screen;
+      do_confirm(mgr);
+      return true;
+    }
+    if (screen == "endgame_screen") {
+      Object* panel = mgr.find_object(Symbol("endgame_panel"));
+      set_panel_focus(mgr, panel, "me_morestats.btn");
+      automated_screen = screen;
+      do_confirm(mgr);
+      return true;
+    }
+    if (screen == "endgame_stats_screen" || screen == "highscore_screen") {
+      automated_screen = screen;
+      do_confirm(mgr);
+      return true;
+    }
+    if (screen == "complete_screen") {
+      Object* panel = mgr.find_object(Symbol("complete_panel"));
+      set_panel_focus(mgr, panel, "comp_selsong.btn");
+      automated_screen = screen;
+      do_confirm(mgr);
+      auto_loop_completed = true;
+      std::fprintf(stderr, "[flow] automated full loop returned to menus\n");
+      return true;
+    }
+    return false;
+  };
+
   using clock = std::chrono::steady_clock;
   auto last = clock::now();
   uint64_t frame = 0;
@@ -4074,6 +4463,139 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     last = now;
     if (dt > 0.1f) dt = 0.1f;
     if (fixed_dt > 0.0f && std::isfinite(fixed_dt)) dt = fixed_dt;
+
+    phase_seconds += dt;
+
+    if (phase == RuntimePhase::BootLogos) {
+      const bool skip = win->action_pressed(Action::Confirm) ||
+                        win->action_pressed(Action::Start) ||
+                        win->action_pressed(Action::Back);
+      constexpr float kFade = 0.45f;
+      constexpr float kHold = 1.20f;
+      constexpr float kSlide = kFade + kHold + kFade;
+      const int slide = static_cast<int>(phase_seconds / kSlide);
+      if (skip || boot_slides.empty() ||
+          slide >= static_cast<int>(boot_slides.size())) {
+        if (skip) std::fprintf(stderr, "[boot] logo sequence skipped\n");
+        start_intro_video();
+      }
+      if (phase == RuntimePhase::BootLogos) {
+        const float local = phase_seconds - static_cast<float>(slide) * kSlide;
+        float brightness = 1.0f;
+        if (local < kFade)
+          brightness = local / kFade;
+        else if (local > kFade + kHold)
+          brightness = (kSlide - local) / kFade;
+        const asset::Image& image = boot_slides[static_cast<std::size_t>(slide)];
+        win->clear(0.0f, 0.0f, 0.0f);
+        win->blit_fullscreen_rgba(image.rgba.data(), image.width, image.height,
+                                  std::clamp(brightness, 0.0f, 1.0f));
+        if (!screenshot_path.empty() &&
+            frame == static_cast<uint64_t>(screenshot_frame))
+          win->save_screenshot(screenshot_path.c_str());
+        win->present();
+        ++frame;
+        if (max_frames > 0 && frame >= static_cast<uint64_t>(max_frames)) break;
+        continue;
+      }
+    }
+
+    if (phase == RuntimePhase::IntroVideo) {
+      const bool skip = win->action_pressed(Action::Confirm) ||
+                        win->action_pressed(Action::Start) ||
+                        win->action_pressed(Action::Back);
+      if (skip) {
+        std::fprintf(stderr, "[boot-video] intro skipped\n");
+        route_after_intro();
+      } else if (intro_video_started && intro_video.read_next_frame()) {
+        win->clear(0.0f, 0.0f, 0.0f);
+        win->blit_fullscreen_rgba(intro_video.rgba().data(),
+                                  intro_video.width(), intro_video.height());
+        if (!screenshot_path.empty() &&
+            frame == static_cast<uint64_t>(screenshot_frame))
+          win->save_screenshot(screenshot_path.c_str());
+        win->present();
+        ++frame;
+        if (max_frames > 0 && frame >= static_cast<uint64_t>(max_frames)) break;
+        continue;
+      } else if (phase == RuntimePhase::IntroVideo) {
+        route_after_intro();
+      }
+    }
+
+    if (phase == RuntimePhase::Gameplay) {
+      const uint32_t guitar_input =
+          win->guitar_input_held() |
+          (win->guitar_input_edge() & ((1u << 5) | (1u << 6)));
+      gameplay.tick(dt, guitar_input, win->guitar_whammy_axis());
+      if (gameplay.failed()) {
+        gameplay.stop_audio();
+        commit_gameplay_results();
+        gameplay_loaded = false;
+        mgr.goto_screen(Symbol("lose_screen"));
+        phase = RuntimePhase::Menus;
+        phase_seconds = 0.0f;
+        screen_seconds = 0.0f;
+        std::fprintf(stderr, "[flow] song failed -> lose_screen\n");
+      } else if (gameplay.is_finished()) {
+        gameplay.stop_audio();
+        commit_gameplay_results();
+        phase = RuntimePhase::YouRock;
+        phase_seconds = 0.0f;
+        std::fprintf(stderr, "[flow] song complete -> YOU ROCK\n");
+      }
+      draw_gameplay(phase == RuntimePhase::YouRock);
+      if (!screenshot_path.empty() &&
+          frame == static_cast<uint64_t>(screenshot_frame))
+        win->save_screenshot(screenshot_path.c_str());
+      win->present();
+      ++frame;
+      if (max_frames > 0 && frame >= static_cast<uint64_t>(max_frames)) break;
+      continue;
+    }
+
+    if (phase == RuntimePhase::YouRock) {
+      const bool continue_pressed =
+          phase_seconds >= 0.75f &&
+          (win->action_pressed(Action::Confirm) ||
+           win->action_pressed(Action::Start));
+      draw_gameplay(true);
+      if (!screenshot_path.empty() &&
+          frame == static_cast<uint64_t>(screenshot_frame))
+        win->save_screenshot(screenshot_path.c_str());
+      win->present();
+      if (continue_pressed || phase_seconds >= 4.0f) {
+        gameplay_loaded = false;
+        mgr.goto_screen(Symbol("post_show_screen"));
+        phase = RuntimePhase::Menus;
+        phase_seconds = 0.0f;
+        screen_seconds = 0.0f;
+        automated_screen.clear();
+        std::fprintf(stderr, "[flow] YOU ROCK -> stock post-show results\n");
+      }
+      ++frame;
+      if (max_frames > 0 && frame >= static_cast<uint64_t>(max_frames)) break;
+      continue;
+    }
+
+    screen_seconds += dt;
+
+    // Loading completion is an external engine event in the stock scripts.
+    // Load the selected song while their loading screen is visible, then send
+    // exactly that event to enter game_screen.
+    Object* live_screen = mgr.current_screen();
+    if (live_screen && live_screen->name() == Symbol("loading_screen") &&
+        !gameplay_loaded && screen_seconds >= 0.15f) {
+      if (prepare_gameplay()) {
+        live_screen->handle_property(Symbol("TRANSITION_COMPLETE_MSG"),
+                                     DataArray());
+        phase = RuntimePhase::Gameplay;
+        phase_seconds = 0.0f;
+      } else {
+        mgr.goto_screen(Symbol("qp_selsong_screen"));
+        screen_seconds = 0.0f;
+      }
+    }
 
     // Input (live controller/keyboard) -> focus nav + the real menu scripts.
     bool visual_dirty = false;
@@ -4116,6 +4638,8 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       }
     }
 
+    if (automate_current_screen()) visual_dirty = true;
+
     mgr.update(dt);
     const auto transition = mgr.transition_snapshot();
 
@@ -4127,6 +4651,8 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         rebuild_transition_screen(transition.exiting_screen);
       }
       shown = mgr.current_screen();
+      screen_seconds = 0.0f;
+      automated_screen.clear();
       cur_labels = gather_labels(hdr, ark, mgr, shown);
       cur_disabled = compute_disabled(mgr);
       rebuild_scene(hdr, ark, mgr, shown, renderer);
