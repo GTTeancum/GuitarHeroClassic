@@ -492,6 +492,9 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
   uint32_t miss_gtr_cycle = 0;
   uint32_t sp_gemhit_cycle = 0;
   uint32_t sp_awarded_cycle = 0;
+  uint32_t track_unfurl_cycle = 0;
+  std::array<uint32_t, 5> nowbar_cycles = {};
+  uint32_t meter_slide_cycle = 0;
   bool gameplay_sfx_loaded = false;
 
   // --- GH2 whammy pitch state (config/gen/beatmatcher.dtb) ---
@@ -1161,6 +1164,9 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     group_defs.clear();
     gameplay_sfx_loaded = false;
     miss_gtr_cycle = sp_gemhit_cycle = sp_awarded_cycle = 0;
+    track_unfurl_cycle = 0;
+    nowbar_cycles.fill(0);
+    meter_slide_cycle = 0;
 
     try {
       auto ark = gh::ark::ArkV3Reader::load(hdr_path);
@@ -1189,15 +1195,23 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
       }
       gameplay_sfx_loaded =
           route_available("miss_gtr") || route_available("sp_gemhit") ||
-          route_available("sp_awarded");
+          route_available("sp_awarded") || route_available("track_unfurl");
       std::fprintf(
           stderr,
           "[audio-gameplay] loaded GH2 ingame bank: samples=%zu sfx=%zu "
-          "seq=%zu groups=%zu miss_gtr=%d sp_gemhit=%d sp_awarded=%d\n",
+          "seq=%zu groups=%zu miss_gtr=%d sp_gemhit=%d sp_awarded=%d "
+          "track_unfurl=%d nowbar=%d/%d/%d/%d/%d meter_slide=%d\n",
           bank_samples.size(), sfx_defs.size(), sequence_defs.size(),
           group_defs.size(), route_available("miss_gtr") ? 1 : 0,
           route_available("sp_gemhit") ? 1 : 0,
-          route_available("sp_awarded") ? 1 : 0);
+          route_available("sp_awarded") ? 1 : 0,
+          route_available("track_unfurl") ? 1 : 0,
+          route_available("nowbar_1") ? 1 : 0,
+          route_available("nowbar_2") ? 1 : 0,
+          route_available("nowbar_3") ? 1 : 0,
+          route_available("nowbar_4") ? 1 : 0,
+          route_available("nowbar_5") ? 1 : 0,
+          route_available("meter_slide") ? 1 : 0);
     } catch (const std::exception& ex) {
       std::fprintf(stderr, "[audio-gameplay] bank load failed: %s\n",
                    ex.what());
@@ -1503,6 +1517,25 @@ void AudioPlayer::star_phrase_complete_feedback() {
   if (!impl_) return;
   impl_->play_route("sp_awarded", "star_phrase_complete",
                     impl_->sp_awarded_cycle);
+}
+
+void AudioPlayer::track_intro_feedback(int stage) {
+  if (!impl_) return;
+  if (stage == 0) {
+    impl_->play_route("track_unfurl", "track_intro_extend",
+                      impl_->track_unfurl_cycle);
+    return;
+  }
+  if (stage == 6) {
+    impl_->play_route("meter_slide", "track_intro_meter",
+                      impl_->meter_slide_cycle);
+    return;
+  }
+  if (stage < 1 || stage > 5) return;
+  const size_t lane = static_cast<size_t>(stage - 1);
+  const std::string route = "nowbar_" + std::to_string(stage);
+  impl_->play_route(route.c_str(), "track_intro_smasher",
+                    impl_->nowbar_cycles[lane]);
 }
 
 void AudioPlayer::set_whammy_state(bool active, double song_time_sec) {

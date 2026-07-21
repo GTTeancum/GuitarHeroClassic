@@ -9494,32 +9494,19 @@ PerformerCrowdLightingMod performer_crowd_lighting_mod_for(
     return mod;
 }
 
-std::vector<uint8_t> worldcrowd_placement_visible_by_fullness(
-    const std::vector<std::array<float, 16>>& placement_worlds,
-    const float eye[3], float fullness) {
-    (void)eye;
-    std::vector<uint8_t> visible(placement_worlds.size(), 0);
-    if (placement_worlds.empty() || fullness <= 0.0f) return visible;
-    if (fullness >= 0.999f) {
-        std::fill(visible.begin(), visible.end(), 1);
-        return visible;
+size_t worldcrowd_fullness_keep_count(size_t flat_count, float fullness) {
+    if (flat_count == 0 || !std::isfinite(fullness) || fullness <= 0.0f) {
+        return 0;
     }
+    if (fullness >= 1.0f) return flat_count;
 
-    const size_t keep = std::clamp(
-        static_cast<size_t>(std::ceil(static_cast<float>(placement_worlds.size()) *
-                                      fullness)),
-        size_t{1}, placement_worlds.size());
-
-    // crowd_update set_fullness is an authored density control. Keep a stable
-    // spread through the decoded placement order instead of re-ranking toward
-    // the active camera, which can pull foreground audience bodies into the
-    // playable camera view.
-    for (size_t i = 0; i < placement_worlds.size(); ++i) {
-        const size_t previous_bucket = (i * keep) / placement_worlds.size();
-        const size_t current_bucket = ((i + 1) * keep) / placement_worlds.size();
-        if (current_bucket > previous_bucket) visible[i] = 1;
-    }
-    return visible;
+    // GH2 retail WorldCrowd::SetFullness (SLUS_214.47, 0x0026bdf0) uses
+    // cvt.w.s on count * fullness, then keeps a contiguous authored prefix by
+    // moving the remainder from RndMultiMesh::Instances into mBackup.
+    const float requested = static_cast<float>(flat_count) * fullness;
+    const long rounded = std::lrint(requested);
+    return static_cast<size_t>(
+        std::clamp<long>(rounded, 0, static_cast<long>(flat_count)));
 }
 
 size_t merge_worldcrowd_actor_source_targets(
@@ -19563,10 +19550,6 @@ struct CameraSourceFrameTargetCache {
     std::optional<std::array<float, 16>> last_parent_pos;
 };
 
-CameraSourceFrameTargetCache camera_update_frame_target_cache_like_source(
-    const Gameplay::CameraKey& key,
-    const std::unordered_map<std::string, CameraTarget>& targets);
-
 std::optional<std::array<float, 3>> camera_target_centroid_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets);
@@ -19699,12 +19682,14 @@ constexpr float kNativeValidationAspect = 16.0f / 9.0f;
 constexpr float kCamShotSourceYRatio = 0.5625f;
 constexpr float kCamShotSourceFrustumAspect = 1.0f / kCamShotSourceYRatio;
 constexpr const char* kCamShotBuildTransformAuditStatus =
-    "gh2_SLUS_214.47_0x00267008_partial_body;"
+    "gh2_SLUS_214.47_0x00267008_full_body;"
     "Interp_outgoing_call_0x002666b8;"
     "Interp_incoming_call_0x002666d4;"
     "transform_lerp_0x00266754;"
     "path_MakeTransform_0x001e0790;"
-    "remaining_projection_math_separate";
+    "target_cache_0xa0;parent_cache_0xc0;"
+    "current_camera_projection_0x001b1270;"
+    "local_screen_translate_0x002674f8_0x00267544";
 constexpr const char* kCamShotLocalProjectSource =
     "GH2_PS2_SLUS_214.47_RndCam::UpdateLocal_0x001b1f50_0x001b20af";
 constexpr const char* kCamShotLocalProjectAuditStatus =
@@ -19722,23 +19707,23 @@ constexpr const char* kCamShotUpdateLocalSourceSearch =
 constexpr const char* kCamShotVisiblePoseUnits =
     "CameraManager,GetKey,Interp_outgoing_incoming_pair,BuildTransform_frame_pair_contract,OnHasTargets,SetFrustum,DOF,Shake_tail,SetLocalXfm_tail,RndCam_UpdateLocal_projection";
 constexpr const char* kCamShotHiddenPoseBodies =
-    "CamShotFrame::BuildTransform_remaining_math,CamShot::OnSetPos_editor_path";
+    "CamShot::OnSetPos_editor_path";
 
 const char* camera_source_pose_impl_tier(bool retained_ps2_trace_payload,
                                          bool source_build_transform_order) {
     if (retained_ps2_trace_payload) return "retained_ps2_payload_pose";
     if (source_build_transform_order) {
-        return "retail_outgoing_incoming_partial_buildtransform";
+        return "retail_outgoing_incoming_buildtransform";
     }
-    return "native_seed_or_path_partial_buildtransform";
+    return "native_seed_or_path_buildtransform";
 }
 
 const char* camera_source_pose_required_body(bool retained_ps2_trace_payload,
                                              bool source_build_transform_order) {
     if (retained_ps2_trace_payload) return "selection_predicates_only";
     if (source_build_transform_order)
-        return "CamShotFrame::BuildTransform_remaining_math";
-    return "CamShotFrame::BuildTransform_remaining_math_or_path_composition";
+        return "none_retail_BuildTransform_recovered";
+    return "path_composition_or_trace_payload";
 }
 
 struct CameraSourceLocalProjectScale {
@@ -21946,8 +21931,14 @@ std::optional<std::array<float, 2>> camera_project_target_screen_norm(
     if (!std::isfinite(depth) || std::abs(depth) <= 0.000001f) {
         return std::nullopt;
     }
-    const float x =
-        camera_dot_axis(delta, rows.right) / (depth * project->tan_x);
+    // Hmx::Transform stores m.x as Cross(m.y, m.z).  CameraResultRows::right
+    // is renderer-facing and has the opposite handedness, so retail RndCam
+    // projection must use the reconstructed source m.x axis here as well as
+    // in BuildTransform's local screen-offset translation.
+    const auto source_transform_x = camera_normalized_axis(
+        camera_cross_axis(rows.forward, rows.up), {-1.0f, 0.0f, 0.0f});
+    const float x = camera_dot_axis(delta, source_transform_x) /
+                    (depth * project->tan_x);
     const float y =
         camera_dot_axis(delta, rows.up) / (depth * project->tan_y);
     if (!std::isfinite(x) || !std::isfinite(y)) return std::nullopt;
@@ -21963,7 +21954,7 @@ float camera_result_builder_shot_filter_step(
     const float shot_filter =
         key.has_shot_filter ? key.shot_filter : kCamShotSourceDefaultFilter;
     if (!std::isfinite(shot_filter) || shot_filter <= 0.0f) {
-        return 1.0f;
+        return 0.0f;
     }
     float projected_delta = 1.0f;
     if (const auto projected =
@@ -22088,6 +22079,13 @@ camera_source_screen_offset_translate_proof(
     const auto project = camera_source_local_project_scale_for_fov(key.fov);
     if (!project) return std::nullopt;
     camera_orthonormalize_result_rows(rows);
+    // Harmonix Transform axes are m.x=right, m.y=forward, m.z=up.  The
+    // renderer-facing CameraResultRows::right axis is the opposite handedness
+    // (it is Cross(up, forward)), so it cannot be used for the retail
+    // CamShotFrame::Interp `Multiply(v1c0, tf130, tf130.v)` operation.  Build
+    // the source m.x axis exactly as Cross(m.y, m.z) instead.
+    const auto source_transform_x = camera_normalized_axis(
+        camera_cross_axis(rows.forward, rows.up), {-1.0f, 0.0f, 0.0f});
     CameraSourceScreenOffsetTranslateProof proof;
     const float right_offset =
         (-key.screen_offset[0] * distance) / project->local_project_m_x_x;
@@ -22103,7 +22101,8 @@ camera_source_screen_offset_translate_proof(
     proof.local_project_tan_x = project->tan_x;
     proof.local_project_tan_y = project->tan_y;
     for (int axis = 0; axis < 3; ++axis) {
-        proof.right_delta[axis] = rows.right[axis] * proof.right_offset;
+        proof.right_delta[axis] =
+            source_transform_x[axis] * proof.right_offset;
         proof.up_delta[axis] = rows.up[axis] * proof.up_offset;
         proof.current_position[axis] =
             rows.position[axis] + proof.right_delta[axis] +
@@ -22237,9 +22236,13 @@ std::optional<CameraResultRows> camera_target_list_result_rows_from_seed(
                        rows.forward[2] * rows.forward[2];
     if (!std::isfinite(len2) || len2 <= 0.000001f) return std::nullopt;
     camera_orthonormalize_result_rows(rows);
-    if (apply_screen_offset &&
-        camera_apply_screen_offset_to_result_rows(rows, key)) {
-        rows.source += "+screen";
+    if (apply_screen_offset) {
+        const float distance = std::sqrt(len2);
+        if (auto translated =
+                camera_source_screen_offset_translate_distance_result_rows(
+                    rows, key, distance, applies_filter)) {
+            rows = *translated;
+        }
     }
     return rows;
 }
@@ -22732,16 +22735,208 @@ CameraSourceTargetUpdate camera_update_targets_like_camshot(
     return update;
 }
 
+std::string camera_result_builder_frame_identity(
+    const Gameplay::CameraKey& key) {
+    std::string identity = key.name;
+    if (key.has_camshot_pose_body_offset) {
+        identity += ":pose@" + std::to_string(key.camshot_pose_body_offset);
+    } else if (key.has_source_frame_key_index) {
+        identity += ":frame#" + std::to_string(key.source_frame_key_index);
+    } else {
+        identity += ":object#" + std::to_string(key.source_object_order) +
+                    ":at=" + std::to_string(key.frame);
+    }
+    return identity;
+}
+
+struct CameraSourceQuat {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float w = 1.0f;
+};
+
+CameraSourceQuat camera_source_quat_from_transform(
+    const std::array<float, 16>& m) {
+    // Hmx::Matrix3's row-vector rotation is the transpose of the common
+    // column-vector matrix used by the usual matrix-to-quaternion formula.
+    const float r00 = m[0], r01 = m[4], r02 = m[8];
+    const float r10 = m[1], r11 = m[5], r12 = m[9];
+    const float r20 = m[2], r21 = m[6], r22 = m[10];
+    CameraSourceQuat q;
+    const float trace = r00 + r11 + r22;
+    if (trace > 0.0f) {
+        const float s = std::sqrt(trace + 1.0f) * 2.0f;
+        q.w = 0.25f * s;
+        q.x = (r21 - r12) / s;
+        q.y = (r02 - r20) / s;
+        q.z = (r10 - r01) / s;
+    } else if (r00 > r11 && r00 > r22) {
+        const float s = std::sqrt(1.0f + r00 - r11 - r22) * 2.0f;
+        q.w = (r21 - r12) / s;
+        q.x = 0.25f * s;
+        q.y = (r01 + r10) / s;
+        q.z = (r02 + r20) / s;
+    } else if (r11 > r22) {
+        const float s = std::sqrt(1.0f + r11 - r00 - r22) * 2.0f;
+        q.w = (r02 - r20) / s;
+        q.x = (r01 + r10) / s;
+        q.y = 0.25f * s;
+        q.z = (r12 + r21) / s;
+    } else {
+        const float s = std::sqrt(1.0f + r22 - r00 - r11) * 2.0f;
+        q.w = (r10 - r01) / s;
+        q.x = (r02 + r20) / s;
+        q.y = (r12 + r21) / s;
+        q.z = 0.25f * s;
+    }
+    const float len = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z +
+                                q.w * q.w);
+    if (!std::isfinite(len) || len <= 0.000001f) return {};
+    q.x /= len;
+    q.y /= len;
+    q.z /= len;
+    q.w /= len;
+    return q;
+}
+
+std::array<float, 16> camera_source_transform_from_quat_and_position(
+    const CameraSourceQuat& q,
+    const std::array<float, 3>& position) {
+    const float xx = q.x * q.x;
+    const float yy = q.y * q.y;
+    const float zz = q.z * q.z;
+    const float xy = q.x * q.y;
+    const float xz = q.x * q.z;
+    const float yz = q.y * q.z;
+    const float xw = q.x * q.w;
+    const float yw = q.y * q.w;
+    const float zw = q.z * q.w;
+    return {1.0f - 2.0f * yy - 2.0f * zz,
+            2.0f * xy + 2.0f * zw,
+            2.0f * xz - 2.0f * yw,
+            0.0f,
+            2.0f * xy - 2.0f * zw,
+            1.0f - 2.0f * zz - 2.0f * xx,
+            2.0f * yz + 2.0f * xw,
+            0.0f,
+            2.0f * xz + 2.0f * yw,
+            2.0f * yz - 2.0f * xw,
+            1.0f - 2.0f * xx - 2.0f * yy,
+            0.0f,
+            position[0], position[1], position[2], 1.0f};
+}
+
+std::array<float, 16> camera_source_interp_transform(
+    const std::array<float, 16>& from,
+    const std::array<float, 16>& to,
+    float t) {
+    if (t <= 0.0f) return from;
+    if (t >= 1.0f) return to;
+    const std::array<float, 3> position = {
+        from[12] + (to[12] - from[12]) * t,
+        from[13] + (to[13] - from[13]) * t,
+        from[14] + (to[14] - from[14]) * t};
+    const CameraSourceQuat a = camera_source_quat_from_transform(from);
+    const CameraSourceQuat b = camera_source_quat_from_transform(to);
+    const float dot = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+    const float b_sign = dot < 0.0f ? -1.0f : 1.0f;
+    CameraSourceQuat out{
+        a.x + (b.x * b_sign - a.x) * t,
+        a.y + (b.y * b_sign - a.y) * t,
+        a.z + (b.z * b_sign - a.z) * t,
+        a.w + (b.w * b_sign - a.w) * t};
+    const float len = std::sqrt(out.x * out.x + out.y * out.y +
+                                out.z * out.z + out.w * out.w);
+    if (std::isfinite(len) && len > 0.000001f) {
+        out.x /= len;
+        out.y /= len;
+        out.z /= len;
+        out.w /= len;
+    } else {
+        out = a;
+    }
+    return camera_source_transform_from_quat_and_position(out, position);
+}
+
 CameraSourceFrameTargetCache camera_update_frame_target_cache_like_source(
     const Gameplay::CameraKey& key,
-    const std::unordered_map<std::string, CameraTarget>& targets) {
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    CameraResultBuilderState* builder_state,
+    const CameraResultRows& current_camera_rows,
+    float current_fov,
+    bool source_frame_changed,
+    float* out_filter_step = nullptr,
+    float* out_projected_delta = nullptr,
+    bool* out_seeded = nullptr) {
     CameraSourceFrameTargetCache cache;
     cache.update = camera_update_targets_like_camshot(key, targets);
+    if (out_filter_step) *out_filter_step = 1.0f;
+    if (out_projected_delta) *out_projected_delta = 1.0f;
+    if (out_seeded) *out_seeded = false;
+    if (!builder_state) {
+        if (cache.update.has_targets) cache.last_target_pos = cache.update.centroid;
+        if (cache.update.has_parent) cache.last_parent_pos = cache.update.parent_world;
+        return cache;
+    }
+
+    Gameplay::CameraKey filter_key = key;
+    filter_key.has_fov = true;
+    filter_key.fov = current_fov;
+    float projected_delta = 1.0f;
+    const float filter_step = camera_result_builder_shot_filter_step(
+        current_camera_rows, filter_key, cache.update.centroid,
+        &projected_delta);
+    if (out_filter_step) *out_filter_step = filter_step;
+    if (out_projected_delta) *out_projected_delta = projected_delta;
+
+    const std::string identity = camera_result_builder_frame_identity(key);
+    auto [it, inserted] = builder_state->frames.try_emplace(identity);
+    CameraResultBuilderFrameState& frame_state = it->second;
+    if (out_seeded) *out_seeded = inserted || source_frame_changed;
+
+    if (source_frame_changed) {
+        frame_state.has_filtered_target = false;
+        frame_state.has_filtered_parent = false;
+    }
+
+    // CamShotFrame::UpdateTarget seeds unk34/unk44 when SetFrame changes the
+    // selected source frame. BuildTransform then advances those exact frame
+    // caches; outgoing and incoming frames never share state.
     if (cache.update.has_targets) {
-        cache.last_target_pos = cache.update.centroid;
+        if (!frame_state.has_filtered_target) {
+            frame_state.filtered_target = cache.update.centroid;
+            frame_state.has_filtered_target = true;
+        } else if (filter_step >= 1.0f) {
+            frame_state.filtered_target = cache.update.centroid;
+        } else if (filter_step > 0.0f) {
+            for (int axis = 0; axis < 3; ++axis) {
+                frame_state.filtered_target[axis] +=
+                    (cache.update.centroid[axis] -
+                     frame_state.filtered_target[axis]) * filter_step;
+            }
+        }
+        cache.last_target_pos = frame_state.filtered_target;
+        builder_state->has_filtered_target = true;
+        builder_state->filtered_target = frame_state.filtered_target;
     }
     if (cache.update.has_parent) {
-        cache.last_parent_pos = cache.update.parent_world;
+        if (!frame_state.has_filtered_parent) {
+            frame_state.filtered_parent = cache.update.parent_world;
+            frame_state.has_filtered_parent = true;
+        } else {
+            const float shot_filter = filter_key.has_shot_filter
+                                          ? filter_key.shot_filter
+                                          : kCamShotSourceDefaultFilter;
+            if (!std::isfinite(shot_filter) || shot_filter == 0.0f) {
+                frame_state.filtered_parent = cache.update.parent_world;
+            } else if (filter_step > 0.0f) {
+                frame_state.filtered_parent = camera_source_interp_transform(
+                    frame_state.filtered_parent, cache.update.parent_world,
+                    filter_step);
+            }
+        }
+        cache.last_parent_pos = frame_state.filtered_parent;
     }
     return cache;
 }
@@ -23336,26 +23531,30 @@ void apply_camera_keys(
             *source_debug_reported_key = source_debug_report_key;
         }
     }
-    const auto a_frame_target_cache =
-        camera_update_frame_target_cache_like_source(*a, targets);
-    const auto b_frame_target_cache =
-        camera_update_frame_target_cache_like_source(*b, targets);
-    const CameraSourceTargetUpdate& a_target_update =
-        a_frame_target_cache.update;
-    const CameraSourceTargetUpdate& b_target_update =
-        b_frame_target_cache.update;
-    const std::optional<std::array<float, 3>> a_target_centroid =
-        a_frame_target_cache.last_target_pos;
-    const std::optional<std::array<float, 3>> b_target_centroid =
-        b_frame_target_cache.last_target_pos;
+    const CameraSourceTargetUpdate a_target_update =
+        camera_update_targets_like_camshot(*a, targets);
+    const CameraSourceTargetUpdate b_target_update =
+        camera_update_targets_like_camshot(*b, targets);
+    std::optional<std::array<float, 3>> a_target_centroid =
+        a_target_update.has_targets
+            ? std::optional<std::array<float, 3>>(a_target_update.centroid)
+            : std::nullopt;
+    std::optional<std::array<float, 3>> b_target_centroid =
+        b_target_update.has_targets
+            ? std::optional<std::array<float, 3>>(b_target_update.centroid)
+            : std::nullopt;
+    std::optional<std::array<float, 16>> a_cached_parent_storage =
+        a_target_update.has_parent
+            ? std::optional<std::array<float, 16>>(a_target_update.parent_world)
+            : std::nullopt;
+    std::optional<std::array<float, 16>> b_cached_parent_storage =
+        b_target_update.has_parent
+            ? std::optional<std::array<float, 16>>(b_target_update.parent_world)
+            : std::nullopt;
     const std::array<float, 16>* a_cached_parent_world =
-        a_frame_target_cache.last_parent_pos
-            ? &*a_frame_target_cache.last_parent_pos
-            : nullptr;
+        a_cached_parent_storage ? &*a_cached_parent_storage : nullptr;
     const std::array<float, 16>* b_cached_parent_world =
-        b_frame_target_cache.last_parent_pos
-            ? &*b_frame_target_cache.last_parent_pos
-            : nullptr;
+        b_cached_parent_storage ? &*b_cached_parent_storage : nullptr;
     cam.authored = true;
     float eye_a[3] = {};
     float eye_b[3] = {};
@@ -23481,6 +23680,61 @@ void apply_camera_keys(
     const float sy_b = b->has_screen_offset ? b->screen_offset[1] : 0.0f;
     cam.screen_offset[0] = sx_a + (sx_b - sx_a) * interp_t;
     cam.screen_offset[1] = sy_a + (sy_b - sy_a) * interp_t;
+    CameraResultRows current_camera_rows =
+        source_previous_frame.valid
+            ? camera_result_rows_from_source_frame(source_previous_frame)
+            : camera_source_seed_result_rows_for_key(
+                  *a, targets, a_cached_parent_world);
+    float a_frame_filter_step = 1.0f;
+    float b_frame_filter_step = 1.0f;
+    float a_frame_projected_delta = 1.0f;
+    float b_frame_projected_delta = 1.0f;
+    bool a_frame_cache_seeded = false;
+    bool b_frame_cache_seeded = false;
+    const std::string a_frame_identity =
+        camera_result_builder_frame_identity(*a);
+    const std::string b_frame_identity =
+        camera_result_builder_frame_identity(*b);
+    const bool a_source_frame_changed =
+        result_builder_state &&
+        result_builder_state->selected_outgoing_frame != a_frame_identity;
+    const bool b_source_frame_changed =
+        result_builder_state &&
+        result_builder_state->selected_incoming_frame != b_frame_identity;
+    if (result_builder_state) {
+        result_builder_state->selected_outgoing_frame = a_frame_identity;
+        result_builder_state->selected_incoming_frame = b_frame_identity;
+    }
+    const auto a_frame_target_cache =
+        camera_update_frame_target_cache_like_source(
+            *a, targets, result_builder_state, current_camera_rows,
+            source_screen_offset_fov,
+            a_source_frame_changed ||
+                (a_frame_identity == b_frame_identity &&
+                 b_source_frame_changed),
+            &a_frame_filter_step,
+            &a_frame_projected_delta, &a_frame_cache_seeded);
+    CameraSourceFrameTargetCache b_frame_target_cache;
+    if (a_frame_identity == b_frame_identity) {
+        b_frame_target_cache = a_frame_target_cache;
+        b_frame_filter_step = a_frame_filter_step;
+        b_frame_projected_delta = a_frame_projected_delta;
+        b_frame_cache_seeded = a_frame_cache_seeded;
+    } else {
+        b_frame_target_cache = camera_update_frame_target_cache_like_source(
+            *b, targets, result_builder_state, current_camera_rows,
+            source_screen_offset_fov, b_source_frame_changed,
+            &b_frame_filter_step,
+            &b_frame_projected_delta, &b_frame_cache_seeded);
+    }
+    a_target_centroid = a_frame_target_cache.last_target_pos;
+    b_target_centroid = b_frame_target_cache.last_target_pos;
+    a_cached_parent_storage = a_frame_target_cache.last_parent_pos;
+    b_cached_parent_storage = b_frame_target_cache.last_parent_pos;
+    a_cached_parent_world =
+        a_cached_parent_storage ? &*a_cached_parent_storage : nullptr;
+    b_cached_parent_world =
+        b_cached_parent_storage ? &*b_cached_parent_storage : nullptr;
     auto camera_source_seed_rows_for_runtime =
         [&](const Gameplay::CameraKey& key,
             const std::array<float, 16>* cached_parent_world) {
@@ -23665,16 +23919,17 @@ void apply_camera_keys(
         result_key.shot_filter =
             filter_a + (filter_b - filter_a) * interp_t;
         result_filter_state_seeded =
-            result_builder_state && !result_builder_state->has_filtered_target;
+            a_frame_cache_seeded || b_frame_cache_seeded;
         result_filter_branch = camera_shot_filter_applies(result_key);
+        result_filter_step =
+            a_frame_filter_step +
+            (b_frame_filter_step - a_frame_filter_step) * interp_t;
+        result_filter_projected_delta =
+            a_frame_projected_delta +
+            (b_frame_projected_delta - a_frame_projected_delta) * interp_t;
+        filtered_target_centroid = blended_target_centroid;
+        result_filter_candidate_valid = filtered_target_centroid.has_value();
         if (!same_targets_like_camshot) {
-            CameraResultBuilderState source_order_state =
-                result_builder_state ? *result_builder_state
-                                     : CameraResultBuilderState{};
-            CameraResultBuilderState* source_order_state_ptr =
-                result_builder_state ? &source_order_state : nullptr;
-            float source_order_filter_step_a = 1.0f;
-            float source_order_projected_delta_a = 1.0f;
             Gameplay::CameraKey build_key_a = *a;
             build_key_a.has_fov = true;
             build_key_a.fov = source_screen_offset_fov;
@@ -23686,24 +23941,12 @@ void apply_camera_keys(
             if (a_target_centroid) {
                 build_rows_a = camera_target_list_result_rows_from_seed(
                     source_seed_a, build_key_a, *a_target_centroid,
-                    source_order_state_ptr, &source_order_filter_step_a,
-                    &source_order_projected_delta_a);
+                    nullptr);
             }
-            float source_order_filter_step_b = 1.0f;
-            float source_order_projected_delta_b = 1.0f;
             if (b_target_centroid) {
                 build_rows_b = camera_target_list_result_rows_from_seed(
                     source_seed_b, build_key_b, *b_target_centroid,
-                    source_order_state_ptr, &source_order_filter_step_b,
-                    &source_order_projected_delta_b);
-            }
-            if (build_rows_b) {
-                result_filter_step = source_order_filter_step_b;
-                result_filter_projected_delta = source_order_projected_delta_b;
-            } else {
-                result_filter_step = source_order_filter_step_a;
-                result_filter_projected_delta =
-                    source_order_projected_delta_a;
+                    nullptr);
             }
             const CameraResultRows& outgoing_rows =
                 build_rows_a ? *build_rows_a : source_seed_a;
@@ -23717,42 +23960,14 @@ void apply_camera_keys(
             submitted_result = *source_build_transform_result;
             source_build_transform_order = true;
             source_visible_build_transform_pair = "outgoing_to_incoming";
-            if ((build_rows_a || build_rows_b) &&
-                result_builder_state) {
-                *result_builder_state = source_order_state;
-                if (result_builder_state->has_filtered_target) {
-                    filtered_target_centroid =
-                        result_builder_state->filtered_target;
-                    result_filter_candidate_valid = true;
-                }
-            }
         } else {
-            CameraResultBuilderState same_target_filter_state =
-                result_builder_state ? *result_builder_state
-                                     : CameraResultBuilderState{};
-            CameraResultBuilderState* same_target_filter_state_ptr =
-                result_builder_state ? &same_target_filter_state : nullptr;
-            if (auto filtered_rows = camera_target_list_result_rows_from_seed(
-                    source_seed_result, result_key, *blended_target_centroid,
-                    same_target_filter_state_ptr, &result_filter_step,
-                    &result_filter_projected_delta)) {
-                filtered_target_centroid =
-                    same_target_filter_state_ptr &&
-                            same_target_filter_state_ptr->has_filtered_target
-                        ? same_target_filter_state_ptr->filtered_target
-                        : *blended_target_centroid;
-                result_filter_candidate_valid = true;
-                const auto& filtered_screen_target =
-                    filtered_target_centroid ? *filtered_target_centroid
-                                             : *blended_target_centroid;
-                if (auto filtered_candidate =
-                        camera_source_screen_offset_translate_result_rows(
-                            source_seed_result, result_key,
-                            filtered_screen_target, result_filter_branch)) {
-                    filtered_candidate->source += "+filtered_target_candidate";
-                    source_screen_offset_filtered_target_candidate =
-                        *filtered_candidate;
-                }
+            if (auto filtered_candidate =
+                    camera_source_screen_offset_translate_result_rows(
+                        source_seed_result, result_key,
+                        *blended_target_centroid, result_filter_branch)) {
+                filtered_candidate->source += "+filtered_target_candidate";
+                source_screen_offset_filtered_target_candidate =
+                    *filtered_candidate;
             }
             Gameplay::CameraKey build_key_a = *a;
             build_key_a.has_fov = true;
@@ -26265,6 +26480,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     chart_loaded_ = false;
     song_time_    = 0.0;
     song_started_ = false;
+    song_presentation_ready_ = false;
+    track_intro_active_ = true;
+    next_track_intro_sfx_stage_ = 0;
+    pending_star_phrase_award_sfx_times_.clear();
+    star_power_activation_serial_ = 0;
     sync_audit_started_ = false;
     sync_audit_wall_start_sec_ = 0.0;
     sync_audit_audio_start_sec_ = 0.0;
@@ -33468,6 +33688,11 @@ void Gameplay::set_diagnostic_star_power_active(bool active) {
 
 void Gameplay::seek_for_diagnostic_capture(double seconds) {
     if (!chart_loaded_) return;
+    // Stock intro_skip places TrackPanel directly at TRACK_END_FRAME and does
+    // not replay the extend/nowbar sequence after a diagnostic seek.
+    track_intro_active_ = false;
+    next_track_intro_sfx_stage_ = 7;
+    pending_star_phrase_award_sfx_times_.clear();
     song_time_ = std::clamp(seconds, 0.0, std::max(0.0, chart_.duration_sec()));
     last_anim_time_ = song_time_;
     if (!deterministic_clock_ && audio_.seek(song_time_)) {
@@ -33806,7 +34031,8 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
             const float source_character_height =
                 worldcrowd_actor_source_height(crowd, set.actor_name);
             if (source_character_height > 0.0f) {
-                runtime->source_character_height = source_character_height;
+                runtime->source_character_height = std::max(
+                    runtime->source_character_height, source_character_height);
             }
             runtime->placement_worlds.reserve(
                 runtime->placement_worlds.size() + set.placements.size());
@@ -33821,9 +34047,27 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
                     use_area_local_basis ? area_local_world : placement_world);
                 runtime->placement_refs.push_back(
                     {canonical_milo_ref(crowd.name), crowd_actor_index,
-                     crowd_placement_index});
+                     crowd_placement_index, source_character_height,
+                     area_it->second, crowd.rotate_to_camera});
                 ++crowd_placement_index;
             }
+            std::fprintf(stderr,
+                         "[world] WorldCrowd placement set: crowd=%s "
+                         "actor_index=%zu actor=%s height=%.3f "
+                         "placements=%zu rotate=%d "
+                         "area_pos=(%.3f %.3f %.3f) "
+                         "area_rows=[%.4f %.4f %.4f|%.4f %.4f %.4f|"
+                         "%.4f %.4f %.4f]\n",
+                         crowd.name.c_str(), crowd_actor_index,
+                         set.actor_name.c_str(), source_character_height,
+                         set.placements.size(),
+                         crowd.rotate_to_camera ? 1 : 0,
+                         area_it->second[12], area_it->second[13],
+                         area_it->second[14], area_it->second[0],
+                         area_it->second[1], area_it->second[2],
+                         area_it->second[4], area_it->second[5],
+                         area_it->second[6], area_it->second[8],
+                         area_it->second[9], area_it->second[10]);
             worldcrowd_actor_runtime_placements_ += set.placements.size();
             ++crowd_actor_index;
         }
@@ -34122,15 +34366,56 @@ void Gameplay::draw_worldcrowd_actor_runtime(
         (void)actor_path;
         if (!runtime.renderer) continue;
         runtime.renderer->set_min_lod(active_force_char_lod_);
-        const auto visible_by_fullness =
-            worldcrowd_placement_visible_by_fullness(
-                runtime.placement_worlds, eye, runtime.fullness_fraction);
-        std::vector<std::array<float, 16>> flat_worlds;
-        flat_worlds.reserve(runtime.placement_worlds.size());
+        std::vector<uint8_t> selected_3d(runtime.placement_worlds.size(), 0);
+        for (size_t i = 0; i < selected_3d.size(); ++i) {
+            selected_3d[i] = crowd_selection_draws_3d(runtime, i) ? 1 : 0;
+        }
+
+        // Set3DCharList in GH2 retail (SLUS_214.47, 0x0026a688) first restores
+        // every flat instance, resolves each (actor index, instance index)
+        // pair, removes those exact instances for 3-D replacement, and only
+        // then reapplies SetFullness. Reproduce that ordering independently
+        // for every authored WorldCrowd actor set, even when actor assets are
+        // shared and therefore batched by this renderer.
+        using CrowdActorKey = std::pair<std::string, size_t>;
+        auto crowd_actor_key = [&](size_t i) -> CrowdActorKey {
+            if (i < runtime.placement_refs.size()) {
+                const auto& ref = runtime.placement_refs[i];
+                return {ref.crowd_name, ref.actor_index};
+            }
+            return {runtime.actor_milo, 0};
+        };
+        auto placement_source_height = [&](size_t i) -> float {
+            if (i < runtime.placement_refs.size()) {
+                const float height =
+                    runtime.placement_refs[i].source_character_height;
+                if (std::isfinite(height) && height > 0.0f) return height;
+            }
+            return runtime.source_character_height;
+        };
+        std::map<CrowdActorKey, size_t> flat_totals;
+        for (size_t i = 0; i < runtime.placement_worlds.size(); ++i) {
+            if (!selected_3d[i]) ++flat_totals[crowd_actor_key(i)];
+        }
+        std::map<CrowdActorKey, size_t> flat_keep;
+        for (const auto& [key, total] : flat_totals) {
+            flat_keep[key] = worldcrowd_fullness_keep_count(
+                total, runtime.fullness_fraction);
+        }
+        std::map<CrowdActorKey, size_t> flat_seen;
+        std::map<CrowdActorKey, std::vector<std::array<float, 16>>>
+            flat_worlds_by_set;
+        std::map<CrowdActorKey, float> flat_height_by_set;
+        std::map<CrowdActorKey, std::array<float, 16>>
+            flat_source_crowd_world_by_set;
+        std::map<CrowdActorKey, bool> flat_rotate_to_camera_by_set;
         size_t placement_index = 0;
         for (const auto& placement_world : runtime.placement_worlds) {
-            if (placement_index >= visible_by_fullness.size() ||
-                !visible_by_fullness[placement_index]) {
+            const bool draw_as_3d = selected_3d[placement_index] != 0;
+            const CrowdActorKey key = crowd_actor_key(placement_index);
+            const size_t authored_flat_index =
+                draw_as_3d ? 0 : flat_seen[key]++;
+            if (!draw_as_3d && authored_flat_index >= flat_keep[key]) {
                 ++culled_fullness;
                 ++placement_index;
                 continue;
@@ -34140,7 +34425,7 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                 const float radius =
                     std::max(10.0f,
                              std::max(runtime.visible_bounds_radius,
-                                      runtime.source_character_height) +
+                                      placement_source_height(placement_index)) +
                                  3.0f);
                 const std::array<float, 3> delta = {
                     placement_world[12] - eye[0], placement_world[13] - eye[1],
@@ -34161,12 +34446,20 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                     continue;
                 }
             }
-            if (crowd_selection_draws_3d(runtime, placement_index)) {
+            if (draw_as_3d) {
+                // The second loop in GH2 retail WorldCrowd::DrawShowing
+                // (SLUS_214.47, 0x0026ba3c) walks m3DChars and subtracts
+                // CharDef::mHeight / 2 from the copied instance translation
+                // before drawing the full Character. Flat RndMultiMesh cards
+                // do not take this extra root-pivot correction.
+                auto character_world = placement_world;
+                character_world[14] -=
+                    placement_source_height(placement_index) * 0.5f;
                 const auto draw_world =
                     venue_camera_crowd_face_camera_
-                        ? worldcrowd_face_camera_source_world(placement_world,
+                        ? worldcrowd_face_camera_source_world(character_world,
                                                               camera_ref)
-                        : placement_world;
+                        : character_world;
                 runtime.renderer->set_world_transform(draw_world);
                 runtime.renderer->draw_over_scene(cam);
                 ++drawn_3d;
@@ -34175,18 +34468,53 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                 // list and suppresses only WorldCrowd's flat impostors.
                 ++hidden_flat;
             } else {
-                flat_worlds.push_back(placement_world);
+                flat_worlds_by_set[key].push_back(placement_world);
+                flat_height_by_set[key] =
+                    placement_source_height(placement_index);
+                if (placement_index < runtime.placement_refs.size()) {
+                    const auto& ref = runtime.placement_refs[placement_index];
+                    flat_source_crowd_world_by_set[key] =
+                        ref.source_crowd_world;
+                    flat_rotate_to_camera_by_set[key] =
+                        ref.rotate_to_camera;
+                }
             }
             ++placement_index;
         }
-        if (!flat_worlds.empty()) {
-            if (runtime.source_character_height > 0.0f &&
-                runtime.renderer->refresh_worldcrowd_impostor()) {
+        size_t pending_flat = 0;
+        for (const auto& [key, worlds] : flat_worlds_by_set) {
+            (void)key;
+            pending_flat += worlds.size();
+        }
+        if (pending_flat > 0) {
+            for (const auto& [key, worlds] : flat_worlds_by_set) {
+                const float source_height = flat_height_by_set[key];
+                const auto source_world_it =
+                    flat_source_crowd_world_by_set.find(key);
+                if (!std::isfinite(source_height) || source_height <= 0.0f ||
+                    source_world_it == flat_source_crowd_world_by_set.end()) {
+                    missing_impostor += worlds.size();
+                    continue;
+                }
+                auto source_character_world = source_world_it->second;
+                if (flat_rotate_to_camera_by_set[key]) {
+                    source_character_world =
+                        worldcrowd_face_camera_source_world(
+                            source_character_world, camera_ref);
+                }
+                // Retail refreshes gImpostorCamera per WorldCrowd/CharData,
+                // because both placementMesh and the serialized rotate flag
+                // participate in the captured character facing. Shared actor
+                // assets therefore cannot reuse one fixed portrait across
+                // distinct crowd objects.
+                if (!runtime.renderer->refresh_worldcrowd_impostor(
+                        cam, source_character_world, source_height)) {
+                    missing_impostor += worlds.size();
+                    continue;
+                }
                 runtime.renderer->draw_worldcrowd_impostors_over_scene(
-                    cam, flat_worlds, runtime.source_character_height);
-                drawn_flat += flat_worlds.size();
-            } else {
-                missing_impostor += flat_worlds.size();
+                    cam, worlds, source_height);
+                drawn_flat += worlds.size();
             }
         }
     }
@@ -34767,7 +35095,10 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
             break;
         case FoFiXSessionEventType::StarPhraseComplete:
             star_power_highway_flash_ = std::max(star_power_highway_flash_, 0.75f);
-            if (!diagnostic_autoplay_) audio_.star_phrase_complete_feedback();
+            // config/gen/player.dtb::phrase_captured schedules sp_awarded after
+            // 0.2 seconds. Autoplay is not attract mode, so it must not silence
+            // the source feedback route.
+            pending_star_phrase_award_sfx_times_.push_back(song_time_ + 0.2);
             std::fprintf(stderr,
                          "[gameplay] star phrase complete sp=%.2f\n",
                          event.star_power_fill);
@@ -34790,6 +35121,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
         }
         case FoFiXSessionEventType::StarPowerActivate:
             star_power_highway_flash_ = 1.0f;
+            ++star_power_activation_serial_;
             std::fprintf(stderr,
                          "[gameplay] star power activated sp=%.2f\n",
                          event.star_power_fill);
@@ -34866,6 +35198,12 @@ void Gameplay::sync_consumed_notes_from_gameplay_session() {
 void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
     if (!chart_loaded_) return;
 
+    // Stock TrackPanel starts animate_track_out only after the gameplay panel
+    // and its track have loaded. Native world/highway construction is lazy and
+    // can take several wall-clock seconds on the first draw; do not start the
+    // audio master clock (or consume chart events) behind that loading frame.
+    if (!song_started_ && !song_presentation_ready_) return;
+
     const float live_whammy_axis =
         (fret_mask & (1u << 7)) != 0
             ? std::clamp(whammy_axis, -1.0f, 1.0f)
@@ -34877,6 +35215,10 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
     if (first_tick) {
         if (!deterministic_clock_) audio_.play();
         song_started_ = true;
+        if (track_intro_active_ && !deterministic_clock_) {
+            audio_.track_intro_feedback(0);
+            next_track_intro_sfx_stage_ = 1;
+        }
         std::fprintf(stderr, "[gameplay] song started\n");
     }
 
@@ -34887,6 +35229,33 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         song_time_ = audio_.position_sec();
     else
         song_time_ += static_cast<double>(dt);
+
+    if (track_intro_active_ && !deterministic_clock_) {
+        while (next_track_intro_sfx_stage_ >= 1 &&
+               next_track_intro_sfx_stage_ <= 6) {
+            const double source_time =
+                next_track_intro_sfx_stage_ == 6
+                    ? 2.05
+                    : 1.3 + 0.1 *
+                          static_cast<double>(next_track_intro_sfx_stage_ - 1);
+            if (song_time_ + 0.0001 < source_time) break;
+            audio_.track_intro_feedback(next_track_intro_sfx_stage_);
+            ++next_track_intro_sfx_stage_;
+        }
+    }
+    if (!deterministic_clock_) {
+        auto out = pending_star_phrase_award_sfx_times_.begin();
+        for (auto it = pending_star_phrase_award_sfx_times_.begin();
+             it != pending_star_phrase_award_sfx_times_.end(); ++it) {
+            if (*it <= song_time_ + 0.0001) {
+                audio_.star_phrase_complete_feedback();
+            } else {
+                *out++ = *it;
+            }
+        }
+        pending_star_phrase_award_sfx_times_.erase(
+            out, pending_star_phrase_award_sfx_times_.end());
+    }
 
     if (sync_audit_enabled() && live_audio) {
         const double wall_now = monotonic_seconds();
@@ -34937,6 +35306,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
 
     if (!gameplay_session_mirror_ && (fret_mask & (1u << 6)) != 0) {
         if (fofix_activate_star_power(star_power_)) {
+            ++star_power_activation_serial_;
             std::fprintf(stderr, "[gameplay] star power activated sp=%.2f\n",
                          fofix_star_power_fill(star_power_));
         }
@@ -35614,6 +35984,18 @@ void Gameplay::draw(ghogx::render::Window& win) {
                      totals.world * inv, totals.proxy * inv,
                      totals.lighting * inv, totals.drum * inv,
                      totals.performers * inv, totals.highway * inv);
+    };
+    auto mark_song_presentation_ready = [&]() {
+        if (song_presentation_ready_) return;
+        song_presentation_ready_ = true;
+        std::fprintf(stderr,
+                     "[gameplay] song presentation ready: highway=%d textures=%d t=%.3f\n",
+                     highway_ ? 1 : 0,
+                     highway_ && highway_->textures_loaded_for_surface(
+                                     highway_surface_ref_)
+                         ? 1
+                         : 0,
+                     song_time_);
     };
     if (!world_init_attempted_) {
         const auto profile_init_start = profile_now();
@@ -36741,6 +37123,27 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         }
                     }
                 }
+                if (perf.role == "guitarist0") {
+                    const auto star_power_group =
+                        ghogx::character::load_clip_group(
+                            hdr_path_, ark_path_, main_anim_milos,
+                            "star_power");
+                    perf.star_power_group_which = star_power_group.which;
+                    for (const auto& clip_name : star_power_group.clips) {
+                        ghogx::character::CharClip clip;
+                        if (load_clip_first_from_milos(
+                                clip, hdr_path_, ark_path_, main_anim_milos,
+                                std::vector<std::string>{clip_name})) {
+                            perf.star_power_group_clips.push_back(
+                                std::move(clip));
+                        }
+                    }
+                    std::fprintf(
+                        stderr,
+                        "[world] performer star_power group: role=%s char=%s source_group=star_power clips=%zu\n",
+                        perf.role.c_str(), perf.character_name.c_str(),
+                        perf.star_power_group_clips.size());
+                }
                 std::vector<std::string> band_jump_names =
                     load_char_clip_group(hdr_path_, ark_path_, main_anim_milos,
                                          "sync_jump");
@@ -37271,6 +37674,34 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
             const bool performer_playing = midi_state.playing;
             auto& character = perf.renderer->character();
+            if (perf.role == "guitarist0" &&
+                perf.last_star_power_activation_serial !=
+                    star_power_activation_serial_) {
+                perf.last_star_power_activation_serial =
+                    star_power_activation_serial_;
+                if (!perf.star_power_group_clips.empty()) {
+                    if (const auto selected =
+                            source_char_clip_group_next_index(
+                                perf.star_power_group_clips,
+                                perf.star_power_group_which, perf.role,
+                                perf.character_name, "star_power",
+                                camera_bar_at(chart_, song_time_))) {
+                        perf.star_power_group_index = *selected;
+                        const auto& clip =
+                            perf.star_power_group_clips[*selected];
+                        perf.star_power_animation_started = song_time_;
+                        perf.star_power_animation_duration =
+                            clip.duration_seconds();
+                        std::fprintf(
+                            stderr,
+                            "[world] performer star_power activation: role=%s clip=%s source=%s serial=%u duration=%.3f t=%.3f\n",
+                            perf.role.c_str(), clip.name.c_str(),
+                            clip_source_path(clip),
+                            perf.last_star_power_activation_serial,
+                            perf.star_power_animation_duration, song_time_);
+                    }
+                }
+            }
             const ghogx::character::CharClip* desired_active = &perf.active_clip;
             std::string desired_mode = "normal";
             if (perf.role == "drummer") {
@@ -37292,6 +37723,18 @@ void Gameplay::draw(ghogx::render::Window& win) {
             if (!performer_playing && perf.idle_clip.loaded) {
                 desired_active = &perf.idle_clip;
                 desired_mode = "idle";
+            }
+            const bool star_power_animation_playing =
+                perf.role == "guitarist0" &&
+                perf.star_power_group_index <
+                    perf.star_power_group_clips.size() &&
+                perf.star_power_animation_duration > 0.0 &&
+                song_time_ < perf.star_power_animation_started +
+                                 perf.star_power_animation_duration;
+            if (star_power_animation_playing) {
+                desired_active =
+                    &perf.star_power_group_clips[perf.star_power_group_index];
+                desired_mode = "star_power";
             }
             if (desired_active->loaded && perf.active_clip_mode != desired_mode) {
                 perf.active_clip_mode = desired_mode;
@@ -37317,8 +37760,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             &perf.active_group_clips[perf.active_group_index];
                     }
                 } else {
+                    const uint32_t play_flags =
+                        desired_mode == "star_power"
+                            ? ghogx::character::kCharPlayNoLoop
+                            : ghogx::character::kCharPlayLoop;
                     perf.active_player.play(
-                        *desired_active, ghogx::character::kCharPlayLoop,
+                        *desired_active, play_flags,
                         character_driver_blend_seconds());
                 }
                 std::fprintf(stderr,
@@ -39556,6 +40003,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             if (!highway_->textures_loaded_for_surface(highway_surface_ref_)) {
                 highway_->load_textures(hdr_path_, ark_path_, highway_surface_ref_);
             }
+            mark_song_presentation_ready();
             const auto profile_highway_start = profile_now();
             highway_->draw_over_scene(song_time_, chart_, difficulty_,
                                       prev_fret_mask_ & 0x1F, lane_flash_,
@@ -39574,7 +40022,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                       bad_highway_flash_,
                                       fofix_rock_fill(rock_),
                                       star_power_highway_flash_,
-                                      multiplier_surface_flash_);
+                                      multiplier_surface_flash_,
+                                      track_intro_active_);
             if (profile_draw)
                 profile_highway += profile_elapsed(profile_highway_start);
             log_profile();
@@ -40048,10 +40497,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
         }
         if (debug_venue_only_capture_enabled()) {
+            mark_song_presentation_ready();
             log_profile();
             return;
         }
         if (diagnostic_hide_highway_enabled()) {
+            mark_song_presentation_ready();
             log_diagnostic_highway_hidden_once(song_time_, true);
             return;
         }
@@ -40061,6 +40512,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
         if (!highway_->textures_loaded_for_surface(highway_surface_ref_)) {
             highway_->load_textures(hdr_path_, ark_path_, highway_surface_ref_);
         }
+        mark_song_presentation_ready();
         profile_phase_start = profile_now();
         highway_->draw_over_scene(song_time_, chart_, difficulty_,
                                   prev_fret_mask_ & 0x1F, lane_flash_, 1.5f,
@@ -40077,13 +40529,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   bad_highway_flash_,
                                   fofix_rock_fill(rock_),
                                   star_power_highway_flash_,
-                                  multiplier_surface_flash_);
+                                  multiplier_surface_flash_,
+                                  track_intro_active_);
         if (profile_draw) profile_highway += profile_elapsed(profile_phase_start);
         log_profile();
         return;
     }
 
     if (diagnostic_hide_highway_enabled()) {
+        mark_song_presentation_ready();
         log_diagnostic_highway_hidden_once(song_time_, false);
         return;
     }
@@ -40093,6 +40547,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
     if (!highway_->textures_loaded_for_surface(highway_surface_ref_)) {
         highway_->load_textures(hdr_path_, ark_path_, highway_surface_ref_);
     }
+    mark_song_presentation_ready();
     // song_time_ is the audio-synced master clock (set in tick()).
     highway_->draw(song_time_, chart_, difficulty_,
                    prev_fret_mask_ & 0x1F /* held frets */, lane_flash_, 1.5f,
@@ -40109,7 +40564,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                    bad_highway_flash_,
                    fofix_rock_fill(rock_),
                    star_power_highway_flash_,
-                   multiplier_surface_flash_);
+                   multiplier_surface_flash_,
+                   track_intro_active_);
 }
 
 }  // namespace ghogx::game

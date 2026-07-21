@@ -8,6 +8,7 @@
 #include "milo_scene/milo_scene.h"
 
 #include <cmath>
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -53,6 +54,26 @@ void put_utf8_z(std::vector<uint8_t>& b, const std::string& s) {
 }
 void put_zeros(std::vector<uint8_t>& b, size_t n) {
   for (size_t i = 0; i < n; ++i) b.push_back(0);
+}
+std::vector<uint8_t> bytes_from_hex(const char* text) {
+  std::vector<uint8_t> bytes;
+  int high = -1;
+  for (const unsigned char* p =
+           reinterpret_cast<const unsigned char*>(text);
+       *p != 0; ++p) {
+    if (!std::isxdigit(*p)) continue;
+    const int value = std::isdigit(*p)
+                          ? static_cast<int>(*p - '0')
+                          : static_cast<int>(std::tolower(*p) - 'a' + 10);
+    if (high < 0) {
+      high = value;
+    } else {
+      bytes.push_back(static_cast<uint8_t>((high << 4) | value));
+      high = -1;
+    }
+  }
+  CHECK(high < 0);
+  return bytes;
 }
 // Identity rotation + given translation, as a Harmonix 3x4 matrix.
 void put_matrix(std::vector<uint8_t>& b, float tx, float ty, float tz) {
@@ -680,8 +701,76 @@ void test_trans_anim() {
   CHECK(props.superclasses.size() == 1);
   CHECK(props.superclasses[0] == "RndAnimatable");
 
-  std::printf("  [ok] TransAnim: load_v7=%d handlers=%zu\n",
-              load_v7.accepted_revision ? 1 : 0, handlers.handlers.size());
+  // Byte-for-byte body of stock GH2 PS2
+  // track/gen/track.milo_ps2::extend_track_normal.tnm.  This pins the exact
+  // MiloEditor field order and, importantly, the authored frame values above
+  // the old highway scanner's fabricated 1000-frame ceiling.
+  const std::vector<uint8_t> track_intro = bytes_from_hex(
+      "06 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 "
+      "00 00 00 00 00 01 00 00 00 09 00 00 00 74 72 61 "
+      "63 6b 2e 63 61 6d 09 00 00 00 e3 3c 56 bd 00 00 "
+      "00 00 00 00 00 00 07 a4 7f 3f 00 00 00 00 e3 3c "
+      "56 bd 00 00 00 00 00 00 00 00 07 a4 7f 3f 00 00 "
+      "fa 44 79 66 32 bd 50 19 88 3b be 41 88 3b f9 96 "
+      "7f 3f 00 40 fa 44 ea 55 44 bd 6a bf 47 bb 17 6b "
+      "19 39 0c a0 7f 3f 00 80 fa 44 27 f7 55 bd 08 98 "
+      "45 ba 07 4b 0b bb c5 7c 7f 3f 00 e0 fa 44 94 09 "
+      "4d bd 29 20 00 3b 6f 4c 91 bb 7a 85 7f 3f 00 40 "
+      "fb 44 92 69 5a bd 63 f0 44 ba 25 34 0b bb 65 78 "
+      "7f 3f 00 c0 fb 44 93 34 54 bd 00 00 00 00 00 00 "
+      "00 00 07 a6 7f 3f 00 60 fc 44 79 47 56 bd 00 00 "
+      "00 00 00 00 00 00 fd a3 7f 3f 00 20 fd 44 02 00 "
+      "00 00 42 5c 49 3e 00 00 80 42 d6 88 8f 41 00 00 "
+      "00 00 42 5c 49 3e c5 de 7c c2 d6 88 8f 41 00 00 "
+      "b4 44 17 00 00 00 65 78 74 65 6e 64 5f 74 72 61 "
+      "63 6b 5f 6e 6f 72 6d 61 6c 2e 74 6e 6d 01 00 01 "
+      "00 00 00 00 00 80 3f 00 00 80 3f 00 00 80 3f 00 "
+      "00 00 00 00 00 00");
+  CHECK(track_intro.size() == 310);
+  const DecodedRndTransAnimBody decoded =
+      decode_rndtrans_anim_body_source_order(track_intro.data(),
+                                             track_intro.size());
+  CHECK(decoded.decoded);
+  CHECK(decoded.exact_eof);
+  CHECK(decoded.bytes_consumed == track_intro.size());
+  CHECK(decoded.revision == 6);
+  CHECK(decoded.anim_revision == 4);
+  CHECK(decoded.anim_rate == 1);
+  CHECK(decoded.target == "track.cam");
+  CHECK(decoded.keys_owner == "extend_track_normal.tnm");
+  CHECK(decoded.rotation_keys.size() == 9);
+  CHECK(decoded.translation_keys.size() == 2);
+  CHECK(decoded.scale_keys.size() == 1);
+  CHECK(decoded.trans_spline);
+  CHECK(!decoded.repeat_trans);
+  CHECK(!decoded.scale_spline);
+  CHECK(!decoded.follow_path);
+  CHECK(!decoded.rot_slerp);
+  CHECK(!decoded.rot_spline);
+  CHECK(approx(decoded.translation_keys.front().value[0], 0.19664f));
+  CHECK(approx(decoded.translation_keys.front().value[1], 64.0f));
+  CHECK(approx(decoded.translation_keys.front().value[2], 17.94181f));
+  CHECK(approx(decoded.translation_keys.front().frame, 0.0f));
+  CHECK(approx(decoded.translation_keys.back().value[0], 0.19664f));
+  CHECK(approx(decoded.translation_keys.back().value[1], -63.21755f));
+  CHECK(approx(decoded.translation_keys.back().value[2], 17.94181f));
+  CHECK(approx(decoded.translation_keys.back().frame, 1440.0f));
+  CHECK(approx(rndtrans_anim_start_frame(decoded), 0.0f));
+  CHECK(approx(rndtrans_anim_end_frame(decoded), 2025.0f));
+
+  const auto frame_0 = sample_rndtrans_anim_translation(decoded, 0.0f);
+  const auto frame_720 = sample_rndtrans_anim_translation(decoded, 720.0f);
+  const auto frame_1440 = sample_rndtrans_anim_translation(decoded, 1440.0f);
+  const auto frame_1920 = sample_rndtrans_anim_translation(decoded, 1920.0f);
+  CHECK(approx(frame_0[1], 64.0f));
+  CHECK(approx_eps(frame_720[1], 0.391225f, 0.0002f));
+  CHECK(approx(frame_1440[1], -63.21755f));
+  CHECK(approx(frame_1920[1], -63.21755f));
+
+  std::printf(
+      "  [ok] TransAnim: load_v7=%d handlers=%zu track.cam y=%.3f->%.3f\n",
+      load_v7.accepted_revision ? 1 : 0, handlers.handlers.size(),
+      frame_0[1], frame_1920[1]);
 }
 
 void test_mesh_anim() {

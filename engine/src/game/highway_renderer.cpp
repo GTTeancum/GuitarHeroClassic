@@ -83,6 +83,13 @@ constexpr float kDefaultCamZEnd = 0.1f;
 constexpr float kDefaultBurnNormalFrame = 0.0f;
 constexpr float kDefaultBurnWhammyFrame = 10.0f;
 constexpr float kDefaultBurnBonusFrame = 20.0f;
+// Stock ui/gen/track_panel.dtb drives the PanelDir from frame 0 to 1920 in
+// one second.  The same script reveals lanes 0..4 at 1.3..1.7 seconds.
+constexpr float kTrackIntroEndFrame = 1920.0f;
+constexpr double kTrackIntroExtendSeconds = 1.0;
+constexpr double kTrackIntroFirstSmasherSeconds = 1.3;
+constexpr double kTrackIntroSmasherStepSeconds = 0.1;
+constexpr double kTrackIntroRefreshButtonsSeconds = 2.5;
 // PCSX2 rail/tail measurements keep the source track art as the base, then
 // apply one measured root-space correction so track meshes, lane positions,
 // tails, and smashers stay locked together. The 4:3 value comes from the live
@@ -1369,6 +1376,17 @@ HighwayAspectProfile pcsx2_measured_highway_profile_for_aspect(float aspect) {
           kPcsx2MeasuredCamYawDeg16x9};
 }
 
+float native_track_y_scale(float source_min_y, float source_max_y,
+                           float native_top_y) {
+  const float source_span = source_max_y - source_min_y;
+  const float native_span = native_top_y - source_min_y;
+  if (!std::isfinite(source_span) || !std::isfinite(native_span) ||
+      source_span <= 0.001f || native_span <= source_span + 0.001f) {
+    return 1.0f;
+  }
+  return native_span / source_span;
+}
+
 std::array<float, 3> highway_camera_forward(
     const HighwayAspectProfile& profile) {
   const float pitch = kCamPitchDeg * 3.14159265358979323846f / 180.0f;
@@ -1551,6 +1569,133 @@ HighwayRenderer::SideRailColorState side_rail_color_from_anim(
   }
   out.ok = true;
   return out;
+}
+
+HighwayRenderer::MeshTransformAnim load_track_intro_transanim_source_order(
+    const std::string& hdr_path, const std::string& ark_path,
+    const char* anim_name) {
+  HighwayRenderer::MeshTransformAnim out;
+  try {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    auto entry = ark.find("track/gen/track.milo_ps2");
+    if (!entry) entry = ark.find("../../system/run/track/gen/track.milo_ps2");
+    if (!entry) return out;
+    const auto bytes = ark.read_entry(*entry, {ark_path});
+    const auto hdr = gh::milo::parse_header(bytes);
+    const auto payload = gh::milo::inflate_payload(bytes, hdr);
+    const auto dir = gh::milo::parse_directory(payload);
+    for (const auto& de : dir.entries) {
+      if (de.type != "TransAnim" || de.name != anim_name ||
+          de.offset + de.size > payload.size()) {
+        continue;
+      }
+
+      const auto decoded =
+          ghogx::milo_scene::decode_rndtrans_anim_body_source_order(
+              payload.data() + de.offset, static_cast<size_t>(de.size));
+      if (!decoded.decoded) {
+        std::fprintf(stderr,
+                     "[highway] track intro TransAnim %s source-order decode failed at %zu/%llu: %s\n",
+                     anim_name, decoded.bytes_consumed,
+                     static_cast<unsigned long long>(de.size),
+                     decoded.error.c_str());
+        return out;
+      }
+      if (decoded.target != "track.cam") {
+        std::fprintf(stderr,
+                     "[highway] track intro TransAnim %s rejected target=%s (expected track.cam)\n",
+                     anim_name, decoded.target.c_str());
+        return out;
+      }
+      if (!decoded.keys_owner.empty() && decoded.keys_owner != anim_name) {
+        std::fprintf(stderr,
+                     "[highway] track intro TransAnim %s external keys owner=%s is unresolved\n",
+                     anim_name, decoded.keys_owner.c_str());
+        return out;
+      }
+
+      out.translation_keys.reserve(decoded.translation_keys.size());
+      for (const auto& source_key : decoded.translation_keys) {
+        HighwayRenderer::Vec3AnimKey key;
+        key.x = source_key.value[0];
+        key.y = source_key.value[1];
+        key.z = source_key.value[2];
+        key.frame = source_key.frame;
+        out.translation_keys.push_back(key);
+      }
+      out.rotation_keys.reserve(decoded.rotation_keys.size());
+      for (const auto& source_key : decoded.rotation_keys) {
+        HighwayRenderer::QuatAnimKey key;
+        key.x = source_key.value[0];
+        key.y = source_key.value[1];
+        key.z = source_key.value[2];
+        key.w = source_key.value[3];
+        key.frame = source_key.frame;
+        out.rotation_keys.push_back(key);
+      }
+      out.scale_keys.reserve(decoded.scale_keys.size());
+      for (const auto& source_key : decoded.scale_keys) {
+        HighwayRenderer::Vec3AnimKey key;
+        key.x = source_key.value[0];
+        key.y = source_key.value[1];
+        key.z = source_key.value[2];
+        key.frame = source_key.frame;
+        out.scale_keys.push_back(key);
+      }
+
+      const auto frame_0 =
+          ghogx::milo_scene::sample_rndtrans_anim_translation(decoded, 0.0f);
+      const auto frame_720 =
+          ghogx::milo_scene::sample_rndtrans_anim_translation(decoded, 720.0f);
+      const auto frame_1440 =
+          ghogx::milo_scene::sample_rndtrans_anim_translation(decoded, 1440.0f);
+      const auto frame_1920 =
+          ghogx::milo_scene::sample_rndtrans_anim_translation(decoded, 1920.0f);
+      std::fprintf(
+          stderr,
+          "[highway] track intro TransAnim %s source_reader=MiloEditor::RndTransAnim.Read rev=%u anim_rev=%u rate=%d target=%s owner=%s pos=%zu rot=%zu scale=%zu flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d bytes=%zu/%llu eof_exact=%d panel_range=0..1920 samples_y=(f0:%.3f f720:%.3f f1440:%.3f f1920:%.3f)\n",
+          anim_name, decoded.revision, decoded.anim_revision,
+          decoded.anim_rate, decoded.target.c_str(),
+          decoded.keys_owner.empty() ? "<self>" : decoded.keys_owner.c_str(),
+          decoded.translation_keys.size(), decoded.rotation_keys.size(),
+          decoded.scale_keys.size(), decoded.trans_spline ? 1 : 0,
+          decoded.repeat_trans ? 1 : 0, decoded.scale_spline ? 1 : 0,
+          decoded.follow_path ? 1 : 0, decoded.rot_slerp ? 1 : 0,
+          decoded.rot_spline ? 1 : 0, decoded.bytes_consumed,
+          static_cast<unsigned long long>(de.size),
+          decoded.exact_eof ? 1 : 0, frame_0[1], frame_720[1],
+          frame_1440[1], frame_1920[1]);
+      break;
+    }
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr,
+                 "[highway] track intro TransAnim %s load failed: %s\n",
+                 anim_name, ex.what());
+  }
+  return out;
+}
+
+std::array<float, 3> sample_vec3_anim_clamped(
+    const std::vector<HighwayRenderer::Vec3AnimKey>& keys, float frame,
+    const std::array<float, 3>& fallback) {
+  if (keys.empty()) return fallback;
+  if (keys.size() == 1 || frame <= keys.front().frame) {
+    return {keys.front().x, keys.front().y, keys.front().z};
+  }
+  if (frame >= keys.back().frame) {
+    return {keys.back().x, keys.back().y, keys.back().z};
+  }
+  for (size_t i = 0; i + 1 < keys.size(); ++i) {
+    if (frame < keys[i].frame || frame > keys[i + 1].frame) continue;
+    const auto& a = keys[i];
+    const auto& b = keys[i + 1];
+    const float t = std::clamp(
+        (frame - a.frame) / std::max(0.001f, b.frame - a.frame), 0.0f,
+        1.0f);
+    return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t,
+            a.z + (b.z - a.z) * t};
+  }
+  return {keys.back().x, keys.back().y, keys.back().z};
 }
 
 std::map<std::string, TrackParticleAnim> load_track_particle_anims(
@@ -3119,10 +3264,12 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
   bonus_spark2_mesh_ = RuntimeMesh{};
   track_surface_mesh_ = RuntimeMesh{};
   track_mask_mesh_ = RuntimeMesh{};
+  track_extend_anim_ = MeshTransformAnim{};
   surface_flash_2x_ = ColorAnimState{};
   surface_flash_3x_ = ColorAnimState{};
   surface_flash_4x_ = ColorAnimState{};
   track_side_rails_mesh_ = RuntimeMesh{};
+  side_rails_building_ = SideRailColorState{};
   side_rails_none_ = SideRailColorState{};
   side_rails_warning_ = SideRailColorState{};
   side_rails_star_ = SideRailColorState{};
@@ -3819,6 +3966,16 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
     track_mask_mesh_ = convert_mesh("track_mask.mesh");
     track_side_rails_mesh_ = convert_mesh("track_side_rails5.mesh");
     track_lane_lines_mesh_ = convert_mesh("track_lane_lines5.mesh");
+    track_extend_anim_ = load_track_intro_transanim_source_order(
+        hdr_path, ark_path, "extend_track_normal.tnm");
+    if (!mesh_transform_anim_empty(track_extend_anim_)) {
+      std::fprintf(
+          stderr,
+          "[highway] extend_track_normal.tnm transform pos=%zu rot=%zu scale=%zu source_range=0..1920\n",
+          track_extend_anim_.translation_keys.size(),
+          track_extend_anim_.rotation_keys.size(),
+          track_extend_anim_.scale_keys.size());
+    }
     star_power_track_glow_mesh_ = convert_mesh("lightning_trackglow.mesh");
     bar_line_mesh_ = convert_mesh("bar_line5.mesh");
     beat_line_mesh_ = convert_mesh("beat_line5.mesh");
@@ -3905,6 +4062,8 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
       }
     }
     const auto side_rail_anims = load_track_mat_anim_colors(hdr_path, ark_path);
+    side_rails_building_ = side_rail_color_from_anim(
+        side_rail_anims, "side_rails_building.mnm", false);
     side_rails_none_ =
         side_rail_color_from_anim(side_rail_anims, "side_rails_none.mnm",
                                   false);
@@ -4363,16 +4522,18 @@ void HighwayRenderer::draw(double song_time, const ghogx::chart::Chart& chart,
                            const float star_miss_flash[5],
                            const uint8_t hit_phrase_state[5],
                            int combo_multiplier,
-                             float bad_feedback_flash,
-                             float rock_fill,
-                             float star_power_flash,
-                             float surface_flash) {
+                           float bad_feedback_flash,
+                           float rock_fill,
+                           float star_power_flash,
+                           float surface_flash,
+                           bool track_intro_active) {
   draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
             lookahead_sec, true, consumed_notes, active_sustains,
             star_power_active, whammy_active, whammy_axis,
             star_collect_flash, miss_flash,
             star_miss_flash, hit_phrase_state, combo_multiplier,
-            bad_feedback_flash, rock_fill, star_power_flash, surface_flash);
+            bad_feedback_flash, rock_fill, star_power_flash, surface_flash,
+            track_intro_active);
 }
 
 void HighwayRenderer::draw_over_scene(double song_time,
@@ -4394,13 +4555,15 @@ void HighwayRenderer::draw_over_scene(double song_time,
                                         float bad_feedback_flash,
                                         float rock_fill,
                                         float star_power_flash,
-                                        float surface_flash) {
+                                        float surface_flash,
+                                        bool track_intro_active) {
   draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
             lookahead_sec, false, consumed_notes, active_sustains,
             star_power_active, whammy_active, whammy_axis,
             star_collect_flash, miss_flash,
             star_miss_flash, hit_phrase_state, combo_multiplier,
-            bad_feedback_flash, rock_fill, star_power_flash, surface_flash);
+            bad_feedback_flash, rock_fill, star_power_flash, surface_flash,
+            track_intro_active);
 }
 
 void HighwayRenderer::draw_debug_note_counter_overlay(
@@ -4725,10 +4888,11 @@ void HighwayRenderer::draw_impl(double song_time,
                                  const float star_miss_flash[5],
                                  const uint8_t hit_phrase_state[5],
                                  int combo_multiplier,
-                                  float bad_feedback_flash,
-                                  float rock_fill,
-                                  float star_power_flash,
-                                  float surface_flash) {
+                                 float bad_feedback_flash,
+                                 float rock_fill,
+                                 float star_power_flash,
+                                 float surface_flash,
+                                 bool track_intro_active) {
   if (!dev_) return;
   if (clear_target) {
     dev_->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
@@ -4753,8 +4917,50 @@ void HighwayRenderer::draw_impl(double song_time,
   const float aspect = win_->bb_height() > 0
       ? static_cast<float>(win_->bb_width()) / static_cast<float>(win_->bb_height())
       : 16.0f / 9.0f;
-  const HighwayAspectProfile highway_profile =
+  HighwayAspectProfile highway_profile =
       pcsx2_measured_highway_profile_for_aspect(aspect);
+  const float track_space_y_scale =
+      track_surface_mesh_.ok
+          ? native_track_y_scale(track_surface_mesh_.min_y,
+                                 track_surface_mesh_.max_y, top_y_)
+          : 1.0f;
+  const double track_intro_elapsed =
+      track_intro_active ? std::max(0.0, song_time)
+                         : kTrackIntroFirstSmasherSeconds +
+                               kTrackIntroSmasherStepSeconds * 5.0;
+  const float track_intro_frame = static_cast<float>(
+      std::clamp(track_intro_elapsed / kTrackIntroExtendSeconds, 0.0, 1.0) *
+      kTrackIntroEndFrame);
+  if (track_intro_active &&
+      !track_extend_anim_.translation_keys.empty() &&
+      track_intro_frame < kTrackIntroEndFrame) {
+    const auto source_now = sample_vec3_anim_clamped(
+        track_extend_anim_.translation_keys, track_intro_frame,
+        {highway_profile.cam_x, highway_profile.cam_y, highway_profile.cam_z});
+    const auto source_out = sample_vec3_anim_clamped(
+        track_extend_anim_.translation_keys, kTrackIntroEndFrame, source_now);
+    // The animation targets track.cam. Apply its authored in-to-out delta to
+    // the already validated PC/4:3 camera endpoint instead of replacing the
+    // endpoint corrections. The static-fidelity path expands the source track
+    // mesh in Y to the PCSX2-measured horizon, so the camera's source-space Y
+    // delta must cross that same coordinate-space boundary. Leaving the camera
+    // delta unscaled puts a large section of the expanded highway in front of
+    // the near plane at frame zero, making it look pre-assembled.
+    highway_profile.cam_x += source_now[0] - source_out[0];
+    highway_profile.cam_y +=
+        (source_now[1] - source_out[1]) * track_space_y_scale;
+    highway_profile.cam_z += source_now[2] - source_out[2];
+    static bool track_intro_mapping_reported = false;
+    if (!track_intro_mapping_reported) {
+      std::fprintf(
+          stderr,
+          "[highway] track intro coordinate map: source_y=%.3f..%.3f native_track_y=%.3f..%.3f y_scale=%.6f frame=%.3f camera_y=%.3f\n",
+          track_surface_mesh_.min_y, track_surface_mesh_.max_y,
+          track_surface_mesh_.min_y, top_y_, track_space_y_scale,
+          track_intro_frame, highway_profile.cam_y);
+      track_intro_mapping_reported = true;
+    }
+  }
   Mat4 view = highway_camera_view(highway_profile);
   Mat4 proj = Mat4::perspective_lh(kCamFov, aspect, cam_near_, cam_far_);
   // GH2 track space is right-handed (X right, +Y forward/into-screen, Z up);
@@ -5028,12 +5234,11 @@ void HighwayRenderer::draw_impl(double song_time,
     TrackHorizonFit fit;
     fit.min_world_y = mesh.min_y;
     fit.max_world_y = mesh.max_y;
-    const float source_span = mesh.max_y - mesh.min_y;
-    const float target_span = source_fade_top_y - mesh.min_y;
-    if (fit_to_horizon && mesh.ok && std::isfinite(source_span) &&
-        std::isfinite(target_span) && source_span > 0.001f &&
-        target_span > source_span + 0.001f) {
-      fit.scale_y = target_span / source_span;
+    fit.scale_y = fit_to_horizon && mesh.ok
+                      ? native_track_y_scale(mesh.min_y, mesh.max_y,
+                                             source_fade_top_y)
+                      : 1.0f;
+    if (fit.scale_y > 1.0f + 0.000001f) {
       fit.origin_y = mesh.min_y - mesh.min_y * fit.scale_y;
       fit.min_world_y = fit.origin_y + mesh.min_y * fit.scale_y;
       fit.max_world_y = fit.origin_y + mesh.max_y * fit.scale_y;
@@ -5281,7 +5486,11 @@ void HighwayRenderer::draw_impl(double song_time,
     ++rock_warning_debug_budget;
   }
   SideRailColorState side_rail_color = side_rails_none_;
-  if (side_rail_warning > 0.01f && side_rail_star_active &&
+  if (track_intro_active &&
+      track_intro_elapsed < kTrackIntroExtendSeconds &&
+      side_rails_building_.ok) {
+    side_rail_color = side_rails_building_;
+  } else if (side_rail_warning > 0.01f && side_rail_star_active &&
       side_rails_warning_star_.ok) {
     side_rail_color = lerp_side_rail_color(side_rails_none_,
                                            side_rails_warning_star_,
@@ -6246,11 +6455,24 @@ void HighwayRenderer::draw_impl(double song_time,
       static int smasher_idle_debug_budget = 0;
       static int smasher_active_debug_budget = 0;
       for (int lane = 0; lane < 5; ++lane) {
+        const double source_pop_time =
+            kTrackIntroFirstSmasherSeconds +
+            static_cast<double>(lane) * kTrackIntroSmasherStepSeconds;
+        // TrackPanel::do_extend_sequence leaves all five hollow rims present,
+        // then pop_smasher/set_smasher_glowing initializes the colored inner
+        // buttons one lane at a time.  refresh_track_buttons returns them to
+        // live held/idle state at 2.5 seconds.
+        const bool intro_lane_initialized =
+            !track_intro_active || track_intro_elapsed >= source_pop_time;
+        const bool intro_lane_glowing =
+            track_intro_active && intro_lane_initialized &&
+            track_intro_elapsed < kTrackIntroRefreshButtonsSeconds;
         const bool held = (fret_held_mask >> lane) & 1;
         const float press_flash =
             hit_flash ? std::clamp(hit_flash[lane], 0.0f, 1.0f) : 0.0f;
         const float press = std::max(held ? 1.0f : 0.0f, press_flash);
         const bool smasher_pressed = press > 0.01f;
+        const bool smasher_glowing = smasher_pressed || intro_lane_glowing;
         float smasher_lift_z = 0.0f;
         if (smasher_pressed && !mesh_transform_anim_empty(smasher_press_anim_)) {
           const MeshTransformSample hit_transform = sample_transform_anim_delta(
@@ -6269,7 +6491,7 @@ void HighwayRenderer::draw_impl(double song_time,
         const float shadow_z_offset =
             (kBoardZ + 0.03f) - smasher_shadow_mesh_.max_z;
         const float x = lane_x(lane);
-        const D3DCOLOR base = smasher_pressed
+        const D3DCOLOR base = smasher_glowing
                                   ? D3DCOLOR_ARGB(255, 255, 255, 255)
                                   : D3DCOLOR_ARGB(240, 255, 255, 255);
         if (smasher_shadow_mesh_.ok) {
@@ -6287,7 +6509,7 @@ void HighwayRenderer::draw_impl(double song_time,
                 ? smasher_normal_texture_name_
                 : smasher_texture_names_[lane];
         const std::string& smasher_texture =
-            smasher_pressed ? pressed_smasher_texture : idle_smasher_texture;
+            smasher_glowing ? pressed_smasher_texture : idle_smasher_texture;
         std::string ring_texture =
             bonus_highway_active && !bonus_smasher_ring_texture_name_.empty()
                 ? bonus_smasher_ring_texture_name_
@@ -6334,19 +6556,22 @@ void HighwayRenderer::draw_impl(double song_time,
             is_smasher_add_alpha_key_alias(smasher_add_texture);
         const bool log_smasher =
             debug_smashers &&
-            ((smasher_pressed && smasher_active_debug_budget < 120) ||
-             (!smasher_pressed && smasher_idle_debug_budget < 30));
+            ((smasher_glowing && smasher_active_debug_budget < 120) ||
+             (!smasher_glowing && smasher_idle_debug_budget < 30));
         if (log_smasher) {
           std::fprintf(
               stderr,
-              "[highway-smasher] lane=%d held=%d flash=%.3f press=%.3f "
+              "[highway-smasher] lane=%d initialized=%d intro_glow=%d "
+              "held=%d flash=%.3f press=%.3f "
               "body_top=%.3f lift_z=%.3f "
               "ring_top=%.3f body_mesh=%d ring_mesh=%d ring_add=%d "
               "ring_add_blend=%u ring_add_draw=%d shadow=%d "
               "body_tex=%s add_mesh=%d add_tex=%s add_blend=%u "
               "add_zmode=%u add_rgbmask=%d "
               "ring_tex=%s ring_add_tex=%s bonus=%d\n",
-              lane, held ? 1 : 0, press_flash, press, smasher_top_z,
+              lane, intro_lane_initialized ? 1 : 0,
+              intro_lane_glowing ? 1 : 0, held ? 1 : 0, press_flash, press,
+              smasher_top_z,
               smasher_lift_z, kSmasherFixedRingTopZ,
               gem_smasher_mesh_.ok ? 1 : 0,
               ring_mesh->ok ? 1 : 0,
@@ -6370,7 +6595,7 @@ void HighwayRenderer::draw_impl(double song_time,
                   ? ring_add_mesh->texture_name.c_str()
                   : "<none>",
               bonus_highway_active ? 1 : 0);
-          if (smasher_pressed) {
+          if (smasher_glowing) {
             ++smasher_active_debug_budget;
           } else {
             ++smasher_idle_debug_budget;
@@ -6448,7 +6673,7 @@ void HighwayRenderer::draw_impl(double song_time,
           dev_->SetRenderState(D3DRS_DESTBLEND, prev_ring_dest_blend);
         };
         auto draw_smasher_add = [&]() {
-          if (!smasher_pressed || smasher_add_texture.empty()) return;
+          if (!smasher_glowing || smasher_add_texture.empty()) return;
           const RuntimeMesh& add_mesh =
               smasher_add_mesh_ok ? *smasher_add_mesh : gem_smasher_mesh_;
           const float add_z_offset = smasher_top_z - add_mesh.max_z;
@@ -6501,7 +6726,9 @@ void HighwayRenderer::draw_impl(double song_time,
           dev_->SetRenderState(D3DRS_SRCBLEND, prev_add_src_blend);
           dev_->SetRenderState(D3DRS_DESTBLEND, prev_add_dest_blend);
         };
-        if (smasher_pressed) {
+        if (!intro_lane_initialized) {
+          draw_smasher_ring();
+        } else if (smasher_glowing) {
           draw_smasher_ring();
           draw_smasher_body();
           draw_smasher_ring_add();

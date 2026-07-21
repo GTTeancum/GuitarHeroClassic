@@ -72,6 +72,11 @@ constexpr float kLeftHudLeftDepth = -8.0f;
 constexpr float kLeftHudRightDepth = 24.0f;
 constexpr float kRightHudLeftDepth = kRightHudFarDepth;
 constexpr float kRightHudRightDepth = kRightHudNearDepth;
+// ui/gen/game.dtb queues HudPanel::slide_meter_in at 1.8 seconds.  The stock
+// HudPanel then plays meters_slide_in.view from frame 0 through 480 over 0.5s.
+constexpr float kHudIntroMeterStartSeconds = 1.8f;
+constexpr float kHudIntroMeterPeriodSeconds = 0.5f;
+constexpr float kHudIntroMeterEndFrame = 480.0f;
 constexpr float kLeftHudPanelNx = 0.102f;
 constexpr float kLeftHudPanelNw = 0.180f;
 constexpr float kLeftHudWorldMin =
@@ -700,6 +705,9 @@ struct MiloLayout {
   std::unordered_map<std::string, HudMatAnimColorCurve> mat_anim_color;
   std::unordered_map<std::string, HudParticleAnim> particle_anims;
   std::unordered_map<std::string, HudTransPathAnim> trans_path_anims;
+  std::unordered_map<std::string,
+                     ghogx::milo_scene::DecodedRndTransAnimBody>
+      source_trans_anims;
   std::unordered_map<std::string, HudMeshAnim> mesh_anims;
   std::unordered_map<std::string, HudAnimFilter> anim_filters;
   bool ok = false;
@@ -1116,6 +1124,11 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
           out.particle_anims[de.name] = std::move(*anim);
         }
       } else if (de.type == "TransAnim") {
+        auto source_anim =
+            ghogx::milo_scene::decode_rndtrans_anim_body_source_order(b, n);
+        if (source_anim.decoded && source_anim.exact_eof) {
+          out.source_trans_anims[de.name] = std::move(source_anim);
+        }
         if (auto anim = decode_hud_trans_path_anim(de.name, b, n)) {
           out.trans_path_anims[de.name] = std::move(*anim);
         }
@@ -1345,6 +1358,8 @@ void HudRenderer::clear_loaded_resources() {
   native_star_ready_mesh_glow_.clear();
   native_star_lightning_.clear();
   native_star_particles_.clear();
+  score_slide_in_anim_ = {};
+  meter_slide_in_anim_ = {};
 }
 
 namespace {
@@ -1736,6 +1751,66 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   dump_hud_layout("streak", streak);
   dump_hud_layout("crowd", crowd);
   dump_hud_layout("star", star);
+
+  // meters_slide_in.view owns these two stock RndTransAnims.  Keep the
+  // complete authored group transforms: score/mult/streak move together on
+  // the left and star/rock move together on the right.
+  auto load_intro_transform =
+      [&](const char* name, const char* expected_target,
+          IntroTransformAnim& dst) {
+        const auto it = hud.source_trans_anims.find(name);
+        if (it == hud.source_trans_anims.end()) {
+          std::fprintf(stderr, "[hud-intro] missing source TransAnim %s\n", name);
+          return;
+        }
+        const auto& src = it->second;
+        const bool owner_is_self =
+            src.keys_owner.empty() || src.keys_owner == name;
+        if (src.target != expected_target || !owner_is_self ||
+            src.translation_keys.empty() || src.rotation_keys.empty()) {
+          std::fprintf(stderr,
+                       "[hud-intro] rejected %s target=%s expected=%s "
+                       "owner=%s pos=%zu rot=%zu\n",
+                       name, src.target.c_str(), expected_target,
+                       src.keys_owner.empty() ? "<self>" : src.keys_owner.c_str(),
+                       src.translation_keys.size(), src.rotation_keys.size());
+          return;
+        }
+        dst.target = src.target;
+        dst.translation_keys.reserve(src.translation_keys.size());
+        for (const auto& key : src.translation_keys) {
+          Vec3AnimKey copied;
+          copied.x = key.value[0];
+          copied.y = key.value[1];
+          copied.z = key.value[2];
+          copied.frame = key.frame;
+          dst.translation_keys.push_back(copied);
+        }
+        dst.rotation_keys.reserve(src.rotation_keys.size());
+        for (const auto& key : src.rotation_keys) {
+          QuatAnimKey copied;
+          copied.x = key.value[0];
+          copied.y = key.value[1];
+          copied.z = key.value[2];
+          copied.w = key.value[3];
+          copied.frame = key.frame;
+          dst.rotation_keys.push_back(copied);
+        }
+        dst.end_frame = ghogx::milo_scene::rndtrans_anim_end_frame(src);
+        dst.ok = std::isfinite(dst.end_frame) &&
+                 dst.end_frame >= kHudIntroMeterEndFrame;
+        std::fprintf(stderr,
+                     "[hud-intro] source=%s target=%s owner=%s "
+                     "pos=%zu rot=%zu end=%.1f ready=%d\n",
+                     name, dst.target.c_str(),
+                     src.keys_owner.empty() ? "<self>" : src.keys_owner.c_str(),
+                     dst.translation_keys.size(), dst.rotation_keys.size(),
+                     dst.end_frame, dst.ok ? 1 : 0);
+      };
+  load_intro_transform("score_slide_in.tnm", "hud1_score_meter0.view",
+                       score_slide_in_anim_);
+  load_intro_transform("meter_slide_in.tnm", "hud1_rock_meter.view",
+                       meter_slide_in_anim_);
 
   // 2) Load + upload every texture we reference from each MILO.
   auto load_set = [&](const std::string& milo, const std::vector<std::string>& names) {
@@ -3107,6 +3182,166 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     emit_score_digits(quads, state.score);
   }
 
+  struct IntroGroupTransform {
+    float screen_dx = 0.0f;
+    float screen_dy = 0.0f;
+    float rotation_delta = 0.0f;
+  };
+  IntroGroupTransform left_intro;
+  IntroGroupTransform right_intro;
+  const bool intro_meters_hidden =
+      state.track_intro_active &&
+      state.anim_seconds < kHudIntroMeterStartSeconds;
+  if (intro_meters_hidden) {
+    quads.erase(std::remove_if(quads.begin(), quads.end(),
+                               [](const Quad& q) {
+                                 return q.group == kHudGroupLeft ||
+                                        q.group == kHudGroupRight;
+                               }),
+                quads.end());
+  }
+
+  auto sample_intro_translation = [](const IntroTransformAnim& anim,
+                                     float frame) {
+    Vec3AnimKey out;
+    if (anim.translation_keys.empty()) return out;
+    if (frame <= anim.translation_keys.front().frame) {
+      return anim.translation_keys.front();
+    }
+    if (frame >= anim.translation_keys.back().frame) {
+      return anim.translation_keys.back();
+    }
+    for (size_t i = 1; i < anim.translation_keys.size(); ++i) {
+      const Vec3AnimKey& b = anim.translation_keys[i];
+      if (frame > b.frame) continue;
+      const Vec3AnimKey& a = anim.translation_keys[i - 1];
+      const float span = std::max(0.0001f, b.frame - a.frame);
+      const float t = std::clamp((frame - a.frame) / span, 0.0f, 1.0f);
+      out.x = a.x + (b.x - a.x) * t;
+      out.y = a.y + (b.y - a.y) * t;
+      out.z = a.z + (b.z - a.z) * t;
+      out.frame = frame;
+      return out;
+    }
+    return anim.translation_keys.back();
+  };
+  auto normalize_quat = [](QuatAnimKey q) {
+    const float len = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z +
+                                q.w * q.w);
+    if (len > 0.000001f) {
+      q.x /= len;
+      q.y /= len;
+      q.z /= len;
+      q.w /= len;
+    }
+    return q;
+  };
+  auto sample_intro_rotation = [&](const IntroTransformAnim& anim,
+                                   float frame) {
+    QuatAnimKey out;
+    if (anim.rotation_keys.empty()) return out;
+    if (frame <= anim.rotation_keys.front().frame) {
+      return normalize_quat(anim.rotation_keys.front());
+    }
+    if (frame >= anim.rotation_keys.back().frame) {
+      return normalize_quat(anim.rotation_keys.back());
+    }
+    for (size_t i = 1; i < anim.rotation_keys.size(); ++i) {
+      const QuatAnimKey& raw_b = anim.rotation_keys[i];
+      if (frame > raw_b.frame) continue;
+      QuatAnimKey a = normalize_quat(anim.rotation_keys[i - 1]);
+      QuatAnimKey b = normalize_quat(raw_b);
+      float dot = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+      if (dot < 0.0f) {
+        dot = -dot;
+        b.x = -b.x;
+        b.y = -b.y;
+        b.z = -b.z;
+        b.w = -b.w;
+      }
+      const float span = std::max(0.0001f, raw_b.frame - a.frame);
+      const float t = std::clamp((frame - a.frame) / span, 0.0f, 1.0f);
+      if (dot > 0.9995f) {
+        out.x = a.x + (b.x - a.x) * t;
+        out.y = a.y + (b.y - a.y) * t;
+        out.z = a.z + (b.z - a.z) * t;
+        out.w = a.w + (b.w - a.w) * t;
+      } else {
+        const float theta = std::acos(std::clamp(dot, -1.0f, 1.0f));
+        const float sin_theta = std::sin(theta);
+        const float wa = std::sin((1.0f - t) * theta) / sin_theta;
+        const float wb = std::sin(t * theta) / sin_theta;
+        out.x = a.x * wa + b.x * wb;
+        out.y = a.y * wa + b.y * wb;
+        out.z = a.z * wa + b.z * wb;
+        out.w = a.w * wa + b.w * wb;
+      }
+      out.frame = frame;
+      return normalize_quat(out);
+    }
+    return normalize_quat(anim.rotation_keys.back());
+  };
+  auto intro_z_angle_degrees = [](const QuatAnimKey& q) {
+    constexpr float kRadiansToDegrees =
+        180.0f / 3.14159265358979323846f;
+    return 2.0f * std::atan2(q.z, q.w) * kRadiansToDegrees;
+  };
+  auto wrap_degrees = [](float degrees) {
+    while (degrees > 180.0f) degrees -= 360.0f;
+    while (degrees < -180.0f) degrees += 360.0f;
+    return degrees;
+  };
+  auto evaluate_intro_transform =
+      [&](const IntroTransformAnim& anim) {
+        IntroGroupTransform out;
+        if (!state.track_intro_active || !anim.ok || intro_meters_hidden) {
+          return out;
+        }
+        const float progress = std::clamp(
+            (state.anim_seconds - kHudIntroMeterStartSeconds) /
+                kHudIntroMeterPeriodSeconds,
+            0.0f, 1.0f);
+        const float frame = progress * kHudIntroMeterEndFrame;
+        const Vec3AnimKey now = sample_intro_translation(anim, frame);
+        const Vec3AnimKey end =
+            sample_intro_translation(anim, kHudIntroMeterEndFrame);
+        // Apply source deltas as fractions of the viewport.  This preserves the
+        // authored motion at both 4:3 and 16:9 without resolution-specific
+        // offsets or independently re-authoring child meter pieces.
+        out.screen_dx = (now.x - end.x) / kWorldPerScreenX;
+        out.screen_dy = (now.z - end.z) / (kZBot - kZTop);
+        const QuatAnimKey now_rot = sample_intro_rotation(anim, frame);
+        const QuatAnimKey end_rot =
+            sample_intro_rotation(anim, kHudIntroMeterEndFrame);
+        out.rotation_delta = wrap_degrees(
+            intro_z_angle_degrees(now_rot) -
+            intro_z_angle_degrees(end_rot));
+        return out;
+      };
+  left_intro = evaluate_intro_transform(score_slide_in_anim_);
+  right_intro = evaluate_intro_transform(meter_slide_in_anim_);
+
+  if (env_enabled("GHOGX_DEBUG_HUD_INTRO")) {
+    static int intro_debug_budget = 0;
+    if (intro_debug_budget < 240) {
+      const float frame = std::clamp(
+          (state.anim_seconds - kHudIntroMeterStartSeconds) /
+              kHudIntroMeterPeriodSeconds,
+          0.0f, 1.0f) * kHudIntroMeterEndFrame;
+      std::fprintf(stderr,
+                   "[hud-intro] t=%.3f frame=%.1f visible=%d "
+                   "left=(dx=%.4f dy=%.4f rot=%.2f) "
+                   "right=(dx=%.4f dy=%.4f rot=%.2f) "
+                   "viewport=%dx%d aspect=%.4f\n",
+                   state.anim_seconds, frame, intro_meters_hidden ? 0 : 1,
+                   left_intro.screen_dx, left_intro.screen_dy,
+                   left_intro.rotation_delta, right_intro.screen_dx,
+                   right_intro.screen_dy, right_intro.rotation_delta,
+                   bbw, bbh, bbh > 0 ? static_cast<float>(bbw) / bbh : 0.0f);
+      ++intro_debug_budget;
+    }
+  }
+
   auto apply_element_slot_tuning = [&](uint8_t element, const Slot& parent,
                                        const Slot* source_slot = nullptr) {
     if (!parent.ok || element >= kLayoutTuningCount) return;
@@ -3186,15 +3421,22 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
   apply_element_slot_tuning(kElemRockLabel, rock_face_);
 
   auto group_parent_for_quad = [&](const Quad& q, const Slot*& parent,
-                                   float& rot) {
+                                   float& rot, float& screen_dx,
+                                   float& screen_dy) {
     parent = nullptr;
     rot = 0.0f;
+    screen_dx = 0.0f;
+    screen_dy = 0.0f;
     if (q.group == kHudGroupLeft) {
       parent = &left_parent_slot_;
-      rot = layout_tuning_.score_panel.rot;
+      rot = layout_tuning_.score_panel.rot + left_intro.rotation_delta;
+      screen_dx = left_intro.screen_dx;
+      screen_dy = left_intro.screen_dy;
     } else if (q.group == kHudGroupRight) {
       parent = &right_parent_slot_;
-      rot = layout_tuning_.right_panel.rot;
+      rot = layout_tuning_.right_panel.rot + right_intro.rotation_delta;
+      screen_dx = right_intro.screen_dx;
+      screen_dy = right_intro.screen_dy;
     }
   };
 
@@ -3203,9 +3445,13 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     rhw = 1.0f;
     const Slot* parent = nullptr;
     float rot = 0.0f;
-    group_parent_for_quad(q, parent, rot);
+    float screen_dx = 0.0f;
+    float screen_dy = 0.0f;
+    group_parent_for_quad(q, parent, rot, screen_dx, screen_dy);
     if (!parent || !parent->ok || std::abs(rot) < 0.001f) {
       project(vv.wx, 0.0f, vv.wz, bbw, bbh, px, py);
+      px += screen_dx * static_cast<float>(bbw);
+      py += screen_dy * static_cast<float>(bbh);
       return;
     }
 
@@ -3233,6 +3479,8 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     const float wx = parent->cx + rotated_x * scale;
     const float wz = parent->cz + dz * scale;
     project(wx, 0.0f, wz, bbw, bbh, px, py);
+    px += screen_dx * static_cast<float>(bbw);
+    py += screen_dy * static_cast<float>(bbh);
     rhw = scale;
   };
 

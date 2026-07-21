@@ -83,7 +83,10 @@ class CharRenderer {
   // (WorldCrowd::BuildBillboard/DrawShowing and gImpostorCamera/textures).
   // Refresh the actor image from the current decoded pose, then batch all of
   // that actor's flat placements into the already-rendered venue scene.
-  bool refresh_worldcrowd_impostor();
+  bool refresh_worldcrowd_impostor(
+      const ghogx::render::OrbitCamera& scene_cam,
+      const std::array<float, 16>& source_character_world,
+      float source_character_height);
   void draw_worldcrowd_impostors_over_scene(
       const ghogx::render::OrbitCamera& cam,
       const std::vector<std::array<float, 16>>& placement_worlds,

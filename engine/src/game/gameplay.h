@@ -104,11 +104,34 @@ struct HitResult {
     bool was_hopo;
 };
 
+struct CameraResultBuilderFrameState {
+  bool has_filtered_target = false;
+  std::array<float, 3> filtered_target = {0.0f, 0.0f, 0.0f};
+  bool has_filtered_parent = false;
+  std::array<float, 16> filtered_parent = {
+      1.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 1.0f, 0.0f,
+      0.0f, 0.0f, 0.0f, 1.0f};
+};
+
 struct CameraResultBuilderState {
+  // CamShotFrame owns its cached target (unk34) and parent transform (unk44).
+  // Keep the cache per decoded source frame; sharing one cache across an
+  // outgoing/incoming pair changes the retail controller state machine.
+  std::map<std::string, CameraResultBuilderFrameState> frames;
+  std::string selected_outgoing_frame;
+  std::string selected_incoming_frame;
+
+  // Most recently updated target, retained for diagnostics that predate the
+  // per-frame retail cache reconstruction.
   bool has_filtered_target = false;
   std::array<float, 3> filtered_target = {0.0f, 0.0f, 0.0f};
 
   void reset() {
+    frames.clear();
+    selected_outgoing_frame.clear();
+    selected_incoming_frame.clear();
     has_filtered_target = false;
     filtered_target = {0.0f, 0.0f, 0.0f};
   }
@@ -814,6 +837,7 @@ class Gameplay {
   float  star_power_fill() const;
   float  rock_fill() const;
   bool   failed() const { return failed_; }
+  bool   track_intro_active() const { return track_intro_active_; }
   int    difficulty()const { return difficulty_; }
 
  private:
@@ -1022,6 +1046,11 @@ class Gameplay {
   AudioPlayer audio_;
   bool deterministic_clock_ = false;
   bool song_started_ = false;
+  bool song_presentation_ready_ = false;
+  bool track_intro_active_ = true;
+  int next_track_intro_sfx_stage_ = 0;
+  std::vector<double> pending_star_phrase_award_sfx_times_;
+  uint32_t star_power_activation_serial_ = 0;
   bool sync_audit_started_ = false;
   double sync_audit_wall_start_sec_ = 0.0;
   double sync_audit_audio_start_sec_ = 0.0;
@@ -1049,6 +1078,7 @@ class Gameplay {
     ghogx::character::CharClip active_half_clip;
     ghogx::character::CharClip active_nosnare_clip;
     ghogx::character::CharClip band_jump_clip;
+    std::vector<ghogx::character::CharClip> star_power_group_clips;
     ghogx::character::CharClip face_base_clip;
     ghogx::character::CharClip face_visemes_clip;
     std::vector<ghogx::character::CharClip> active_group_clips;
@@ -1079,6 +1109,11 @@ class Gameplay {
     uint32_t last_band_jump_tick = UINT32_MAX;
     double last_band_jump_started = -9999.0;
     double last_band_jump_duration = 0.0;
+    size_t star_power_group_index = 0;
+    int32_t star_power_group_which = 0;
+    uint32_t last_star_power_activation_serial = 0;
+    double star_power_animation_started = -9999.0;
+    double star_power_animation_duration = 0.0;
     std::string last_midi_marker;
     uint32_t last_midi_marker_tick = UINT32_MAX;
     uint32_t last_traced_performer_event_tick = UINT32_MAX;
@@ -1366,6 +1401,13 @@ class Gameplay {
       std::string crowd_name;
       size_t actor_index = 0;
       size_t placement_index = 0;
+      float source_character_height = 0.0f;
+      std::array<float, 16> source_crowd_world = {
+          1.0f, 0.0f, 0.0f, 0.0f,
+          0.0f, 1.0f, 0.0f, 0.0f,
+          0.0f, 0.0f, 1.0f, 0.0f,
+          0.0f, 0.0f, 0.0f, 1.0f};
+      bool rotate_to_camera = false;
     };
     std::string actor_name;
     std::string actor_milo;

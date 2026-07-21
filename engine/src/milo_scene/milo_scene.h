@@ -124,6 +124,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -454,6 +455,54 @@ struct SourceRndTransAnimDefaultState {
 };
 
 SourceRndTransAnimDefaultState source_rndtrans_anim_default_state();
+
+// Exact source-order RndTransAnim body decoded with the field sequence used by
+// ihatecompvir/MiloEditor.  GH2's track intro uses revision 6, which serializes
+// Hmx::Object fields, RndAnimatable, target, rotation/translation key pages,
+// keys owner, interpolation flags, and the scale key page in this order.
+struct RndTransAnimVec3Key {
+  std::array<float, 3> value = {0.0f, 0.0f, 0.0f};
+  float frame = 0.0f;
+};
+
+struct RndTransAnimQuatKey {
+  std::array<float, 4> value = {0.0f, 0.0f, 0.0f, 1.0f};
+  float frame = 0.0f;
+};
+
+struct DecodedRndTransAnimBody {
+  bool decoded = false;
+  uint16_t revision = 0;
+  uint16_t alt_revision = 0;
+  uint16_t anim_revision = 0;
+  uint16_t anim_alt_revision = 0;
+  float anim_frame = 0.0f;
+  int32_t anim_rate = 0;
+  std::string target;
+  std::string keys_owner;
+  bool trans_spline = false;
+  bool repeat_trans = false;
+  bool scale_spline = false;
+  bool follow_path = false;
+  bool rot_slerp = false;
+  bool rot_spline = false;
+  std::vector<RndTransAnimQuatKey> rotation_keys;
+  std::vector<RndTransAnimVec3Key> translation_keys;
+  std::vector<RndTransAnimVec3Key> scale_keys;
+  size_t bytes_consumed = 0;
+  bool exact_eof = false;
+  std::string error;
+};
+
+DecodedRndTransAnimBody decode_rndtrans_anim_body_source_order(
+    const uint8_t* body, size_t size);
+
+std::array<float, 3> sample_rndtrans_anim_translation(
+    const DecodedRndTransAnimBody& anim, float frame,
+    const std::array<float, 3>& fallback = {0.0f, 0.0f, 0.0f});
+
+float rndtrans_anim_start_frame(const DecodedRndTransAnimBody& anim);
+float rndtrans_anim_end_frame(const DecodedRndTransAnimBody& anim);
 
 struct SourceRndTransAnimLoadPlan {
   int32_t revision = 0;
@@ -2251,6 +2300,11 @@ struct WorldCrowdObj {
   std::string name;
   std::string area_mesh;
   uint32_t total_placements = 0;  // ihatecompvir WorldCrowd::mNum.
+  // GH2 revisions before 8 serialize WorldCrowd.rotate immediately after
+  // mNum.  The retail DrawShowing path uses it to choose whether the live
+  // impostor character inherits the placement-mesh facing or yaws toward the
+  // active scene camera.
+  bool rotate_to_camera = false;
   uint32_t decoded_placement_count = 0;
   std::vector<WorldCrowdActor> actors;
   std::vector<WorldCrowdPlacementSet> placement_sets;

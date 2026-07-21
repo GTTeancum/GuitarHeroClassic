@@ -14709,6 +14709,64 @@ Rejected native probe:
   camera sweep diagnostics now log every accepted pending shot, not only
   changed-name selections, and stamp `changed=` so same-shot restarts are
   auditable without changing selection or transform math.
+2026-07-19 CamShot same-target Transform m.x correction:
+
+- GH2 retail `CamShotFrame::Interp` computes local `v1c0.x` from the authored
+  horizontal screen offset and then calls
+  `Multiply(v1c0, tf130, tf130.v)`. Harmonix `Transform` stores its axes as
+  `m.x`, `m.y`, `m.z`; the public character/controller source reconstructs
+  `m.x` with `Cross(m.y, m.z)` and `m.z` with `Cross(m.x, m.y)`.
+- Native `CameraResultRows::right` deliberately uses the renderer-facing
+  opposite-handed axis `Cross(up, forward)`. Reusing that row for the source
+  local-space translation inverted only the horizontal CamShot offset. The
+  source branch now builds Transform `m.x` as `Cross(forward, up)` before
+  applying `v1c0.x` and continues to use Transform `m.z` for `v1c0.z`.
+- RedOctane `balcony_rt01` makes the error observable: the inverted X axis
+  moves the first pose from the authored balcony interior through the adjacent
+  `main_hall.1.mesh` wall. The source axis moves it inward and toward the next
+  authored pose. No venue-specific camera or geometry override is involved.
+
+2026-07-19 WorldCrowd billboard Transform m.x correction:
+
+- Retail `WorldCrowd::BuildBillboard` assigns `kFastBillboardXYZ`; the source
+  constraint copies the current `RndCam::WorldXfm().m` onto the local X/Z card.
+  That is a Harmonix right-handed Transform, where `m.x = Cross(m.y, m.z)`.
+- Native had copied D3D's left-handed view-column X back into the billboard.
+  Because clip X is already mirrored once for the GH2 right-handed world, that
+  mirrored each crowd impostor a second time. Billboard construction now uses
+  `Cross(cameraForward, cameraUp)` for source `m.x`, while retaining source
+  `m.z` for the vertical axis and the decoded face/UV order.
+
+2026-07-19 active fidelity queue (user-prioritized order):
+
+1. Highway/gameplay RE and implementation:
+   - Restore the authored white borders along both sides of the highway.
+   - Fully decode normal and star-colored sustain tails, including every
+     authored pass/layer rather than approximating the final appearance.
+   - Decode and implement the retail whammy deformation/state contract for
+     active sustains.
+   - Decode the actual lightning-bolt trigger contract. The current behavior
+     of firing on every successful note is known-wrong and must be removed in
+     favor of the retail event/state gate.
+   - Audit the rest of the visible highway stack for additional fidelity gaps
+     found while tracing these paths. Previously accepted note outline, HOPO,
+     and active-star note-head work remains signed off and is not reopened
+     unless the source trace proves a regression.
+2. Venue lighting and spotlights:
+   - Decode why current light state does not always match the loaded venue or
+     authored song cues.
+   - Account for authored spotlights, including their targets, visibility,
+     animation, beam/lens/floor-spot layers, and venue-specific availability.
+3. Crowd/camera/audience-floor completion:
+   - Resume the parked WorldCrowd pass after highway and lighting.
+   - The camera `BuildTransform` and billboard-axis corrections are retained,
+     but the crowd pass is not signed off: facing, floating/occlusion, and
+     missing audience-floor behavior still require source-backed closure and
+     all-venue live validation.
+
+No pass advances to commit/push on screenshots alone. Each boundary requires a
+new main-setlist song and live gameplay video proof; YYZ and bonus songs remain
+excluded.
 
 2026-07-20 retail hit-feedback / lightning contract (Xbox 360 XEX, confirmed
 against PS2 retail):
@@ -15040,3 +15098,184 @@ GH2 PS2 retail layout, and native theatre validation):
   no saturated green facial band; the Arena guard pass keeps Glam1 readable
   under its separate character environment and also finishes in playing state
   with zero gameplay failures.
+
+2026-07-20 active fidelity queue after lighting checkpoint `799607f8`:
+
+1. Song-start highway assembly:
+   - The exact authored track and HUD animation paths are decoded. The rejected
+     Surrender review exposed the native/source track-Y scale mismatch, and the
+     later reference review exposed the missing hollow-rim/inner-button order
+     plus the two complete HUD groups swinging in from off-screen. Native now
+     mirrors all three portions and passes deterministic plus real-time audible
+     4:3 and 16:9 runs. The item remains open pending user review.
+   - `track_unfurl`, the five `nowbar` sounds, and `sp_awarded` are accepted.
+2. ~~Star-phrase award feedback.~~ Accepted 2026-07-21: `sp_awarded` plays on
+   the source 0.2-second delayed phrase-award route.
+3. ~~Character star-power performance state.~~ Accepted on Rockabill1.
+4. Lighting follow-up:
+   - The fixed-function pass is accepted as a major improvement, but remains
+     intentionally open for venue-by-venue brightness and color tuning.
+5. Crowd/camera/audience-floor completion:
+   - Resume the parked source-backed WorldCrowd pass only after the three
+     gameplay details and lighting follow-up above.
+
+2026-07-20 stock TrackPanel startup and star-power feedback contracts:
+
+- `ui/gen/track_panel.dtb::animate_track_out` defines the playable-highway
+  startup sequence. It plays `TRACK_EXTEND_SFX`, animates the track from frame
+  0 to `TRACK_END_FRAME` 1920 over one second, then plays `nowbar_1` through
+  `nowbar_5` while sending `pop_smasher 0..4` at 1.3, 1.4, 1.5, 1.6, and
+  1.7 seconds. `pop_smasher -1` follows at 2.0 seconds. The source script
+  suppresses those cues only in attract mode; diagnostic autoplay is not
+  attract mode. `intro_skip` instead places the track directly at frame 1920.
+- `config/gen/sfx_macros.dtb` resolves `TRACK_EXTEND_SFX` to `track_unfurl`.
+  `track/gen/track.milo_ps2` supplies `extend_track_normal.tnm`, targeting
+  `track.cam`, and `side_rails_building.mnm`, targeting
+  `track_side_rails.mat`. The camera animation, not rail growth, is the visible
+  assembly: the rail material animation contains only one static white key.
+  A diagnostic seek uses the source `intro_skip` behavior.
+- `ingame_bank.milo_ps2` contains the exact `track_unfurl`, `nowbar_1..5`, and
+  `sp_awarded` routes. Native plays the startup routes at the source schedule.
+  `config/gen/player.dtb::phrase_captured` waits 0.2 seconds before playing
+  `sp_awarded`; clean phrase events now preserve that delay and no longer
+  silence the stinger merely because chart-driven diagnostic input is active.
+- `config/gen/player.dtb::start_using` calls player matcher
+  `on_start_starpower`. The guitarist main-animation MILOs expose a
+  per-character `star_power` CharClipGroup; for example, `metal1_main` names
+  `special_01`, `special_02`, and `special_03`, while the live Rockabill1 run
+  decodes its authored two-clip `special_02`/`special_03` group. The sampled
+  singer, bassist, and drummer main MILOs do not expose that group, so the
+  source-backed transition is player `guitarist0`, not a fabricated all-band
+  gesture. Each live activation now selects from that character's group
+  through the existing source CharClipGroup selector, blends it onto the
+  shared main driver as a one-shot, and returns to the authored normal/idle
+  mode when its source duration expires.
+- Focused venue/band contract, gameplay-session, and MILO-scene tests pass
+  after these restorations.
+- The earlier Psychobilly Freakout run under
+  `engine/out/runtime_proofs/track-intro-star-feedback-psychobillyfreakout-20260720/`
+  is **not valid visual proof of highway assembly**. It proved that
+  `track_unfurl`, all five `nowbar` routes, `sp_awarded`, and the Rockabill1
+  one-shots were submitted, but the user correctly observed that the highway
+  did not visibly assemble. Do not cite that run as presentation proof.
+- First recovered defect: the song/audio clock could start in
+  `Gameplay::tick()` before
+  the first lazy venue/highway `Gameplay::draw()` had finished loading. The
+  several-second first-draw stall then consumed the source one-second
+  `animate_track_out` window before the constructed gameplay frame was
+  presented. Stock `TrackPanel` runs the animation only after its panel and
+  track are loaded. Native now holds song start, audio start, and chart events
+  behind `song_presentation_ready_`; the first fully loaded highway frame marks
+  the presentation ready, and the following tick begins the source startup
+  schedule at song time zero. Diagnostic routes that intentionally hide the
+  highway also mark ready so they cannot deadlock. That ordering fix remains
+  valid, but it was not sufficient to produce the visual assembly.
+- The Mother run under
+  `engine/out/runtime_proofs/track-intro-sp-awarded-video-mother-20260720/`.
+  `mother_track_intro_sp_awarded_compact_proof.mp4` is a cropped 960x720 game
+  capture with the real stereo game mix. It is **not valid visual proof of
+  highway assembly**; the user correctly observed that no assembly occurred.
+  It does validate the first clean Mother phrase awarding `sp=0.25` and playing
+  `sp_awarded1` through both mapped samples at song time `14.810` after the
+  source 0.2-second delay. The full proof also reaches `sp=0.50` and
+  `sp_awarded2`. The user signed off `sp_awarded` on 2026-07-21. Do not reopen
+  that item or cite this run as highway-assembly proof.
+- 2026-07-21 exact highway-assembly decode: the old highway-local TransAnim
+  scanner rejected every candidate page containing a frame above `1000.0`.
+  Stock `extend_track_normal.tnm` has its translation endpoint at frame 1440
+  and rotation keys through frame 2025, so the entire authored transform was
+  discarded and the draw path had no camera motion to apply. The exact
+  MiloEditor field-order decode identifies revision 6 / RndAnimatable revision
+  4, target `track.cam`, keys owner `extend_track_normal.tnm`, nine rotation
+  keys, two translation keys, one scale key, `transSpline=true`, and
+  `repeatTrans=false`, consuming all 310 bytes. Translation is
+  `(0.19664,64.0,17.94181)` at frame 0 and
+  `(0.19664,-63.21755,17.94181)` at frame 1440. Harmonix `InterpVector`
+  explicitly disables spline interpolation for fewer than three keys, so this
+  two-key move is linear; it reaches Y `0.391225` at frame 720 and clamps at
+  `-63.21755` for panel frames 1440 through 1920. The panel still drives the
+  full explicit 0..1920 range over one second, and the first two rotation keys
+  carry the same quaternion through frame 2000, so no intro rotation is added.
+- 2026-07-21 rejected real-time capture: the uninterrupted Surrender run at
+  `engine/out/runtime_proofs/track-intro-source-video-surrender-20260721-001/`
+  records the game at 960x720, 30 fps with 48 kHz stereo audio. The trimmed
+  `surrender_track_intro_source_assembly_proof.mp4` records the camera moving
+  and the five smashers appearing, but the user correctly observed that the
+  highway itself is already assembled on its first gameplay frame. The runtime
+  log remains valid evidence for the exact decoder and audio schedule only;
+  this video is not visual assembly proof and must not be cited as such.
+- 2026-07-21 native-space defect found after the rejected Surrender review:
+  stock `track_surface5.mesh` spans Y `-9.94..119.24`, while the native
+  static-fidelity path expands it to the PCSX2-measured Y `-9.94..164.48`.
+  The decoded `track.cam` animation was applied without that coordinate-space
+  conversion. At source frame zero the camera therefore remained near Y 64,
+  leaving a large portion of the expanded track beyond its 50-unit near plane
+  and making the first visible gameplay frame look fully assembled. The camera
+  animation now maps its source Y delta through the same mesh-expansion scale,
+  while retaining the validated final camera endpoint.
+- 2026-07-21 fresh real-time gate: the audible Monkey Wrench capture at
+  `engine/out/runtime_proofs/track-intro-native-space-monkeywrench-20260721-001/`
+  records 960x720 H.264 at 30 fps with 48 kHz stereo AAC. The trimmed
+  `monkeywrench_track_intro_native_space_proof.mp4` begins before gameplay,
+  then shows the first gameplay frames with the venue and HUD but no highway.
+  The track grows from the stage toward the player over the following authored
+  second, reaches its playable position, and is followed by the fret-smasher
+  sequence. The live log records source Y `-9.944..119.243`, native track Y
+  `-9.944..164.480`, scale `1.350169`, frame `0.000`, and initial camera Y
+  `108.545`; it also records the accepted `track_unfurl` and five `nowbar`
+  routes. This passes the internal live gate but remains awaiting user review.
+
+2026-07-21 complete stock highway/HUD opening decode and implementation:
+
+- `ui/gen/track_panel.dtb::animate_track_out` does not hide each complete
+  smasher until its `pop_smasher` cue. All five hollow rims are already visible;
+  `pop_smasher 0..4` and `set_smasher_glowing lane TRUE` initialize the colored
+  inner bodies at 1.3, 1.4, 1.5, 1.6, and 1.7 seconds. `pop_smasher -1` follows
+  at 2.0 seconds and `refresh_track_buttons` returns the buttons to their live
+  held/idle state at 2.5 seconds. Native now draws the rim-only state before a
+  lane initializes, then the lane-colored body/rim-add/body-add glow stack,
+  without treating the authored pop as a live press or adding a press lift.
+- `ui/gen/game.dtb::extend_track` schedules `slide_meter_in` at 1.8 seconds.
+  `ui/gen/hud_panel.dtb` starts `meters_slide_in.view` at frame 0, shows both
+  meter groups, animates through `METER_END_FRAME` 480 over 0.5 seconds, and
+  plays `meter_slide` after 0.25 seconds (song-intro time 2.05). Native routes
+  that bank cue at the same time.
+- `hud/gen/hud.milo_ps2` supplies the exact group animations.
+  `score_slide_in.tnm` targets `hud1_score_meter0.view`; its translation moves
+  from `(-340,-4.36,-157.6632)` at frame 0 to
+  `(-236.7688,-4.36,-157.6632)` at frame 480, while its main source-Z rotation
+  moves from about +100 degrees to +39.9 degrees with authored overshoot keys at
+  frames 220, 260, 300, and 360. `meter_slide_in.tnm` targets
+  `hud1_rock_meter.view`; its translation moves from
+  `(360,-4.358,-132.29)` to `(235,-4.358,-132.2944)`, with the mirrored
+  rotation moving from about -100 degrees to -39.9 degrees over the same key
+  pattern. Both revision-6 assets decode through the shared exact
+  MiloEditor-order `RndTransAnim` reader and consume their complete bodies.
+- The existing PC HUD is screen-composed rather than submitted in the source
+  `ui.cam` space. To preserve the authored whole-group motion without
+  resolution-specific offsets, native samples each source transform, subtracts
+  its frame-480 endpoint, normalizes X by the authored `760`-unit screen span
+  and Z by the HUD vertical span, then scales those deltas by the live back
+  buffer. The quaternion's source-Z angular delta is added to the existing
+  settled group yaw. Score/multiplier/streak therefore move as one left group,
+  and star/rock meter parts move as one right group; no child is independently
+  re-authored.
+- Deterministic proof folders are
+  `engine/out/visual_proofs/highway_intro_aspect_20260721/4x3` (960x720) and
+  `engine/out/visual_proofs/highway_intro_aspect_20260721/16x9` (1280x720).
+  Both run `stop` from song time zero, show identical normalized entrance rows
+  (`left dx=-0.1358`, `right dx=+0.1645`, rotations about +/-60 degrees at
+  1.8 seconds), and settle to zero deltas at 2.3 seconds. The captured frames
+  confirm hollow rims, ordered colored initialization, proportional edge-on
+  entry, overshoot, and identical final landing. Focused MILO-scene,
+  gameplay-session, and venue/band source-contract tests pass.
+- Fresh audible real-time aspect proofs are under
+  `engine/out/runtime_proofs/track-intro-aspect-live-20260721/4x3` and
+  `engine/out/runtime_proofs/track-intro-aspect-live-20260721/16x9`. The
+  trimmed `messageinabottle_opening_4x3_realtime.mp4` is 960x720 and the
+  trimmed `messageinabottle_opening_16x9_realtime.mp4` is 1280x720; both are
+  30 fps H.264 with 48 kHz stereo AAC and show the complete highway reveal,
+  five ordered button initializations, and whole-group meter entrance. The
+  live logs independently record the exact two decoded HUD animations plus
+  successful `track_unfurl`, `nowbar_1..5`, and `meter_slide` submissions.
+  This is now pending user visual review rather than additional proof capture.

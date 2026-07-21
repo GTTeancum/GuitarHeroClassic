@@ -373,10 +373,12 @@ int main() {
                  "desired_active=&perf.idle_clip;desired_mode=\"idle\";}",
                  "authored idle events select idle on the same main-driver player as performance modes");
   ok &= contains(gameplay_c,
-                 "perf.active_player.play(*desired_active,"
-                 "ghogx::character::kCharPlayLoop,"
+                 "constuint32_tplay_flags=desired_mode==\"star_power\"?"
+                 "ghogx::character::kCharPlayNoLoop:"
+                 "ghogx::character::kCharPlayLoop;"
+                 "perf.active_player.play(*desired_active,play_flags,"
                  "character_driver_blend_seconds());",
-                 "direct play_mode transitions blend on the shared source-style main driver");
+                 "direct play_mode transitions blend on the shared source-style main driver while one-shot star-power clips do not loop");
   ok &= absent(gameplay_c,
                "perf.active_player.play(*desired_active,"
                "ghogx::character::kCharPlayLoop|"
@@ -890,6 +892,59 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"whammy_star_sustains=%dstar_power_at=%.3f\\n\"",
                  "chart-derived diagnostic guitar script logs generated whammy and star-power state");
+  ok &= contains(hud_renderer_h_c,
+                 "booltrack_intro_active=false;",
+                 "HUD state carries the stock TrackPanel/HudPanel opening state without affecting standalone HUD tests");
+  ok &= contains(hud_renderer_c,
+                 "constexprfloatkHudIntroMeterStartSeconds=1.8f;",
+                 "HUD meter entrance starts at game.dtb's authored 1.8-second cue");
+  ok &= contains(hud_renderer_c,
+                 "constexprfloatkHudIntroMeterPeriodSeconds=0.5f;",
+                 "HUD meter entrance uses hud_panel.dtb's authored half-second period");
+  ok &= contains(hud_renderer_c,
+                 "constexprfloatkHudIntroMeterEndFrame=480.0f;",
+                 "HUD meter entrance samples meters_slide_in.view through authored frame 480");
+  ok &= contains(hud_renderer_c,
+                 "decode_rndtrans_anim_body_source_order(b,n)",
+                 "HUD loads entrance TransAnims through the exact source-order decoder");
+  ok &= contains(hud_renderer_c,
+                 "load_intro_transform(\"score_slide_in.tnm\","
+                 "\"hud1_score_meter0.view\",score_slide_in_anim_);",
+                 "left score multiplier and streak group uses the authored score entrance target");
+  ok &= contains(hud_renderer_c,
+                 "load_intro_transform(\"meter_slide_in.tnm\","
+                 "\"hud1_rock_meter.view\",meter_slide_in_anim_);",
+                 "right star and rock meter group uses the authored meter entrance target");
+  ok &= contains(hud_renderer_c,
+                 "state.track_intro_active&&"
+                 "state.anim_seconds<kHudIntroMeterStartSeconds;",
+                 "both HUD assemblies remain hidden until their authored slide-in cue");
+  ok &= contains(hud_renderer_c,
+                 "out.screen_dx=(now.x-end.x)/kWorldPerScreenX;",
+                 "HUD meter translation is normalized to the viewport instead of fixed pixels");
+  ok &= contains(hud_renderer_c,
+                 "out.screen_dy=(now.z-end.z)/(kZBot-kZTop);",
+                 "HUD meter vertical translation is normalized to the authored viewport span");
+  ok &= contains(hud_renderer_c,
+                 "px+=screen_dx*static_cast<float>(bbw);"
+                 "py+=screen_dy*static_cast<float>(bbh);",
+                 "HUD entrance scales normalized motion independently for 4:3 and 16:9 back buffers");
+  ok &= contains(hud_renderer_c,
+                 "rot=layout_tuning_.score_panel.rot+left_intro.rotation_delta;",
+                 "left HUD assembly adds the authored edge-on rotation to its settled group pose");
+  ok &= contains(hud_renderer_c,
+                 "rot=layout_tuning_.right_panel.rot+right_intro.rotation_delta;",
+                 "right HUD assembly adds the authored edge-on rotation to its settled group pose");
+  ok &= contains(app_main_c,
+                 "state.track_intro_active=gameplay_.track_intro_active();",
+                 "gameplay passes the live TrackPanel intro state to the HUD renderer");
+  ok &= contains(audio_player_c,
+                 "if(stage==6){impl_->play_route(\"meter_slide\","
+                 "\"track_intro_meter\",impl_->meter_slide_cycle);return;}",
+                 "audio player routes the authored meter_slide cue with the HUD entrance");
+  ok &= contains(gameplay_c,
+                 "next_track_intro_sfx_stage_==6?2.05:",
+                 "live gameplay triggers meter_slide at hud_panel.dtb's exact 2.05-second sound cue");
   ok &= contains(hud_renderer_h_c,
                  "LayoutRectrock_needle={0.500000f,0.883933f,"
                  "0.055000f,0.060000f,0.000000f,0};",
@@ -2090,10 +2145,46 @@ int main() {
   ok &= contains(highway_renderer_h_c,
                  "floatsurface_flash=0.0f",
                  "highway renderer accepts live multiplier surface-flash state");
+  ok &= contains(highway_renderer_h_c,
+                 "booltrack_intro_active=true",
+                 "highway renderer accepts the stock TrackPanel intro state");
   ok &= contains(highway_renderer_c,
-                 "constHighwayAspectProfilehighway_profile="
+                 "HighwayAspectProfilehighway_profile="
                  "pcsx2_measured_highway_profile_for_aspect(aspect);",
                  "highway frame selects a measured root/camera profile for the active 4:3/16:9 aspect");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkTrackIntroEndFrame=1920.0f;"
+                 "constexprdoublekTrackIntroExtendSeconds=1.0;"
+                 "constexprdoublekTrackIntroFirstSmasherSeconds=1.3;"
+                 "constexprdoublekTrackIntroSmasherStepSeconds=0.1;",
+                 "highway intro uses the exact track_panel.dtb endpoint and timed lane-pop schedule");
+  ok &= contains(highway_renderer_c,
+                 "load_track_intro_transanim_source_order(hdr_path,ark_path,"
+                 "\"extend_track_normal.tnm\")",
+                 "highway intro loads the authored track.cam extension transform through the exact source-order decoder");
+  ok &= contains(highway_renderer_c,
+                 "side_rail_color_from_anim(side_rail_anims,"
+                 "\"side_rails_building.mnm\",false)",
+                 "highway intro loads the authored building side-rail state");
+  ok &= contains(highway_renderer_c,
+                 "constautosource_now=sample_vec3_anim_clamped("
+                 "track_extend_anim_.translation_keys,track_intro_frame,",
+                 "highway intro samples the authored track.cam translation");
+  ok &= contains(highway_renderer_c,
+                 "(source_now[1]-source_out[1])*track_space_y_scale",
+                 "highway intro maps the authored camera delta through the same native Y expansion as the source track mesh");
+  ok &= contains(highway_renderer_c,
+                 "constboolintro_lane_initialized="
+                 "!track_intro_active||track_intro_elapsed>=source_pop_time;",
+                 "highway intro keeps hollow rings present while initializing each colored smasher at its stock lane-pop time");
+  ok &= contains(highway_renderer_c,
+                 "constboolintro_lane_glowing="
+                 "track_intro_active&&intro_lane_initialized&&"
+                 "track_intro_elapsed<kTrackIntroRefreshButtonsSeconds;",
+                 "highway intro keeps popped buttons glowing until the stock refresh_track_buttons cue");
+  ok &= contains(highway_renderer_c,
+                 "constexprdoublekTrackIntroRefreshButtonsSeconds=2.5;",
+                 "highway intro uses track_panel.dtb's exact 2.5-second button refresh time");
   ok &= contains(highway_renderer_c,
                  "constHighwayRootSpacehighway_root{"
                  "highway_profile.track_x_scale,"
@@ -2133,7 +2224,8 @@ int main() {
                  "floatscale_y=1.0f;",
                  "highway has a per-mesh Y fit for source track children");
   ok &= contains(highway_renderer_c,
-                 "constfloattarget_span=source_fade_top_y-mesh.min_y;",
+                 "native_track_y_scale(mesh.min_y,mesh.max_y,"
+                 "source_fade_top_y)",
                  "track horizon fit targets the PCSX2-measured fade-top world row");
   ok &= contains(highway_renderer_c,
                  "fit.origin_y=mesh.min_y-mesh.min_y*fit.scale_y;",
@@ -3381,9 +3473,9 @@ int main() {
                  "smasher_normal_texture_name_:smasher_texture_names_[lane];",
                  "inactive fret targets use the authored dark normal smasher material");
   ok &= contains(highway_renderer_c,
-                 "smasher_pressed?pressed_smasher_texture:"
+                 "smasher_glowing?pressed_smasher_texture:"
                  "idle_smasher_texture;",
-                 "fret targets switch from idle to pressed source material by button state");
+                 "fret targets switch to the colored source material for live presses and authored intro pops");
   ok &= contains(highway_renderer_c,
                  "constRuntimeMesh*ring_mesh=&smasher_rim_meshes_[lane];",
                  "native fret-target rings select the lane-authored rim mesh");
@@ -3503,12 +3595,13 @@ int main() {
                  "draw_centered_root_mesh(*ring_add_mesh,x,kStrikeY,",
                  "pressed fret-target ring add layer draws through the decoded source rim mesh");
   ok &= contains(highway_renderer_c,
-                 "if(smasher_pressed){draw_smasher_ring();"
+                 "if(!intro_lane_initialized){draw_smasher_ring();}"
+                 "elseif(smasher_glowing){draw_smasher_ring();"
                  "draw_smasher_body();draw_smasher_ring_add();"
                  "draw_smasher_add();}"
                  "else{draw_smasher_body();"
                  "draw_smasher_ring();}",
-                 "active smasher caps render with the authored pressed ring add layer while inactive rings remain visible");
+                 "intro starts with hollow rings, then colored popped caps use the authored glow stack before live idle state");
   ok &= contains(highway_renderer_c,
                  "constHighwayBlendStatesmasher_add_blend_state="
                  "highway_blend_state_for(smasher_add_blend);",
@@ -3552,8 +3645,9 @@ int main() {
                  "env_enabled(\"GHOGX_DEBUG_HIGHWAY_SMASHERS\")",
                  "native fret-target smashers expose focused proof rows for visual captures");
   ok &= contains(highway_renderer_c,
-                 "\"[highway-smasher]lane=%dheld=%dflash=%.3fpress=%.3f\"",
-                 "smasher diagnostics split held input from hit-flash feedback");
+                 "\"[highway-smasher]lane=%dinitialized=%dintro_glow=%d\""
+                 "\"held=%dflash=%.3fpress=%.3f\"",
+                 "smasher diagnostics split intro initialization and glow from held input and hit-flash feedback");
   ok &= contains(highway_renderer_c,
                  "\"body_top=%.3flift_z=%.3f\"",
                  "smasher diagnostics expose source Z lift beside body top");
@@ -4563,7 +4657,7 @@ int main() {
                  "star_collect_flash,miss_flash,"
                  "star_miss_flash,hit_phrase_state,"
                  "combo_multiplier,bad_feedback_flash,rock_fill,star_power_flash,"
-                 "surface_flash);",
+                 "surface_flash,track_intro_active);",
                  "highway draw_over_scene preserves the already-rendered 3D venue");
   ok &= contains(highway_renderer_c,
                  "Mat4proj=Mat4::perspective_lh(kCamFov,aspect,cam_near_,"
@@ -4588,10 +4682,11 @@ int main() {
                  "\"[diagnostic-highway]hiddenmode=%st=%.3fenv=%s\\n\"",
                  "diagnostic highway hiding emits proof logs");
   ok &= contains(
-      gameplay_c,
-      "if(diagnostic_hide_highway_enabled()){"
-      "log_diagnostic_highway_hidden_once(song_time_,true);return;}"
-      "if(!highway_){",
+       gameplay_c,
+       "if(diagnostic_hide_highway_enabled()){"
+       "mark_song_presentation_ready();"
+       "log_diagnostic_highway_hidden_once(song_time_,true);return;}"
+       "if(!highway_){",
       "diagnostic highway hiding skips only the 3D over-scene highway overlay");
   ok &= contains(app_main_c,
                  "diagnostic_hide_hud_enabled()",
@@ -4615,17 +4710,20 @@ int main() {
                  "env_flag(\"GHOGX_HIDE_GAMEPLAY_HUD\")",
                  "diagnostic highway-only capture suppresses the app HUD overlay");
   ok &= appears_before(gameplay_c,
-                       "world_->draw();",
-                       "if(debug_venue_only_capture_enabled()){"
-                       "log_profile();"
-                       "return;}",
+                        "world_->draw();",
+                        "if(debug_venue_only_capture_enabled()){"
+                        "mark_song_presentation_ready();"
+                        "log_profile();"
+                        "return;}",
                        "3D venue path draws the 3D world before the venue-only capture gate");
   ok &= appears_before(gameplay_c,
-                       "if(debug_venue_only_capture_enabled()){"
-                       "log_profile();"
-                       "return;}",
-                       "profile_phase_start=profile_now();"
-                       "highway_->draw_over_scene(song_time_,chart_,difficulty_,",
+                        "if(debug_venue_only_capture_enabled()){"
+                        "mark_song_presentation_ready();"
+                        "log_profile();"
+                        "return;}",
+                        "mark_song_presentation_ready();"
+                        "profile_phase_start=profile_now();"
+                        "highway_->draw_over_scene(song_time_,chart_,difficulty_,",
                        "3D venue path composites the playable highway before returning");
   ok &= contains(gameplay_c,
                  "&note_consumed_[std::clamp(difficulty_,0,3)]",
@@ -4640,7 +4738,8 @@ int main() {
                  "hit_phrase_state_,multiplier_,"
                  "bad_highway_flash_,"
                  "fofix_rock_fill(rock_),"
-                 "star_power_highway_flash_,multiplier_surface_flash_);",
+                 "star_power_highway_flash_,multiplier_surface_flash_,"
+                 "track_intro_active_);",
                  "playable highway rendering is driven by live FoFiX star-power whammy miss multiplier bad-feedback rock star-event and surface-flash state");
   ok &= contains(gameplay_h_c,
                  "uint8_thit_phrase_state_[5]={};",
@@ -4776,6 +4875,13 @@ int main() {
                  "play_route(\"sp_awarded\",\"star_phrase_complete\",",
                  "audio player routes clean star phrases through the GH2 sp_awarded bank group");
   ok &= contains(audio_player_c,
+                 "play_route(\"track_unfurl\",\"track_intro_extend\",",
+                 "audio player routes the TrackPanel extension through the stock track_unfurl bank group");
+  ok &= contains(audio_player_c,
+                 "conststd::stringroute=\"nowbar_\"+std::to_string(stage);"
+                 "impl_->play_route(route.c_str(),\"track_intro_smasher\",",
+                 "audio player routes the five TrackPanel lane pops through their stock nowbar groups");
+  ok &= contains(audio_player_c,
                  "guitar_stem_muted.exchange(muted",
                  "audio player can mute the playable guitar stem after missed notes");
   ok &= contains(gameplay_c,
@@ -4790,6 +4896,47 @@ int main() {
   ok &= contains(gameplay_c,
                  "audio_.star_phrase_complete_feedback();",
                  "FoFiX star phrase completion plays the source awarded stinger");
+  ok &= contains(gameplay_c,
+                 "pending_star_phrase_award_sfx_times_.push_back(song_time_+0.2);",
+                 "FoFiX phrase completion preserves player.dtb's 0.2-second sp_awarded delay");
+  ok &= absent(gameplay_c,
+               "if(!diagnostic_autoplay_)audio_.star_phrase_complete_feedback();",
+               "diagnostic autoplay is not misclassified as stock attract mode for phrase-award sound");
+  ok &= contains(gameplay_c,
+                 "audio_.track_intro_feedback(0);"
+                 "next_track_intro_sfx_stage_=1;",
+                 "live song start plays the stock track_unfurl cue before the five lane pops");
+  ok &= contains(gameplay_h_c,
+                 "boolsong_presentation_ready_=false;",
+                 "gameplay keeps the loaded presentation gate separate from the audio-started state");
+  ok &= contains(gameplay_c,
+                 "if(!song_started_&&!song_presentation_ready_)return;",
+                 "the audio clock cannot outrun the lazy first-frame venue and highway load");
+  ok &= contains(gameplay_c,
+                 "song_presentation_ready_=true;"
+                 "std::fprintf(stderr,"
+                 "\"[gameplay]songpresentationready:highway=%dtextures=%dt=%.3f\\n\"",
+                 "gameplay marks the source TrackPanel presentation ready only from the draw path");
+  ok &= appears_before(gameplay_c,
+                       "mark_song_presentation_ready();",
+                       "highway_->draw_over_scene(song_time_,chart_,difficulty_,",
+                       "the prewarmed highway is marked ready before its first frame is presented");
+  ok &= contains(gameplay_c,
+                 "1.3+0.1*static_cast<double>(next_track_intro_sfx_stage_-1)",
+                 "live TrackPanel lane sounds follow the stock 1.3-to-1.7-second schedule");
+  ok &= contains(gameplay_c,
+                 "if(perf.role==\"guitarist0\"){"
+                 "constautostar_power_group=ghogx::character::load_clip_group("
+                 "hdr_path_,ark_path_,main_anim_milos,\"star_power\");",
+                 "the player guitarist loads the authored star_power CharClipGroup from its main animation MILO");
+  ok &= contains(gameplay_c,
+                 "perf.last_star_power_activation_serial!="
+                 "star_power_activation_serial_",
+                 "each live activation advances the player guitarist's one-shot animation state");
+  ok &= contains(gameplay_c,
+                 "desired_active=&perf.star_power_group_clips["
+                 "perf.star_power_group_index];desired_mode=\"star_power\";",
+                 "the selected authored star-power clip temporarily owns the shared main driver");
   ok &= contains(gameplay_c,
                  "audio_.set_whammy_state(raw_whammy&&sustain_active,song_time_);",
                  "live gameplay gates source-configured audio whammy pitch to an active held sustain");
@@ -8453,6 +8600,12 @@ int main() {
                  "uint32_tdecoded_placement_count=0;",
                  "MILO scene records decoded WorldCrowd rows separately from mNum");
   ok &= contains(milo_scene_h_c,
+                 "boolrotate_to_camera=false;",
+                 "MILO scene retains GH2 WorldCrowd.rotate");
+  ok &= contains(milo_scene_cpp_c,
+                 "if(revision<8)crowd.rotate_to_camera=r.u8()!=0;",
+                 "GH2 WorldCrowd decoder no longer discards the serialized rotate flag");
+  ok &= contains(milo_scene_h_c,
                  "std::vector<WorldCrowdObj>world_crowds;",
                  "decoded scenes retain WorldCrowd entries alongside render objects");
   ok &= contains(milo_scene_cpp_c,
@@ -9940,12 +10093,23 @@ int main() {
                  "CameraSourceFrameTargetCachecamera_update_frame_target_cache_like_source(",
                  "camera runtime exposes the source CamShotFrame UpdateTarget cache helper");
   ok &= contains(gameplay_c,
-                 "cache.update=camera_update_targets_like_camshot(key,targets);"
-                 "if(cache.update.has_targets){"
-                 "cache.last_target_pos=cache.update.centroid;}"
-                 "if(cache.update.has_parent){"
-                 "cache.last_parent_pos=cache.update.parent_world;}",
-                 "CamShotFrame UpdateTarget cache stores unk34 and unk44 source fields");
+                 "conststd::stringidentity="
+                 "camera_result_builder_frame_identity(key);"
+                 "auto[it,inserted]=builder_state->frames.try_emplace(identity);",
+                 "CamShotFrame UpdateTarget cache selects a persistent source-frame entry");
+  ok &= contains(gameplay_c,
+                 "if(source_frame_changed){"
+                 "frame_state.has_filtered_target=false;"
+                 "frame_state.has_filtered_parent=false;}",
+                 "CamShotFrame UpdateTarget reseeds unk34 and unk44 when SetFrame changes a selected frame");
+  ok &= contains(gameplay_c,
+                 "frame_state.filtered_target=cache.update.centroid;"
+                 "frame_state.has_filtered_target=true;",
+                 "CamShotFrame UpdateTarget stores the frame-local unk34 target cache");
+  ok &= contains(gameplay_c,
+                 "frame_state.filtered_parent=cache.update.parent_world;"
+                 "frame_state.has_filtered_parent=true;",
+                 "CamShotFrame UpdateTarget stores the frame-local unk44 parent cache");
   ok &= contains(gameplay_c,
                  "returncamera_update_targets_like_camshot(key,targets)."
                  "has_targets;",
@@ -9981,15 +10145,13 @@ int main() {
                  "camera UpdateTarget diagnostics identify the source null-target rule");
   ok &= contains(gameplay_c,
                  "constautoa_frame_target_cache="
-                 "camera_update_frame_target_cache_like_source(*a,targets);"
-                 "constautob_frame_target_cache="
-                 "camera_update_frame_target_cache_like_source(*b,targets);",
-                 "regular camera SetFrame samples source UpdateTarget cache before Interp target math");
+                 "camera_update_frame_target_cache_like_source("
+                 "*a,targets,result_builder_state,current_camera_rows,"
+                 "source_screen_offset_fov,",
+                 "regular camera SetFrame advances the outgoing source-frame cache before Interp");
   ok &= contains(gameplay_c,
-                 "conststd::optional<std::array<float,3>>a_target_centroid="
-                 "a_frame_target_cache.last_target_pos;"
-                 "conststd::optional<std::array<float,3>>b_target_centroid="
-                 "b_frame_target_cache.last_target_pos;",
+                 "a_target_centroid=a_frame_target_cache.last_target_pos;"
+                 "b_target_centroid=b_frame_target_cache.last_target_pos;",
                  "regular camera Interp target centroids come from cached unk34 fields");
   ok &= contains(gameplay_c,
                  "source_rule=average_non_null_targets,parent_world_xfm"
@@ -10015,8 +10177,8 @@ int main() {
                  "camera_parent_world_for_key(",
                  "regular camera has a source cached parent WorldXfm resolver");
   ok &= contains(gameplay_c,
-                 "conststd::array<float,16>*a_cached_parent_world="
-                 "a_frame_target_cache.last_parent_pos",
+                 "a_cached_parent_storage=a_frame_target_cache.last_parent_pos;"
+                 "b_cached_parent_storage=b_frame_target_cache.last_parent_pos;",
                  "regular camera exposes the cached parent pointer from UpdateTarget");
   ok &= contains(gameplay_c,
                  "camera_authored_eye_for_key(*a,targets,"
@@ -10380,10 +10542,13 @@ int main() {
                  "std::vector<CrowdRef>crowd_refs;",
                  "CameraKey keeps every CamShotCrowd entry, not only the runtime first selection");
   ok &= contains(gameplay_h_c,
-                 "structCameraResultBuilderState{"
+                 "structCameraResultBuilderFrameState{"
                  "boolhas_filtered_target=false;"
                  "std::array<float,3>filtered_target",
-                 "camera result builder keeps the PS2 carried target vector");
+                 "camera result builder keeps the PS2 carried target vector per source frame");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,CameraResultBuilderFrameState>frames;",
+                 "camera result builder does not share target and parent caches across frame pairs");
   ok &= contains(gameplay_h_c,
                  "CameraResultBuilderStatecamera_result_builder_state_;",
                  "gameplay owns persistent PS2 camera result-builder state");
@@ -11192,10 +11357,8 @@ int main() {
                  "if(!same_targets_like_camshot){",
                  "non-SameTargets BuildTransform branch is split from same-target screen-offset");
   ok &= contains(gameplay_c,
-                 "}else{"
-                 "CameraResultBuilderStatesame_target_filter_state="
-                 "result_builder_state?*result_builder_state:"
-                 "CameraResultBuilderState{};",
+                 "}else{if(autofiltered_candidate="
+                 "camera_source_screen_offset_translate_result_rows(",
                  "source-shaped screen-offset result is gated to CamShot same-target blends");
   ok &= contains(gameplay_c,
                  "submitted_result=*source_screen_offset_translate_result;",
@@ -11239,27 +11402,26 @@ int main() {
   ok &= contains(gameplay_c,
                  "build_rows_a=camera_target_list_result_rows_from_seed("
                  "source_seed_a,build_key_a,*a_target_centroid,"
-                 "source_order_state_ptr,&source_order_filter_step_a,"
-                 "&source_order_projected_delta_a);",
+                 "nullptr);",
                  "non-same-target CamShot builds the retail outgoing frame");
   ok &= contains(gameplay_c,
                  "build_rows_b=camera_target_list_result_rows_from_seed("
                  "source_seed_b,build_key_b,*b_target_centroid,"
-                 "source_order_state_ptr,&source_order_filter_step_b,"
-                 "&source_order_projected_delta_b);",
+                 "nullptr);",
                  "non-same-target CamShot builds the retail incoming frame");
   ok &= contains(gameplay_c,
                  "source_build_transform_result=camera_lerp_result_rows("
                  "outgoing_rows,incoming_rows,interp_t);",
                  "non-same-target CamShot interpolates outgoing toward incoming");
   ok &= contains(gameplay_c,
-                 "result_filter_step=source_order_filter_step_b;"
-                 "result_filter_projected_delta="
-                 "source_order_projected_delta_b;",
-                 "non-same-target CamShot keeps the second BuildTransform filter state for diagnostics");
+                 "result_filter_step=a_frame_filter_step+"
+                 "(b_frame_filter_step-a_frame_filter_step)*interp_t;"
+                 "result_filter_projected_delta=a_frame_projected_delta+"
+                 "(b_frame_projected_delta-a_frame_projected_delta)*interp_t;",
+                 "CamShot diagnostics interpolate the two frame-local BuildTransform filter results");
   ok &= contains(gameplay_c,
-                 "*result_builder_state=source_order_state;",
-                 "non-same-target CamShot commits state after the retail frame pair");
+                 "builder_state->frames.try_emplace(identity);",
+                 "non-same-target CamShot commits state to frame-local retail caches");
   ok &= contains(gameplay_c,
                  "source_build_transform_result->source="
                  "\"source_visible_outgoing_incoming_build_transform(\"+",
@@ -11318,6 +11480,15 @@ int main() {
                  "*source_build_transform_result,result_key,"
                  "source_same_target_distance,false);",
                  "same-target CamShot screen offset preserves the cached-target blended transform");
+  ok &= contains(gameplay_c,
+                 "constautosource_transform_x=camera_normalized_axis("
+                 "camera_cross_axis(rows.forward,rows.up),"
+                 "{-1.0f,0.0f,0.0f});",
+                 "same-target CamShot local translation reconstructs Harmonix Transform m.x as Cross(m.y,m.z)");
+  ok &= contains(gameplay_c,
+                 "proof.right_delta[axis]="
+                 "source_transform_x[axis]*proof.right_offset;",
+                 "same-target CamShot Multiply(v1c0,tf130,tf130.v) uses source Transform m.x rather than renderer-handed right");
   ok &= contains(gameplay_c,
                  "\"same_target_direct_screen_offset=%d\""
                  "\"same_target_distance=(a:%s%.6fb:%s%.6finterp:%s%.6f)\""
@@ -11444,18 +11615,17 @@ int main() {
                  "camera pose proof labels the recovered frame-pair runtime units");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kCamShotHiddenPoseBodies="
-                 "\"CamShotFrame::BuildTransform_remaining_math,"
-                 "CamShot::OnSetPos_editor_path\";",
-                 "camera pose proof keeps only the remaining camera math hidden");
+                 "\"CamShot::OnSetPos_editor_path\";",
+                 "camera pose proof no longer lists recovered BuildTransform math as hidden");
   ok &= contains(gameplay_c,
                  "constchar*camera_source_pose_impl_tier("
                  "boolretained_ps2_trace_payload,boolsource_build_transform_order)",
                  "camera diagnostics classify active pose implementation tier");
   ok &= contains(gameplay_c,
-                 "return\"retail_outgoing_incoming_partial_buildtransform\";",
+                 "return\"retail_outgoing_incoming_buildtransform\";",
                  "camera diagnostics name the recovered Interp frame-pair path");
   ok &= contains(gameplay_c,
-                 "return\"native_seed_or_path_partial_buildtransform\";",
+                 "return\"native_seed_or_path_buildtransform\";",
                  "camera diagnostics keep native seed/path work separate from the recovered pair");
   ok &= contains(gameplay_c,
                  "\"source_pose_impl_tier=%ssource_pose_required_body=%s\""
@@ -11545,12 +11715,14 @@ int main() {
                  "\"gh2_ps2_partial_body_frame_pair_and_path_contract\"",
                  "camera debug logs identify the recovered GH2 frame-pair and path boundary");
   ok &= contains(gameplay_c,
-                 "\"gh2_SLUS_214.47_0x00267008_partial_body;\""
+                 "\"gh2_SLUS_214.47_0x00267008_full_body;\""
                  "\"Interp_outgoing_call_0x002666b8;\""
                  "\"Interp_incoming_call_0x002666d4;\""
                  "\"transform_lerp_0x00266754;\""
                  "\"path_MakeTransform_0x001e0790;\""
-                 "\"remaining_projection_math_separate\"",
+                 "\"target_cache_0xa0;parent_cache_0xc0;\""
+                 "\"current_camera_projection_0x001b1270;\""
+                 "\"local_screen_translate_0x002674f8_0x00267544\"",
                  "camera debug logs cite the recovered retail BuildTransform frame-pair addresses");
   ok &= contains(gameplay_c,
                  "\"GH2_PS2_SLUS_214.47_RndCam::UpdateLocal_0x001b1f50_0x001b20af\"",
@@ -11742,6 +11914,17 @@ int main() {
                  "floatsource_character_height=0.0f;",
                  "WorldCrowd actor runtime stores the decoded billboard character height");
   ok &= contains(gameplay_h_c,
+                 "structPlacementRef{std::stringcrowd_name;"
+                 "size_tactor_index=0;size_tplacement_index=0;"
+                 "floatsource_character_height=0.0f;",
+                 "WorldCrowd retains CharData height on every authored placement reference");
+  ok &= contains(gameplay_h_c,
+                 "std::array<float,16>source_crowd_world=",
+                 "WorldCrowd retains the source placement-mesh transform for impostor capture");
+  ok &= contains(gameplay_h_c,
+                 "boolrotate_to_camera=false;",
+                 "WorldCrowd placement references retain the per-crowd rotate flag");
+  ok &= contains(gameplay_h_c,
                  "floatvisible_bounds_radius=0.0f;",
                  "WorldCrowd actor runtime stores visible actor bounds for broad camera culling");
   ok &= contains(gameplay_h_c,
@@ -11789,22 +11972,23 @@ int main() {
                  "returnwidescreen?0.70f:1.0f;",
                  "WorldCrowd Great and Peak fullness keeps the decoded widescreen 70 percent branch");
   ok &= contains(gameplay_c,
-                 "worldcrowd_placement_visible_by_fullness(",
-                 "WorldCrowd runtime applies DTA set_fullness to decoded placements");
+                 "worldcrowd_fullness_keep_count(",
+                 "WorldCrowd runtime applies native SetFullness count semantics");
   ok &= contains(gameplay_c,
-                 "constsize_tprevious_bucket=(i*keep)/"
-                 "placement_worlds.size();",
-                 "WorldCrowd fullness selection walks the authored placement order");
+                 "constlongrounded=std::lrint(requested);",
+                 "WorldCrowd fullness uses retail cvt.w.s nearest rounding");
   ok &= contains(gameplay_c,
-                 "constsize_tcurrent_bucket=((i+1)*keep)/"
-                 "placement_worlds.size();",
-                 "WorldCrowd fullness selection distributes density through the source placement list");
+                 "authored_flat_index>=flat_keep[key]",
+                 "WorldCrowd fullness keeps the authored prefix of each actor set");
+  ok &= contains(gameplay_c,
+                 "selected_3d[i]=crowd_selection_draws_3d(runtime,i)?1:0;",
+                 "WorldCrowd resolves CamShot 3D replacements before fullness");
   ok &= absent(gameplay_c,
                "std::stable_sort(ranked.begin(),ranked.end()",
                "WorldCrowd fullness must not prefer camera-nearest placements");
   ok &= contains(draw_worldcrowd_runtime_c,
-                 "runtime.placement_worlds,eye,runtime.fullness_fraction",
-                 "WorldCrowd draw still shares the active camera eye with culling diagnostics");
+                 "worldcrowd_fullness_keep_count(total,runtime.fullness_fraction)",
+                 "WorldCrowd fullness is reapplied after CamShot 3D extraction");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "elseif(venue_camera_hide_crowd_){",
                  "CamShot show_3d_only suppresses flat impostors after preserving selected 3D crowd members");
@@ -11812,8 +11996,7 @@ int main() {
                  "++hidden_flat;",
                  "WorldCrowd draw diagnostics expose source 3D-only flat suppression");
   ok &= appears_before(draw_worldcrowd_runtime_c,
-                       "if(crowd_selection_draws_3d(runtime,"
-                       "placement_index)){",
+                       "if(draw_as_3d){",
                        "elseif(venue_camera_hide_crowd_){",
                        "CamShot show_3d_only preserves selected 3D members before flat suppression");
   ok &= contains(draw_worldcrowd_runtime_c,
@@ -11824,7 +12007,7 @@ int main() {
                  "WorldCrowd draw diagnostics stamp active actor play_group counts");
   ok &= contains(gameplay_c,
                  "venue_camera_crowd_face_camera_?worldcrowd_face_camera_source_world("
-                 "placement_world,camera_ref):placement_world",
+                 "character_world,camera_ref):character_world",
                  "3D WorldCrowd actors honor the authored CamShot crowd_face_camera yaw path");
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "apply_worldcrowd_actor_mesh_visibility(character,clip.name);",
@@ -11894,7 +12077,8 @@ int main() {
                  "runtime.visible_bounds_radius=visible_bounds_radius;",
                  "WorldCrowd runtime records visible actor bounds before renderer ownership transfer");
   ok &= contains(rebuild_worldcrowd_runtime_c,
-                 "runtime->source_character_height=source_character_height;",
+                 "crowd_placement_index,source_character_height,"
+                 "area_it->second,crowd.rotate_to_camera});",
                  "WorldCrowd runtime assigns actor-table billboard heights per placement set");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "culled_fullness",
@@ -12951,8 +13135,8 @@ int main() {
                  "out_filter_step,out_projected_delta);if(applies_filter)",
                  "camera result builder still updates carried target when shot_filter is absent");
   ok &= contains(gameplay_c,
-                 "rows.source+=\"+screen\";",
-                 "screen-corrected target-list result rows are explicitly labeled");
+                 "rows.source+=\"+source_screen_offset_translate\";",
+                 "screen-corrected target-list result rows are explicitly labeled with retail translation provenance");
   ok &= contains(gameplay_c,
                  "CameraResultBuilderState*result_builder_state=nullptr",
                  "camera runtime accepts the persistent PS2 result-builder state");
@@ -14964,7 +15148,7 @@ int main() {
                  "WorldCrowd camera-cone cull avoids custom projection shots");
   ok &= contains(gameplay_c,
                  "std::max(runtime.visible_bounds_radius,"
-                 "runtime.source_character_height)+3.0f",
+                 "placement_source_height(placement_index))+3.0f",
                  "WorldCrowd camera-cone cull covers both decoded 3D bounds and billboard height");
   ok &= contains(gameplay_c,
                  "camera_cross_axis(camera_up,camera_forward)",
@@ -14986,18 +15170,31 @@ int main() {
                "if(!venue_camera_has_crowd_selection_)returntrue;",
                "missing CamShot crowd selection must not promote every crowd placement to full 3D");
   ok &= contains(draw_worldcrowd_runtime_c,
-                 "if(crowd_selection_draws_3d(runtime,placement_index)){",
-                 "only exact CamShot actor and placement pairs are promoted to full 3D");
+                 "constbooldraw_as_3d=selected_3d[placement_index]!=0;",
+                 "only exact pre-resolved CamShot actor and placement pairs are promoted to full 3D");
   ok &= contains(draw_worldcrowd_runtime_c,
-                 "flat_worlds.push_back(placement_world);",
+                 "character_world[14]-=placement_source_height("
+                 "placement_index)*0.5f;",
+                 "selected 3D crowd roots receive retail DrawShowing's half-height pivot correction");
+  ok &= appears_before(draw_worldcrowd_runtime_c,
+                       "selected_3d[i]=crowd_selection_draws_3d(runtime,i)?1:0;",
+                       "worldcrowd_fullness_keep_count(",
+                       "CamShot 3D extraction occurs before native fullness is reapplied");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "flat_worlds_by_set[key].push_back(placement_world);",
                  "unselected crowd placements remain in the source flat-impostor path");
   ok &= contains(draw_worldcrowd_runtime_c,
-                 "runtime.renderer->refresh_worldcrowd_impostor()",
-                 "WorldCrowd refreshes each actor's animated impostor before flat drawing");
+                 "runtime.renderer->refresh_worldcrowd_impostor("
+                 "cam,source_character_world,source_height)",
+                 "WorldCrowd refreshes each actor impostor from the live scene camera and source crowd transform");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "if(flat_rotate_to_camera_by_set[key]){"
+                 "source_character_world=worldcrowd_face_camera_source_world(",
+                 "WorldCrowd applies the serialized rotate flag per authored crowd set");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "draw_worldcrowd_impostors_over_scene("
-                 "cam,flat_worlds,runtime.source_character_height);",
-                 "WorldCrowd batches unselected placements through the decoded actor-height billboard path");
+                 "cam,worlds,source_height);",
+                 "WorldCrowd batches unselected placements by their authored CharData height");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "for(constauto&selection:"
                  "venue_camera_crowd_selections_){",
@@ -15012,7 +15209,10 @@ int main() {
                  "entries=%zutotal_pairs=%zu",
                  "WorldCrowd draw diagnostics expose aggregate CamShot crowd selection state");
   ok &= contains(char_renderer_h_c,
-                 "boolrefresh_worldcrowd_impostor();",
+                 "boolrefresh_worldcrowd_impostor("
+                 "constghogx::render::OrbitCamera&scene_cam,"
+                 "conststd::array<float,16>&source_character_world,"
+                 "floatsource_character_height);",
                  "character renderer exposes the source live-impostor refresh contract");
   ok &= contains(char_renderer_h_c,
                  "draw_worldcrowd_impostors_over_scene(",
@@ -15024,6 +15224,40 @@ int main() {
                  "constexprUINTkImpostorWidth=128;"
                  "constexprUINTkImpostorHeight=256;",
                  "WorldCrowd impostor texture preserves a tall character silhouette");
+  ok &= contains(char_renderer_c,
+                 "constfloathalf_height=source_character_height*0.5f;"
+                 "constfloathalf_width=source_character_height*0.25f;"
+                 "autorow_length=",
+                 "WorldCrowd billboard preserves retail BuildBillboard's centered local dimensions");
+  ok &= absent(char_renderer_c,
+               "constfloattop=pz+height;",
+               "WorldCrowd billboard no longer treats the centered placement as a foot point");
+  ok &= contains(char_renderer_c,
+                 "constautov3=billboard_point(half_width,-half_height);",
+                 "WorldCrowd billboard preserves retail centered card vertices");
+  ok &= contains(char_renderer_c,
+                 "conststd::array<float,3>camera_forward={"
+                 "view.m[0][2],view.m[1][2],view.m[2][2]};",
+                 "WorldCrowd kFastBillboardXYZ cards recover the active source camera forward axis");
+  ok &= contains(char_renderer_c,
+                 "camera_forward[1]*camera_up[2]-"
+                 "camera_forward[2]*camera_up[1]",
+                 "WorldCrowd kFastBillboardXYZ cards reconstruct Harmonix Transform m.x as Cross(m.y,m.z)");
+  ok &= contains(char_renderer_c,
+                 "conststd::array<float,3>camera_up={"
+                 "view.m[0][1],view.m[1][1],view.m[2][1]};",
+                 "WorldCrowd kFastBillboardXYZ cards inherit the active camera up axis");
+  ok &= contains(char_renderer_c,
+                 "impostor.fov=2.0f*std::atan(half_height/distance);",
+                 "WorldCrowd live capture mirrors retail half-height distance framing");
+  ok &= contains(char_renderer_c,
+                 "verts.push_back({v0[0],v0[1],v0[2],white,0.0f,0.0f});"
+                 "verts.push_back({v1[0],v1[1],v1[2],white,0.0f,1.0f});"
+                 "verts.push_back({v2[0],v2[1],v2[2],white,1.0f,0.0f});",
+                 "WorldCrowd billboard uses retail face 0,1,2 vertex order and UVs");
+  ok &= contains(char_renderer_c,
+                 "dev->SetRenderState(D3DRS_CULLMODE,D3DCULL_CCW);",
+                 "WorldCrowd reverses source one-sided culling exactly once for the mirrored D3D clip axis");
   ok &= contains(char_renderer_c,
                  "dev->SetRenderState(D3DRS_ALPHAREF,0x80);",
                  "WorldCrowd billboard alpha cut mirrors gImpostorMat's source 0x80 threshold");

@@ -128,7 +128,8 @@ class HighwayRenderer {
              float bad_feedback_flash = 0.0f,
              float rock_fill = 1.0f,
              float star_power_flash = 0.0f,
-             float surface_flash = 0.0f);
+             float surface_flash = 0.0f,
+             bool track_intro_active = true);
   void draw_over_scene(double song_time, const ghogx::chart::Chart& chart,
                        int difficulty, uint32_t fret_held_mask,
                        const float hit_flash[5], float lookahead_sec = 1.5f,
@@ -145,7 +146,8 @@ class HighwayRenderer {
                         float bad_feedback_flash = 0.0f,
                         float rock_fill = 1.0f,
                         float star_power_flash = 0.0f,
-                        float surface_flash = 0.0f);
+                        float surface_flash = 0.0f,
+                        bool track_intro_active = true);
 
  private:
   struct MeshVertex {
@@ -271,7 +273,8 @@ class HighwayRenderer {
                    float bad_feedback_flash,
                    float rock_fill,
                    float star_power_flash,
-                   float surface_flash);
+                   float surface_flash,
+                   bool track_intro_active);
   void draw_debug_note_counter_overlay(double song_time,
                                        const ghogx::chart::Chart& chart,
                                        int difficulty) const;
@@ -443,11 +446,13 @@ class HighwayRenderer {
   ColorAnimState surface_flash_3x_;
   ColorAnimState surface_flash_4x_;
   RuntimeMesh track_side_rails_mesh_;
+  SideRailColorState side_rails_building_;
   SideRailColorState side_rails_none_;
   SideRailColorState side_rails_warning_;
   SideRailColorState side_rails_star_;
   SideRailColorState side_rails_warning_star_;
   RuntimeMesh track_lane_lines_mesh_;
+  MeshTransformAnim track_extend_anim_;
   RuntimeMesh star_power_track_glow_mesh_;
   RuntimeMesh bar_line_mesh_;
   RuntimeMesh beat_line_mesh_;

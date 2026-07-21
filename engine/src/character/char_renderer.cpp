@@ -2822,10 +2822,17 @@ void CharRenderer::draw_over_scene(const OrbitCamera& cam) {
   draw_impl(false, 0u);
 }
 
-bool CharRenderer::refresh_worldcrowd_impostor() {
+bool CharRenderer::refresh_worldcrowd_impostor(
+    const OrbitCamera& scene_cam,
+    const std::array<float, 16>& source_character_world,
+    float source_character_height) {
   auto& impl = *impl_;
   IDirect3DDevice9* dev = impl.dev;
-  if (!dev || !impl.have_bounds) return false;
+  if (!dev || !impl.have_bounds ||
+      !std::isfinite(source_character_height) ||
+      source_character_height <= 0.0f) {
+    return false;
+  }
 
   // The source owns two tall gImpostorTextures and renders characters through
   // gImpostorCamera before WorldCrowd::DrawShowing submits billboard meshes.
@@ -2882,9 +2889,66 @@ bool CharRenderer::refresh_worldcrowd_impostor() {
     const D3DVIEWPORT9 viewport = {0, 0, kImpostorWidth, kImpostorHeight,
                                   0.0f, 1.0f};
     dev->SetViewport(&viewport);
-    impl.cam = impl.impostor_cam;
-    impl.world_transform = {1, 0, 0, 0, 0, 1, 0, 0,
-                            0, 0, 1, 0, 0, 0, 0, 1};
+    // GH2 retail WorldCrowd::DrawShowing (SLUS_214.47, 0x0026aeb8-
+    // 0x0026b02c) aims gImpostorCamera from the active scene-camera position
+    // at placementMesh + CharDef::mHeight/2.  Its distance is clamped to
+    // near+halfHeight and its vertical FOV is 2*atan(halfHeight/distance).
+    // This is why one fixed front-facing portrait is insufficient: a crowd
+    // whose authored rotate flag is false must expose the same character side
+    // the live scene camera sees.
+    const float half_height = source_character_height * 0.5f;
+    const auto source_center =
+        transform_point({0.0f, 0.0f, half_height}, source_character_world);
+    float scene_eye[3] = {};
+    scene_cam.eye(scene_eye);
+    float view_from_center[3] = {
+        scene_eye[0] - source_center[0],
+        scene_eye[1] - source_center[1],
+        scene_eye[2] - source_center[2]};
+    float distance = std::sqrt(view_from_center[0] * view_from_center[0] +
+                               view_from_center[1] * view_from_center[1] +
+                               view_from_center[2] * view_from_center[2]);
+    if (!std::isfinite(distance) || distance <= 1.0e-5f) {
+      view_from_center[0] = 0.0f;
+      view_from_center[1] = -1.0f;
+      view_from_center[2] = 0.0f;
+      distance = 1.0f;
+    } else {
+      for (float& component : view_from_center) component /= distance;
+    }
+    distance = std::max(
+        distance, std::max(0.001f, scene_cam.near_z) + half_height);
+
+    OrbitCamera impostor = scene_cam;
+    impostor.result_frame = {};
+    impostor.authored = true;
+    for (int axis = 0; axis < 3; ++axis) {
+      impostor.authored_eye[axis] =
+          source_center[axis] + view_from_center[axis] * distance;
+      impostor.authored_at[axis] = source_center[axis];
+    }
+    if (scene_cam.result_frame.valid) {
+      for (int axis = 0; axis < 3; ++axis) {
+        impostor.authored_up[axis] = scene_cam.result_frame.up[axis];
+      }
+    } else if (scene_cam.authored) {
+      for (int axis = 0; axis < 3; ++axis) {
+        impostor.authored_up[axis] = scene_cam.authored_up[axis];
+      }
+    } else {
+      impostor.authored_up[0] = 0.0f;
+      impostor.authored_up[1] = 0.0f;
+      impostor.authored_up[2] = 1.0f;
+    }
+    impostor.fov = 2.0f * std::atan(half_height / distance);
+    impostor.near_z = std::max(0.001f, scene_cam.near_z);
+    impostor.far_z = std::max(impostor.near_z + source_character_height,
+                              scene_cam.far_z);
+    impostor.screen_offset[0] = 0.0f;
+    impostor.screen_offset[1] = 0.0f;
+    impl.impostor_cam = impostor;
+    impl.cam = impostor;
+    impl.world_transform = source_character_world;
     impl.camera_aspect_override =
         static_cast<float>(kImpostorWidth) /
         static_cast<float>(kImpostorHeight);
@@ -2938,6 +3002,22 @@ void CharRenderer::draw_worldcrowd_impostors_over_scene(
                                up ? up[0] : 0.0f,
                                up ? up[1] : 0.0f,
                                up ? up[2] : 1.0f);
+  // BuildBillboard marks its RndMesh kFastBillboardXYZ, whose source
+  // implementation replaces the mesh rotation with
+  // RndCam::sCurrent->WorldXfm().m every frame. Harmonix Transform is
+  // right-handed (m.x=Cross(m.y,m.z)); D3D's LH view column 0 is the opposite
+  // axis and cannot be copied back as source m.x without mirroring the card.
+  const std::array<float, 3> camera_forward = {
+      view.m[0][2], view.m[1][2], view.m[2][2]};
+  const std::array<float, 3> camera_up = {
+      view.m[0][1], view.m[1][1], view.m[2][1]};
+  const std::array<float, 3> camera_right = {
+      camera_forward[1] * camera_up[2] -
+          camera_forward[2] * camera_up[1],
+      camera_forward[2] * camera_up[0] -
+          camera_forward[0] * camera_up[2],
+      camera_forward[0] * camera_up[1] -
+          camera_forward[1] * camera_up[0]};
   const float backbuffer_aspect =
       impl.win->bb_height() > 0
           ? static_cast<float>(impl.win->bb_width()) /
@@ -2965,46 +3045,45 @@ void CharRenderer::draw_worldcrowd_impostors_over_scene(
   std::vector<BillboardVtx> verts;
   verts.reserve(placement_worlds.size() * 6);
   for (const auto& placement : placement_worlds) {
-    const float sx = std::sqrt(placement[0] * placement[0] +
-                               placement[1] * placement[1] +
-                               placement[2] * placement[2]);
-    const float sy = std::sqrt(placement[4] * placement[4] +
-                               placement[5] * placement[5] +
-                               placement[6] * placement[6]);
-    const float sz = std::sqrt(placement[8] * placement[8] +
-                               placement[9] * placement[9] +
-                               placement[10] * placement[10]);
-    float placement_scale = (sx + sy + sz) / 3.0f;
-    if (!std::isfinite(placement_scale) || placement_scale <= 0.001f)
-      placement_scale = 1.0f;
-    const float height = source_character_height * placement_scale;
-    const float half_width = height * 0.25f;
-    const float px = placement[12];
-    const float py = placement[13];
-    const float pz = placement[14];
-    float to_eye_x = eye[0] - px;
-    float to_eye_y = eye[1] - py;
-    float len = std::sqrt(to_eye_x * to_eye_x + to_eye_y * to_eye_y);
-    if (!std::isfinite(len) || len <= 0.001f) {
-      to_eye_x = 0.0f;
-      to_eye_y = -1.0f;
-      len = 1.0f;
-    }
-    // Upright camera-facing card: cross(world-up, to-eye).
-    const float right_x = -to_eye_y / len;
-    const float right_y = to_eye_x / len;
-    const float lx = px - right_x * half_width;
-    const float ly = py - right_y * half_width;
-    const float rx = px + right_x * half_width;
-    const float ry = py + right_y * half_width;
-    const float top = pz + height;
+    // GH2 retail WorldCrowd::BuildBillboard (SLUS_214.47, 0x0026bba0)
+    // creates one local X/Z card, with vertices 0..3 at
+    // (-hx,+hz), (-hx,-hz), (+hx,+hz), (+hx,-hz), and faces
+    // (0,1,2), (1,3,2). Its final call is
+    // SetTransConstraint(kFastBillboardXYZ, ..., false), so the active camera
+    // supplies the card rotation while each serialized instance supplies its
+    // authored position (and any non-unit placement scale).
+    const float half_height = source_character_height * 0.5f;
+    const float half_width = source_character_height * 0.25f;
+    auto row_length = [&](int row) {
+      const int base = row * 4;
+      const float length =
+          std::sqrt(placement[base] * placement[base] +
+                    placement[base + 1] * placement[base + 1] +
+                    placement[base + 2] * placement[base + 2]);
+      return std::isfinite(length) && length > 1.0e-5f ? length : 1.0f;
+    };
+    const float scale_x = row_length(0);
+    const float scale_z = row_length(2);
+    auto billboard_point = [&](float local_x, float local_z) {
+      return std::array<float, 3>{
+          placement[12] + camera_right[0] * local_x * scale_x +
+              camera_up[0] * local_z * scale_z,
+          placement[13] + camera_right[1] * local_x * scale_x +
+              camera_up[1] * local_z * scale_z,
+          placement[14] + camera_right[2] * local_x * scale_x +
+              camera_up[2] * local_z * scale_z};
+    };
+    const auto v0 = billboard_point(-half_width, half_height);
+    const auto v1 = billboard_point(-half_width, -half_height);
+    const auto v2 = billboard_point(half_width, half_height);
+    const auto v3 = billboard_point(half_width, -half_height);
     constexpr D3DCOLOR white = 0xffffffffu;
-    verts.push_back({lx, ly, pz, white, 0.0f, 1.0f});
-    verts.push_back({lx, ly, top, white, 0.0f, 0.0f});
-    verts.push_back({rx, ry, top, white, 1.0f, 0.0f});
-    verts.push_back({lx, ly, pz, white, 0.0f, 1.0f});
-    verts.push_back({rx, ry, top, white, 1.0f, 0.0f});
-    verts.push_back({rx, ry, pz, white, 1.0f, 1.0f});
+    verts.push_back({v0[0], v0[1], v0[2], white, 0.0f, 0.0f});
+    verts.push_back({v1[0], v1[1], v1[2], white, 0.0f, 1.0f});
+    verts.push_back({v2[0], v2[1], v2[2], white, 1.0f, 0.0f});
+    verts.push_back({v1[0], v1[1], v1[2], white, 0.0f, 1.0f});
+    verts.push_back({v3[0], v3[1], v3[2], white, 1.0f, 1.0f});
+    verts.push_back({v2[0], v2[1], v2[2], white, 1.0f, 0.0f});
   }
 
   dev->BeginScene();
@@ -3019,7 +3098,11 @@ void CharRenderer::draw_worldcrowd_impostors_over_scene(
   dev->SetFVF(kBillboardFvf);
   dev->SetTexture(0, impl.worldcrowd_impostor_tex);
   dev->SetRenderState(D3DRS_LIGHTING, FALSE);
-  dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+  // WorldCrowd's gImpostorMat never disables RndMat's default cull=true.
+  // Preserve BuildBillboard's source face order above.  The D3D bridge mirrors
+  // clip X in make_projection(), which reverses that order in screen space;
+  // CCW culling keeps the source front face instead of rejecting every card.
+  dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
   dev->SetRenderState(D3DRS_ZENABLE, TRUE);
   dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
   dev->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);

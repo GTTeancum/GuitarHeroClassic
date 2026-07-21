@@ -2,6 +2,22 @@
 
 ## Active Gameplay / Runtime TODO (2026-07-17)
 
+- Restore the visual song-start highway assembly from the stock TrackPanel
+  `0..1920` frame drive and `extend_track_normal.tnm` `track.cam` animation.
+  The exact source animation is decoded. The rejected 2026-07-21 Surrender
+  review exposed a native/source track-Y scale mismatch; the camera delta now
+  uses the same expansion scale as the rendered track. The remaining stock
+  presentation is now implemented too: all five hollow rims precede the
+  green-to-orange inner-button initialization, and the complete left/right HUD
+  assemblies use `score_slide_in.tnm` / `meter_slide_in.tnm` from 1.8 through
+  2.3 seconds. Their source translations are applied as normalized viewport
+  deltas, so the same authored group motion works at 960x720 (4:3) and 1280x720
+  (16:9) without per-element pixel offsets. Deterministic renders pass both
+  aspect modes, and fresh real-time 4:3 and 16:9 videos capture the complete
+  opening with stereo game audio; this item remains open only for user review.
+  Startup/nowbar audio and `sp_awarded` are signed off. The
+  rejected Psychobilly Freakout, Mother, and Surrender videos must not be cited
+  as visual assembly proof.
 - ~~Fix the singer's detached arms.~~ Accepted complete 2026-07-18. The implementation removes the far-negative weighted-arm raw bypass and returns those pieces to the source `RndMesh::SetBone` skinning equation; the focused skin regression, two active-pose diagnostics, and complete audible `badreputation` run exercise the corrected route without offsets or a character-name fix (`engine/out/character_regression_20260718/body_axis_bridge`, `engine/out/runtime_proofs/animation-body-axis-badreputation-20260718-001`).
 - ~~Remove the duplicate bass prop near the bassist's legs.~~ Completed 2026-07-18: decoded character group membership proves `metal_bass` owns `guitar.mesh`, so the external quickplay bass is suppressed only for that self-contained character graph.
 - ~~Fix Axel Steel's lower-body balance/leg-chain pose.~~ Accepted complete 2026-07-19 together with the arm path across all four band members. The source-backed fix decodes GH2 compressed scalar rotations directly in radians and restores the exact serialized four-slot `RndMesh` palette/offset consumer without character-name rules, pose offsets, reversed weights, or limb-specific skin spaces. Live `tattooedloveboys` review forced `metal1` and accepted every band member's arms and legs.

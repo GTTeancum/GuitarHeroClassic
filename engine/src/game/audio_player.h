@@ -44,6 +44,10 @@ class AudioPlayer {
   void note_miss_feedback();
   void overstrum_feedback();
   void star_phrase_complete_feedback();
+  // ui/gen/track_panel.dtb + hud_panel.dtb startup sequence: stage 0 is
+  // track_unfurl, stages 1..5 are the five nowbar lane sounds, and stage 6 is
+  // meter_slide at the authored HudPanel cue.
+  void track_intro_feedback(int stage);
   void set_whammy_state(bool active, double song_time_sec);
   void reset_gameplay_feedback();
 

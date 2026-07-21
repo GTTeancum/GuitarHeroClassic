@@ -973,6 +973,7 @@ class AppEngine : public ghogx::Engine {
     state.rock_fill = gameplay_.rock_fill();
     if (diagnostic_hud_override_) state = *diagnostic_hud_override_;
     state.anim_seconds = static_cast<float>(gameplay_.song_time());
+    state.track_intro_active = gameplay_.track_intro_active();
     static int hud_state_debug_budget = 0;
     if (env_flag("GHOGX_DEBUG_GAMEPLAY_HUD_STATE") &&
         hud_state_debug_budget < 240) {

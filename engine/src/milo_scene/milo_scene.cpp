@@ -1481,6 +1481,233 @@ SourceRndTransAnimDefaultState source_rndtrans_anim_default_state() {
   return SourceRndTransAnimDefaultState{};
 }
 
+DecodedRndTransAnimBody decode_rndtrans_anim_body_source_order(
+    const uint8_t* body, size_t size) {
+  DecodedRndTransAnimBody out;
+  if (body == nullptr && size != 0) {
+    out.error = "RndTransAnim null body";
+    return out;
+  }
+
+  Reader r(body, size);
+  try {
+    const uint32_t combined_revision = r.u32();
+    out.revision = low_revision(combined_revision);
+    out.alt_revision = static_cast<uint16_t>(combined_revision >> 16);
+    if (out.revision < 6 || out.revision > 7) {
+      throw std::runtime_error(
+          "milo_scene: exact RndTransAnim reader requires revision 6 or 7");
+    }
+
+    // MiloEditor RndTransAnim.Read: revision > 4 embeds Hmx::Object fields.
+    read_object_fields(r);
+
+    const uint32_t combined_anim_revision = r.u32();
+    out.anim_revision = low_revision(combined_anim_revision);
+    out.anim_alt_revision =
+        static_cast<uint16_t>(combined_anim_revision >> 16);
+    const SourceRndAnimatableLoadPlan anim_plan =
+        source_rndanimatable_load_plan(out.anim_revision);
+    if (!anim_plan.accepted_revision) {
+      throw std::runtime_error(
+          "milo_scene: unsupported embedded RndAnimatable revision");
+    }
+    if (anim_plan.reads_frame) out.anim_frame = r.f32();
+    if (anim_plan.reads_int_rate) {
+      out.anim_rate = r.i32();
+    } else if (anim_plan.reads_legacy_byte_rate) {
+      out.anim_rate = r.u8() == 0 ? 0 : 1;
+    } else if (anim_plan.reads_legacy_rev0_filter_rows ||
+               anim_plan.reads_legacy_rev0_anim_list) {
+      throw std::runtime_error(
+          "milo_scene: legacy RndAnimatable revision 0 is not used by GH2 track TransAnim");
+    }
+
+    out.target = r.str();
+
+    const uint32_t rotation_count = r.u32();
+    if (rotation_count > 512) {
+      throw std::runtime_error("milo_scene: RndTransAnim rotation count invalid");
+    }
+    out.rotation_keys.reserve(rotation_count);
+    for (uint32_t i = 0; i < rotation_count; ++i) {
+      RndTransAnimQuatKey key;
+      for (float& value : key.value) value = r.f32();
+      key.frame = r.f32();
+      out.rotation_keys.push_back(key);
+    }
+
+    const uint32_t translation_count = r.u32();
+    if (translation_count > 2048) {
+      throw std::runtime_error(
+          "milo_scene: RndTransAnim translation count invalid");
+    }
+    out.translation_keys.reserve(translation_count);
+    for (uint32_t i = 0; i < translation_count; ++i) {
+      RndTransAnimVec3Key key;
+      for (float& value : key.value) value = r.f32();
+      key.frame = r.f32();
+      out.translation_keys.push_back(key);
+    }
+
+    out.keys_owner = r.str();
+    out.trans_spline = r.u8() != 0;
+    out.repeat_trans = r.u8() != 0;
+
+    const uint32_t scale_count = r.u32();
+    if (scale_count > 512) {
+      throw std::runtime_error("milo_scene: RndTransAnim scale count invalid");
+    }
+    out.scale_keys.reserve(scale_count);
+    for (uint32_t i = 0; i < scale_count; ++i) {
+      RndTransAnimVec3Key key;
+      for (float& value : key.value) value = r.f32();
+      key.frame = r.f32();
+      out.scale_keys.push_back(key);
+    }
+    out.scale_spline = r.u8() != 0;
+    out.follow_path = r.u8() != 0;
+    out.rot_slerp = r.u8() != 0;
+    if (out.revision > 6) out.rot_spline = r.u8() != 0;
+
+    out.bytes_consumed = r.pos;
+    out.exact_eof = r.pos == r.n;
+    if (!out.exact_eof) {
+      throw std::runtime_error(
+          "milo_scene: RndTransAnim source-order reader did not consume EOF");
+    }
+    out.decoded = true;
+  } catch (const std::exception& ex) {
+    out.bytes_consumed = r.pos;
+    out.error = ex.what();
+  }
+  return out;
+}
+
+std::array<float, 3> sample_rndtrans_anim_translation(
+    const DecodedRndTransAnimBody& anim, float frame,
+    const std::array<float, 3>& fallback) {
+  const auto& keys = anim.translation_keys;
+  if (keys.empty()) return fallback;
+
+  float sample_frame = frame;
+  std::array<float, 3> repeat_offset = {0.0f, 0.0f, 0.0f};
+  if (anim.repeat_trans && keys.size() >= 2 && std::isfinite(frame)) {
+    const float first_frame = keys.front().frame;
+    const float last_frame = keys.back().frame;
+    const float span = last_frame - first_frame;
+    if (std::isfinite(span) && span > 0.001f && frame >= last_frame) {
+      const float cycles = std::floor((frame - first_frame) / span);
+      if (std::isfinite(cycles) && cycles > 0.0f) {
+        sample_frame = frame - cycles * span;
+        for (size_t axis = 0; axis < repeat_offset.size(); ++axis) {
+          repeat_offset[axis] =
+              (keys.back().value[axis] - keys.front().value[axis]) * cycles;
+        }
+      }
+    }
+  }
+
+  size_t a = 0;
+  size_t b = 0;
+  float t = 0.0f;
+  if (keys.size() > 1 && sample_frame >= keys.front().frame) {
+    if (sample_frame >= keys.back().frame) {
+      a = b = keys.size() - 1;
+    } else {
+      for (size_t i = 1; i < keys.size(); ++i) {
+        if (sample_frame < keys[i].frame) break;
+        a = i;
+      }
+      while (a + 1 < keys.size() && keys[a + 1].frame == keys[a].frame) ++a;
+      b = std::min(a + 1, keys.size() - 1);
+      const float span = keys[b].frame - keys[a].frame;
+      if (span > 0.0001f) {
+        t = std::clamp((sample_frame - keys[a].frame) / span, 0.0f, 1.0f);
+      }
+    }
+  }
+
+  std::array<float, 3> value = keys[a].value;
+  // Harmonix InterpVector explicitly disables spline interpolation when fewer
+  // than three keys exist.  That makes GH2's two-key track.cam move linear
+  // even though extend_track_normal.tnm stores transSpline=true.
+  if (a != b && anim.trans_spline && keys.size() >= 3) {
+    auto tangent = [&](size_t index) {
+      std::array<float, 3> out_tangent = {0.0f, 0.0f, 0.0f};
+      if (index == 0) {
+        for (size_t axis = 0; axis < out_tangent.size(); ++axis) {
+          out_tangent[axis] =
+              (keys[1].value[axis] - keys[0].value[axis]) * 1.5f -
+              (keys[2].value[axis] - keys[0].value[axis]) * 0.25f;
+        }
+      } else if (index >= keys.size() - 1) {
+        for (size_t axis = 0; axis < out_tangent.size(); ++axis) {
+          out_tangent[axis] =
+              (keys.back().value[axis] -
+               keys[keys.size() - 2].value[axis]) *
+                  1.5f -
+              (keys.back().value[axis] -
+               keys[keys.size() - 3].value[axis]) *
+                  0.25f;
+        }
+      } else {
+        for (size_t axis = 0; axis < out_tangent.size(); ++axis) {
+          out_tangent[axis] =
+              (keys[index + 1].value[axis] -
+               keys[index - 1].value[axis]) *
+              0.5f;
+        }
+      }
+      return out_tangent;
+    };
+    const auto ta = tangent(a);
+    const auto tb = tangent(b);
+    const float t2 = t * t;
+    const float t3 = t2 * t;
+    const float h00 = 2.0f * t3 - 3.0f * t2 + 1.0f;
+    const float h10 = t3 - 2.0f * t2 + t;
+    const float h01 = -2.0f * t3 + 3.0f * t2;
+    const float h11 = t3 - t2;
+    for (size_t axis = 0; axis < value.size(); ++axis) {
+      value[axis] = keys[a].value[axis] * h00 + ta[axis] * h10 +
+                    keys[b].value[axis] * h01 + tb[axis] * h11;
+    }
+  } else if (a != b) {
+    for (size_t axis = 0; axis < value.size(); ++axis) {
+      value[axis] = keys[a].value[axis] +
+                    (keys[b].value[axis] - keys[a].value[axis]) * t;
+    }
+  }
+  for (size_t axis = 0; axis < value.size(); ++axis) {
+    value[axis] += repeat_offset[axis];
+  }
+  return value;
+}
+
+float rndtrans_anim_start_frame(const DecodedRndTransAnimBody& anim) {
+  const float trans = anim.translation_keys.empty()
+                          ? 0.0f
+                          : anim.translation_keys.front().frame;
+  const float rot = anim.rotation_keys.empty()
+                        ? 0.0f
+                        : anim.rotation_keys.front().frame;
+  const float scale =
+      anim.scale_keys.empty() ? 0.0f : anim.scale_keys.front().frame;
+  return std::min({trans, rot, scale});
+}
+
+float rndtrans_anim_end_frame(const DecodedRndTransAnimBody& anim) {
+  const float trans = anim.translation_keys.empty()
+                          ? 0.0f
+                          : anim.translation_keys.back().frame;
+  const float rot =
+      anim.rotation_keys.empty() ? 0.0f : anim.rotation_keys.back().frame;
+  const float scale =
+      anim.scale_keys.empty() ? 0.0f : anim.scale_keys.back().frame;
+  return std::max({trans, rot, scale});
+}
+
 SourceRndTransAnimLoadPlan source_rndtrans_anim_load_plan(int32_t revision) {
   SourceRndTransAnimLoadPlan plan;
   plan.revision = revision;
@@ -3803,7 +4030,7 @@ WorldCrowdObj decode_world_crowd(const std::string& entry_name,
 
     if (revision < 3) r.skip(4);
     crowd.total_placements = r.u32();
-    if (revision < 8) (void)r.u8();
+    if (revision < 8) crowd.rotate_to_camera = r.u8() != 0;
 
     const uint32_t actor_count = r.u32();
     if (actor_count == 0 || actor_count > 128) {

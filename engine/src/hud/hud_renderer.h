@@ -43,6 +43,7 @@ struct HudState {
   bool  sp_active  = false;  // true while star power is currently engaged
   float rock_fill  = 0.0f;   // rock/crowd meter, 0..1 (0 = danger/red, 1 = green)
   float anim_seconds = 0.0f;  // HUD material-animation clock, seconds
+  bool  track_intro_active = false;  // stock TrackPanel/HudPanel opening choreography
 };
 
 class HudRenderer {
@@ -152,6 +153,20 @@ class HudRenderer {
     float y = 0.0f;
     float z = 0.0f;
     float frame = 0.0f;
+  };
+  struct QuatAnimKey {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float w = 1.0f;
+    float frame = 0.0f;
+  };
+  struct IntroTransformAnim {
+    std::string target;
+    std::vector<Vec3AnimKey> translation_keys;
+    std::vector<QuatAnimKey> rotation_keys;
+    float end_frame = 0.0f;
+    bool ok = false;
   };
   struct ScalarAnimKey {
     float min_value = 0.0f;
@@ -264,6 +279,8 @@ class HudRenderer {
   float star_tube_glow_anim_duration_ = 15.0f;
   float star_tube_meter_anim_duration_ = 30.0f;
   float star_path_tex_translation_anim_duration_ = 100.0f;
+  IntroTransformAnim score_slide_in_anim_;
+  IntroTransformAnim meter_slide_in_anim_;
 
   Quad native_rock_face_;
   Quad native_rock_frame_;
