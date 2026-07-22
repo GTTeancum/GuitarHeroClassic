@@ -17,8 +17,10 @@
 #include "dtb.h"  // gh::dtb::Node
 
 #include <memory>
+#include <functional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace ghogx::ui {
@@ -32,6 +34,18 @@ class ScreenManager : public Object, public script::Host {
   void add_object(std::unique_ptr<Object> obj);  // keyed by obj->name()
   Object* find_object(Symbol name);
   ObjectDir& registry() { return registry_; }
+  const ObjectDir& registry() const { return registry_; }
+  using RuntimeCreator = std::function<std::unique_ptr<Object>(Symbol)>;
+  void register_runtime_class(Symbol cls, RuntimeCreator creator);
+  using AudioEventHandler =
+      std::function<void(Symbol action, Symbol cue, bool value)>;
+  void set_audio_event_handler(AudioEventHandler handler) {
+    audio_event_handler_ = std::move(handler);
+  }
+  void emit_audio_event(Symbol action, Symbol cue = Symbol(),
+                        bool value = false) {
+    if (audio_event_handler_) audio_event_handler_(action, cue, value);
+  }
 
   // --- singletons (ui/taskmgr/game/...) ----------------------------------
   void add_singleton(Symbol name, std::unique_ptr<Object> obj);
@@ -43,6 +57,15 @@ class ScreenManager : public Object, public script::Host {
   DataNode run_object_handler(const std::shared_ptr<gh::dtb::Node>& block,
                               Object* self, const DataArray& args);
   void add_function(Symbol name, std::shared_ptr<gh::dtb::Node> block);
+  std::vector<std::shared_ptr<gh::dtb::Node>> function_blocks() const {
+    std::vector<std::shared_ptr<gh::dtb::Node>> out;
+    out.reserve(functions_.size());
+    for (const auto& [key, block] : functions_) {
+      (void)key;
+      if (block) out.push_back(block);
+    }
+    return out;
+  }
 
   // --- screen navigation (the `ui` messages) -----------------------------
   void goto_screen(Symbol name);
@@ -63,7 +86,6 @@ class ScreenManager : public Object, public script::Host {
     Object* entering_screen = nullptr;
   };
   TransitionSnapshot transition_snapshot() const;
-  void set_transition_time(float seconds);
 
   // --- per-frame ---------------------------------------------------------
   void update(float dt) override;
@@ -71,6 +93,9 @@ class ScreenManager : public Object, public script::Host {
   void set_locale_string(Symbol token, std::string text);
   void clear_script_tasks();
   void start_animation_task(Object* target, const DataArray& args);
+  void stop_animation_task(Object* target);
+  bool is_animation_task_active(Object* target) const;
+  void set_animation_frame(Object* target, float frame);
 
   // Evaluate a top-level boot/statement list (e.g. init.dtb's body: the
   // {foreach ...}{meta set_defaults}{set $first_screen ...}{ui goto_screen ...}).
@@ -87,6 +112,7 @@ class ScreenManager : public Object, public script::Host {
   void on_unhandled(const std::string& what) override;
   bool handle_command(Symbol name, const DataArray& args,
                       DataNode& out) override;
+  Object* create_object(Symbol cls, Symbol name) override;
   bool symbol_exists(Symbol name) override;
   void schedule_script_task(const gh::dtb::NodeList& body, Object* self,
                             float delay_seconds) override;
@@ -100,8 +126,11 @@ class ScreenManager : public Object, public script::Host {
   //   exit:  screen_change|screen_back -> exit(screen+panels) -> ui_exit[_back]
   //          -> exit_complete(screen+panels) -> unload(screen+panels)
   //   enter: change_proxies -> load -> finish_load -> ui_enter[_back] -> enter
-  void enter_sequence(Object* screen, bool back, bool defer_complete);
+  float enter_sequence(Object* screen, bool back);
   void exit_sequence(Object* screen, bool back, bool defer_unload);
+  float dispatch_panel_transition(Object* panel, Symbol event,
+                                  Symbol directional_event);
+  float animatable_duration_seconds(ObjectDir* panel, Object* anim) const;
   void finish_transition();
   bool consume_backwards_anim();
   // Send `msg` to the screen and each of its (panels ...), in the given order.
@@ -134,6 +163,7 @@ class ScreenManager : public Object, public script::Host {
   std::unordered_map<const void*, Object*> singletons_;
   std::unordered_map<const void*, DataNode> globals_;
   std::unordered_map<const void*, std::shared_ptr<gh::dtb::Node>> functions_;
+  std::unordered_map<const void*, RuntimeCreator> runtime_creators_;
   std::unordered_map<const void*, std::string> locale_;
   Object* current_ = nullptr;
   std::vector<Object*> stack_;
@@ -147,13 +177,13 @@ class ScreenManager : public Object, public script::Host {
     Object* entering_screen = nullptr;
   } transition_;
   bool pending_backwards_anim_ = false;
-  float transition_time_seconds_ = 0.5f;
   int scene_state_ = 11;  // scene-state ID (harmonix_symbols.h:904); 11=SPLASH at boot
   float ui_seconds_ = 0.0f;
   std::vector<ScheduledScriptTask> script_tasks_;
   std::vector<ActiveAnimation> active_animations_;
   std::unordered_map<std::string, bool> unhandled_seen_;
   std::vector<std::string> unhandled_;
+  AudioEventHandler audio_event_handler_;
 };
 
 // Install the standard singleton stubs (taskmgr/game/gamecfg/campaign/synth/

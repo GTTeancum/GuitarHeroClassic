@@ -19,6 +19,14 @@ namespace ghogx::ui {
 
 class ScreenManager;
 
+struct UiRouteRef {
+  std::string owner;
+  std::string operation;
+  std::string target;
+  bool dynamic = false;
+  uint32_t source_line = 0;
+};
+
 // Instantiate every {new ...} object in `roots` into the manager's registry.
 void load_ui_objects(const gh::dtb::NodeList& roots, ScreenManager& mgr);
 
@@ -50,5 +58,11 @@ int load_all_ui_screens(const gh::ark::ArkV3Reader& ark,
 int load_panel_milo_widgets(const gh::ark::ArkV3Reader& ark,
                             const std::vector<std::string>& ark_paths,
                             ScreenManager& mgr);
+
+// Extract every authored navigation command from the already-preprocessed
+// object handlers and global function bodies. Literal destinations can be
+// checked against the 130-screen registry; variable/expression destinations
+// remain explicitly marked dynamic instead of being guessed.
+std::vector<UiRouteRef> collect_ui_route_refs(const ScreenManager& mgr);
 
 }  // namespace ghogx::ui

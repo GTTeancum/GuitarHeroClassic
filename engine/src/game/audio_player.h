@@ -15,6 +15,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace ghogx::game {
 
@@ -32,6 +33,17 @@ class AudioPlayer {
   // on any failure; gameplay then proceeds silently.
   bool load_vgs(const std::string& hdr_path, const std::string& ark_path,
                 const std::string& vgs_path);
+
+  // Load one or more stock MILO sound banks without opening a song stream.
+  // This is the front-end Synth path used by menu DTB calls such as
+  // `synth play_sequence button_select` and `play_sfx postshow_loop`.
+  bool load_sfx_banks(const std::string& hdr_path, const std::string& ark_path,
+                      const std::vector<std::string>& bank_paths);
+  bool play_sfx(const std::string& route);
+  void stop_sfx(const std::string& route);
+  void stop_all_sfx();
+  void pause_all_sfx(bool paused);
+  void set_output_volume(float linear_gain);
 
   void play();   // start (or resume) streaming playback from the current position
   void stop();   // pause the voice; position is retained

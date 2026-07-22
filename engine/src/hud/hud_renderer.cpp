@@ -3321,6 +3321,21 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
   left_intro = evaluate_intro_transform(score_slide_in_anim_);
   right_intro = evaluate_intro_transform(meter_slide_in_anim_);
 
+  // Pixel-ruler calibration against the rendered highway rails.  A single
+  // normalized anchor cannot produce equal perpendicular corner clearance at
+  // both supported aspects because the projected rail slopes differ.  The
+  // baked anchors are the measured 4:3 solution; interpolate the measured
+  // +0.001479 screen-width correction at 16:9 for both parent groups.  Applying
+  // the same correction to both groups preserves their authored angles and
+  // decoded intro deltas.
+  const float viewport_aspect = bbh > 0
+      ? static_cast<float>(bbw) / static_cast<float>(bbh)
+      : (4.0f / 3.0f);
+  const float widescreen_gap_blend = std::clamp(
+      (viewport_aspect - (4.0f / 3.0f)) / ((16.0f / 9.0f) - (4.0f / 3.0f)),
+      0.0f, 1.0f);
+  const float measured_gap_screen_dx = 0.001400f * widescreen_gap_blend;
+
   if (env_enabled("GHOGX_DEBUG_HUD_INTRO")) {
     static int intro_debug_budget = 0;
     if (intro_debug_budget < 240) {
@@ -3430,12 +3445,12 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     if (q.group == kHudGroupLeft) {
       parent = &left_parent_slot_;
       rot = layout_tuning_.score_panel.rot + left_intro.rotation_delta;
-      screen_dx = left_intro.screen_dx;
+      screen_dx = left_intro.screen_dx + measured_gap_screen_dx;
       screen_dy = left_intro.screen_dy;
     } else if (q.group == kHudGroupRight) {
       parent = &right_parent_slot_;
       rot = layout_tuning_.right_panel.rot + right_intro.rotation_delta;
-      screen_dx = right_intro.screen_dx;
+      screen_dx = right_intro.screen_dx + measured_gap_screen_dx;
       screen_dy = right_intro.screen_dy;
     }
   };

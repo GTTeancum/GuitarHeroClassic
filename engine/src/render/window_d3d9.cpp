@@ -35,6 +35,7 @@ struct Window::Impl {
   bool key_prev[256] = {};
   unsigned short pad_now  = 0;
   unsigned short pad_prev = 0;
+  int gamepad_count = 0;
   bool relative_mouse = false;
   bool relative_mouse_centered = false;
   bool relative_mouse_hidden = false;
@@ -289,7 +290,18 @@ void Window::pump() {
   int gh_strum = 0;
   float gh_whammy_axis = 0.0f;
   XINPUT_STATE xs = {};
-  if (XInputGetState(0, &xs) == ERROR_SUCCESS) {
+  bool player_one_connected = false;
+  impl_->gamepad_count = 0;
+  for (DWORD player = 0; player < XUSER_MAX_COUNT; ++player) {
+    XINPUT_STATE state = {};
+    if (XInputGetState(player, &state) != ERROR_SUCCESS) continue;
+    ++impl_->gamepad_count;
+    if (player == 0) {
+      xs = state;
+      player_one_connected = true;
+    }
+  }
+  if (player_one_connected) {
     pad = xs.Gamepad.wButtons;
     constexpr SHORT kDead = 16000;
     if (xs.Gamepad.sThumbLY > kDead)  pad |= XINPUT_GAMEPAD_DPAD_UP;
@@ -393,6 +405,10 @@ bool Window::action_pressed(Action a) const {
       return key_edge(VK_RIGHT) || pad_edge(XINPUT_GAMEPAD_DPAD_RIGHT);
   }
   return false;
+}
+
+int Window::connected_gamepads() const {
+  return impl_ ? impl_->gamepad_count : 0;
 }
 
 bool Window::key_down(int virtual_key) const {

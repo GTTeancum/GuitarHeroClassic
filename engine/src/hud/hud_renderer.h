@@ -50,11 +50,11 @@ class HudRenderer {
  public:
   struct LayoutRect { float cx = 0, cy = 0, w = 0, h = 0, rot = 0; int z = 0; };
   struct LayoutTuning {
-    LayoutRect score_panel = {0.162000f, 0.786000f, 0.238000f, 0.285000f, 35.000000f, 0};
+    LayoutRect score_panel = {0.111857f, 0.786000f, 0.238000f, 0.285000f, 35.000000f, 0};
     LayoutRect score_frame = {0.501000f, 0.221000f, 0.780000f, 0.182000f, 0.000000f, 0};
     LayoutRect mult_panel = {0.499000f, 0.737001f, 0.280000f, 0.265000f, 0.000000f, 0};
     LayoutRect streak_panel = {0.499001f, 0.499001f, 0.659999f, 0.183000f, 0.000000f, 0};
-    LayoutRect right_panel = {0.841000f, 0.775000f, 0.221000f, 0.416000f, -23.000000f, 0};
+    LayoutRect right_panel = {0.875857f, 0.775000f, 0.221000f, 0.416000f, -23.000000f, 0};
     LayoutRect rock_face = {0.514000f, 0.580000f, 0.900000f, 0.620000f, 0.000000f, -2};
     LayoutRect sp_bar = {0.506667f, -0.196677f, 1.046667f, 0.552323f, 0.000000f, 0};
     LayoutRect rock_needle = {0.500000f, 0.883933f, 0.055000f, 0.060000f, 0.000000f, 0};

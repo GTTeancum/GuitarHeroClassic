@@ -38,6 +38,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <random>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -368,20 +369,25 @@ bool skip_object_fields(MiloBodyReader& r, int dir_version) {
 
 struct SequenceLoad {
   float avg_vol_db = 0.0f;
+  float vol_spread_db = 0.0f;
+  float avg_transpose = 0.0f;
+  float transpose_spread = 0.0f;
+  float avg_pan = 0.0f;
+  float pan_spread = 0.0f;
+  bool can_stop = false;
 };
 
 bool read_sequence(MiloBodyReader& r, int dir_version, SequenceLoad& out) {
   uint32_t revision = 0;
   if (!r.read_u32(revision)) return false;
   if (revision > 2 && !skip_object_fields(r, dir_version)) return false;
-  float ignored = 0.0f;
-  if (!r.read_f32(out.avg_vol_db)) return false;
-  for (int i = 0; i < 5; ++i) {
-    if (!r.read_f32(ignored)) return false;
-  }
+  if (!r.read_f32(out.avg_vol_db) || !r.read_f32(out.vol_spread_db) ||
+      !r.read_f32(out.avg_transpose) ||
+      !r.read_f32(out.transpose_spread) || !r.read_f32(out.avg_pan) ||
+      !r.read_f32(out.pan_spread))
+    return false;
   if (revision > 1) {
-    bool can_stop = false;
-    if (!r.read_bool(can_stop)) return false;
+    if (!r.read_bool(out.can_stop)) return false;
   }
   return true;
 }
@@ -404,6 +410,9 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     std::string name;
     int sample_rate = 22050;
     std::vector<int16_t> pcm;
+    bool looped = false;
+    uint32_t loop_start = 0;
+    int32_t loop_end = -1;
   };
   struct SfxMap {
     std::string sample_name;
@@ -418,16 +427,20 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
   struct SequenceDef {
     std::string name;
     std::string target;
-    float avg_vol_db = 0.0f;
+    SequenceLoad settings;
   };
   struct GroupDef {
     std::string name;
     std::vector<std::string> children;
-    float avg_vol_db = 0.0f;
+    SequenceLoad settings;
+    uint32_t num_simultaneous = 1;
+    bool allow_repeats = false;
+    std::vector<uint32_t> remaining_indices;
   };
   struct ActiveOneShot {
     IXAudio2SourceVoice* voice = nullptr;
     std::vector<int16_t> pcm;
+    std::string route;
   };
   struct BufferContext {
     int idx = -1;
@@ -489,6 +502,8 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
   std::unordered_map<std::string, SequenceDef> sequence_defs;
   std::unordered_map<std::string, GroupDef> group_defs;
   std::vector<ActiveOneShot> active_one_shots;
+  std::mt19937 sfx_rng{std::random_device{}()};
+  bool sfx_paused = false;
   uint32_t miss_gtr_cycle = 0;
   uint32_t sp_gemhit_cycle = 0;
   uint32_t sp_awarded_cycle = 0;
@@ -871,17 +886,14 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     if (version > 1 && !skip_object_fields(r, dir_version)) return false;
     std::string file_name;
     if (!r.read_symbol(file_name)) return false;
+    bool looped = false;
+    uint32_t loop_start = 0;
     if (version < 6) {
-      bool looped = false;
-      uint32_t loop_start = 0;
       if (!r.read_bool(looped) || !r.read_u32(loop_start)) return false;
-      (void)looped;
-      (void)loop_start;
     }
+    int32_t loop_end = -1;
     if (version > 2) {
-      int32_t loop_end = 0;
       if (!r.read_i32(loop_end)) return false;
-      (void)loop_end;
     }
 
     uint32_t sample_data_revision = 0;
@@ -903,6 +915,9 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     BankSample sample;
     sample.name = entry.name;
     sample.sample_rate = static_cast<int>(rate);
+    sample.looped = looped;
+    sample.loop_start = loop_start;
+    sample.loop_end = loop_end;
     if (encoding == 2) {
       sample.pcm = gh::vgs::decode_ps_adpcm_mono_s16(
           sample_bytes.data(), sample_bytes.size(), sample_count);
@@ -974,7 +989,7 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     if (!read_sequence(r, dir_version, sequence)) return false;
     SequenceDef def;
     def.name = entry.name;
-    def.avg_vol_db = sequence.avg_vol_db;
+    def.settings = sequence;
     if (!r.read_symbol(def.target)) return false;
     sequence_defs[def.name] = std::move(def);
     return true;
@@ -996,7 +1011,7 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     if (group_revision > 1) {
       SequenceLoad sequence;
       if (!read_sequence(r, dir_version, sequence)) return false;
-      group.avg_vol_db = sequence.avg_vol_db;
+      group.settings = sequence;
       uint32_t child_count = 0;
       if (!r.read_u32(child_count) || child_count > 128) return false;
       for (uint32_t i = 0; i < child_count; ++i) {
@@ -1005,12 +1020,10 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
         if (!child.empty()) group.children.push_back(std::move(child));
       }
     }
-    uint32_t simultaneous = 0;
-    if (!r.read_u32(simultaneous)) return false;
-    (void)simultaneous;
+    if (!r.read_u32(group.num_simultaneous)) return false;
+    if (group.num_simultaneous == 0) group.num_simultaneous = 1;
     if (random_revision >= 2) {
-      bool allow_repeats = false;
-      if (!r.read_bool(allow_repeats)) return false;
+      if (!r.read_bool(group.allow_repeats)) return false;
     }
     if (!group.children.empty()) group_defs[group.name] = std::move(group);
     return true;
@@ -1019,31 +1032,68 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
   std::string resolve_route(const std::string& route,
                             uint32_t* cycle,
                             float& gain_db,
+                            float& pan,
+                            float& transpose,
                             bool advance,
                             int depth = 0) {
     if (route.empty() || depth > 8) return {};
     if (sfx_defs.find(route) != sfx_defs.end()) return route;
+    const auto spread = [&](float average, float radius) {
+      if (!advance || radius == 0.0f) return average;
+      return average +
+             std::uniform_real_distribution<float>(-radius, radius)(sfx_rng);
+    };
     if (auto seq = sequence_defs.find(route); seq != sequence_defs.end()) {
-      gain_db += seq->second.avg_vol_db;
-      return resolve_route(seq->second.target, cycle, gain_db, advance,
-                           depth + 1);
+      gain_db += spread(seq->second.settings.avg_vol_db,
+                        seq->second.settings.vol_spread_db);
+      pan += spread(seq->second.settings.avg_pan,
+                    seq->second.settings.pan_spread);
+      transpose += spread(seq->second.settings.avg_transpose,
+                          seq->second.settings.transpose_spread);
+      return resolve_route(seq->second.target, cycle, gain_db, pan, transpose,
+                           advance, depth + 1);
     }
     auto group = group_defs.find(route);
     if (group == group_defs.end() || group->second.children.empty()) return {};
-    gain_db += group->second.avg_vol_db;
-    const uint32_t index =
-        cycle ? ((advance ? (*cycle)++ : *cycle) %
-                 static_cast<uint32_t>(group->second.children.size()))
-              : 0;
-    return resolve_route(group->second.children[index], cycle, gain_db, advance,
-                         depth + 1);
+    gain_db += spread(group->second.settings.avg_vol_db,
+                      group->second.settings.vol_spread_db);
+    pan += spread(group->second.settings.avg_pan,
+                  group->second.settings.pan_spread);
+    transpose += spread(group->second.settings.avg_transpose,
+                        group->second.settings.transpose_spread);
+    uint32_t index = 0;
+    if (advance) {
+      if (group->second.allow_repeats) {
+        index = std::uniform_int_distribution<uint32_t>(
+            0, static_cast<uint32_t>(group->second.children.size() - 1))(
+            sfx_rng);
+      } else {
+        if (group->second.remaining_indices.empty()) {
+          group->second.remaining_indices.resize(group->second.children.size());
+          for (uint32_t i = 0; i < group->second.remaining_indices.size(); ++i)
+            group->second.remaining_indices[i] = i;
+          std::shuffle(group->second.remaining_indices.begin(),
+                       group->second.remaining_indices.end(), sfx_rng);
+        }
+        index = group->second.remaining_indices.back();
+        group->second.remaining_indices.pop_back();
+      }
+      if (cycle) ++*cycle;
+    }
+    return resolve_route(group->second.children[index], cycle, gain_db, pan,
+                         transpose, advance, depth + 1);
   }
 
   bool route_available(const std::string& route) {
     uint32_t cycle = 0;
     float gain_db = 0.0f;
-    const std::string sfx = resolve_route(route, &cycle, gain_db, false);
+    float pan = 0.0f;
+    float transpose = 0.0f;
+    const std::string sfx =
+        resolve_route(route, &cycle, gain_db, pan, transpose, false);
     (void)gain_db;
+    (void)pan;
+    (void)transpose;
     return !sfx.empty() && sfx_defs.find(sfx) != sfx_defs.end();
   }
 
@@ -1070,11 +1120,13 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     active_one_shots.erase(out, active_one_shots.end());
   }
 
-  bool submit_one_shot(const BankSample& sample, float gain) {
+  bool submit_one_shot(const BankSample& sample, float gain, float pan,
+                       float transpose, const std::string& route) {
     if (!xaudio2 || !master || sample.pcm.empty() || sample.sample_rate <= 0)
       return false;
     ActiveOneShot shot;
     shot.pcm = sample.pcm;
+    shot.route = route;
 
     WAVEFORMATEX wfx = {};
     wfx.wFormatTag = WAVE_FORMAT_PCM;
@@ -1083,16 +1135,39 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     wfx.wBitsPerSample = 16;
     wfx.nBlockAlign = wfx.nChannels * (wfx.wBitsPerSample / 8);
     wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
-    if (FAILED(xaudio2->CreateSourceVoice(&shot.voice, &wfx))) return false;
+    if (FAILED(xaudio2->CreateSourceVoice(
+            &shot.voice, &wfx, 0, XAUDIO2_DEFAULT_FREQ_RATIO)))
+      return false;
     shot.voice->SetVolume(std::clamp(gain, 0.0f, 4.0f));
+    shot.voice->SetFrequencyRatio(std::clamp(
+        std::pow(2.0f, transpose / 12.0f),
+        XAUDIO2_MIN_FREQ_RATIO, XAUDIO2_DEFAULT_FREQ_RATIO));
+    XAUDIO2_VOICE_DETAILS master_details = {};
+    master->GetVoiceDetails(&master_details);
+    if (master_details.InputChannels == 2) {
+      const float p = std::clamp(pan, -1.0f, 1.0f);
+      const float matrix[2] = {p > 0.0f ? 1.0f - p : 1.0f,
+                               p < 0.0f ? 1.0f + p : 1.0f};
+      shot.voice->SetOutputMatrix(master, 1, 2, matrix);
+    }
 
     XAUDIO2_BUFFER buf = {};
     buf.AudioBytes =
         static_cast<UINT32>(shot.pcm.size() * sizeof(int16_t));
     buf.pAudioData = reinterpret_cast<const BYTE*>(shot.pcm.data());
     buf.Flags = XAUDIO2_END_OF_STREAM;
+    if (sample.looped) {
+      const uint32_t sample_count = static_cast<uint32_t>(shot.pcm.size());
+      buf.LoopBegin = std::min(sample.loop_start, sample_count);
+      const uint32_t loop_end =
+          sample.loop_end > static_cast<int32_t>(buf.LoopBegin)
+              ? std::min(static_cast<uint32_t>(sample.loop_end), sample_count)
+              : sample_count;
+      buf.LoopLength = loop_end - buf.LoopBegin;
+      buf.LoopCount = XAUDIO2_LOOP_INFINITE;
+    }
     if (FAILED(shot.voice->SubmitSourceBuffer(&buf)) ||
-        FAILED(shot.voice->Start(0))) {
+        (!sfx_paused && FAILED(shot.voice->Start(0)))) {
       shot.voice->DestroyVoice();
       shot.voice = nullptr;
       return false;
@@ -1101,36 +1176,84 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     return true;
   }
 
-  void play_route(const char* route, const char* reason, uint32_t& cycle) {
+  bool play_route(const char* route, const char* reason, uint32_t& cycle) {
     reap_finished_one_shots();
     if (!gameplay_sfx_loaded) {
       std::fprintf(stderr,
                    "[audio-gameplay] %s route=%s unavailable bank_loaded=0\n",
                    reason, route);
-      return;
+      return false;
     }
     float route_gain_db = 0.0f;
+    float route_pan = 0.0f;
+    float route_transpose = 0.0f;
     const std::string sfx_name =
-        resolve_route(route, &cycle, route_gain_db, true);
+        resolve_route(route, &cycle, route_gain_db, route_pan,
+                      route_transpose, true);
     auto sfx_it = sfx_defs.find(sfx_name);
     if (sfx_it == sfx_defs.end()) {
       std::fprintf(stderr,
                    "[audio-gameplay] %s route=%s unresolved\n",
                    reason, route);
-      return;
+      return false;
     }
     int submitted = 0;
     for (const SfxMap& map : sfx_it->second.maps) {
       auto sample_it = bank_samples.find(map.sample_name);
       if (sample_it == bank_samples.end()) continue;
       const float gain = db_to_linear(route_gain_db + map.volume_db);
-      if (submit_one_shot(sample_it->second, gain)) ++submitted;
+      if (submit_one_shot(sample_it->second, gain, route_pan + map.pan,
+                          route_transpose + map.transpose, route))
+        ++submitted;
     }
     std::fprintf(stderr,
                  "[audio-gameplay] %s route=%s sfx=%s maps=%zu "
                  "submitted=%d route_gain_db=%.2f\n",
                  reason, route, sfx_name.c_str(), sfx_it->second.maps.size(),
                  submitted, route_gain_db);
+    return submitted > 0;
+  }
+
+  void stop_route(const std::string& route) {
+    auto out = active_one_shots.begin();
+    for (auto it = active_one_shots.begin(); it != active_one_shots.end();
+         ++it) {
+      if (it->route == route) {
+        if (it->voice) {
+          it->voice->Stop(0);
+          it->voice->FlushSourceBuffers();
+          it->voice->DestroyVoice();
+          it->voice = nullptr;
+        }
+      } else {
+        if (out != it) *out = std::move(*it);
+        ++out;
+      }
+    }
+    active_one_shots.erase(out, active_one_shots.end());
+  }
+
+  void stop_all_routes() {
+    for (auto& shot : active_one_shots) {
+      if (!shot.voice) continue;
+      shot.voice->Stop(0);
+      shot.voice->FlushSourceBuffers();
+      shot.voice->DestroyVoice();
+      shot.voice = nullptr;
+    }
+    active_one_shots.clear();
+  }
+
+  void pause_all_routes(bool paused) {
+    if (sfx_paused == paused) return;
+    sfx_paused = paused;
+    for (auto& shot : active_one_shots) {
+      if (!shot.voice) continue;
+      if (paused)
+        shot.voice->Stop(0);
+      else
+        shot.voice->Start(0);
+    }
   }
 
   void set_guitar_mute(bool muted, const char* reason) {
@@ -1156,13 +1279,16 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     }
   }
 
-  void load_gameplay_sfx_bank(const std::string& hdr_path,
-                              const std::string& ark_path) {
+  bool load_sfx_banks_internal(const std::string& hdr_path,
+                               const std::string& ark_path,
+                               const std::vector<std::string>& bank_paths,
+                               const char* context) {
     bank_samples.clear();
     sfx_defs.clear();
     sequence_defs.clear();
     group_defs.clear();
     gameplay_sfx_loaded = false;
+    sfx_paused = false;
     miss_gtr_cycle = sp_gemhit_cycle = sp_awarded_cycle = 0;
     track_unfurl_cycle = 0;
     nowbar_cycles.fill(0);
@@ -1170,38 +1296,41 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
 
     try {
       auto ark = gh::ark::ArkV3Reader::load(hdr_path);
-      auto entry = ark.find("sfx/gen/ingame_bank.milo_ps2");
-      if (!entry) entry = ark.find("../../system/run/sfx/gen/ingame_bank.milo_ps2");
-      if (!entry) {
-        std::fprintf(stderr,
-                     "[audio-gameplay] ingame sfx bank not found\n");
-        return;
-      }
-      const std::vector<uint8_t> milo_bytes =
-          ark.read_entry(*entry, {ark_path});
-      const auto header = gh::milo::parse_header(milo_bytes);
-      const auto payload = gh::milo::inflate_payload(milo_bytes, header);
-      const auto dir = gh::milo::parse_directory(payload);
-      for (const auto& child : dir.entries) {
-        if (child.type == "SynthSample") {
-          parse_synth_sample(child, payload, dir.dir_version);
-        } else if (child.type == "Sfx") {
-          parse_sfx(child, payload, dir.dir_version);
-        } else if (child.type == "SfxSeq") {
-          parse_sfx_sequence(child, payload, dir.dir_version);
-        } else if (child.type == "RandomGroupSeq") {
-          parse_random_group_sequence(child, payload, dir.dir_version);
+      std::size_t loaded_banks = 0;
+      for (const std::string& bank_path : bank_paths) {
+        auto entry = ark.find(bank_path);
+        if (!entry)
+          entry = ark.find("../../system/run/" + bank_path);
+        if (!entry) {
+          std::fprintf(stderr, "[audio-sfx] %s bank not found: %s\n",
+                       context, bank_path.c_str());
+          continue;
         }
+        const std::vector<uint8_t> milo_bytes =
+            ark.read_entry(*entry, {ark_path});
+        const auto header = gh::milo::parse_header(milo_bytes);
+        const auto payload = gh::milo::inflate_payload(milo_bytes, header);
+        const auto dir = gh::milo::parse_directory(payload);
+        for (const auto& child : dir.entries) {
+          if (child.type == "SynthSample") {
+            parse_synth_sample(child, payload, dir.dir_version);
+          } else if (child.type == "Sfx") {
+            parse_sfx(child, payload, dir.dir_version);
+          } else if (child.type == "SfxSeq") {
+            parse_sfx_sequence(child, payload, dir.dir_version);
+          } else if (child.type == "RandomGroupSeq") {
+            parse_random_group_sequence(child, payload, dir.dir_version);
+          }
+        }
+        ++loaded_banks;
       }
-      gameplay_sfx_loaded =
-          route_available("miss_gtr") || route_available("sp_gemhit") ||
-          route_available("sp_awarded") || route_available("track_unfurl");
+      gameplay_sfx_loaded = loaded_banks > 0 && !sfx_defs.empty();
       std::fprintf(
           stderr,
-          "[audio-gameplay] loaded GH2 ingame bank: samples=%zu sfx=%zu "
+          "[audio-sfx] loaded %s banks=%zu: samples=%zu sfx=%zu "
           "seq=%zu groups=%zu miss_gtr=%d sp_gemhit=%d sp_awarded=%d "
           "track_unfurl=%d nowbar=%d/%d/%d/%d/%d meter_slide=%d\n",
-          bank_samples.size(), sfx_defs.size(), sequence_defs.size(),
+          context, loaded_banks, bank_samples.size(), sfx_defs.size(), sequence_defs.size(),
           group_defs.size(), route_available("miss_gtr") ? 1 : 0,
           route_available("sp_gemhit") ? 1 : 0,
           route_available("sp_awarded") ? 1 : 0,
@@ -1212,10 +1341,18 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
           route_available("nowbar_4") ? 1 : 0,
           route_available("nowbar_5") ? 1 : 0,
           route_available("meter_slide") ? 1 : 0);
+      return gameplay_sfx_loaded;
     } catch (const std::exception& ex) {
-      std::fprintf(stderr, "[audio-gameplay] bank load failed: %s\n",
-                   ex.what());
+      std::fprintf(stderr, "[audio-sfx] %s bank load failed: %s\n",
+                   context, ex.what());
+      return false;
     }
+  }
+
+  void load_gameplay_sfx_bank(const std::string& hdr_path,
+                              const std::string& ark_path) {
+    load_sfx_banks_internal(hdr_path, ark_path,
+                            {"sfx/gen/ingame_bank.milo_ps2"}, "gameplay");
   }
 
   void load_beatmatcher_config(const std::string& hdr_path,
@@ -1433,6 +1570,45 @@ bool AudioPlayer::load_vgs(const std::string& hdr_path, const std::string& ark_p
                impl_->total_frames / static_cast<double>(impl_->sample_rate));
   std::fprintf(stderr, "[audio] ready (streaming)\n");
   return true;
+}
+
+bool AudioPlayer::load_sfx_banks(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& bank_paths) {
+  impl_ = std::make_unique<Impl>();
+  if (hdr_path.empty() || ark_path.empty() || bank_paths.empty()) return false;
+  if (!impl_->init_xaudio2()) {
+    std::fprintf(stderr,
+                 "[audio-sfx] XAudio2 unavailable; menu sound disabled\n");
+    return false;
+  }
+  return impl_->load_sfx_banks_internal(hdr_path, ark_path, bank_paths,
+                                        "front_end");
+}
+
+bool AudioPlayer::play_sfx(const std::string& route) {
+  if (!impl_ || route.empty()) return false;
+  uint32_t cycle = 0;
+  return impl_->play_route(route.c_str(), "menu_script", cycle);
+}
+
+void AudioPlayer::stop_sfx(const std::string& route) {
+  if (impl_) impl_->stop_route(route);
+}
+
+void AudioPlayer::stop_all_sfx() {
+  if (impl_) impl_->stop_all_routes();
+}
+
+void AudioPlayer::pause_all_sfx(bool paused) {
+  if (impl_) impl_->pause_all_routes(paused);
+}
+
+void AudioPlayer::set_output_volume(float linear_gain) {
+  if (impl_ && impl_->master)
+    impl_->master->SetVolume(audio_output_muted()
+                                 ? 0.0f
+                                 : std::clamp(linear_gain, 0.0f, 4.0f));
 }
 
 void AudioPlayer::play() {

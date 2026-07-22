@@ -397,6 +397,17 @@ Image load_ps2_bitmap_from_ark(const std::string& hdr_path,
   return out;
 }
 
+std::string endgame_photo_bitmap_path_for_outfit(std::string outfit_key) {
+  outfit_key = normalize_pathish(std::move(outfit_key));
+  const std::size_t slash = outfit_key.find_last_of('/');
+  if (slash != std::string::npos) outfit_key.erase(0, slash + 1);
+  constexpr std::string_view kMiloSuffix = ".milo_ps2";
+  if (ends_with(outfit_key, kMiloSuffix))
+    outfit_key.resize(outfit_key.size() - kMiloSuffix.size());
+  if (outfit_key.empty()) return {};
+  return "ui/image/og/gen/photo_" + outfit_key + "0_keep.bmp_ps2";
+}
+
 std::string track_surface_bitmap_path_for_outfit(std::string outfit_key) {
   const std::string normalized = normalize_outfit_surface_key(std::move(outfit_key));
   if (normalized.empty()) return {};

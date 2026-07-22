@@ -6,14 +6,20 @@
 #include "dtb_bridge/dtb_bridge.h"
 #include "milo.h"
 #include "script/preprocess.h"
+#include "ui/menu_labels.h"
+#include "milo_scene/milo_scene.h"
 #include "ui/screen_manager.h"
 #include "ui/ui_classes.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
+#include <functional>
+#include <memory>
 #include <string>
+#include <unordered_set>
 
 namespace ghogx::ui {
 
@@ -140,7 +146,8 @@ bool is_script_visible_milo_object(Symbol type) {
          std::strcmp(t, "Trans") == 0 || std::strcmp(t, "TransAnim") == 0 ||
          std::strcmp(t, "MeshAnim") == 0 || std::strcmp(t, "MatAnim") == 0 ||
          std::strcmp(t, "PollAnim") == 0 || std::strcmp(t, "AnimFilter") == 0 ||
-         std::strcmp(t, "Environ") == 0 || std::strcmp(t, "Light") == 0;
+         std::strcmp(t, "Environ") == 0 || std::strcmp(t, "EnvAnim") == 0 ||
+         std::strcmp(t, "Light") == 0;
 }
 
 std::int32_t i32_at(const std::vector<std::uint8_t>& bytes, std::size_t pos) {
@@ -158,6 +165,94 @@ void seed_milo_widget_state(Object* child, const gh::milo::Entry& entry,
   const std::size_t base = static_cast<std::size_t>(entry.offset);
   const std::size_t size = static_cast<std::size_t>(entry.size);
   const std::string type = entry.type;
+  const std::vector<std::uint8_t> body(
+      payload.begin() + static_cast<std::ptrdiff_t>(base),
+      payload.begin() + static_cast<std::ptrdiff_t>(base + size));
+
+  if (type == "UITrigger") {
+    const MenuUiTrigger trigger = decode_menu_ui_trigger_body(body, entry.name);
+    if (!trigger.valid) return;
+    child->set_property(Symbol("event"), DataNode::Sym(Symbol(trigger.event)));
+    child->set_property(Symbol("anim_ref"),
+                        DataNode::Sym(Symbol(trigger.anim_ref)));
+    child->set_property(Symbol("block_transition"),
+                        DataNode::Int(trigger.block_transition ? 1 : 0));
+    child->set_property(Symbol("end_time"), DataNode::Float(0.0f));
+    return;
+  }
+
+  if (type == "AnimFilter") {
+    const MenuAnimFilter filter =
+        decode_menu_anim_filter_body(body, entry.name);
+    if (!filter.valid) return;
+    child->set_property(Symbol("anim_ref"),
+                        DataNode::Sym(Symbol(filter.trans_anim)));
+    child->set_property(Symbol("frame"), DataNode::Float(filter.frame));
+    child->set_property(Symbol("scale"), DataNode::Float(filter.scale));
+    child->set_property(Symbol("offset"), DataNode::Float(filter.offset));
+    child->set_property(Symbol("start"), DataNode::Float(filter.start));
+    child->set_property(Symbol("end"), DataNode::Float(filter.end));
+    child->set_property(Symbol("filter_type"), DataNode::Int(filter.type));
+    child->set_property(Symbol("period"), DataNode::Float(filter.period));
+    float scale = filter.scale;
+    if (!std::isfinite(scale) || std::fabs(scale) <= 0.0001f) scale = 1.0f;
+    if (filter.end < filter.start) scale = -std::fabs(scale);
+    const float frame_offset =
+        filter.offset +
+        (filter.end < filter.start ? filter.start - filter.end : 0.0f);
+    float start_frame = (filter.start - frame_offset) / scale;
+    float end_frame = (filter.end - frame_offset) / scale;
+    if (filter.type == 2) end_frame *= 2.0f;
+    child->set_property(Symbol("start_frame"), DataNode::Float(start_frame));
+    child->set_property(Symbol("end_frame"), DataNode::Float(end_frame));
+    return;
+  }
+
+  if (type == "TransAnim") {
+    const MenuSliderAnim anim = decode_menu_trans_anim_body(body, entry.name);
+    if (!anim.valid) return;
+    child->set_property(Symbol("target"), DataNode::Sym(Symbol(anim.target)));
+    child->set_property(Symbol("keys_owner"),
+                        DataNode::Sym(Symbol(anim.keys_owner)));
+    child->set_property(Symbol("start_frame"),
+                        DataNode::Float(anim.first_frame));
+    child->set_property(Symbol("end_frame"), DataNode::Float(anim.last_frame));
+    return;
+  }
+
+  if (type == "MatAnim") {
+    const MenuMaterialAnim anim =
+        decode_menu_material_anim_body(body, entry.name);
+    if (!anim.valid) return;
+    child->set_property(Symbol("target"), DataNode::Sym(Symbol(anim.material)));
+    child->set_property(Symbol("keys_owner"),
+                        DataNode::Sym(Symbol(anim.keys_owner)));
+    child->set_property(Symbol("start_frame"),
+                        DataNode::Float(anim.first_frame));
+    child->set_property(Symbol("end_frame"),
+                        DataNode::Float(anim.last_frame));
+    return;
+  }
+
+  if (type == "EnvAnim") {
+    const auto anim = milo_scene::decode_env_anim(entry.name, body);
+    if (!anim.decoded) return;
+    child->set_property(Symbol("target"),
+                        DataNode::Sym(Symbol(anim.environment)));
+    child->set_property(Symbol("keys_owner"),
+                        DataNode::Sym(Symbol(anim.keys_owner)));
+    child->set_property(Symbol("frame"), DataNode::Float(anim.frame));
+    float end_frame = 0.0f;
+    for (const auto& key : anim.ambient_color_keys)
+      end_frame = std::max(end_frame, key.frame);
+    for (const auto& key : anim.fog_color_keys)
+      end_frame = std::max(end_frame, key.frame);
+    for (const auto& key : anim.fog_range_keys)
+      end_frame = std::max(end_frame, key.frame);
+    child->set_property(Symbol("start_frame"), DataNode::Float(0.0f));
+    child->set_property(Symbol("end_frame"), DataNode::Float(end_frame));
+    return;
+  }
 
   if ((type == "CheckBox" || type == "CheckboxDisplay") && size >= 5) {
     // MiloLib CheckboxDisplay names this serialized field `isChecked`; GH2's
@@ -263,6 +358,73 @@ int load_all_ui_screens(const gh::ark::ArkV3Reader& ark,
   return n;
 }
 
+namespace {
+bool stock_route_head(const std::string& head) {
+  return head == "meta_loading_goto" ||
+         head == "meta_loading_nosave_goto" || head == "autosave_goto";
+}
+
+void collect_route_nodes(const Node& node, const std::string& owner,
+                         std::vector<UiRouteRef>& out) {
+  if (!gh::dtb::is_array(node)) return;
+  const NodeList& children = gh::dtb::children(node);
+  if (node.tag == 0x11 && !children.empty()) {
+    std::string operation;
+    const Node* target_node = nullptr;
+    const std::string head = nstr(*children[0]);
+    if (head == "ui" && children.size() >= 2) {
+      const std::string method = nstr(*children[1]);
+      if (method == "goto_screen" || method == "push_screen" ||
+          method == "pop_screen" || method == "reset_screen") {
+        operation = method;
+        if (children.size() >= 3) target_node = children[2].get();
+      }
+    } else if (stock_route_head(head)) {
+      operation = head;
+      if (children.size() >= 2) target_node = children[1].get();
+    }
+    if (!operation.empty()) {
+      UiRouteRef route;
+      route.owner = owner;
+      route.operation = operation;
+      route.source_line = node.line;
+      if (target_node)
+        route.target = gh::dtb::as_string(*target_node).value_or("");
+      // DTB tag 0x02 is a variable. gh::dtb::as_string returns its stored name
+      // without the decompiler's leading '$', so classify from the source tag
+      // instead of from the rendered spelling.
+      route.dynamic = target_node &&
+                      (target_node->tag == 0x02 || route.target.empty());
+      out.push_back(std::move(route));
+    }
+  }
+  for (const auto& child : children)
+    if (child) collect_route_nodes(*child, owner, out);
+}
+
+std::string function_owner(const Node& block) {
+  const NodeList& children = gh::dtb::children(block);
+  if (children.size() >= 2 && nstr(*children[0]) == "func")
+    return "func:" + nstr(*children[1]);
+  return "func:?";
+}
+}  // namespace
+
+std::vector<UiRouteRef> collect_ui_route_refs(const ScreenManager& mgr) {
+  std::vector<UiRouteRef> out;
+  const ObjectDir& registry = mgr.registry();
+  for (std::size_t i = 0; i < registry.size(); ++i) {
+    Object* object = registry.at(i);
+    auto* ui = dynamic_cast<UiObject*>(object);
+    if (!ui) continue;
+    for (const auto& block : ui->handler_blocks())
+      if (block) collect_route_nodes(*block, object->name().c_str(), out);
+  }
+  for (const auto& block : mgr.function_blocks())
+    if (block) collect_route_nodes(*block, function_owner(*block), out);
+  return out;
+}
+
 int load_panel_milo_widgets(const gh::ark::ArkV3Reader& ark,
                             const std::vector<std::string>& ark_paths,
                             ScreenManager& mgr) {
@@ -274,7 +436,12 @@ int load_panel_milo_widgets(const gh::ark::ArkV3Reader& ark,
     Object* owner = objects.at(i);
     auto* panel = dynamic_cast<ObjectDir*>(owner);
     if (!panel) continue;
-    std::string file(owner->get_property(Symbol("file")).as_string().value_or(""));
+    DataNode file_node = owner->get_property(Symbol("file"));
+    if (file_node.empty())
+      file_node = owner->handle_property(Symbol("file"), DataArray());
+    std::string file;
+    if (auto text = file_node.as_string()) file = std::string(*text);
+    if (auto sym = file_node.as_symbol()) file = sym->c_str();
     const std::string milo_path = panel_milo_path(file);
     if (milo_path.empty()) continue;
     try {
@@ -291,12 +458,83 @@ int load_panel_milo_widgets(const gh::ark::ArkV3Reader& ark,
         const bool is_script_object = is_script_visible_milo_object(type);
         if (!reg.creatable(type) || (!is_widget && !is_script_object))
           continue;
-        if (panel->find(Symbol(e.name))) continue;
-        Object* child = panel->create_child(type, Symbol(e.name));
-        if (auto* ui = dynamic_cast<UiObject*>(child)) ui->set_manager(&mgr);
+        Object* child = panel->find(Symbol(e.name));
+        if (!child) {
+          child = panel->create_child(type, Symbol(e.name));
+          if (auto* ui = dynamic_cast<UiObject*>(child)) ui->set_manager(&mgr);
+          if (child) ++loaded;
+        }
         seed_milo_widget_state(child, e, payload);
-        if (child) ++loaded;
       }
+
+      // RndGroup::SetFrame propagates to the animatable objects named in its
+      // authored object list, and RndGroup::EndFrame is the maximum of those
+      // children. Preserve that graph so no-argument stock `animate` commands
+      // use the shipped range instead of silently becoming zero-length tasks.
+      for (const auto& e : dir.entries) {
+        if (e.type != "Group" || e.offset + e.size > payload.size()) continue;
+        Object* group_object = panel->find(Symbol(e.name));
+        if (!group_object) continue;
+        std::vector<std::uint8_t> body(payload.begin() + e.offset,
+                                       payload.begin() + e.offset + e.size);
+        const milo_scene::GroupObj group =
+            milo_scene::decode_group(e.name, body, dir.dir_version);
+        if (!group.decoded) continue;
+        auto children = std::make_shared<DataArray>();
+        for (const std::string& name : group.children)
+          children->push(DataNode::Sym(Symbol(name)));
+        group_object->set_property(Symbol("anim_children"),
+                                   DataNode::Array(children));
+        group_object->set_property(Symbol("showing"),
+                                   DataNode::Int(group.showing ? 1 : 0));
+      }
+
+      const auto is_animatable = [](Object* object) {
+        if (!object) return false;
+        const Symbol type = object->class_name();
+        return type == Symbol("TransAnim") || type == Symbol("MatAnim") ||
+               type == Symbol("EnvAnim") || type == Symbol("AnimFilter") ||
+               type == Symbol("Group");
+      };
+      std::function<float(Object*, std::unordered_set<Object*>&)> end_frame_of;
+      end_frame_of = [&](Object* object,
+                         std::unordered_set<Object*>& visiting) -> float {
+        if (!object || !visiting.insert(object).second) return 0.0f;
+        float end = object->get_property(Symbol("end_frame"))
+                        .as_float().value_or(0.0f);
+        const Symbol keys_owner =
+            object->get_property(Symbol("keys_owner"))
+                .as_symbol().value_or(Symbol());
+        if (keys_owner.valid() && keys_owner != object->name()) {
+          if (Object* owner_anim = panel->find(keys_owner))
+            end = std::max(end, end_frame_of(owner_anim, visiting));
+        }
+        if (object->class_name() == Symbol("Group")) {
+          if (auto children =
+                  object->get_property(Symbol("anim_children")).as_array()) {
+            for (std::size_t child_i = 0; child_i < children->size(); ++child_i) {
+              const Symbol child_name =
+                  children->at(child_i).as_symbol().value_or(Symbol());
+              Object* child = child_name.valid() ? panel->find(child_name) : nullptr;
+              if (is_animatable(child))
+                end = std::max(end, end_frame_of(child, visiting));
+            }
+          }
+        }
+        visiting.erase(object);
+        object->set_property(Symbol("start_frame"), DataNode::Float(0.0f));
+        object->set_property(Symbol("end_frame"), DataNode::Float(end));
+        return end;
+      };
+      float panel_end = 0.0f;
+      for (std::size_t child_i = 0; child_i < panel->size(); ++child_i) {
+        Object* child = panel->at(child_i);
+        if (!is_animatable(child)) continue;
+        std::unordered_set<Object*> visiting;
+        panel_end = std::max(panel_end, end_frame_of(child, visiting));
+      }
+      owner->set_property(Symbol("start_frame"), DataNode::Float(0.0f));
+      owner->set_property(Symbol("end_frame"), DataNode::Float(panel_end));
     } catch (const std::exception& ex) {
       std::fprintf(stderr, "[ui] panel widgets %s failed: %s\n",
                    milo_path.c_str(), ex.what());

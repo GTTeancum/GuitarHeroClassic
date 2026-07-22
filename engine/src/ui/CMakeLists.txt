@@ -15,7 +15,8 @@ add_library(ghogx_ui_core STATIC
 )
 target_include_directories(ghogx_ui_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_ui_core PUBLIC
-    ghogx_core ghogx_script ghogx_dtb_bridge ghogx_chart ark_v3 dtb milo)
+    ghogx_core ghogx_script ghogx_dtb_bridge ghogx_chart ghogx_milo_scene
+    ark_v3 dtb milo)
 
 if(MSVC)
     target_compile_options(ghogx_ui_core PRIVATE /W4)
@@ -29,6 +30,9 @@ endif()
 add_library(ghogx_menu_font STATIC menu_font.cpp menu_font.h menu_labels.cpp menu_labels.h)
 target_include_directories(ghogx_menu_font PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_menu_font PUBLIC ghogx_asset ark_v3 milo)
+# The stock panel loader seeds UITrigger/AnimFilter/TransAnim runtime state from
+# the same byte-exact decoders used by the renderer and corpus tests.
+target_link_libraries(ghogx_ui_core PUBLIC ghogx_menu_font)
 if(MSVC)
     target_compile_options(ghogx_menu_font PRIVATE /W4)
 else()
@@ -43,7 +47,7 @@ add_library(ghogx_ui_render STATIC
 target_include_directories(ghogx_ui_render PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_ui_render PUBLIC
     ghogx_ui_core ghogx_render ghogx_milo_scene ghogx_asset ghogx_menu_font
-    ghogx_game ghogx_hud ark_v3 milo)
+    ghogx_game ghogx_hud ghogx_character ark_v3 milo)
 if(MSVC)
     target_compile_options(ghogx_ui_render PRIVATE /W4)
 endif()

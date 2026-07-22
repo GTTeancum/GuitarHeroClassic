@@ -3,6 +3,7 @@
 #include "script/interp.h"
 
 #include "core/object.h"
+#include "core/object_dir.h"
 
 #include <algorithm>
 #include <cmath>
@@ -43,10 +44,23 @@ DataNode to_literal(const Node& n) {
   }
 }
 
+Object* resolve_object(Symbol name, Env& env) {
+  // Bare object names inside a Harmonix handler are relative to the handler's
+  // ObjectDir before they fall back to the global registry. Stock panels
+  // legitimately reuse child names such as song_name.lbl.
+  if (env.self) {
+    if (env.self->name() == name) return env.self;
+    if (auto* dir = dynamic_cast<ObjectDir*>(env.self)) {
+      if (Object* child = dir->find_path(name.c_str())) return child;
+    }
+  }
+  return env.host ? env.host->resolve_object(name) : nullptr;
+}
+
 Object* node_to_object(const DataNode& v, Env& env) {
   if (Object* o = v.as_object()) return o;
-  if (auto s = v.as_symbol()) return env.host ? env.host->resolve_object(*s) : nullptr;
-  if (auto text = v.as_string()) return env.host ? env.host->resolve_object(Symbol(*text)) : nullptr;
+  if (auto s = v.as_symbol()) return resolve_object(*s, env);
+  if (auto text = v.as_string()) return resolve_object(Symbol(*text), env);
   return nullptr;
 }
 
@@ -61,6 +75,7 @@ enum Builtin {
   BI_RANDOM_ELEM, BI_REMOVE_ELEM,
   BI_SPRINTF, BI_SPRINT, BI_RESIZE, BI_PUSH_BACK, BI_LOCALIZE, BI_PRINT,
   BI_EXISTS, BI_OPTION_STR, BI_TEXT_ENTRY_HELP, BI_AUTOSAVE_GOTO, BI_SCRIPT_TASK,
+  BI_NEW,
 };
 
 int lookup_builtin(Symbol s) {
@@ -94,6 +109,7 @@ int lookup_builtin(Symbol s) {
     add("autosave_goto", BI_AUTOSAVE_GOTO);
     add("script_task", BI_SCRIPT_TASK);
     add("thread_task", BI_SCRIPT_TASK);
+    add("new", BI_NEW);
     return m;
   }();
   auto it = kTable.find(s.id());
@@ -257,7 +273,7 @@ DataNode Interp::eval(const Node& n, Env& env) {
       return env.self->get_property(node_sym(*k[0]));
     }
     case 0x11: return eval_command(n, env);  // {command}
-    case 0x10: return to_literal(n);          // (data array) literal
+    case 0x10: return eval_data_array(n, env); // script-time (...) value
     default: return DataNode();
   }
 }
@@ -273,6 +289,26 @@ DataArray Interp::eval_args(const Node& cmd, std::size_t arg_start, Env& env) {
   const NodeList& k = gh::dtb::children(cmd);
   for (std::size_t i = arg_start; i < k.size(); ++i) args.push(eval(*k[i], env));
   return args;
+}
+
+DataNode Interp::eval_data_array(const Node& array, Env& env) {
+  auto out = std::make_shared<DataArray>();
+  for (const auto& child : gh::dtb::children(array)) {
+    if (child && child->tag == 0x10)
+      out->push(eval_data_array(*child, env));
+    else
+      out->push(child ? eval(*child, env) : DataNode());
+  }
+  return DataNode::Array(std::move(out));
+}
+
+Symbol Interp::eval_message_symbol(const Node& message, Env& env) {
+  if (message.tag == 0x05 || message.tag == 0x12)
+    return node_sym(message);
+  const DataNode value = eval(message, env);
+  if (auto symbol = value.as_symbol()) return *symbol;
+  if (auto text = value.as_string()) return Symbol(*text);
+  return Symbol();
 }
 
 Object* Interp::eval_object(const Node& head, Env& env) {
@@ -366,6 +402,7 @@ DataNode Interp::eval_command(const Node& cmd, Env& env) {
       case BI_TEXT_ENTRY_HELP: return bi_text_entry_help(cmd, env);
       case BI_AUTOSAVE_GOTO: return bi_autosave_goto(cmd, env);
       case BI_SCRIPT_TASK: return bi_script_task(cmd, env);
+      case BI_NEW: return bi_new(cmd, env);
       default: break;  // not a builtin -> object message via symbol target
     }
     if (env.host) {
@@ -375,7 +412,7 @@ DataNode Interp::eval_command(const Node& cmd, Env& env) {
       }
     }
 
-    Object* t = env.host ? env.host->resolve_object(h) : nullptr;
+    Object* t = resolve_object(h, env);
     if (!t) {
       if (env.host) {
         DataArray args = eval_args(cmd, 1, env);
@@ -386,11 +423,16 @@ DataNode Interp::eval_command(const Node& cmd, Env& env) {
       return DataNode();
     }
     if (kids.size() < 2) return DataNode();
-    Symbol msg = node_sym(*kids[1]);
+    Symbol msg = eval_message_symbol(*kids[1], env);
     DataNode foreach_out;
     if (try_object_foreach(t, msg, cmd, env, foreach_out)) return foreach_out;
     DataArray args = eval_args(cmd, 2, env);
-    return t->handle_property(msg, args);
+    DataNode result = t->handle_property(msg, args);
+    if (auto values = result.as_array()) {
+      for (std::size_t i = 0; i < values->size() && 2 + i < kids.size(); ++i)
+        assign_target(*kids[2 + i], values->at(i), env);
+    }
+    return result;
   }
 
   // head is $var / {command} / [prop] -> object target
@@ -400,11 +442,16 @@ DataNode Interp::eval_command(const Node& cmd, Env& env) {
     return DataNode();
   }
   if (kids.size() < 2) return DataNode();
-  Symbol msg = node_sym(*kids[1]);
+  Symbol msg = eval_message_symbol(*kids[1], env);
   DataNode foreach_out;
   if (try_object_foreach(t, msg, cmd, env, foreach_out)) return foreach_out;
   DataArray args = eval_args(cmd, 2, env);
-  return t->handle_property(msg, args);
+  DataNode result = t->handle_property(msg, args);
+  if (auto values = result.as_array()) {
+    for (std::size_t i = 0; i < values->size() && 2 + i < kids.size(); ++i)
+      assign_target(*kids[2 + i], values->at(i), env);
+  }
+  return result;
 }
 
 DataNode Interp::run_handler(const NodeList& handler_body, Object* self,
@@ -966,6 +1013,21 @@ DataNode Interp::bi_script_task(const Node& c, Env& env) {
     segment.push_back(node);
   }
   schedule_segment();
+  return DataNode();
+}
+
+DataNode Interp::bi_new(const Node& c, Env& env) {
+  const NodeList& k = gh::dtb::children(c);
+  if (k.size() < 3 || !env.host || !is_symbol(*k[1]) ||
+      !is_symbol(*k[2])) {
+    if (env.host) env.host->on_unhandled("new?:args");
+    return DataNode();
+  }
+  const Symbol cls = node_sym(*k[1]);
+  const Symbol name = node_sym(*k[2]);
+  if (Object* object = env.host->create_object(cls, name))
+    return DataNode::Obj(object);
+  env.host->on_unhandled(std::string("new?:") + cls.c_str());
   return DataNode();
 }
 

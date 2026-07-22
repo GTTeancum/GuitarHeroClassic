@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <memory>
@@ -463,6 +464,37 @@ bool slider_class(Symbol cls) {
   return cls == Symbol("UISlider") || cls == Symbol("BandSlider");
 }
 
+std::vector<Symbol> symbol_array(const DataNode& node) {
+  std::vector<Symbol> out;
+  auto values = node.as_array();
+  if (!values) return out;
+  out.reserve(values->size());
+  for (std::size_t i = 0; i < values->size(); ++i) {
+    Symbol value = values->at(i).as_symbol().value_or(Symbol());
+    if (!value.valid()) {
+      if (auto text = values->at(i).as_string()) value = Symbol(*text);
+      else if (Object* object = values->at(i).as_object()) value = object->name();
+    }
+    if (value.valid()) out.push_back(value);
+  }
+  return out;
+}
+
+Symbol button_selection(Symbol button) {
+  std::string value = button.c_str();
+  constexpr const char* suffix = ".btn";
+  if (value.size() >= 4 && value.compare(value.size() - 4, 4, suffix) == 0)
+    value.resize(value.size() - 4);
+  return Symbol(value);
+}
+
+Symbol selection_button(Symbol selection) {
+  std::string value = selection.c_str();
+  if (value.size() < 4 || value.compare(value.size() - 4, 4, ".btn") != 0)
+    value += ".btn";
+  return Symbol(value);
+}
+
 bool text_entry_class(Symbol cls) {
   return cls == Symbol("UITextEntry") || cls == Symbol("BandTextEntry");
 }
@@ -665,6 +697,25 @@ std::string localized_node_text(UiObject& obj, const DataNode& node) {
   return node_text(node);
 }
 
+void replace_all(std::string& text, const std::string& needle,
+                 const std::string& replacement) {
+  if (needle.empty()) return;
+  std::size_t pos = 0;
+  while ((pos = text.find(needle, pos)) != std::string::npos) {
+    text.replace(pos, needle.size(), replacement);
+    pos += replacement.size();
+  }
+}
+
+std::string headline_placeholder(Symbol key) {
+  std::string upper;
+  for (char c : std::string(key.c_str())) {
+    upper.push_back(c == '-' ? '_' : static_cast<char>(
+        std::toupper(static_cast<unsigned char>(c))));
+  }
+  return "{GH_" + upper + "}";
+}
+
 Object* dialog_button_from_node(UiObject& dialog, const DataNode& node) {
   if (Object* obj = node.as_object()) return obj;
   std::string name = node_text(node);
@@ -793,7 +844,12 @@ DataNode UiObject::handle_property(Symbol msg, const DataArray& args) {
     // CreditsPanel::Enter/Poll/Exit are class methods in ihatecompvir's source;
     // UIPanel's authored handler data runs as part of that class lifecycle, not
     // instead of it. Preserve both for the stock credits menu.
-    if (credits_panel_lifecycle(cls_, msg)) {
+    if (credits_panel_lifecycle(cls_, msg) ||
+        ((cls_ == Symbol("MultiSelectPanel") ||
+          cls_ == Symbol("MultiCharSelPanel") ||
+          cls_ == Symbol("CharsysPanel") ||
+          cls_ == Symbol("GuitarSelectPanel")) &&
+         msg == Symbol("enter"))) {
       DataNode ignored;
       handle_builtin(msg, args, ignored);
     }
@@ -803,12 +859,460 @@ DataNode UiObject::handle_property(Symbol msg, const DataArray& args) {
   }
   // 2. Common engine built-in.
   if (handle_builtin(msg, args, out)) return out;
+  // Stock DTB message syntax uses a zero-argument property name as its getter
+  // (for example `{$this title}` and `{game_screen attract_mode}`). Scripted
+  // handlers and native class methods above retain priority; only unresolved
+  // zero-argument messages fall through to the authored property table.
+  if (args.empty() && has_property(msg)) return get_property(msg);
   // 3. Universal Object/ObjectDir messages (get/set/has/name/...).
   return ObjectDir::handle_property(msg, args);
 }
 
 bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) {
   const char* m = msg.c_str();
+
+  // CharsysPanel is the native asynchronous character-display boundary used by
+  // sel_character.dtb, multiplayer.dtb, and store.dtb.  Stock scripts select an
+  // outfit with show_char, assign authored BandPlacer/Environ objects after the
+  // screen transition, and poll is_char_loaded to drive their LOADING labels.
+  // The D3D menu presenter consumes these per-slot properties and reports the
+  // synchronous PC-side decode result through char_loaded_N.
+  if (cls_ == Symbol("CharsysPanel")) {
+    if (std::strcmp(m, "show_char") == 0) {
+      const int player = arg0_int(args);
+      const DataNode outfit = args.size() > 1 ? args.at(1) : DataNode();
+      const DataNode old_character =
+          get_property(Symbol(indexed_key("char_object", player)));
+      const Symbol old_outfit = node_symbol_value(old_character);
+      const Symbol new_outfit = node_symbol_value(outfit);
+      const bool transfer_pending =
+          old_outfit.valid() && new_outfit.valid() && old_outfit != new_outfit;
+      set_property(Symbol(indexed_key("char_transfer_pending", player)),
+                   DataNode::Int(transfer_pending ? 1 : 0));
+      set_property(Symbol(indexed_key("char_transfer_source", player)),
+                   transfer_pending ? old_character : DataNode());
+      set_property(Symbol(indexed_key("char_outfit", player)), outfit);
+      set_property(Symbol(indexed_key("char_loaded", player)), DataNode::Int(0));
+      set_property(Symbol("char_outfit"), outfit);
+      // Stock scripts branch on show_char's return before transferring the old
+      // main.drv and sending the animate/select/store event. A valid requested
+      // outfit means the asynchronous character swap was accepted.
+      out = DataNode::Int(new_outfit.valid() ? 1 : 0);
+      return true;
+    }
+    if (std::strcmp(m, "get_char") == 0) {
+      const int player = arg0_int(args);
+      out = get_property(Symbol(indexed_key("char_object", player)));
+      return true;
+    }
+    if (std::strcmp(m, "is_char_loaded") == 0) {
+      const int player = arg0_int(args);
+      out = DataNode::Int(node_bool(get_property(
+                              Symbol(indexed_key("char_loaded", player))))
+                              ? 1
+                              : 0);
+      return true;
+    }
+    if (std::strcmp(m, "are_chars_loaded") == 0) {
+      const int slots = std::max(
+          1, get_property(Symbol("num_placers")).as_int().value_or(1));
+      bool loaded = true;
+      for (int player = 0; player < slots; ++player) {
+        loaded = loaded && node_bool(get_property(
+                               Symbol(indexed_key("char_loaded", player))));
+      }
+      out = DataNode::Int(loaded ? 1 : 0);
+      return true;
+    }
+    if (std::strcmp(m, "set_placer") == 0 ||
+        std::strcmp(m, "set_env") == 0) {
+      const int player = arg0_int(args);
+      const char* stem = m[4] == 'p' ? "char_placer" : "char_env";
+      set_property(Symbol(indexed_key(stem, player)),
+                   args.size() > 1 ? args.at(1) : DataNode());
+      return true;
+    }
+    if (std::strcmp(m, "char_event") == 0) {
+      const int player = arg0_int(args);
+      set_property(Symbol(indexed_key("char_event", player)),
+                   args.size() > 1 ? args.at(1) : DataNode());
+      return true;
+    }
+    if (std::strcmp(m, "set_paused") == 0) {
+      set_property(Symbol("char_paused"),
+                   DataNode::Int(arg0_bool(args) ? 1 : 0));
+      return true;
+    }
+    if (std::strcmp(m, "set_door") == 0) {
+      set_property(Symbol("char_door"),
+                   args.empty() ? DataNode() : args.at(0));
+      return true;
+    }
+  }
+
+  if (cls_ == Symbol("GHScreen") &&
+      (std::strcmp(m, "reset_ambient") == 0 ||
+       std::strcmp(m, "turn_off_ambient") == 0)) {
+    // Loading/memory-card screens call this native GHScreen boundary rather
+    // than addressing MetaMusic directly. Stop only the ambient controller;
+    // one-shot UI cues remain owned by Synth and keep their scripted lifetime.
+    if (mgr_)
+      mgr_->emit_audio_event(Symbol("meta_music"), Symbol("stop"), false);
+    set_property(Symbol("ambient"), DataNode::Int(0));
+    return true;
+  }
+
+  // Harmonix MultiSelectScreen owns controller-to-player routing while each
+  // MultiSelectPanel owns one player's focus/ready state.  multiplayer.dtb
+  // supplies the panel_base_name, sel_buttons, player_num, ready_label and
+  // all_ready callbacks; these are native class responsibilities in retail,
+  // not scripted handlers.
+  if (cls_ == Symbol("MultiSelectPanel")) {
+    auto set_ready_visible = [&](bool visible) {
+      Symbol ready_name = node_symbol_value(get_property(Symbol("ready_label")));
+      if (!ready_name.valid()) return;
+      if (Object* ready = find_path(ready_name.c_str()))
+        ready->set_property(Symbol("showing"),
+                            DataNode::Sym(Symbol(visible ? "TRUE" : "FALSE")));
+    };
+    auto buttons = [&]() { return symbol_array(get_property(Symbol("sel_buttons"))); };
+    auto set_selection = [&](Symbol selection) {
+      const std::vector<Symbol> authored = buttons();
+      if (authored.empty()) return;
+      Symbol button = selection_button(selection);
+      auto it = std::find(authored.begin(), authored.end(), button);
+      if (it == authored.end()) return;
+      set_property(Symbol("focus_button_name"),
+                   DataNode::Sym(button_selection(*it)));
+      set_property(Symbol("focus"), DataNode::Sym(*it));
+      sync_panel_focus_state(*this);
+      if (mgr_) {
+        mgr_->set_global(Symbol("new_focus"),
+                         DataNode::Obj(find_path(it->c_str())));
+        mgr_->set_global(Symbol("panel_dir"), DataNode::Obj(this));
+      }
+      if (has_handler(Symbol("FOCUS_MSG")))
+        handle_property(Symbol("FOCUS_MSG"), DataArray());
+    };
+    if (std::strcmp(m, "enter") == 0) {
+      set_property(Symbol("ready"), DataNode::Int(0));
+      if (!has_property(Symbol("active")))
+        set_property(Symbol("active"), DataNode::Int(1));
+      set_ready_visible(false);
+      Symbol selection =
+          node_symbol_value(get_property(Symbol("focus_button_name")));
+      if (!selection.valid()) {
+        const auto authored = buttons();
+        if (!authored.empty()) selection = button_selection(authored.front());
+      }
+      if (selection.valid()) set_selection(selection);
+      return true;
+    }
+    if (std::strcmp(m, "set_active") == 0) {
+      const bool active = arg0_bool(args);
+      set_property(Symbol("active"), DataNode::Int(active ? 1 : 0));
+      if (!active) {
+        set_property(Symbol("ready"), DataNode::Int(0));
+        set_ready_visible(false);
+      }
+      return true;
+    }
+    if (std::strcmp(m, "is_ready") == 0) {
+      out = DataNode::Int(node_bool(get_property(Symbol("ready"))) ? 1 : 0);
+      return true;
+    }
+    if (std::strcmp(m, "force_select") == 0) {
+      set_selection(arg_symbol(args, 0));
+      set_property(Symbol("ready"), DataNode::Int(1));
+      set_ready_visible(true);
+      return true;
+    }
+    if (std::strcmp(m, "multi_button_down") == 0) {
+      if (has_property(Symbol("active")) &&
+          !node_bool(get_property(Symbol("active"))))
+        return true;
+      const Symbol button = arg_symbol(args, 0);
+      const std::vector<Symbol> authored = buttons();
+      if (authored.empty()) return true;
+      const bool ready = node_bool(get_property(Symbol("ready")));
+      if (button == Symbol("kPad_X")) {
+        if (!ready) {
+          Symbol selection =
+              node_symbol_value(get_property(Symbol("focus_button_name")));
+          if (!selection.valid()) selection = button_selection(authored.front());
+          set_selection(selection);
+          set_property(Symbol("ready"), DataNode::Int(1));
+          set_ready_visible(true);
+        }
+        return true;
+      }
+      if (button == Symbol("kPad_Tri")) {
+        if (ready) {
+          set_property(Symbol("ready"), DataNode::Int(0));
+          set_ready_visible(false);
+        }
+        return true;
+      }
+      if (ready) return true;
+      const int delta =
+          (button == Symbol("kPad_DU") || button == Symbol("kPad_LU"))
+              ? -1
+              : (button == Symbol("kPad_DD") || button == Symbol("kPad_LD"))
+                    ? 1
+                    : 0;
+      if (delta == 0) return true;
+      Symbol current =
+          selection_button(node_symbol_value(get_property(Symbol("focus_button_name"))));
+      auto it = std::find(authored.begin(), authored.end(), current);
+      int index = it == authored.end() ? 0 : static_cast<int>(it - authored.begin());
+      index = (index + delta + static_cast<int>(authored.size())) %
+              static_cast<int>(authored.size());
+      set_selection(button_selection(authored[static_cast<std::size_t>(index)]));
+      return true;
+    }
+  }
+
+  if (cls_ == Symbol("MultiCharSelPanel")) {
+    auto navigator = [&]() {
+      return symbol_array(get_property(Symbol("char_navigator")));
+    };
+    auto player_config = [&](int player) -> Object* {
+      if (!mgr_) return nullptr;
+      Object* game = mgr_->resolve_object(Symbol("game"));
+      if (!game) return nullptr;
+      DataArray player_arg;
+      player_arg.push(DataNode::Int(player));
+      return game->handle_property(Symbol("get_player_config"), player_arg)
+          .as_object();
+    };
+    auto selected_index = [&](int player) {
+      const std::vector<Symbol> chars = navigator();
+      if (chars.empty()) return 0;
+      int value = get_property(Symbol(indexed_key("char_index", player)))
+                      .as_int()
+                      .value_or(player == 0 ? 0 : 1);
+      return std::clamp(value, 0, static_cast<int>(chars.size()) - 1);
+    };
+    auto apply_character = [&](int player, int index) {
+      const std::vector<Symbol> chars = navigator();
+      if (chars.empty()) return;
+      index = std::clamp(index, 0, static_cast<int>(chars.size()) - 1);
+      set_property(Symbol(indexed_key("char_index", player)),
+                   DataNode::Int(index));
+      if (Object* config = player_config(player)) {
+        const Symbol character = chars[static_cast<std::size_t>(index)];
+        Symbol outfit = character;
+        if (mgr_ && mgr_->current_screen()) {
+          DataArray outfit_args;
+          outfit_args.push(DataNode::Sym(character));
+          outfit_args.push(DataNode::Int(0));
+          outfit = node_symbol_value(mgr_->current_screen()->handle_property(
+              Symbol("get_outfit"), outfit_args));
+          if (!outfit.valid()) outfit = character;
+        }
+        config->set_property(Symbol("character"), DataNode::Sym(character));
+        config->set_property(Symbol("character_outfit"),
+                             DataNode::Sym(outfit));
+        config->set_property(Symbol("outfit_index"), DataNode::Int(0));
+      }
+    };
+    if (std::strcmp(m, "enter") == 0) {
+      const std::vector<Symbol> chars = navigator();
+      for (int player = 0; player < 2; ++player) {
+        int index = selected_index(player);
+        if (Object* config = player_config(player)) {
+          const Symbol current = node_symbol_value(
+              config->get_property(Symbol("character")));
+          auto it = std::find(chars.begin(), chars.end(), current);
+          if (it != chars.end()) index = static_cast<int>(it - chars.begin());
+        }
+        apply_character(player, index);
+      }
+      return true;
+    }
+    if (std::strcmp(m, "get_char_idx") == 0) {
+      out = DataNode::Int(selected_index(arg0_int(args)));
+      return true;
+    }
+    if (std::strcmp(m, "BUTTON_DOWN_MSG") == 0) {
+      if (!mgr_) return true;
+      const int player = std::clamp(
+          mgr_->get_global(Symbol("player_num")).as_int().value_or(0), 0, 1);
+      const Symbol button =
+          node_symbol_value(mgr_->get_global(Symbol("button")));
+      if (button == Symbol("kPad_X")) {
+        if (Object* screen = mgr_->current_screen()) {
+          DataArray selected;
+          selected.push(DataNode::Int(player));
+          screen->handle_property(Symbol("multi_char_selected"), selected);
+        }
+        return true;
+      }
+      const int delta =
+          (button == Symbol("kPad_DU") || button == Symbol("kPad_DL") ||
+           button == Symbol("kPad_LU") || button == Symbol("kPad_LL"))
+              ? -1
+              : (button == Symbol("kPad_DD") || button == Symbol("kPad_DR") ||
+                 button == Symbol("kPad_LD") || button == Symbol("kPad_LR"))
+                    ? 1
+                    : 0;
+      const std::vector<Symbol> chars = navigator();
+      if (delta != 0 && !chars.empty()) {
+        int index = (selected_index(player) + delta +
+                     static_cast<int>(chars.size())) %
+                    static_cast<int>(chars.size());
+        apply_character(player, index);
+        if (Object* screen = mgr_->current_screen()) {
+          DataArray scrolled;
+          scrolled.push(DataNode::Int(player));
+          screen->handle_property(Symbol("multi_char_scroll"), scrolled);
+        }
+      }
+      return true;
+    }
+  }
+
+  if (cls_ == Symbol("MultiSelectScreen") &&
+      std::strcmp(m, "BUTTON_DOWN_MSG") == 0) {
+    if (!mgr_) return true;
+    const int player = std::clamp(
+        mgr_->get_global(Symbol("player_num")).as_int().value_or(0), 0, 1);
+    const Symbol button =
+        node_symbol_value(mgr_->get_global(Symbol("button")));
+    const Symbol base =
+        node_symbol_value(get_property(Symbol("panel_base_name")));
+    Object* player_panel = nullptr;
+    if (base.valid()) {
+      const std::string panel_name = std::string(base.c_str()) +
+                                     std::to_string(player);
+      player_panel = mgr_->find_object(Symbol(panel_name));
+    }
+    const bool panel_active =
+        player_panel &&
+        (!player_panel->has_property(Symbol("active")) ||
+         node_bool(player_panel->get_property(Symbol("active"))));
+    if (panel_active) {
+      DataArray routed;
+      routed.push(DataNode::Sym(button));
+      player_panel->handle_property(Symbol("multi_button_down"), routed);
+      if (button == Symbol("kPad_X") || button == Symbol("kPad_DU") ||
+          button == Symbol("kPad_DD") || button == Symbol("kPad_LU") ||
+          button == Symbol("kPad_LD")) {
+        const Symbol selection = node_symbol_value(
+            player_panel->get_property(Symbol("focus_button_name")));
+        if (selection.valid()) {
+          DataArray set_selection;
+          set_selection.push(DataNode::Int(player));
+          set_selection.push(DataNode::Sym(selection));
+          handle_property(Symbol("set_selection"), set_selection);
+        }
+      }
+      if (button == Symbol("kPad_X")) {
+        bool all_ready = true;
+        for (int i = 0; i < 2; ++i) {
+          const std::string panel_name = std::string(base.c_str()) +
+                                         std::to_string(i);
+          Object* panel = mgr_->find_object(Symbol(panel_name));
+          all_ready = all_ready && panel &&
+                      node_bool(panel->get_property(Symbol("ready")));
+        }
+        if (all_ready) handle_property(Symbol("all_ready"), DataArray());
+      }
+      return true;
+    }
+    Symbol focus = node_symbol_value(get_property(Symbol("focus")));
+    if (Object* focused = focus.valid() ? mgr_->find_object(focus) : nullptr)
+      focused->handle_property(Symbol("BUTTON_DOWN_MSG"), DataArray());
+    return true;
+  }
+
+  if (cls_ == Symbol("MultiSelectScreen")) {
+    if (std::strcmp(m, "get_char_idx") == 0) {
+      Object* panel = mgr_ ? mgr_->find_object(Symbol("multi_sel_character_panel"))
+                           : nullptr;
+      out = panel ? panel->handle_property(Symbol("get_char_idx"), args)
+                  : DataNode::Int(0);
+      return true;
+    }
+    if (std::strcmp(m, "get_outfit") == 0 ||
+        std::strcmp(m, "num_outfits") == 0) {
+      Symbol character = arg_symbol(args, 0);
+      std::string base = character.c_str();
+      if (!base.empty() && base.back() >= '0' && base.back() <= '9')
+        base.pop_back();
+      if (std::strcmp(m, "get_outfit") == 0) {
+        const int index = args.size() > 1
+                              ? std::max(0, args.at(1).as_int().value_or(0))
+                              : 0;
+        out = DataNode::Sym(Symbol(base + std::to_string(index + 1)));
+      } else {
+        int count = 1;
+        Object* provider = mgr_ ? mgr_->resolve_object(
+                                      Symbol("store_item_provider"))
+                                : nullptr;
+        if (provider) {
+          DataArray category;
+          category.push(DataNode::Sym(Symbol("outfit")));
+          provider->handle_property(Symbol("set_category"), category);
+          const int total = provider->handle_property(Symbol("list_length"),
+                                                      DataArray())
+                                .as_int()
+                                .value_or(0);
+          const Symbol second(base + "2");
+          for (int i = 0; i < total; ++i) {
+            DataArray index;
+            index.push(DataNode::Int(i));
+            if (provider->handle_property(Symbol("get_symbol"), index)
+                    .as_symbol()
+                    .value_or(Symbol()) == second) {
+              count = 2;
+              break;
+            }
+          }
+        }
+        out = DataNode::Int(count);
+      }
+      return true;
+    }
+  }
+
+  if (cls_ == Symbol("EndGamePanel") &&
+      std::strcmp(m, "generate_headline") == 0) {
+    // endgame.dta supplies a localized headline token plus optional keyed
+    // substitutions.  EndGamePanel supplies the venue automatically; the
+    // remaining values arrive as (adj ...), (noun ...), etc.  This is the
+    // stock script/native boundary used by every newspaper headline.
+    const Symbol token = arg_symbol(args, 0);
+    std::string headline =
+        token.valid() && mgr_ ? mgr_->localize(token) : std::string();
+
+    if (mgr_) {
+      const DataNode venue_node =
+          game_message(mgr_, Symbol("get_venue"), DataArray());
+      Symbol venue = node_symbol_value(venue_node);
+      if (venue.valid())
+        replace_all(headline, "{GH_VENUE}", mgr_->localize(venue));
+
+      if (Object* band = mgr_->resolve_object(Symbol("band"))) {
+        DataNode band_name = band->get_property(Symbol("name"));
+        if (band_name.empty())
+          band_name = band->get_property(Symbol("band_name"));
+        const std::string value = node_text(band_name);
+        if (!value.empty()) replace_all(headline, "{GH_BAND}", value);
+      }
+    }
+
+    for (std::size_t i = 1; i < args.size(); ++i) {
+      auto keyed = args.at(i).as_array();
+      if (!keyed || keyed->size() < 2) continue;
+      Symbol key = keyed->at(0).as_symbol().value_or(Symbol());
+      if (!key.valid()) continue;
+      replace_all(headline, headline_placeholder(key),
+                  node_text(keyed->at(1)));
+    }
+    out = DataNode::Str(headline);
+    return true;
+  }
 
   // --- self visual/text state ---
   if (std::strcmp(m, "set_showing") == 0) {
@@ -999,6 +1503,12 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
   }
   if (std::strcmp(m, "set_provider") == 0) {
     set_property(Symbol("provider"), arg0(args));
+    if (Object* provider = arg0(args).as_object()) {
+      const int count = provider->handle_property(Symbol("num_data"), DataArray())
+                            .as_int()
+                            .value_or(0);
+      set_property(Symbol("provider_num_data"), DataNode::Int(std::max(0, count)));
+    }
     return true;
   }
   if (std::strcmp(m, "set_selected") == 0) {
@@ -1128,7 +1638,11 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
       set_slider_frame(*this, arg0_float(args));
       return true;
     }
-    set_property(Symbol("frame"), args.size() ? arg0(args) : DataNode::Float(0.0f));
+    const float frame = args.size() ? arg0_float(args) : 0.0f;
+    if (mgr_)
+      mgr_->set_animation_frame(this, frame);
+    else
+      set_property(Symbol("frame"), DataNode::Float(frame));
     return true;
   }
   if (std::strcmp(m, "frame") == 0) {
@@ -1152,6 +1666,14 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
       if (auto keyed = args.at(i).as_array()) store_keyed_anim_arg(*this, *keyed);
     }
     if (mgr_) mgr_->start_animation_task(this, args);
+    return true;
+  }
+  if (std::strcmp(m, "stop_animation") == 0) {
+    if (mgr_) mgr_->stop_animation_task(this);
+    return true;
+  }
+  if (std::strcmp(m, "is_animating") == 0) {
+    out = DataNode::Int(mgr_ && mgr_->is_animation_task_active(this) ? 1 : 0);
     return true;
   }
   if (std::strcmp(m, "set_local_pos") == 0) {
@@ -1293,6 +1815,27 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
   }
 
   if (cls_ == Symbol("GuitarSelectPanel")) {
+    if (std::strcmp(m, "enter") == 0) {
+      DataNode guitar = game_message(mgr_, Symbol("get_guitar"), DataArray());
+      DataNode skin =
+          game_message(mgr_, Symbol("get_guitar_skin"), DataArray());
+      if (!guitar.empty()) set_property(Symbol("selected_guitar"), guitar);
+      if (!skin.empty()) set_property(Symbol("selected_skin"), skin);
+      set_property(Symbol("select_done"), DataNode::Int(0));
+      return true;
+    }
+    if (std::strcmp(m, "BUTTON_DOWN_MSG") == 0) {
+      const Symbol button =
+          mgr_ ? node_symbol_value(mgr_->get_global(Symbol("button")))
+               : Symbol();
+      if (button == Symbol("kPad_X") && mgr_ && mgr_->current_screen()) {
+        DataArray selected;
+        selected.push(DataNode::Int(0));
+        mgr_->current_screen()->handle_property(Symbol("guitar_selected"),
+                                                selected);
+        return true;
+      }
+    }
     if (std::strcmp(m, "set_skin_select") == 0) {
       const int player = arg0_int(args);
       const bool selecting_skin = args.size() > 1 && node_bool(args.at(1));
@@ -1502,7 +2045,7 @@ void register_ui_classes() {
   // map (RndMesh/RndMat/RndTex/RndTransAnim/RndMeshAnim/RndMatAnim).
   static const char* kMiloScriptObjects[] = {
       "Mesh", "Mat", "Tex", "Trans", "TransAnim", "MeshAnim", "MatAnim",
-      "PollAnim", "AnimFilter", "Environ", "Light"};
+      "PollAnim", "AnimFilter", "Environ", "EnvAnim", "Light"};
   for (const char* o : kMiloScriptObjects) define_uiobject(o, "Object");
 
   // The complete {new <Class>} screen/panel roster (STOCK_SURFACE.txt). Super
@@ -1513,7 +2056,8 @@ void register_ui_classes() {
       "GHPanel", "UIPanel", "MultiSelectPanel", "SliderPanel", "GuitarDisplayPanel",
       "EndGamePanel", "CharsysPanel", "GuitarSelectPanel", "TutorialPanel", "TrackPanel",
       "StorePanel", "MultiSelectListPanel", "MultiCharSelPanel", "MetaPanel", "LagPanel",
-      "HudPanel", "HelpBarPanel", "GamePanel", "FadePanel", "CreditsPanel"};
+      "HudPanel", "HelpBarPanel", "GamePanel", "FadePanel", "CreditsPanel",
+      "MidiLoaderPanel", "TrackMaskPanel"};
   for (const char* s : kScreens) define_uiobject(s, "Object");
   for (const char* p : kPanels) define_uiobject(p, "Object");
 

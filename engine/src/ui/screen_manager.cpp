@@ -200,9 +200,27 @@ ScreenManager::ScreenManager() = default;
 
 // --- registry --------------------------------------------------------------
 void ScreenManager::add_object(std::unique_ptr<Object> obj) {
+  if (auto* ui = dynamic_cast<UiObject*>(obj.get())) ui->set_manager(this);
   registry_.add(std::move(obj));
 }
 Object* ScreenManager::find_object(Symbol name) { return registry_.find(name); }
+
+void ScreenManager::register_runtime_class(Symbol cls, RuntimeCreator creator) {
+  if (cls.valid() && creator) runtime_creators_[cls.id()] = std::move(creator);
+}
+
+Object* ScreenManager::create_object(Symbol cls, Symbol name) {
+  if (!cls.valid() || !name.valid()) return nullptr;
+  std::unique_ptr<Object> object;
+  if (auto it = runtime_creators_.find(cls.id()); it != runtime_creators_.end())
+    object = it->second(name);
+  else
+    object = ClassReg::instance().create(cls);
+  if (!object) return nullptr;
+  object->set_name(name);
+  if (auto* ui = dynamic_cast<UiObject*>(object.get())) ui->set_manager(this);
+  return registry_.add(std::move(object));
+}
 
 void ScreenManager::add_singleton(Symbol name, std::unique_ptr<Object> obj) {
   singletons_[name.id()] = obj.get();
@@ -258,14 +276,101 @@ void ScreenManager::exit_sequence(Object* screen, bool back, bool defer_unload) 
                           DataArray());
   send_screen_panels(screen, Symbol("exit"), /*screen_first=*/true);
   screen->handle_property(back ? Symbol("ui_exit_back") : Symbol("ui_exit"), DataArray());
+  for (Symbol panel_name : screen_panels(screen)) {
+    if (Object* panel = find_object(panel_name)) {
+      dispatch_panel_transition(
+          panel, Symbol("ui_exit"),
+          back ? Symbol("ui_exit_back") : Symbol("ui_exit_forward"));
+    }
+  }
   if (!defer_unload) {
     send_screen_panels(screen, Symbol("exit_complete"), /*screen_first=*/true);
     send_screen_panels(screen, Symbol("unload"), /*screen_first=*/true);
   }
 }
 
-void ScreenManager::enter_sequence(Object* screen, bool back, bool defer_complete) {
-  if (!screen) return;
+float ScreenManager::animatable_duration_seconds(ObjectDir* panel,
+                                                 Object* anim) const {
+  if (!panel || !anim) return 0.0f;
+  float start_frame = 0.0f;
+  float end_frame = 0.0f;
+  if (anim->class_name() == Symbol("AnimFilter")) {
+    const Symbol source =
+        anim->get_property(Symbol("anim_ref")).as_symbol().value_or(Symbol());
+    if (!source.valid() || !panel->find(source)) return 0.0f;
+    float scale = node_float_value(anim->get_property(Symbol("scale")), 1.0f);
+    if (!std::isfinite(scale) || std::fabs(scale) <= 0.0001f) scale = 1.0f;
+    const float offset =
+        node_float_value(anim->get_property(Symbol("offset")), 0.0f);
+    const float authored_start =
+        node_float_value(anim->get_property(Symbol("start")), 0.0f);
+    const float authored_end =
+        node_float_value(anim->get_property(Symbol("end")), 0.0f);
+    start_frame = (authored_start - offset) / scale;
+    const float end_offset =
+        offset + (authored_end >= authored_start ? 0.0f
+                                                 : authored_start - authored_end);
+    end_frame = (authored_end - end_offset) / scale;
+    if (anim->get_property(Symbol("filter_type")).as_int().value_or(0) == 2)
+      end_frame *= 2.0f;
+  } else if (anim->class_name() == Symbol("TransAnim")) {
+    start_frame =
+        node_float_value(anim->get_property(Symbol("start_frame")), 0.0f);
+    end_frame =
+        node_float_value(anim->get_property(Symbol("end_frame")), 0.0f);
+  } else {
+    return 0.0f;
+  }
+  const float seconds = std::fabs(end_frame - start_frame) / 30.0f;
+  return std::isfinite(seconds) ? seconds : 0.0f;
+}
+
+float ScreenManager::dispatch_panel_transition(Object* panel_object,
+                                               Symbol event,
+                                               Symbol directional_event) {
+  auto* panel = dynamic_cast<ObjectDir*>(panel_object);
+  if (!panel) return 0.0f;
+  float blocking_seconds = 0.0f;
+  for (std::size_t i = 0; i < panel->size(); ++i) {
+    Object* trigger = panel->at(i);
+    if (!trigger || trigger->class_name() != Symbol("UITrigger")) continue;
+    const Symbol trigger_event =
+        trigger->get_property(Symbol("event")).as_symbol().value_or(Symbol());
+    if (trigger_event != event && trigger_event != directional_event) continue;
+
+    trigger->handle_property(trigger_event, DataArray());
+    trigger->set_property(Symbol("triggered_at"), DataNode::Float(ui_seconds_));
+    const Symbol anim_ref =
+        trigger->get_property(Symbol("anim_ref")).as_symbol().value_or(Symbol());
+    Object* anim = anim_ref.valid() ? panel->find(anim_ref) : nullptr;
+    const float duration = animatable_duration_seconds(panel, anim);
+    trigger->set_property(Symbol("end_time"),
+                          DataNode::Float(duration > 0.0f
+                                              ? ui_seconds_ + duration
+                                              : 0.0f));
+    if (anim) {
+      anim->set_property(Symbol("triggered_at"), DataNode::Float(ui_seconds_));
+      anim->set_property(Symbol("trigger_event"),
+                         DataNode::Sym(trigger_event));
+      anim->set_property(Symbol("trigger_duration"),
+                         DataNode::Float(duration));
+      // UITrigger owns an RndAnimatable reference and starts it when its
+      // authored event fires. Drive that same live object here so TransAnim,
+      // MatAnim, Group, and AnimFilter frames advance through the ordinary
+      // panel animation graph instead of leaving the renderer to infer a
+      // separate one-shot from the event name.
+      start_animation_task(anim, DataArray());
+    }
+    const bool blocks =
+        !node_falsey(trigger->get_property(Symbol("block_transition")));
+    if (blocks && duration > 0.0f)
+      blocking_seconds = std::max(blocking_seconds, duration);
+  }
+  return blocking_seconds;
+}
+
+float ScreenManager::enter_sequence(Object* screen, bool back) {
+  if (!screen) return 0.0f;
   bool has_helpbar_panel = false;
   for (Symbol panel : screen_panels(screen)) {
     if (panel == Symbol("helpbar")) {
@@ -284,17 +389,20 @@ void ScreenManager::enter_sequence(Object* screen, bool back, bool defer_complet
   send_screen_panels(screen, Symbol("finish_load"), /*screen_first=*/false);
   screen->handle_property(back ? Symbol("ui_enter_back") : Symbol("ui_enter"), DataArray());
   send_screen_panels(screen, Symbol("enter"), /*screen_first=*/false);  // sub-objects then screen
+  float blocking_seconds = 0.0f;
+  for (Symbol panel_name : screen_panels(screen)) {
+    if (Object* panel = find_object(panel_name)) {
+      blocking_seconds = std::max(
+          blocking_seconds,
+          dispatch_panel_transition(
+              panel, Symbol("ui_enter"),
+              back ? Symbol("ui_enter_back") : Symbol("ui_enter_forward")));
+    }
+  }
   // Scene-state ID is refined per-screen (harmonix_symbols.h:904) when the
   // gameplay handoff is wired; menus are NORMAL/MENU here.
   scene_state_ = 1;
-  if (!defer_complete && !loading_completion_is_external(screen))
-    send_screen_panels(screen, Symbol("TRANSITION_COMPLETE_MSG"),
-                       /*screen_first=*/false);
-}
-
-void ScreenManager::set_transition_time(float seconds) {
-  if (std::isfinite(seconds) && seconds >= 0.0f)
-    transition_time_seconds_ = seconds;
+  return blocking_seconds;
 }
 
 ScreenManager::TransitionSnapshot ScreenManager::transition_snapshot() const {
@@ -354,28 +462,14 @@ void ScreenManager::goto_screen(Symbol name) {
   current_ = target;
   history_.erase(std::remove(history_.begin(), history_.end(), current_),
                  history_.end());
-  const bool has_screen_transition = exiting != nullptr;
-  const bool animate_transition =
-      has_screen_transition &&
-      !node_falsey(current_->get_property(Symbol("animate_transition"))) &&
-      !node_falsey(exiting->get_property(Symbol("animate_transition")));
-  enter_sequence(current_, back, /*defer_complete=*/animate_transition);
-  if (animate_transition && transition_time_seconds_ > 0.0f) {
-    transition_.active = true;
-    transition_.back = back;
-    transition_.remaining = transition_time_seconds_;
-    transition_.duration = transition_time_seconds_;
-    transition_.exiting_screen = exiting;
-    transition_.entering_screen = current_;
-  } else if (has_screen_transition) {
-    transition_.active = true;
-    transition_.back = back;
-    transition_.remaining = 0.0f;
-    transition_.duration = 0.0f;
-    transition_.exiting_screen = exiting;
-    transition_.entering_screen = current_;
-    finish_transition();
-  }
+  const float blocking_seconds = enter_sequence(current_, back);
+  transition_.active = true;
+  transition_.back = back;
+  transition_.remaining = blocking_seconds;
+  transition_.duration = blocking_seconds;
+  transition_.exiting_screen = exiting;
+  transition_.entering_screen = current_;
+  if (blocking_seconds <= 0.0f) finish_transition();
 }
 
 void ScreenManager::push_screen(Symbol name) {
@@ -385,7 +479,13 @@ void ScreenManager::push_screen(Symbol name) {
   if (transition_.active) finish_transition();
   if (current_) stack_.push_back(current_);
   current_ = target;
-  enter_sequence(current_, /*back=*/false, /*defer_complete=*/false);
+  const float blocking_seconds = enter_sequence(current_, /*back=*/false);
+  transition_.active = true;
+  transition_.back = false;
+  transition_.remaining = blocking_seconds;
+  transition_.duration = blocking_seconds;
+  transition_.entering_screen = current_;
+  if (blocking_seconds <= 0.0f) finish_transition();
 }
 
 void ScreenManager::pop_screen() {
@@ -411,7 +511,13 @@ void ScreenManager::pop_screen(Symbol next_overlay) {
   if (transition_.active) finish_transition();
   if (current_) stack_.push_back(current_);
   current_ = target;
-  enter_sequence(current_, /*back=*/false, /*defer_complete=*/false);
+  const float blocking_seconds = enter_sequence(current_, /*back=*/false);
+  transition_.active = true;
+  transition_.back = false;
+  transition_.remaining = blocking_seconds;
+  transition_.duration = blocking_seconds;
+  transition_.entering_screen = current_;
+  if (blocking_seconds <= 0.0f) finish_transition();
 }
 
 void ScreenManager::go_back() {
@@ -437,26 +543,14 @@ void ScreenManager::go_back() {
   Object* exiting = current_;
   exit_sequence(current_, /*back=*/true, /*defer_unload=*/true);
   current_ = target;
-  const bool animate_transition =
-      !node_falsey(current_->get_property(Symbol("animate_transition"))) &&
-      (!exiting || !node_falsey(exiting->get_property(Symbol("animate_transition"))));
-  enter_sequence(current_, /*back=*/true, /*defer_complete=*/animate_transition);
-  if (animate_transition && transition_time_seconds_ > 0.0f) {
-    transition_.active = true;
-    transition_.back = true;
-    transition_.remaining = transition_time_seconds_;
-    transition_.duration = transition_time_seconds_;
-    transition_.exiting_screen = exiting;
-    transition_.entering_screen = current_;
-  } else if (exiting) {
-    transition_.active = true;
-    transition_.back = true;
-    transition_.remaining = 0.0f;
-    transition_.duration = 0.0f;
-    transition_.exiting_screen = exiting;
-    transition_.entering_screen = current_;
-    finish_transition();
-  }
+  const float blocking_seconds = enter_sequence(current_, /*back=*/true);
+  transition_.active = true;
+  transition_.back = true;
+  transition_.remaining = blocking_seconds;
+  transition_.duration = blocking_seconds;
+  transition_.exiting_screen = exiting;
+  transition_.entering_screen = current_;
+  if (blocking_seconds <= 0.0f) finish_transition();
 }
 
 void ScreenManager::update(float dt) {
@@ -525,11 +619,13 @@ void ScreenManager::run_due_script_tasks() {
 
 void ScreenManager::poll_active_animations() {
   if (active_animations_.empty()) return;
-  DataArray set_frame_args;
-  set_frame_args.push(DataNode::Float(0.0f));
   auto out = active_animations_.begin();
   for (ActiveAnimation& anim : active_animations_) {
     if (!anim.target) continue;
+    if (ui_seconds_ < anim.start_seconds) {
+      *out++ = anim;
+      continue;
+    }
     float frame = 0.0f;
     bool done = false;
     if (anim.forever) {
@@ -549,14 +645,13 @@ void ScreenManager::poll_active_animations() {
       } else {
         frame = clamp_frame(frame, anim.start_frame, anim.end_frame);
         done = anim.duration_seconds <= 0.0f ||
-               elapsed > anim.duration_seconds;
+               elapsed + 0.000001f >= anim.duration_seconds;
       }
     }
-    set_frame_args.at(0) = DataNode::Float(frame);
-    anim.target->set_property(Symbol("frame"), DataNode::Float(frame));
-    anim.target->handle_property(Symbol("set_frame"), set_frame_args);
+    set_animation_frame(anim.target, frame);
     if (done) {
       anim.target->set_property(Symbol("anim_task_active"), DataNode::Int(0));
+      anim.target->set_property(Symbol("animating"), DataNode::Int(0));
       if (anim.task_name.valid())
         anim.target->set_property(Symbol("finished_anim_task"),
                                   DataNode::Sym(anim.task_name));
@@ -655,20 +750,32 @@ void ScreenManager::on_unhandled(const std::string& what) {
 
 void ScreenManager::start_animation_task(Object* target, const DataArray& args) {
   if (!target) return;
-  float start = target->handle_property(Symbol("frame"), DataArray())
-                    .as_float()
-                    .value_or(0.0f);
+  float start = target->handle_property(Symbol("start_frame"), DataArray())
+                    .as_float().value_or(
+                        target->get_property(Symbol("start_frame"))
+                            .as_float().value_or(0.0f));
   float end = target->handle_property(Symbol("end_frame"), DataArray())
-                  .as_float()
-                  .value_or(start);
-  const bool has_range = keyed_range(args, Symbol("range"), start, end);
-  const bool has_loop = keyed_range(args, Symbol("loop"), start, end);
+                  .as_float().value_or(
+                      target->get_property(Symbol("end_frame"))
+                          .as_float().value_or(start));
+  keyed_range(args, Symbol("range"), start, end);
+  bool has_loop = keyed_range(args, Symbol("loop"), start, end);
+  if (const DataArray* loop = keyed_arg(args, Symbol("loop"));
+      loop && loop->size() < 3) {
+    has_loop = true;
+  }
+  if (const DataArray* dest = keyed_arg(args, Symbol("dest"));
+      dest && dest->size() > 1) {
+    start = target->get_property(Symbol("frame")).as_float().value_or(start);
+    end = node_float_value(dest->at(1), end);
+    has_loop = false;
+  }
   const float period = keyed_float(args, Symbol("period"), 0.0f);
+  const float delay = std::max(0.0f, keyed_float(args, Symbol("delay"), 0.0f));
+  const float speed_scale = keyed_float(args, Symbol("scale"), 1.0f);
   const Symbol task_name = keyed_symbol(args, Symbol("name"));
-  if (!task_name.valid() && !has_range && !has_loop && period <= 0.0f)
-    return;
 
-  float frames_per_second = 30.0f;
+  float frames_per_second = 30.0f * speed_scale;
   const float span = std::fabs(end - start);
   if (period > 0.0f && span > 0.0f) frames_per_second = span / period;
   if (end < start) frames_per_second = -frames_per_second;
@@ -693,13 +800,113 @@ void ScreenManager::start_animation_task(Object* target, const DataArray& args) 
   if (task_name.valid())
     target->set_property(Symbol("anim_task_name"), DataNode::Sym(task_name));
 
-  DataArray set_frame_args;
-  set_frame_args.push(DataNode::Float(start));
-  target->set_property(Symbol("frame"), DataNode::Float(start));
-  target->handle_property(Symbol("set_frame"), set_frame_args);
+  if (delay <= 0.0f) set_animation_frame(target, start);
   active_animations_.push_back(
-      {target, task_name, start, end, frames_per_second, ui_seconds_,
+      {target, task_name, start, end, frames_per_second, ui_seconds_ + delay,
        duration, false, has_loop});
+}
+
+void ScreenManager::stop_animation_task(Object* target) {
+  if (!target) return;
+  active_animations_.erase(
+      std::remove_if(active_animations_.begin(), active_animations_.end(),
+                     [&](const ActiveAnimation& anim) {
+                       return anim.target == target;
+                     }),
+      active_animations_.end());
+  target->set_property(Symbol("anim_task_active"), DataNode::Int(0));
+  target->set_property(Symbol("animating"), DataNode::Int(0));
+}
+
+bool ScreenManager::is_animation_task_active(Object* target) const {
+  return target &&
+         std::any_of(active_animations_.begin(), active_animations_.end(),
+                     [&](const ActiveAnimation& anim) {
+                       return anim.target == target;
+                     });
+}
+
+void ScreenManager::set_animation_frame(Object* target, float frame) {
+  if (!target || !std::isfinite(frame)) return;
+  target->set_property(Symbol("frame"), DataNode::Float(frame));
+
+  ObjectDir* container = nullptr;
+  for (std::size_t i = 0; i < registry_.size() && !container; ++i) {
+    auto* candidate = dynamic_cast<ObjectDir*>(registry_.at(i));
+    if (!candidate) continue;
+    for (std::size_t child_i = 0; child_i < candidate->size(); ++child_i) {
+      if (candidate->at(child_i) == target) {
+        container = candidate;
+        break;
+      }
+    }
+  }
+
+  if (target->class_name() == Symbol("AnimFilter") && container) {
+    const Symbol source =
+        target->get_property(Symbol("anim_ref")).as_symbol().value_or(Symbol());
+    Object* child = source.valid() ? container->find(source) : nullptr;
+    if (child) {
+      float scale = node_float_value(target->get_property(Symbol("scale")), 1.0f);
+      const float start =
+          node_float_value(target->get_property(Symbol("start")), 0.0f);
+      const float end =
+          node_float_value(target->get_property(Symbol("end")), 0.0f);
+      if (end < start) scale = -std::fabs(scale);
+      const float offset =
+          node_float_value(target->get_property(Symbol("offset")), 0.0f) +
+          (end < start ? start - end : 0.0f);
+      float source_frame = frame * scale + offset;
+      const float lo = std::min(start, end);
+      const float hi = std::max(start, end);
+      const float span = hi - lo;
+      const int filter_type =
+          target->get_property(Symbol("filter_type")).as_int().value_or(0);
+      if (span > 0.0001f) {
+        if (filter_type == 1) {
+          source_frame = std::fmod(source_frame - lo, span);
+          if (source_frame < 0.0f) source_frame += span;
+          source_frame += lo;
+        } else if (filter_type == 2) {
+          const float cycle = span * 2.0f;
+          source_frame = std::fmod(source_frame - lo, cycle);
+          if (source_frame < 0.0f) source_frame += cycle;
+          if (source_frame > span) source_frame = cycle - source_frame;
+          source_frame += lo;
+        } else {
+          source_frame = std::clamp(source_frame, lo, hi);
+        }
+      }
+      set_animation_frame(child, source_frame);
+    }
+    return;
+  }
+
+  auto propagate_children = [&](ObjectDir* dir, const DataNode& value) {
+    auto children = value.as_array();
+    if (!dir || !children) return;
+    for (std::size_t i = 0; i < children->size(); ++i) {
+      const Symbol name = children->at(i).as_symbol().value_or(Symbol());
+      Object* child = name.valid() ? dir->find(name) : nullptr;
+      if (!child) continue;
+      const Symbol type = child->class_name();
+      if (type == Symbol("TransAnim") || type == Symbol("MatAnim") ||
+          type == Symbol("AnimFilter") || type == Symbol("Group"))
+        set_animation_frame(child, frame);
+    }
+  };
+  if (target->class_name() == Symbol("Group")) {
+    propagate_children(container, target->get_property(Symbol("anim_children")));
+  } else if (auto* dir = dynamic_cast<ObjectDir*>(target)) {
+    for (std::size_t i = 0; i < dir->size(); ++i) {
+      Object* child = dir->at(i);
+      if (!child) continue;
+      const Symbol type = child->class_name();
+      if (type == Symbol("TransAnim") || type == Symbol("MatAnim") ||
+          type == Symbol("AnimFilter") || type == Symbol("Group"))
+        set_animation_frame(child, frame);
+    }
+  }
 }
 
 bool ScreenManager::symbol_exists(Symbol name) {
@@ -980,6 +1187,8 @@ class StubObject : public Object {
                                            .as_int()
                                            .value_or(0) +
                                    1));
+        if (sequence.valid())
+          mgr_->emit_audio_event(Symbol("play_sequence"), sequence);
         return DataNode();
       }
       if (std::strcmp(m, "stop_all_sfx") == 0) {
@@ -989,6 +1198,7 @@ class StubObject : public Object {
                                            .as_int()
                                            .value_or(0) +
                                    1));
+        mgr_->emit_audio_event(Symbol("stop_all_sfx"));
         return DataNode();
       }
       if (std::strcmp(m, "pause_all_sfx") == 0) {
@@ -999,6 +1209,8 @@ class StubObject : public Object {
                                            .as_int()
                                            .value_or(0) +
                                    1));
+        mgr_->emit_audio_event(Symbol("pause_all_sfx"), Symbol(),
+                               arg_bool(args, 0));
         return DataNode();
       }
     }
@@ -1012,6 +1224,7 @@ class StubObject : public Object {
                                            .as_int()
                                            .value_or(0) +
                                    1));
+        if (cue.valid()) mgr_->emit_audio_event(Symbol("play_sfx"), cue);
         return DataNode();
       }
       if (std::strcmp(m, "play_meta_sfx") == 0) {
@@ -1023,6 +1236,7 @@ class StubObject : public Object {
                                            .as_int()
                                            .value_or(0) +
                                    1));
+        if (cue.valid()) mgr_->emit_audio_event(Symbol("play_sfx"), cue);
         return DataNode();
       }
     }
@@ -1034,6 +1248,7 @@ class StubObject : public Object {
                                            .as_int()
                                            .value_or(0) +
                                    1));
+        mgr_->emit_audio_event(Symbol("play_sfx"), Symbol("sync_click.cue"));
         return DataNode();
       }
     }
@@ -1045,6 +1260,7 @@ class StubObject : public Object {
                                          .as_int()
                                          .value_or(0) +
                                  1));
+      mgr_->emit_audio_event(Symbol("play_sfx"), Symbol("practice_hat"));
       return DataNode();
     }
     if (std::strcmp(c, "play_sfx") == 0) {
@@ -1056,6 +1272,7 @@ class StubObject : public Object {
                                          .as_int()
                                          .value_or(0) +
                                  1));
+      mgr_->emit_audio_event(Symbol("play_sfx"), msg);
       return DataNode();
     }
     if (std::strcmp(c, "stop_sfx") == 0) {
@@ -1067,6 +1284,7 @@ class StubObject : public Object {
                                          .as_int()
                                          .value_or(0) +
                                  1));
+      mgr_->emit_audio_event(Symbol("stop_sfx"), msg);
       return DataNode();
     }
     if (std::strcmp(c, "meta_music") == 0) {
@@ -1074,6 +1292,8 @@ class StubObject : public Object {
         set_property(Symbol("last_control"), DataNode::Sym(msg));
         set_property(Symbol("active"),
                      DataNode::Int(std::strcmp(m, "start") == 0 ? 1 : 0));
+        mgr_->emit_audio_event(Symbol("meta_music"), msg,
+                               std::strcmp(m, "start") == 0);
         return DataNode();
       }
     }

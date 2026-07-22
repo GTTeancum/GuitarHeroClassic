@@ -2345,6 +2345,63 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
 WorldCrowdObj decode_world_crowd(const std::string& entry_name,
                                  const std::vector<uint8_t>& body);
 
+struct PanelDirConfig {
+  bool valid = false;
+  uint16_t panel_revision = 0;
+  uint16_t rnd_dir_revision = 0;
+  std::string environment;
+  std::string camera;
+  std::string enter_event;
+};
+
+PanelDirConfig decode_panel_dir_config(const std::vector<uint8_t>& body);
+
+struct EnvAnimColorKey {
+  std::array<float, 4> value{};
+  float frame = 0.0f;
+};
+
+struct EnvAnimRangeKey {
+  std::array<float, 2> value{};
+  float frame = 0.0f;
+};
+
+struct EnvAnimObj {
+  bool decoded = false;
+  std::string name;
+  uint16_t revision = 0;
+  uint16_t anim_revision = 0;
+  float frame = 0.0f;
+  uint32_t rate = 0;
+  std::string environment;
+  std::string keys_owner;
+  std::vector<EnvAnimColorKey> ambient_color_keys;
+  std::vector<EnvAnimColorKey> fog_color_keys;
+  std::vector<EnvAnimRangeKey> fog_range_keys;
+  std::string error;
+};
+
+EnvAnimObj decode_env_anim(const std::string& entry_name,
+                           const std::vector<uint8_t>& body);
+
+struct ScreenMaskObj {
+  bool decoded = false;
+  std::string name;
+  uint16_t revision = 0;
+  uint16_t drawable_revision = 0;
+  bool showing = true;
+  std::array<float, 4> sphere{};
+  float draw_order = 0.0f;
+  std::string material;
+  std::array<float, 4> color{1, 1, 1, 1};
+  std::array<float, 4> rect{0, 0, 1, 1};
+  bool use_camera_rect = false;
+  std::string error;
+};
+
+ScreenMaskObj decode_screen_mask(const std::string& entry_name,
+                                 const std::vector<uint8_t>& body);
+
 // A whole decoded scene: every Trans/Mat/Mesh in one MILO, plus the texture
 // names referenced by materials (so the caller can batch-load them).
 struct Scene {
@@ -2356,6 +2413,8 @@ struct Scene {
   std::vector<SpotlightObj> spotlights;
   std::vector<LightObj> lights;
   std::vector<EnvironObj> environs;
+  std::vector<EnvAnimObj> env_anims;
+  std::vector<ScreenMaskObj> screen_masks;
   std::vector<GroupObj> groups;
   std::vector<BandPlacerObj> band_placers;
   std::vector<ParticleSysObj> particles;
@@ -2364,6 +2423,12 @@ struct Scene {
   std::vector<std::string> grouped_meshes;  // Meshes referenced by any Group.
   std::string dir_name;
   std::string dir_type;
+  // PanelDir revision 2 / RndDir revision 8 tail, decoded in exact source
+  // order from the directory object's own body.
+  bool panel_dir_config_valid = false;
+  std::string panel_environment;
+  std::string panel_camera;
+  std::string panel_enter_event;
 
   // Resolve a mesh's full world matrix by composing its local matrix up the
   // parent chain (parents resolved by name among transes + meshes in this
@@ -2371,6 +2436,10 @@ struct Scene {
   // same convention as render::Mat4 (row vectors; translation in row 3).
   std::array<float, 16> world_matrix(const MeshObj& mesh) const;
   std::array<float, 16> world_matrix(const ParticleSysObj& particle) const;
+  std::array<float, 16> world_matrix(const CamObj& camera) const;
+  std::array<float, 16> world_matrix(
+      const CamObj& camera,
+      const std::array<float, 16>& local_override) const;
 
   // Find a material by name (nullptr if absent).
   const MatObj* find_mat(const std::string& name) const;

@@ -7,10 +7,14 @@
 #include "ui/menu_font.h"
 
 #include "asset/milo_image.h"
+#include "ark_v3.h"
+#include "milo.h"
 #include "milo_scene/milo_scene.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <iterator>
 #include <map>
@@ -50,6 +54,12 @@ int main(int argc, char** argv) {
     return 0;
   }
 
+  CHECK(ghogx::asset::endgame_photo_bitmap_path_for_outfit("rock2") ==
+        "ui/image/og/gen/photo_rock20_keep.bmp_ps2");
+  CHECK(ghogx::asset::endgame_photo_bitmap_path_for_outfit(
+            "char/metal1/og/gen/metal1.milo_ps2") ==
+        "ui/image/og/gen/photo_metal10_keep.bmp_ps2");
+
   auto labels = ghogx::ui::extract_menu_labels(hdr, ark0, "ui/gen/main.milo_ps2");
   std::map<std::string, ghogx::ui::MenuLabel> by_name;
   for (auto& l : labels) by_name[l.name] = l;
@@ -86,6 +96,7 @@ int main(int argc, char** argv) {
     CHECK(lbl.nav == e.nav);
     CHECK(lbl.button_tail.valid);
     if (lbl.button_tail.valid) {
+      CHECK(lbl.button_tail.legacy_layout);
       CHECK(lbl.button_tail.all_caps == 1);
       CHECK(near(lbl.button_tail.width, e.width));
       CHECK(near(lbl.button_tail.height, 15.0f));
@@ -100,16 +111,390 @@ int main(int argc, char** argv) {
     }
   }
 
+  const auto main_button_anim = ghogx::ui::extract_menu_slider_anim(
+      hdr, ark0, "ui/gen/main.milo_ps2", "1");
+  CHECK(main_button_anim.valid);
+  if (main_button_anim.valid) {
+    CHECK(main_button_anim.target.empty());
+    CHECK(main_button_anim.keys_owner == "1");
+    CHECK(main_button_anim.rotation_keys.size() == 1);
+    CHECK(main_button_anim.translation_keys.empty());
+    CHECK(main_button_anim.scale_keys.size() == 5);
+    CHECK(near(main_button_anim.first_frame, 0.0f));
+    CHECK(near(main_button_anim.last_frame, 4.0f));
+    if (main_button_anim.scale_keys.size() == 5) {
+      CHECK(near(main_button_anim.scale_keys[0].value[0], 1.0f));
+      CHECK(near(main_button_anim.scale_keys[2].value[0], 1.05f));
+      CHECK(near(main_button_anim.scale_keys[4].value[0], 1.1f));
+      CHECK(near(main_button_anim.scale_keys[4].value[1], 1.0f));
+      CHECK(near(main_button_anim.scale_keys[4].value[2], 1.1f));
+    }
+    std::printf("main button TransAnim: target='%s' owner='%s' frames=%.3f..%.3f "
+                "rot=%zu trans=%zu scale=%zu\n",
+                main_button_anim.target.c_str(),
+                main_button_anim.keys_owner.c_str(),
+                main_button_anim.first_frame, main_button_anim.last_frame,
+                main_button_anim.rotation_keys.size(),
+                main_button_anim.translation_keys.size(),
+                main_button_anim.scale_keys.size());
+    for (const auto& key : main_button_anim.scale_keys) {
+      std::printf("  scale frame=%.3f value=(%.3f %.3f %.3f)\n", key.frame,
+                  key.value[0], key.value[1], key.value[2]);
+    }
+  }
+
+  // Full stock GH2 PS2 UITrigger inventory. Harmonix UITrigger rev 0 stores a
+  // single event/anim pair; a null anim never blocks even when the authored
+  // block_transition bit is set.
+  struct TriggerExpect {
+    const char* milo;
+    const char* name;
+    const char* anim;
+    bool blocking;
+  };
+  const TriggerExpect trigger_expects[] = {
+      {"ui/gen/chooseprof.milo_ps2", "chooseprof.trg",
+       "notebook_cover.filt", true},
+      {"ui/gen/endgame.milo_ps2", "receipt_on.trg", "receipt_on.filt",
+       true},
+      {"ui/gen/endgame_stats.milo_ps2", "receipt_on.trg", "", true},
+      {"ui/gen/endgame_stats_multi.milo_ps2", "receipt_on.trg", "", true},
+      {"ui/gen/manage_band.milo_ps2", "manage_band.trg",
+       "notebook_cover.filt", true},
+      {"ui/gen/multi_char_outfit1.milo_ps2", "bounce.trg", "bounce.tnm",
+       false},
+      {"ui/gen/multi_char_outfit2.milo_ps2", "bounce.trg", "bounce.tnm",
+       false},
+      {"ui/gen/store.milo_ps2", "UITrigger.trg", "AnimFilter.filt", true},
+  };
+  std::size_t trigger_count = 0;
+  for (const auto& e : trigger_expects) {
+    const auto triggers =
+        ghogx::ui::extract_menu_ui_triggers(hdr, ark0, e.milo);
+    CHECK(triggers.size() == 1);
+    trigger_count += triggers.size();
+    if (triggers.empty()) continue;
+    const auto& trigger = triggers.front();
+    CHECK(trigger.valid);
+    CHECK(trigger.revision == 0);
+    CHECK(trigger.component_revision == 1);
+    CHECK(trigger.name == e.name);
+    CHECK(trigger.event == "ui_enter");
+    CHECK(trigger.anim_ref == e.anim);
+    CHECK(trigger.block_transition == e.blocking);
+  }
+  CHECK(trigger_count == 8);
+  CHECK(ghogx::ui::extract_menu_ui_triggers(
+            hdr, ark0, "ui/gen/main.milo_ps2")
+            .empty());
+
+  // Every shipped screen-resource animation must decode from source order;
+  // this prevents a visually quiet menu from masking a dropped animation
+  // class or a parser that only happens to fit one hand-picked panel.
+  {
+    const auto stock_ark = gh::ark::ArkV3Reader::load(hdr);
+    std::size_t ui_milos = 0;
+    std::size_t trans_entries = 0;
+    std::size_t trans_decoded = 0;
+    std::size_t material_entries = 0;
+    std::size_t material_decoded = 0;
+    std::size_t panel_dirs = 0;
+    std::size_t panel_dir_configs = 0;
+    std::size_t env_anim_entries = 0;
+    std::size_t env_anim_decoded = 0;
+    std::size_t screen_mask_entries = 0;
+    std::size_t screen_mask_decoded = 0;
+    std::map<std::string, ghogx::milo_scene::PanelDirConfig> panel_configs;
+    std::map<std::string, std::size_t> type_entries;
+    std::size_t bandbutton_tails = 0;
+    std::size_t legacy_bandbutton_tails = 0;
+    std::size_t modern_bandbutton_tails = 0;
+    std::map<std::string, std::size_t> legacy_bandbuttons_by_milo;
+    std::map<std::string, std::size_t> transform_target_types;
+    std::map<std::string, std::size_t> material_target_types;
+    for (const auto& ark_entry : stock_ark.entries()) {
+      if (ark_entry.full_path.rfind("ui/gen/", 0) != 0 ||
+          ark_entry.full_path.size() < 9 ||
+          ark_entry.full_path.compare(ark_entry.full_path.size() - 9, 9,
+                                      ".milo_ps2") != 0)
+        continue;
+      ++ui_milos;
+      const auto bytes = stock_ark.read_entry(ark_entry, {ark0});
+      const auto header = gh::milo::parse_header(bytes);
+      const auto payload = gh::milo::inflate_payload(bytes, header);
+      const auto dir = gh::milo::parse_directory(payload);
+      if (dir.dir_type == "PanelDir" &&
+          dir.dir_entry_offset <= payload.size() &&
+          dir.dir_entry_size <= payload.size() - dir.dir_entry_offset) {
+        ++panel_dirs;
+        const std::vector<std::uint8_t> root(
+            payload.begin() + dir.dir_entry_offset,
+            payload.begin() + dir.dir_entry_offset + dir.dir_entry_size);
+        const auto config = ghogx::milo_scene::decode_panel_dir_config(root);
+        if (config.valid) ++panel_dir_configs;
+        panel_configs.emplace(ark_entry.full_path, config);
+      }
+      if (std::getenv("GHOGX_MENU_OBJECT_AUDIT") &&
+          dir.dir_entry_offset + dir.dir_entry_size <= payload.size()) {
+        std::vector<std::string> root_strings;
+        const std::size_t root_end = static_cast<std::size_t>(
+            dir.dir_entry_offset + dir.dir_entry_size);
+        for (std::size_t pos = static_cast<std::size_t>(dir.dir_entry_offset);
+             pos < root_end;) {
+          while (pos < root_end && (payload[pos] < 32 || payload[pos] >= 127))
+            ++pos;
+          const std::size_t begin = pos;
+          while (pos < root_end && payload[pos] >= 32 && payload[pos] < 127)
+            ++pos;
+          if (pos - begin >= 3)
+            root_strings.emplace_back(
+                reinterpret_cast<const char*>(payload.data() + begin),
+                pos - begin);
+        }
+        const bool has_camera_or_environment =
+            std::any_of(root_strings.begin(), root_strings.end(),
+                        [](const std::string& value) {
+                          return value.find(".cam") != std::string::npos ||
+                                 value.find(".env") != std::string::npos;
+                        });
+        if (has_camera_or_environment) {
+          std::printf("menu root: %s type=%s size=%llu strings=",
+                      ark_entry.full_path.c_str(), dir.dir_type.c_str(),
+                      static_cast<unsigned long long>(dir.dir_entry_size));
+          for (const std::string& value : root_strings)
+            std::printf("[%s]", value.c_str());
+          std::printf("\n");
+        }
+      }
+      std::map<std::string, std::string> type_by_name;
+      for (const auto& entry : dir.entries)
+        type_by_name.emplace(entry.name, entry.type);
+      for (const auto& entry : dir.entries) {
+        ++type_entries[entry.type];
+        if (entry.type == "EnvAnim" &&
+            entry.offset + entry.size <= payload.size()) {
+          ++env_anim_entries;
+          const std::vector<std::uint8_t> env_body(
+              payload.begin() + entry.offset,
+              payload.begin() + entry.offset + entry.size);
+          const auto env_anim =
+              ghogx::milo_scene::decode_env_anim(entry.name, env_body);
+          if (env_anim.decoded) ++env_anim_decoded;
+          if (ark_entry.full_path == "ui/gen/metacam.milo_ps2") {
+            CHECK(env_anim.environment == "ui.env");
+            CHECK(env_anim.keys_owner == "ui.enm");
+            CHECK(env_anim.ambient_color_keys.size() == 2);
+          }
+        }
+        if (entry.type == "ScreenMask" &&
+            entry.offset + entry.size <= payload.size()) {
+          ++screen_mask_entries;
+          const std::vector<std::uint8_t> mask_body(
+              payload.begin() + entry.offset,
+              payload.begin() + entry.offset + entry.size);
+          const auto mask =
+              ghogx::milo_scene::decode_screen_mask(entry.name, mask_body);
+          if (mask.decoded) ++screen_mask_decoded;
+          CHECK(mask.material == "light.mat");
+          CHECK(mask.color[3] == 1.0f);
+          CHECK(mask.rect[0] == 0.0f && mask.rect[1] == 0.0f &&
+                mask.rect[2] == 1.0f && mask.rect[3] == 1.0f);
+        }
+        if (std::getenv("GHOGX_MENU_OBJECT_AUDIT") &&
+            (entry.type == "EnvAnim" || entry.type == "ScreenMask" ||
+             entry.type == "UIPicture" || entry.type == "UIProxy" ||
+             entry.type == "Spotlight" || entry.type == "Environ" ||
+             entry.type == "Light" || entry.type == "UIList" ||
+             entry.type == "BandSlider" || entry.type == "BandPlacer")) {
+          std::printf("menu object: %s %s/%s size=%llu\n", entry.type.c_str(),
+                      ark_entry.full_path.c_str(), entry.name.c_str(),
+                      static_cast<unsigned long long>(entry.size));
+        }
+        if ((entry.type != "TransAnim" && entry.type != "MatAnim") ||
+            entry.offset + entry.size > payload.size())
+          continue;
+        const std::vector<std::uint8_t> body(
+            payload.begin() + entry.offset,
+            payload.begin() + entry.offset + entry.size);
+        if (entry.type == "TransAnim") {
+          ++trans_entries;
+          const auto decoded =
+              ghogx::ui::decode_menu_trans_anim_body(body, entry.name);
+          if (decoded.valid) {
+            ++trans_decoded;
+            const auto target = type_by_name.find(decoded.target);
+            const std::string target_type =
+                target == type_by_name.end()
+                    ? (decoded.target.empty() ? "<null>" : "<external>")
+                    : target->second;
+            ++transform_target_types[target_type];
+            if (std::getenv("GHOGX_MENU_OBJECT_AUDIT"))
+              std::printf("menu TransAnim: %s/%s target=%s type=%s frames=%.3f..%.3f\n",
+                          ark_entry.full_path.c_str(), entry.name.c_str(),
+                          decoded.target.c_str(), target_type.c_str(),
+                          decoded.first_frame, decoded.last_frame);
+          }
+        } else {
+          ++material_entries;
+          const auto decoded =
+              ghogx::ui::decode_menu_material_anim_body(body, entry.name);
+          if (decoded.valid) {
+            ++material_decoded;
+            const auto target = type_by_name.find(decoded.material);
+            ++material_target_types[target == type_by_name.end()
+                                        ? (decoded.material.empty() ? "<null>"
+                                                                    : "<external>")
+                                        : target->second];
+          } else {
+            std::fprintf(stderr, "undecoded MatAnim: %s/%s size=%llu\n",
+                         ark_entry.full_path.c_str(), entry.name.c_str(),
+                         static_cast<unsigned long long>(entry.size));
+          }
+        }
+      }
+      const auto milo_labels =
+          ghogx::ui::extract_menu_labels(hdr, ark0, ark_entry.full_path);
+      for (const auto& label : milo_labels) {
+        if (label.type != "BandButton" || !label.button_tail.valid) continue;
+        ++bandbutton_tails;
+        if (label.button_tail.legacy_layout) {
+          ++legacy_bandbutton_tails;
+          ++legacy_bandbuttons_by_milo[ark_entry.full_path];
+          if (std::getenv("GHOGX_MENU_OBJECT_AUDIT"))
+            std::printf("legacy BandButton: %s/%s parent=%s font=%s "
+                        "size=%.3f box=(%.3f %.3f) bound=%.3f "
+                        "world_t=(%.3f %.3f %.3f)\n",
+                        ark_entry.full_path.c_str(), label.name.c_str(),
+                        label.parent.c_str(), label.font.c_str(),
+                        label.button_tail.text_size,
+                        label.button_tail.width, label.button_tail.height,
+                        label.button_tail.width_bound, label.world[9],
+                        label.world[10], label.world[11]);
+        } else {
+          ++modern_bandbutton_tails;
+        }
+      }
+    }
+    CHECK(panel_dirs > 100);
+    CHECK(panel_dir_configs == panel_dirs);
+    CHECK(env_anim_entries == 2);
+    CHECK(env_anim_decoded == env_anim_entries);
+    CHECK(screen_mask_entries == 7);
+    CHECK(screen_mask_decoded == screen_mask_entries);
+    {
+      ghogx::milo_scene::Scene unlock_scene;
+      CHECK(ghogx::milo_scene::load_scene(
+          hdr, ark0, "ui/gen/unlockvenue1.milo_ps2", unlock_scene));
+      const auto camera = std::find_if(
+          unlock_scene.cams.begin(), unlock_scene.cams.end(),
+          [](const ghogx::milo_scene::CamObj& value) {
+            return value.name == "camera1-2.cam";
+          });
+      CHECK(camera != unlock_scene.cams.end());
+      if (camera != unlock_scene.cams.end()) {
+        CHECK(camera->parent == "unlockvenue1");
+        const auto world = unlock_scene.world_matrix(*camera);
+        for (float value : world) CHECK(std::isfinite(value));
+        CHECK(world[15] == 1.0f);
+      }
+      CHECK(unlock_scene.screen_masks.size() == 1);
+      if (!unlock_scene.screen_masks.empty()) {
+        const auto& mask = unlock_scene.screen_masks.front();
+        CHECK(mask.decoded && mask.showing);
+        CHECK(!mask.use_camera_rect);
+        const std::array<float, 4> full_rect{0, 0, 1, 1};
+        CHECK(mask.rect == full_rect);
+      }
+    }
+    const auto main_config = panel_configs.find("ui/gen/main.milo_ps2");
+    CHECK(main_config != panel_configs.end());
+    if (main_config != panel_configs.end()) {
+      CHECK(main_config->second.environment == "ui.env");
+      CHECK(main_config->second.camera == "meta.cam");
+      CHECK(main_config->second.enter_event == "ui_enter");
+    }
+    const auto unlock_config =
+        panel_configs.find("ui/gen/unlockvenue1.milo_ps2");
+    CHECK(unlock_config != panel_configs.end());
+    if (unlock_config != panel_configs.end())
+      CHECK(unlock_config->second.camera == "camera1-2.cam");
+    const auto character_config =
+        panel_configs.find("ui/gen/sel_character.milo_ps2");
+    CHECK(character_config != panel_configs.end());
+    if (character_config != panel_configs.end())
+      CHECK(character_config->second.camera == "meta_proxy.cam");
+    std::printf("menu PanelDir corpus: decoded=%zu/%zu\n",
+                panel_dir_configs, panel_dirs);
+    std::printf("menu animation corpus: milos=%zu trans=%zu/%zu mat=%zu/%zu\n",
+                ui_milos, trans_decoded, trans_entries, material_decoded,
+                material_entries);
+    std::printf("menu object corpus:");
+    for (const auto& [type, count] : type_entries)
+      std::printf(" %s=%zu", type.c_str(), count);
+    std::printf("\n");
+    std::printf("menu BandButton tail corpus: decoded=%zu legacy=%zu modern=%zu\n",
+                bandbutton_tails, legacy_bandbutton_tails,
+                modern_bandbutton_tails);
+    for (const auto& [milo, count] : legacy_bandbuttons_by_milo)
+      std::printf("  legacy BandButton tails: %s=%zu\n", milo.c_str(), count);
+    CHECK(bandbutton_tails > 0);
+    CHECK(legacy_bandbutton_tails > 0);
+    CHECK(modern_bandbutton_tails > 0);
+    std::printf("menu TransAnim target corpus:");
+    for (const auto& [type, count] : transform_target_types)
+      std::printf(" %s=%zu", type.c_str(), count);
+    std::printf("\nmenu MatAnim target corpus:");
+    for (const auto& [type, count] : material_target_types)
+      std::printf(" %s=%zu", type.c_str(), count);
+    std::printf("\n");
+    CHECK(ui_milos == 152);
+    CHECK(trans_entries == 128);
+    CHECK(trans_decoded == trans_entries);
+    CHECK(material_entries == 73);
+    CHECK(material_decoded == material_entries);
+  }
+
+  // endgame's authored enter trigger is a timing-only transition in the
+  // shipped file.  Its filter spans twenty UI frames, but receipt_on.tnm has
+  // an explicitly null transform target.  RndTransAnim::Load resolves an
+  // empty ObjPtr to null; it is not an implicit self/keys-owner target.
+  const auto receipt_filter = ghogx::ui::extract_menu_anim_filter(
+      hdr, ark0, "ui/gen/endgame.milo_ps2", "receipt_on.filt");
+  CHECK(receipt_filter.valid);
+  if (receipt_filter.valid) {
+    CHECK(receipt_filter.trans_anim == "receipt_on.tnm");
+    CHECK(near(receipt_filter.scale, 0.05f));
+    CHECK(near(receipt_filter.offset, 0.0f));
+    CHECK(near(receipt_filter.start, 0.0f));
+    CHECK(near(receipt_filter.end, 1.0f));
+    CHECK(receipt_filter.type == 0);
+  }
+  const auto receipt_anim = ghogx::ui::extract_menu_slider_anim(
+      hdr, ark0, "ui/gen/endgame.milo_ps2", "receipt_on.tnm");
+  CHECK(receipt_anim.valid);
+  if (receipt_anim.valid) {
+    CHECK(receipt_anim.target.empty());
+    CHECK(receipt_anim.keys_owner == "receipt_on.tnm");
+  }
+
   auto multi_labels =
       ghogx::ui::extract_menu_labels(hdr, ark0, "ui/gen/multi.milo_ps2");
   std::map<std::string, ghogx::ui::MenuLabel> multi_by_name;
   for (auto& l : multi_labels) {
     std::printf("multi label: %s type=%s font=%s text='%s' parent='%s' "
-                "nav='%s' showing=%d:%d world=(%.3f %.3f %.3f)\n",
+                "nav='%s' showing=%d:%d world=(%.3f %.3f %.3f) "
+                "button_tail=(valid=%d fit=%d w=%.3f h=%.3f size=%.3f "
+                "legacy=%d align=%d bound=%.3f)\n",
                 l.name.c_str(), l.type.c_str(), l.font.c_str(),
                 l.text.c_str(), l.parent.c_str(), l.nav.c_str(),
                 l.has_showing ? 1 : 0, l.showing ? 1 : 0,
-                l.world[9], l.world[10], l.world[11]);
+                l.world[9], l.world[10], l.world[11],
+                l.button_tail.valid ? 1 : 0, l.button_tail.fit_text,
+                l.button_tail.width, l.button_tail.height,
+                l.button_tail.text_size,
+                l.button_tail.legacy_layout ? 1 : 0,
+                l.button_tail.alignment,
+                l.button_tail.width_bound);
     multi_by_name[l.name] = l;
   }
   struct MultiExpect {
@@ -447,12 +832,12 @@ int main(int argc, char** argv) {
   };
   const GuitarDisplayFilterExpect guitar_filter_expects[] = {
       {"guitar_store.filt", "guitar_store.tnm", "guitar_store.placer",
-       240.0f, 0.0f, 240.0f, 5},
-      {"guitar_axe.filt", "guitar_axe.tnm", "guitar_axe.placer", 100.0f,
+       0.0f, 0.0f, 240.0f, 5},
+      {"guitar_axe.filt", "guitar_axe.tnm", "guitar_axe.placer", 0.0f,
        0.0f, 100.0f, 5},
-      {"guitar_p1.filt", "guitar_p1.tnm", "guitar_multi0.placer", 240.0f,
+      {"guitar_p1.filt", "guitar_p1.tnm", "guitar_multi0.placer", 0.0f,
        0.0f, 240.0f, 4},
-      {"guitar_p2.filt", "guitar_p2.tnm", "guitar_multi1.placer", 240.0f,
+      {"guitar_p2.filt", "guitar_p2.tnm", "guitar_multi1.placer", 0.0f,
        0.0f, 240.0f, 4},
   };
   for (const auto& e : guitar_filter_expects) {
@@ -664,7 +1049,7 @@ int main(int argc, char** argv) {
   CHECK(store_filter.valid);
   if (store_filter.valid) {
     CHECK(store_filter.trans_anim == "guitar_single.tnm");
-    CHECK(near(store_filter.frame, 240.0f));
+    CHECK(near(store_filter.frame, 0.0f));
     CHECK(near(store_filter.scale, 2.0f));
     CHECK(near(store_filter.offset, 0.0f));
     CHECK(near(store_filter.start, 0.0f));
@@ -832,12 +1217,40 @@ int main(int argc, char** argv) {
   const auto helpbar_icons = ghogx::asset::load_milo_textures(
       hdr, ark0, "ui/gen/helpbar.milo_ps2",
       {"hb_fret1.tex", "hb_fret2.tex", "hb_fret3.tex", "hb_strum.tex",
-       "hb_start.tex"});
+       "hb_start.tex", "help_box_mid.tex", "help_box_corner.tex"});
   for (const char* icon : {"hb_fret1.tex", "hb_fret2.tex", "hb_fret3.tex",
-                           "hb_strum.tex", "hb_start.tex"}) {
+                           "hb_strum.tex", "hb_start.tex",
+                           "help_box_mid.tex", "help_box_corner.tex"}) {
     auto it = helpbar_icons.find(icon);
     CHECK(it != helpbar_icons.end());
-    if (it != helpbar_icons.end()) CHECK(it->second.valid());
+    if (it != helpbar_icons.end()) {
+      CHECK(it->second.valid());
+      if (it->second.valid()) {
+        const auto& image = it->second;
+        int min_row = image.height;
+        int max_row = -1;
+        double alpha_sum = 0.0;
+        double alpha_row_sum = 0.0;
+        for (int y = 0; y < image.height; ++y) {
+          for (int x = 0; x < image.width; ++x) {
+            const std::uint8_t alpha = image.rgba[
+                (static_cast<std::size_t>(y) * image.width + x) * 4 + 3];
+            if (alpha != 0) {
+              min_row = std::min(min_row, y);
+              max_row = std::max(max_row, y);
+            }
+            alpha_sum += alpha;
+            alpha_row_sum += static_cast<double>(alpha) * y;
+          }
+        }
+        const double alpha_center =
+            alpha_sum > 0.0 ? alpha_row_sum / alpha_sum : 0.0;
+        std::printf("helpbar texture: %s %dx%d alpha_rows=%d..%d "
+                    "alpha_center=%.3f\n",
+                    icon, image.width, image.height, min_row, max_row,
+                    alpha_center);
+      }
+    }
   }
   std::map<std::string, const ghogx::milo_scene::MeshObj*> helpbar_mesh_by_name;
   for (const auto& mesh : helpbar_scene.meshes) {
@@ -911,12 +1324,21 @@ int main(int argc, char** argv) {
   }
   auto helpbar_labels =
       ghogx::ui::extract_menu_labels(hdr, ark0, "ui/gen/helpbar.milo_ps2");
+  CHECK(helpbar_labels.size() == 1);
   for (const auto& l : helpbar_labels) {
     std::printf("helpbar label: %s type=%s font=%s text='%s' parent='%s' "
                 "showing=%d:%d world=(%.3f %.3f %.3f)\n",
                 l.name.c_str(), l.type.c_str(), l.font.c_str(),
                 l.text.c_str(), l.parent.c_str(), l.has_showing ? 1 : 0,
                 l.showing ? 1 : 0, l.world[9], l.world[10], l.world[11]);
+    CHECK(l.name == "help_bar.txt");
+    CHECK(l.font == "helveticablackcondensed.font");
+    CHECK(l.parent == "helpbar.view");
+    CHECK(l.text == "help text");
+    CHECK(l.text_tail.valid);
+    CHECK(l.text_tail.alignment == 33);
+    CHECK(near(l.text_tail.text_size, 18.0f));
+    CHECK(near(l.text_tail.width_bound, 375.840f));
   }
   const auto helpbar_text_style = ghogx::ui::extract_menu_text_style(
       hdr, ark0, "ui/gen/helpbar.milo_ps2", "help_bar.txt");
@@ -948,6 +1370,22 @@ int main(int argc, char** argv) {
     CHECK(near(helpbar_text_style.color[1], 0.9f));
     CHECK(near(helpbar_text_style.color[2], 0.9f));
     CHECK(near(helpbar_text_style.color[3], 1.0f));
+  }
+
+  const auto character_select_labels = ghogx::ui::extract_menu_labels(
+      hdr, ark0, "ui/gen/sel_character.milo_ps2");
+  auto character_select_title = std::find_if(
+      character_select_labels.begin(), character_select_labels.end(),
+      [](const ghogx::ui::MenuLabel& label) {
+        return label.name == "sc_label1.txt";
+      });
+  CHECK(character_select_title != character_select_labels.end());
+  if (character_select_title != character_select_labels.end()) {
+    CHECK(character_select_title->type == "Text");
+    CHECK(character_select_title->parent == "cs_set.grp");
+    CHECK(character_select_title->font.empty());
+    CHECK(character_select_title->text == "select_character");
+    CHECK(character_select_title->text_tail.valid);
   }
 
   auto audio_labels =
@@ -2513,6 +2951,248 @@ int main(int argc, char** argv) {
                   style.alignment, style.wrap_width);
     }
   }
+
+  // The retail Quickplay post-song chain is authored across these three
+  // panels. Keep their exact child names and list geometry pinned so the
+  // runtime cannot silently replace the canonical widgets with bespoke UI.
+  const auto newspaper_labels = ghogx::ui::extract_menu_labels(
+      hdr, ark0, "ui/gen/endgame.milo_ps2");
+  std::map<std::string, ghogx::ui::MenuLabel> newspaper_by_name;
+  for (const auto& label : newspaper_labels) {
+    newspaper_by_name[label.name] = label;
+    std::printf("newspaper label: %s font=%s text='%s' parent='%s' "
+                "local=(%.3f %.3f %.3f) world=(%.3f %.3f %.3f) "
+                "world_rows=[%.6f %.6f %.6f; %.6f %.6f %.6f; "
+                "%.6f %.6f %.6f] "
+                "fit=%d align=%d box=(%.3f %.3f) size=%.3f wrap=%.3f\n",
+                label.name.c_str(), label.font.c_str(), label.text.c_str(),
+                label.parent.c_str(), label.local[9], label.local[10],
+                label.local[11], label.world[9], label.world[10],
+                label.world[11], label.world[0], label.world[1],
+                label.world[2], label.world[3], label.world[4],
+                label.world[5], label.world[6], label.world[7],
+                label.world[8], label.text_tail.fit_text,
+                label.text_tail.alignment, label.text_tail.width,
+                label.text_tail.height, label.text_tail.text_size,
+                label.text_tail.width_bound);
+  }
+  for (const char* name : {
+           "endgame_headline.lbl", "endgame_song_data.lbl",
+           "endgame_review_data.lbl", "endgame_score_data.lbl",
+           "endgame_percent_data.lbl", "endgame_diff_data.lbl",
+           "endgame_streak_data.lbl", "endgame_score.lbl",
+           "endgame_percent.lbl", "endgame_diff.lbl"}) {
+    auto it = newspaper_by_name.find(name);
+    CHECK(it != newspaper_by_name.end());
+    if (it != newspaper_by_name.end()) {
+      CHECK(it->second.parent == "newspaper.grp");
+      CHECK(it->second.has_local);
+      CHECK(it->second.has_world);
+      CHECK(it->second.text_tail.valid);
+    }
+  }
+  for (const auto& [name, label] : newspaper_by_name) {
+    if (label.parent != "newspaper.grp" || !label.has_world) continue;
+    const auto origin =
+        ghogx::ui::transform_menu_text_point(label.world, 0.0f, 0.0f);
+    const auto local_x =
+        ghogx::ui::transform_menu_text_point(label.world, 1.0f, 0.0f);
+    const auto local_z =
+        ghogx::ui::transform_menu_text_point(label.world, 0.0f, 1.0f);
+    CHECK(near(origin[0], label.world[9]));
+    CHECK(near(origin[1], label.world[10]));
+    CHECK(near(origin[2], label.world[11]));
+    CHECK(near(local_x[0] - origin[0], label.world[0]));
+    CHECK(near(local_x[1] - origin[1], label.world[1]));
+    CHECK(near(local_x[2] - origin[2], label.world[2]));
+    CHECK(near(local_z[0] - origin[0], label.world[6]));
+    CHECK(near(local_z[1] - origin[1], label.world[7]));
+    CHECK(near(local_z[2] - origin[2], label.world[8]));
+  }
+  ghogx::milo_scene::Scene newspaper_scene;
+  CHECK(ghogx::milo_scene::load_scene(
+      hdr, ark0, "ui/gen/endgame.milo_ps2", newspaper_scene));
+  const ghogx::milo_scene::GroupObj* newspaper_group = nullptr;
+  for (const auto& group : newspaper_scene.groups) {
+    if (group.name == "newspaper.grp") newspaper_group = &group;
+  }
+  CHECK(newspaper_group != nullptr);
+  if (newspaper_group) {
+    CHECK(near(newspaper_group->local.rot[0][2], 0.0383868f));
+    CHECK(near(newspaper_group->local.rot[2][0], -0.0383868f));
+  }
+  const ghogx::milo_scene::MeshObj* newspaper_mesh = nullptr;
+  for (const auto& mesh : newspaper_scene.meshes) {
+    if (mesh.name == "me_newspaper.mesh") newspaper_mesh = &mesh;
+  }
+  CHECK(newspaper_mesh != nullptr);
+  if (newspaper_mesh) {
+    CHECK(newspaper_mesh->parent == "newspaper.grp");
+    const auto world = newspaper_scene.world_matrix(*newspaper_mesh);
+    // The shipped page and its local-X print direction rise together in world
+    // Z. This catches the former row/column transpose that reversed all
+    // newspaper text angles while leaving their origins approximately right.
+    CHECK(world[2] > 0.0f);
+    CHECK(newspaper_by_name["endgame_headline.lbl"].world[2] > 0.0f);
+  }
+  const auto stock_photo = ghogx::asset::load_ps2_bitmap_from_ark(
+      hdr, ark0, "ui/image/og/gen/photo_rock20_keep.bmp_ps2");
+  CHECK(stock_photo.valid());
+  CHECK(stock_photo.width == 128);
+  CHECK(stock_photo.height == 128);
+  const auto fallback_photo = ghogx::asset::load_milo_texture_named(
+      hdr, ark0, "ui/gen/picture_endgame.milo_ps2", "pic_photo.tex");
+  CHECK(fallback_photo.valid());
+
+  const auto result_labels = ghogx::ui::extract_menu_labels(
+      hdr, ark0, "ui/gen/endgame_stats.milo_ps2");
+  std::map<std::string, ghogx::ui::MenuLabel> result_by_name;
+  for (const auto& label : result_labels) {
+    result_by_name[label.name] = label;
+    std::printf("post stats label: %s type=%s font=%s text='%s' parent='%s' "
+                "world=(%.3f %.3f %.3f)\n",
+                label.name.c_str(), label.type.c_str(), label.font.c_str(), label.text.c_str(),
+                label.parent.c_str(), label.world[9], label.world[10],
+                label.world[11]);
+  }
+  for (const char* name : {"song_name.lbl", "player0_notes_hit.lbl",
+                           "player0_sp_phrases.lbl",
+                           "player0_avg_multi.lbl"})
+    CHECK(result_by_name.count(name) == 1);
+  const auto stats_list = ghogx::ui::extract_ui_list_layout(
+      hdr, ark0, "ui/gen/endgame_stats.milo_ps2", "stats_sections.lst");
+  CHECK(stats_list.valid);
+  if (stats_list.valid) {
+    CHECK(stats_list.revision == 2);
+    CHECK(stats_list.has_world);
+    std::printf("post stats list: display=%d row=%.3f text=%.3f "
+                "world=(%.3f %.3f %.3f)\n",
+                stats_list.num_display, stats_list.legacy_row_height,
+                stats_list.legacy_text_height, stats_list.world[9],
+                stats_list.world[10], stats_list.world[11]);
+  }
+  const auto stats_slots = ghogx::ui::extract_menu_labels(
+      hdr, ark0, "ui/gen/list_stats.milo_ps2");
+  std::map<std::string, ghogx::ui::MenuLabel> stats_slot_by_name;
+  for (const auto& label : stats_slots) {
+    stats_slot_by_name[label.name] = label;
+    std::printf("post stats slot: %s type=%s font=%s text='%s' "
+                "world=(%.3f %.3f %.3f)\n",
+                label.name.c_str(), label.type.c_str(), label.font.c_str(),
+                label.text.c_str(), label.world[9], label.world[10],
+                label.world[11]);
+  }
+  for (const char* name : {"section.txt", "notes1.txt", "notes2.txt",
+                           "notes1_best.txt", "notes2_best.txt",
+                           "notes1_worst.txt", "notes2_worst.txt"})
+    CHECK(stats_slot_by_name.count(name) == 1);
+
+  const auto highscore_labels = ghogx::ui::extract_menu_labels(
+      hdr, ark0, "ui/gen/highscore.milo_ps2");
+  const auto highscore_entry_style = ghogx::ui::extract_menu_text_style(
+      hdr, ark0, "ui/gen/textentry.milo_ps2", "label_hand_pen.txt");
+  CHECK(highscore_entry_style.valid);
+  if (highscore_entry_style.valid) {
+    std::printf(
+        "highscore text-entry resource: parent='%s' font='%s' align=%d "
+        "size=%.3f wrap=%.3f local=(%.3f %.3f %.3f) "
+        "world=(%.3f %.3f %.3f)\n",
+        highscore_entry_style.parent.c_str(), highscore_entry_style.font.c_str(),
+        highscore_entry_style.alignment, highscore_entry_style.text_size,
+        highscore_entry_style.wrap_width, highscore_entry_style.local[9],
+        highscore_entry_style.local[10], highscore_entry_style.local[11],
+        highscore_entry_style.world[9], highscore_entry_style.world[10],
+        highscore_entry_style.world[11]);
+    CHECK(highscore_entry_style.alignment == 34);
+    CHECK(near(highscore_entry_style.text_size, 40.0f));
+    CHECK(near(highscore_entry_style.wrap_width, 375.84f));
+  }
+  ghogx::milo_scene::Scene textentry_scene;
+  CHECK(ghogx::milo_scene::load_scene(
+      hdr, ark0, "ui/gen/textentry.milo_ps2", textentry_scene));
+  for (const auto& mesh : textentry_scene.meshes) {
+    const auto world = textentry_scene.world_matrix(mesh);
+    const auto* mat = textentry_scene.find_mat(mesh.material);
+    std::printf(
+        "highscore text-entry mesh: %s mat=%s tex=%s "
+        "world=(%.3f %.3f %.3f) rows=[%.3f %.3f %.3f; %.3f %.3f %.3f; "
+        "%.3f %.3f %.3f] bb=[%.3f %.3f %.3f]-[%.3f %.3f %.3f]\n",
+        mesh.name.c_str(), mesh.material.c_str(),
+        mat ? mat->diffuse_tex.c_str() : "", world[9], world[10], world[11],
+        world[0], world[1], world[2], world[4], world[5], world[6], world[8],
+        world[9], world[10],
+        mesh.bb_min[0], mesh.bb_min[1], mesh.bb_min[2], mesh.bb_max[0],
+        mesh.bb_max[1], mesh.bb_max[2]);
+    for (std::size_t vi = 0; vi < std::min<std::size_t>(4, mesh.verts.size());
+         ++vi) {
+      const auto& v = mesh.verts[vi];
+      std::printf("  v%zu=(%.3f %.3f %.3f uv=%.3f %.3f)\n", vi, v.px,
+                  v.py, v.pz, v.u, v.v);
+    }
+  }
+  std::map<std::string, ghogx::ui::MenuLabel> highscore_by_name;
+  for (const auto& label : highscore_labels) {
+    highscore_by_name[label.name] = label;
+    std::printf("highscore label: %s type=%s font=%s text='%s' parent='%s' "
+                "world=(%.3f %.3f %.3f) tail=%d fit=%d align=%d "
+                "size=%.3f box=(%.3f %.3f) wrap=%.3f "
+                "local=(%.3f %.3f %.3f; norms %.3f %.3f) "
+                "world_norms=(%.3f %.3f)\n",
+                label.name.c_str(), label.type.c_str(), label.font.c_str(), label.text.c_str(),
+                label.parent.c_str(), label.world[9], label.world[10],
+                label.world[11], label.text_tail.valid ? 1 : 0,
+                label.text_tail.fit_text, label.text_tail.alignment,
+                label.text_tail.text_size, label.text_tail.width,
+                label.text_tail.height, label.text_tail.width_bound,
+                label.local[9], label.local[10], label.local[11],
+                std::sqrt(label.local[0] * label.local[0] +
+                          label.local[2] * label.local[2]),
+                std::sqrt(label.local[6] * label.local[6] +
+                          label.local[8] * label.local[8]),
+                std::sqrt(label.world[0] * label.world[0] +
+                          label.world[2] * label.world[2]),
+                std::sqrt(label.world[6] * label.world[6] +
+                          label.world[8] * label.world[8]));
+  }
+  CHECK(highscore_by_name.count("hs_entry1.ten") == 1);
+  CHECK(highscore_by_name.count("hs_name1.lbl") == 1);
+  if (highscore_by_name.count("hs_entry1.ten") &&
+      highscore_by_name.count("hs_name1.lbl")) {
+    // The entry component begins at the same authored name-field edge; its
+    // shared center-aligned RndText spans the resource wrap from that edge.
+    CHECK(near(highscore_by_name["hs_entry1.ten"].local[9], 18.0f));
+    CHECK(near(highscore_by_name["hs_name1.lbl"].local[9], 26.0f));
+    const auto& entry_tail =
+        highscore_by_name["hs_entry1.ten"].text_entry_tail;
+    CHECK(entry_tail.valid);
+    CHECK(near(entry_tail.flash_time, 1.0f));
+    CHECK(near(entry_tail.text_scale, 0.2f));
+    CHECK(near(entry_tail.arrow_offset, -3.0f));
+    CHECK(near(entry_tail.entered_color[0], 0.0f));
+    CHECK(near(entry_tail.entered_color[3], 1.0f));
+    CHECK(near(entry_tail.dynamic_color[0], 0.8980392f));
+    CHECK(near(entry_tail.dynamic_color[3], 1.0f));
+  }
+  for (int i = 1; i <= 5; ++i) {
+    CHECK(highscore_by_name.count("hs_num" + std::to_string(i) + ".lbl") == 1);
+    CHECK(highscore_by_name.count("hs_name" + std::to_string(i) + ".lbl") == 1);
+    CHECK(highscore_by_name.count("hs_score" + std::to_string(i) + ".lbl") == 1);
+  }
+
+  const auto complete_labels = ghogx::ui::extract_menu_labels(
+      hdr, ark0, "ui/gen/complete.milo_ps2");
+  std::map<std::string, ghogx::ui::MenuLabel> complete_by_name;
+  for (const auto& label : complete_labels) {
+    complete_by_name[label.name] = label;
+    std::printf("complete label: %s type=%s font=%s text='%s' parent='%s' "
+                "world=(%.3f %.3f %.3f)\n",
+                label.name.c_str(), label.type.c_str(), label.font.c_str(), label.text.c_str(),
+                label.parent.c_str(), label.world[9], label.world[10],
+                label.world[11]);
+  }
+  CHECK(complete_by_name.count("comp_selsong.btn") == 1);
+  CHECK(complete_by_name.count("comp_restart.btn") == 1);
+  CHECK(complete_by_name.count("comp_quit.btn") == 1);
 
   if (g_failures == 0) {
     std::printf("ghogx_menu_labels_test: OK (main.milo BandButton labels + "

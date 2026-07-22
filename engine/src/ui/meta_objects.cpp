@@ -7,7 +7,9 @@
 
 #include <algorithm>
 #include <cstring>
+#include <map>
 #include <memory>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -34,7 +36,34 @@ std::string arg_text(const DataArray& args, std::size_t index,
   return fallback;
 }
 
+std::string node_text(const DataNode& node, std::string fallback = {}) {
+  if (auto text = node.as_string()) return std::string(*text);
+  if (auto symbol = node.as_symbol()) return std::string(symbol->c_str());
+  return fallback;
+}
+
+DataNode array_node(std::initializer_list<DataNode> values) {
+  auto array = std::make_shared<DataArray>();
+  for (const auto& value : values) array->push(value);
+  return DataNode::Array(std::move(array));
+}
+
 Symbol default_difficulty() { return Symbol("kDifficultyMedium"); }
+
+Symbol difficulty_display_symbol(Symbol difficulty) {
+  if (difficulty == Symbol("kDifficultyEasy")) return Symbol("easy");
+  if (difficulty == Symbol("kDifficultyHard")) return Symbol("hard");
+  if (difficulty == Symbol("kDifficultyExpert")) return Symbol("expert");
+  return Symbol("medium");
+}
+
+Symbol canonical_difficulty_symbol(Symbol difficulty) {
+  if (difficulty == Symbol("easy")) return Symbol("kDifficultyEasy");
+  if (difficulty == Symbol("medium")) return Symbol("kDifficultyMedium");
+  if (difficulty == Symbol("hard")) return Symbol("kDifficultyHard");
+  if (difficulty == Symbol("expert")) return Symbol("kDifficultyExpert");
+  return difficulty.valid() ? difficulty : default_difficulty();
+}
 
 Symbol node_difficulty_or_default(const DataNode& node) {
   Symbol difficulty = node.as_symbol().value_or(Symbol());
@@ -196,13 +225,26 @@ Symbol campaign_pick_attract_song(Object& campaign, ConfigDb* db) {
   }
   if (songs.empty()) return Symbol();
 
-  const int raw_index =
-      campaign.get_property(Symbol("attract_song_index")).as_int().value_or(0);
-  const std::size_t index =
-      static_cast<std::size_t>(std::max(0, raw_index)) % songs.size();
-  campaign.set_property(
-      Symbol("attract_song_index"),
-      DataNode::Int(static_cast<int>((index + 1) % songs.size())));
+  std::size_t index = 0;
+  const DataNode override =
+      campaign.get_property(Symbol("attract_song_index"));
+  if (auto raw_index = override.as_int()) {
+    // Explicit diagnostic/test override: advance predictably through the
+    // shipped campaign order without changing production attract behavior.
+    index = static_cast<std::size_t>(std::max(0, *raw_index)) % songs.size();
+    campaign.set_property(
+        Symbol("attract_song_index"),
+        DataNode::Int(static_cast<int>((index + 1) % songs.size())));
+  } else {
+    static thread_local std::mt19937 rng{std::random_device{}()};
+    std::uniform_int_distribution<std::size_t> pick(0, songs.size() - 1);
+    index = pick(rng);
+    const Symbol last =
+        campaign.get_property(Symbol("last_attract_song"))
+            .as_symbol().value_or(Symbol());
+    if (songs.size() > 1 && songs[index] == last)
+      index = (index + 1) % songs.size();
+  }
   campaign.set_property(Symbol("last_attract_song"), DataNode::Sym(songs[index]));
   return songs[index];
 }
@@ -594,6 +636,7 @@ class PlayerConfig : public MetaObject {
     set_property(Symbol("gems_hit"), DataNode::Int(0));
     set_property(Symbol("gems_passed"), DataNode::Int(0));
     set_property(Symbol("avg_multiplier"), DataNode::Float(0.0f));
+    set_property(Symbol("sp_phrases"), DataNode::Str("0/0"));
     set_property(Symbol("star_power_ready"), DataNode::Int(0));
     set_property(Symbol("in_star_mode"), DataNode::Int(0));
     set_property(Symbol("player_matcher"), DataNode::Obj(this));
@@ -604,6 +647,33 @@ class PlayerConfig : public MetaObject {
     const char* m = msg.c_str();
     if (std::strcmp(m, "player_matcher") == 0) {
       out = DataNode::Obj(this);
+      return true;
+    }
+    if (std::strcmp(m, "set_difficulty") == 0) {
+      set_property(Symbol("difficulty"),
+                   DataNode::Sym(canonical_difficulty_symbol(
+                       arg_symbol(args, 0, default_difficulty()))));
+      return true;
+    }
+    if (std::strcmp(m, "get_difficulty") == 0) {
+      out = DataNode::Sym(canonical_difficulty_symbol(
+          get_property(Symbol("difficulty")).as_symbol().value_or(Symbol())));
+      return true;
+    }
+    if (std::strcmp(m, "set_outfit_index") == 0) {
+      const int index = std::clamp(arg_int(args, 0, 0), 0, 1);
+      set_property(Symbol("outfit_index"), DataNode::Int(index));
+      Symbol character = node_symbol_or_string(
+          get_property(Symbol("character")));
+      std::string base = character.c_str();
+      if (!base.empty() && base.back() >= '0' && base.back() <= '9')
+        base.pop_back();
+      const Symbol outfit(base + std::to_string(index + 1));
+      if (outfit.valid())
+        set_property(Symbol("character_outfit"), DataNode::Sym(outfit));
+      // multiplayer.dta binds this return value and passes it directly to
+      // CharsysPanel::show_char before issuing the select event.
+      out = outfit.valid() ? DataNode::Sym(outfit) : DataNode();
       return true;
     }
     if (std::strcmp(m, "fill_star_power") == 0) {
@@ -661,6 +731,191 @@ class PracticeSectionProvider : public MetaObject {
   }
 };
 
+class BandStats : public MetaObject {
+ public:
+  BandStats(ScreenManager* mgr, ConfigDb* db)
+      : MetaObject(Symbol("band"), mgr, db) {
+    set_property(Symbol("score"), DataNode::Int(0));
+    set_property(Symbol("longest_streak"), DataNode::Int(0));
+    set_property(Symbol("star_rating"), DataNode::Int(0));
+  }
+};
+
+class Highscores : public MetaObject {
+ public:
+  Highscores(ScreenManager* mgr, ConfigDb* db)
+      : MetaObject(Symbol("highscores"), mgr, db) {
+    set_property(Symbol("default_name"), DataNode::Str("AAAA"));
+  }
+
+ protected:
+  bool handle_meta(Symbol msg, const DataArray& args, DataNode& out) override {
+    const char* m = msg.c_str();
+    if (std::strcmp(m, "check_highscore") == 0) {
+      out = DataNode::Int(highscore_index(arg_int(args, 0, 0)));
+      return true;
+    }
+    if (std::strcmp(m, "get_default_name") == 0) {
+      out = get_property(Symbol("default_name"));
+      return true;
+    }
+    if (std::strcmp(m, "set_default_name") == 0) {
+      set_property(Symbol("default_name"),
+                   args.empty() ? DataNode::Str("AAAA") : args.at(0));
+      return true;
+    }
+    if (std::strcmp(m, "add") == 0) {
+      add_entry(node_text(args.size() > 0 ? args.at(0)
+                                          : get_property(Symbol("default_name"))),
+                arg_int(args, 1, 0));
+      return true;
+    }
+    if (std::strcmp(m, "get_highscore") == 0) {
+      const int slot = std::clamp(arg_int(args, 0, 0), 0, 5);
+      const auto& list = entries();
+      if (slot < static_cast<int>(list.size())) {
+        const Entry& entry = list[static_cast<std::size_t>(slot)];
+        out = array_node({DataNode::Int(slot), DataNode::Str(entry.name),
+                          DataNode::Int(entry.score)});
+      } else {
+        out = array_node({DataNode::Int(slot), DataNode::Str(""),
+                          DataNode::Int(0)});
+      }
+      return true;
+    }
+    return false;
+  }
+
+ private:
+  struct Entry {
+    std::string name;
+    int score = 0;
+  };
+
+  std::string current_key() const {
+    if (!mgr_) return "default";
+    Object* game = mgr_->resolve_object(Symbol("game"));
+    Object* player = mgr_->resolve_object(Symbol("player0"));
+    const int song = game ? game->get_property(Symbol("song_index"))
+                                .as_int()
+                                .value_or(0)
+                          : 0;
+    const Symbol difficulty =
+        player ? player->get_property(Symbol("difficulty"))
+                     .as_symbol()
+                     .value_or(default_difficulty())
+               : default_difficulty();
+    return std::to_string(song) + ":" + difficulty.c_str();
+  }
+
+  std::vector<Entry>& entries() { return entries_[current_key()]; }
+  const std::vector<Entry>& entries() const {
+    static const std::vector<Entry> empty;
+    const auto it = entries_.find(current_key());
+    return it == entries_.end() ? empty : it->second;
+  }
+
+  int highscore_index(int score) const {
+    if (score <= 0) return -1;
+    const auto& list = entries();
+    for (std::size_t i = 0; i < list.size(); ++i)
+      if (score > list[i].score) return static_cast<int>(i);
+    return list.size() < 6 ? static_cast<int>(list.size()) : -1;
+  }
+
+  void add_entry(std::string name, int score) {
+    const int index = highscore_index(score);
+    if (index < 0) return;
+    if (name.empty()) name = node_text(get_property(Symbol("default_name")), "AAAA");
+    auto& list = entries();
+    list.insert(list.begin() + index, Entry{std::move(name), score});
+    if (list.size() > 6) list.resize(6);
+  }
+
+  std::map<std::string, std::vector<Entry>> entries_;
+};
+
+class StatsProvider : public MetaObject {
+ public:
+  StatsProvider(ScreenManager* mgr, ConfigDb* db)
+      : MetaObject(Symbol("StatsProvider"), mgr, db) {}
+
+ protected:
+  struct Row {
+    Symbol section;
+    int hit = 0;
+    int total = 0;
+  };
+
+  std::vector<Row> rows() const {
+    std::vector<Row> result;
+    Object* player = mgr_ ? mgr_->resolve_object(Symbol("player0")) : nullptr;
+    if (!player) return result;
+    if (auto data = player->get_property(Symbol("section_stats")).as_array()) {
+      for (std::size_t i = 0; i < data->size(); ++i) {
+        auto row = data->at(i).as_array();
+        if (!row || row->size() < 3) continue;
+        const Symbol section = row->at(0).as_symbol().value_or(Symbol());
+        if (!section.valid()) continue;
+        const int total = std::max(0, row->at(2).as_int().value_or(0));
+        result.push_back({section,
+                          std::clamp(row->at(1).as_int().value_or(0), 0, total),
+                          total});
+      }
+    }
+    if (result.empty()) {
+      const int hit = std::max(0, player->get_property(Symbol("gems_hit"))
+                                      .as_int()
+                                      .value_or(0));
+      const int miss = std::max(0, player->get_property(Symbol("gems_passed"))
+                                       .as_int()
+                                       .value_or(0));
+      if (hit + miss > 0) result.push_back({Symbol("full_song"), hit, hit + miss});
+    }
+    return result;
+  }
+
+  bool handle_meta(Symbol msg, const DataArray& args, DataNode& out) override {
+    const char* m = msg.c_str();
+    const std::vector<Row> data = rows();
+    if (std::strcmp(m, "list_length") == 0 ||
+        std::strcmp(m, "num_data") == 0) {
+      out = DataNode::Int(static_cast<int>(data.size()));
+      return true;
+    }
+    if (data.empty()) return false;
+    const int index = std::clamp(arg_int(args, 0, 0), 0,
+                                 static_cast<int>(data.size()) - 1);
+    const Row& row = data[static_cast<std::size_t>(index)];
+    const std::string notes =
+        std::to_string(row.hit) + "/" + std::to_string(row.total);
+    if (std::strcmp(m, "get_symbol") == 0 ||
+        std::strcmp(m, "get_section") == 0) {
+      out = DataNode::Sym(row.section);
+      return true;
+    }
+    if (std::strcmp(m, "get_notes1") == 0) {
+      out = DataNode::Str(notes);
+      return true;
+    }
+    if (std::strcmp(m, "get_notes2") == 0) {
+      out = DataNode::Str("");
+      return true;
+    }
+    if (std::strcmp(m, "get_text") == 0) {
+      const int column = arg_int(args, 1, 0);
+      if (column == 0)
+        out = DataNode::Sym(row.section);
+      else if (column == 1)
+        out = DataNode::Str(notes);
+      else
+        out = DataNode::Str("");
+      return true;
+    }
+    return false;
+  }
+};
+
 }  // namespace
 
 // --- GameConfig ------------------------------------------------------------
@@ -671,12 +926,29 @@ GameConfig::GameConfig(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("ga
   set_property(Symbol("lose_screen"), DataNode::Sym(Symbol("lose_screen")));
   set_property(Symbol("win_screen"), DataNode::Sym(Symbol("endgame_screen")));
   set_property(Symbol("venue"), DataNode::Sym(default_venue(db_)));
+  set_property(Symbol("multiple_controllers"), DataNode::Int(0));
+  set_property(Symbol("missing_multi_controller"), DataNode::Int(1));
   Symbol default_guitar = db_ ? db_->first_guitar() : Symbol();
   if (default_guitar.valid()) {
     set_property(Symbol("guitar"), DataNode::Sym(default_guitar));
     Symbol default_skin = db_->first_guitar_skin(default_guitar);
     if (default_skin.valid())
       set_property(Symbol("guitar_skin"), DataNode::Sym(default_skin));
+  }
+  // Retail GameConfig already owns a valid character before career.dtb's first
+  // sel_character_panel::enter. Source that native default from the stock
+  // panel fields instead of duplicating the roster in C++.
+  if (mgr_) {
+    if (Object* panel = mgr_->find_object(Symbol("sel_character_panel"))) {
+      const Symbol character =
+          node_symbol_or_string(panel->get_property(Symbol("char_focus")));
+      const Symbol outfit =
+          node_symbol_or_string(panel->get_property(Symbol("char_outfit")));
+      if (character.valid())
+        set_property(Symbol("character"), DataNode::Sym(character));
+      if (outfit.valid())
+        set_property(Symbol("character_outfit"), DataNode::Sym(outfit));
+    }
   }
   for (int i = 0; i < 2; ++i)
     players_.push_back(std::make_unique<PlayerConfig>(mgr, db));
@@ -687,6 +959,13 @@ GameConfig::GameConfig(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("ga
 bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
   const char* m = msg.c_str();
 
+  if (std::strcmp(m, "foreach_player_values") == 0) {
+    auto values = std::make_shared<DataArray>();
+    for (const auto& player : players_)
+      values->push(DataNode::Obj(player.get()));
+    out = DataNode::Array(values);
+    return true;
+  }
   if (std::strcmp(m, "get_player_config") == 0) {
     int i = args.size() ? args.at(0).as_int().value_or(0) : 0;
     if (i < 0 || i >= static_cast<int>(players_.size())) i = 0;
@@ -700,12 +979,31 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
   if (std::strcmp(m, "reset") == 0) {
     return true;
   }
+  if (std::strcmp(m, "set_character") == 0) {
+    const Symbol outfit = arg_symbol(
+        args, 0,
+        node_symbol_or_string(get_property(Symbol("character_outfit"))));
+    if (outfit.valid()) {
+      set_property(Symbol("character_outfit"), DataNode::Sym(outfit));
+      std::string character = outfit.c_str();
+      while (!character.empty() && character.back() >= '0' &&
+             character.back() <= '9')
+        character.pop_back();
+      if (!character.empty())
+        set_property(Symbol("character"),
+                     DataNode::Sym(Symbol(character.c_str())));
+    }
+    return true;
+  }
   if (std::strcmp(m, "get_difficulty") == 0 ||
       std::strcmp(m, "get_difficulty_sym") == 0) {
     int i = arg_int(args, 0, 0);
     if (i < 0 || i >= static_cast<int>(players_.size())) i = 0;
-    out = DataNode::Sym(
-        node_difficulty_or_default(players_[i]->get_property(Symbol("difficulty"))));
+    const Symbol difficulty =
+        node_difficulty_or_default(players_[i]->get_property(Symbol("difficulty")));
+    out = DataNode::Sym(std::strcmp(m, "get_difficulty_sym") == 0
+                            ? difficulty_display_symbol(difficulty)
+                            : difficulty);
     return true;
   }
   if (std::strcmp(m, "set_difficulty") == 0) {
@@ -716,8 +1014,8 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
       difficulty_arg = 1;
     }
     if (player < 0 || player >= static_cast<int>(players_.size())) player = 0;
-    Symbol difficulty = arg_symbol(args, difficulty_arg, default_difficulty());
-    if (!difficulty.valid()) difficulty = default_difficulty();
+    Symbol difficulty = canonical_difficulty_symbol(
+        arg_symbol(args, difficulty_arg, default_difficulty()));
     players_[player]->set_property(Symbol("difficulty"), DataNode::Sym(difficulty));
     if (player == 0)
       set_property(Symbol("difficulty"), DataNode::Sym(difficulty));
@@ -762,18 +1060,20 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     return true;
   }
 
-  // Multiplayer gating (main.dta poll): the main menu enables main_multiplayer.btn
-  // only when {game is_multiple_controllers} AND NOT {game is_missing_multi_controller}.
-  // Multiplayer is disabled for now (single-player port), expressed through the
-  // original's own mechanism: one controller present, the second one missing. So
-  // the stock poll's `{$this disable main_multiplayer.btn}` branch fires, exactly
-  // as it would on a real console with a single pad.
+  // Multiplayer gating remains owned by stock main.dtb.  The host updates these
+  // two properties from its physical controller slots; the script decides
+  // whether main_multiplayer.btn is enabled.
   if (std::strcmp(m, "is_multiple_controllers") == 0) {
-    out = DataNode::Sym(Symbol("FALSE"));
+    out = DataNode::Sym(node_bool(get_property(Symbol("multiple_controllers")))
+                            ? Symbol("TRUE")
+                            : Symbol("FALSE"));
     return true;
   }
   if (std::strcmp(m, "is_missing_multi_controller") == 0) {
-    out = DataNode::Sym(Symbol("TRUE"));
+    out = DataNode::Sym(
+        node_bool(get_property(Symbol("missing_multi_controller")))
+            ? Symbol("TRUE")
+            : Symbol("FALSE"));
     return true;
   }
   if (std::strcmp(m, "is_missing_controller") == 0) {
@@ -949,10 +1249,13 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     if (slot >= 0 && slot < 8) {
       if (profiles_.size() <= static_cast<std::size_t>(slot))
         profiles_.resize(static_cast<std::size_t>(slot) + 1);
+      const bool was_empty = !profiles_[slot].used;
       profiles_[slot].used = !name.empty();
       profiles_[slot].name = name;
       set_property(Symbol("profile_slot"), DataNode::Int(slot));
       set_property(Symbol("profile_dirty"), DataNode::Int(1));
+      set_property(Symbol("new_campaign"),
+                   DataNode::Int(was_empty && !name.empty() ? 1 : 0));
     }
     return true;
   }
@@ -1218,6 +1521,11 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
 
 // --- registration ----------------------------------------------------------
 void install_meta_singletons(ScreenManager& mgr, ConfigDb& db) {
+  mgr.register_runtime_class(
+      Symbol("StatsProvider"),
+      [&mgr, &db](Symbol) -> std::unique_ptr<Object> {
+        return std::make_unique<StatsProvider>(&mgr, &db);
+      });
   if (Object* credits_screen = mgr.find_object(Symbol("credits_screen"))) {
     const DataArray* credits = db.table(Symbol("credits"));
     if (credits) {
@@ -1239,10 +1547,19 @@ void install_meta_singletons(ScreenManager& mgr, ConfigDb& db) {
   GameConfig* g = game.get();
   mgr.add_singleton(Symbol("game"), std::move(game));
   mgr.alias_singleton(Symbol("gamecfg"), g);
-  if (g->player(0)) mgr.alias_singleton(Symbol("player0"), g->player(0));
-  if (g->player(1)) mgr.alias_singleton(Symbol("player1"), g->player(1));
+  if (g->player(0)) {
+    g->player(0)->set_name(Symbol("player0"));
+    mgr.alias_singleton(Symbol("player0"), g->player(0));
+  }
+  if (g->player(1)) {
+    g->player(1)->set_name(Symbol("player1"));
+    mgr.alias_singleton(Symbol("player1"), g->player(1));
+  }
 
   mgr.add_singleton(Symbol("campaign"), std::make_unique<Campaign>(&mgr, &db));
+  mgr.add_singleton(Symbol("band"), std::make_unique<BandStats>(&mgr, &db));
+  mgr.add_singleton(Symbol("highscores"),
+                    std::make_unique<Highscores>(&mgr, &db));
   mgr.add_singleton(Symbol("tips"), std::make_unique<TipsObject>(&mgr, &db));
   mgr.add_singleton(Symbol("section_provider"),
                     std::make_unique<PracticeSectionProvider>(&mgr, &db));

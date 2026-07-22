@@ -2753,12 +2753,14 @@ void MiloSceneRenderer::set_text_batches(std::vector<TextBatch> batches) {
     if (t) t->Release();
   text_tex_.clear();
   text_.clear();
+  text_transform_spans_.clear();
   for (auto& b : batches) {
     if (b.verts.empty() || !b.atlas || !b.atlas->valid()) continue;
     IDirect3DTexture9* tex = upload(*b.atlas);
     if (!tex) continue;
     text_tex_.push_back(tex);
     text_.push_back(std::move(b.verts));
+    text_transform_spans_.push_back(std::move(b.transform_spans));
   }
 }
 
@@ -2867,6 +2869,11 @@ void MiloSceneRenderer::set_post_text_mesh_text_split(size_t batch_index) {
 void MiloSceneRenderer::set_material_alpha_multipliers(
     std::map<std::string, float> material_alpha) {
   material_alpha_ = std::move(material_alpha);
+}
+
+void MiloSceneRenderer::set_material_alpha_overrides(
+    std::map<std::string, float> material_alpha) {
+  material_alpha_overrides_ = std::move(material_alpha);
 }
 
 void MiloSceneRenderer::set_material_color_overrides(
@@ -3095,6 +3102,34 @@ void MiloSceneRenderer::set_mesh_transform_offsets(
   for (const auto& [mesh, sample] : mesh_transform_offsets_) {
     if (sample.has_translation) mesh_translation_offsets_[mesh] = sample.translation;
   }
+  cam_.result_frame = {};
+  if (!selected_camera_name_.empty()) {
+    const auto sample_it = mesh_transform_offsets_.find(selected_camera_name_);
+    if (sample_it != mesh_transform_offsets_.end()) {
+      for (const auto& camera : scene_.cams) {
+        if (!camera.decoded || camera.name != selected_camera_name_) continue;
+        std::array<float, 16> world = {
+            camera.local.rot[0][0], camera.local.rot[0][1], camera.local.rot[0][2], 0.0f,
+            camera.local.rot[1][0], camera.local.rot[1][1], camera.local.rot[1][2], 0.0f,
+            camera.local.rot[2][0], camera.local.rot[2][1], camera.local.rot[2][2], 0.0f,
+            camera.local.pos[0], camera.local.pos[1], camera.local.pos[2], 1.0f};
+        apply_mesh_transform_sample(world, sample_it->second);
+        world = scene_.world_matrix(camera, world);
+        cam_.result_frame.valid = true;
+        cam_.result_frame.source = selected_camera_name_;
+        const auto right = normalized3({world[0], world[1], world[2]});
+        const auto forward = normalized3({world[4], world[5], world[6]});
+        const auto up = normalized3({world[8], world[9], world[10]});
+        for (int axis = 0; axis < 3; ++axis) {
+          cam_.result_frame.position[axis] = world[12 + axis];
+          cam_.result_frame.right[axis] = right[axis];
+          cam_.result_frame.forward[axis] = forward[axis];
+          cam_.result_frame.up[axis] = up[axis];
+        }
+        break;
+      }
+    }
+  }
 }
 
 void MiloSceneRenderer::set_mesh_position_overrides(
@@ -3257,6 +3292,7 @@ void MiloSceneRenderer::set_scene(
     milo_scene::Scene scene,
     const std::map<std::string, ghogx::asset::Image>& textures) {
   scene_ = std::move(scene);
+  selected_camera_name_.clear();
   materials_by_name_.clear();
   for (const auto& mat : scene_.mats) {
     materials_by_name_[mat.name] = &mat;
@@ -3434,11 +3470,13 @@ void MiloSceneRenderer::set_scene(
     }
   }
   if (authored) {
+    const auto authored_world = scene_.world_matrix(*authored);
     cam_.authored = true;
     for (int k = 0; k < 3; ++k) {
-      cam_.authored_eye[k] = authored->local.pos[k];
-      cam_.authored_at[k] = authored->local.pos[k] + authored->local.rot[1][k] * 100.0f;
-      cam_.authored_up[k] = authored->local.rot[2][k];
+      cam_.authored_eye[k] = authored_world[12 + k];
+      cam_.authored_at[k] =
+          authored_world[12 + k] + authored_world[4 + k] * 100.0f;
+      cam_.authored_up[k] = authored_world[8 + k];
     }
     cam_.fov = authored->fov;
     cam_.near_z = authored->near_plane;
@@ -3460,6 +3498,39 @@ void MiloSceneRenderer::set_scene(
                  authored->parent.empty() ? "<none>" : authored->parent.c_str(),
                  authored->target.empty() ? "<none>" : authored->target.c_str());
   }
+}
+
+bool MiloSceneRenderer::select_authored_camera(const std::string& name) {
+  if (name.empty()) return false;
+  const milo_scene::CamObj* authored = nullptr;
+  for (const auto& camera : scene_.cams) {
+    if (camera.decoded && camera.name == name) {
+      authored = &camera;
+      break;
+    }
+  }
+  if (!authored) return false;
+
+  selected_camera_name_ = name;
+  const auto authored_world = scene_.world_matrix(*authored);
+  cam_.authored = true;
+  cam_.result_frame = {};
+  for (int k = 0; k < 3; ++k) {
+    cam_.authored_eye[k] = authored_world[12 + k];
+    cam_.authored_at[k] =
+        authored_world[12 + k] + authored_world[4 + k] * 100.0f;
+    cam_.authored_up[k] = authored_world[8 + k];
+  }
+  cam_.fov = authored->fov;
+  cam_.near_z = authored->near_plane;
+  cam_.far_z = authored->far_plane;
+  std::fprintf(stderr, "[scene3d] PanelDir camera %s selected\n", name.c_str());
+  return true;
+}
+
+bool MiloSceneRenderer::select_scene_panel_camera() {
+  return scene_.panel_dir_config_valid &&
+         select_authored_camera(scene_.panel_camera);
 }
 
 void MiloSceneRenderer::frame_camera_on_bounds() {
@@ -4131,6 +4202,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         alpha_it != material_alpha_.end()) {
       ma *= alpha_it->second;
     }
+    if (const auto alpha_it = material_alpha_overrides_.find(material);
+        alpha_it != material_alpha_overrides_.end()) {
+      ma = alpha_it->second;
+    }
     const bool prelit_material =
         mat_obj && mat_obj->prelit && !env_enabled("GHOGX_DISABLE_PRELIT_MATERIALS");
     // RndMat::mPreLit is renderer state, not a diagnostic hint.  The recovered
@@ -4757,7 +4832,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   };
   std::vector<PostTextMesh> post_text_draw_meshes;
 
-  if (draw_scene) {
+  // A split live-menu draw renders the base scene, then character/guitar
+  // renderers, then calls draw_text_over_scene(). Traverse the scene again for
+  // explicitly deferred foreground meshes during that text-only pass so those
+  // meshes can remain coupled to their overlay labels.
+  if (draw_scene || (draw_text && !post_text_meshes_.empty())) {
     const auto& draw_meshes = ordered_draw_meshes_;
     if (env_enabled("GHOGX_LOG_SCENE_DRAW_ORDER")) {
       static std::unordered_set<const MiloSceneRenderer*> logged_draw_order;
@@ -5249,6 +5328,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       post_text_draw_meshes.push_back({&m, draw_world});
       continue;
     }
+    if (!draw_scene) continue;
     if (venue_frustum_cull_enabled && would_reach_draw &&
         !debug_source_highlighted) {
       const auto pos_it = mesh_position_overrides_.find(m.name);
@@ -5796,6 +5876,100 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
 
   dev_->SetTexture(0, nullptr);
 
+  const auto target_has_text_transform_sample = [&](const std::string& target) {
+    return mesh_transform_offsets_.find(target) !=
+               mesh_transform_offsets_.end() ||
+           active_mesh_anims_.find(target) != active_mesh_anims_.end();
+  };
+  const auto apply_text_transform_sample = [&](std::array<float, 16>& local,
+                                                const std::string& target) {
+    if (const auto offset = mesh_transform_offsets_.find(target);
+        offset != mesh_transform_offsets_.end()) {
+      apply_mesh_transform_sample(local, offset->second);
+    }
+    if (const auto active = active_mesh_anims_.find(target);
+        active != active_mesh_anims_.end()) {
+      const float frame = active->second.elapsed * active->second.frames_per_second;
+      apply_mesh_transform_sample(
+          local, sample_transform_anim(active->second.anim, frame));
+    }
+  };
+  const auto animated_text_span_world = [&](const TextTransformSpan& span) {
+    const auto& span_bind_world = span.bind_world;
+    auto parent_for = [&](const std::string& name) {
+      if (name == span.name) return span.parent;
+      SceneNodeXfm node;
+      return scene_node_xfm_for(scene_, name, node) ? node.parent : std::string{};
+    };
+    auto local_for = [&](const std::string& name,
+                         std::array<float, 16>& local) {
+      if (name == span.name) {
+        local = span.local;
+        return true;
+      }
+      SceneNodeXfm node;
+      if (!scene_node_xfm_for(scene_, name, node)) return false;
+      local = node.local;
+      return true;
+    };
+    auto base_world_for = [&](const std::string& name,
+                              std::array<float, 16>& world) {
+      if (name == span.name) {
+        world = span_bind_world;
+        return true;
+      }
+      return scene_node_world_for(scene_, name, world);
+    };
+
+    std::vector<std::string> ancestors;
+    for (std::string parent = span.parent; !parent.empty();) {
+      ancestors.push_back(parent);
+      const std::string next = parent_for(parent);
+      if (next.empty() || next == parent) break;
+      parent = next;
+      if (ancestors.size() >= 64) break;
+    }
+    std::reverse(ancestors.begin(), ancestors.end());
+    const bool animated = target_has_text_transform_sample(span.name) ||
+                          std::any_of(ancestors.begin(), ancestors.end(),
+                                      target_has_text_transform_sample);
+    if (!animated) return span_bind_world;
+
+    std::vector<std::string> chain = ancestors;
+    chain.push_back(span.name);
+    std::array<float, 16> anchor_base{};
+    std::array<float, 16> anchor_current{};
+    bool have_anchor = false;
+    std::array<float, 16> composed = span_bind_world;
+    for (const std::string& target : chain) {
+      const bool is_label = target == span.name;
+      const bool sampled = target_has_text_transform_sample(target);
+      if (!sampled && !is_label) continue;
+      std::array<float, 16> base_world{};
+      if (!base_world_for(target, base_world)) return span_bind_world;
+      std::array<float, 16> current_world = base_world;
+      if (have_anchor) {
+        current_world =
+            mul16(mul16(base_world, affine_inverse16(anchor_base)),
+                  anchor_current);
+      }
+      if (sampled) {
+        std::array<float, 16> base_local{};
+        if (!local_for(target, base_local)) return span_bind_world;
+        std::array<float, 16> sampled_local = base_local;
+        apply_text_transform_sample(sampled_local, target);
+        current_world =
+            mul16(mul16(sampled_local, affine_inverse16(base_local)),
+                  current_world);
+        anchor_base = base_world;
+        anchor_current = current_world;
+        have_anchor = true;
+      }
+      if (is_label) composed = current_world;
+    }
+    return composed;
+  };
+
   const auto draw_text_batches = [&](size_t begin, size_t end) {
     if (begin >= end || begin >= text_.size()) return;
     end = std::min(end, text_.size());
@@ -5806,7 +5980,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     dev_->SetFVF(kFVF);
     dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
     dev_->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
-    dev_->SetRenderState(D3DRS_ZENABLE, FALSE);
     dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
     dev_->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
     dev_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
@@ -5834,10 +6007,30 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
 
     for (size_t bi = begin; bi < end; ++bi) {
       if (bi >= text_tex_.size() || !text_tex_[bi] || text_[bi].size() < 3) continue;
+      dev_->SetRenderState(D3DRS_ZENABLE, FALSE);
       dev_->SetTexture(0, text_tex_[bi]);
+      std::vector<TextVertex> draw_text = text_[bi];
+      if (bi < text_transform_spans_.size()) {
+        for (const TextTransformSpan& span : text_transform_spans_[bi]) {
+          const size_t span_end = std::min(
+              draw_text.size(), span.first_vertex + span.vertex_count);
+          if (span.first_vertex >= span_end) continue;
+          const auto current_world = animated_text_span_world(span);
+          const auto& bind_world = span.bind_world;
+          const auto delta =
+              mul16(affine_inverse16(bind_world), current_world);
+          for (size_t vi = span.first_vertex; vi < span_end; ++vi) {
+            const auto point = transform_point16(
+                delta, draw_text[vi].x, draw_text[vi].y, draw_text[vi].z);
+            draw_text[vi].x = point[0];
+            draw_text[vi].y = point[1];
+            draw_text[vi].z = point[2];
+          }
+        }
+      }
       std::vector<SVtx> tv;
-      tv.reserve(text_[bi].size());
-      for (const auto& t : text_[bi]) {
+      tv.reserve(draw_text.size());
+      for (const auto& t : draw_text) {
         SVtx s;
         s.x = t.x; s.y = t.y; s.z = t.z;
         s.nx = 0; s.ny = 1; s.nz = 0;

@@ -560,8 +560,12 @@ std::optional<UiListLayout> parse_gh2_ps2_legacy_ui_list(
     layout.legacy_text_height = text_height;
     layout.valid = true;
     layout.has_world = true;
+    layout.has_local = true;
+    for (int i = 0; i < 12; ++i)
+      layout.local[i] = rf(body, m + static_cast<size_t>(i) * 4);
     for (int i = 0; i < 12; ++i)
       layout.world[i] = rf(body, m + 48 + static_cast<size_t>(i) * 4);
+    layout.parent = parent;
     return layout;
   }
 
@@ -798,8 +802,8 @@ std::optional<MenuSliderAnim> parse_slider_trans_anim_source_order(
     return std::nullopt;
   }
 
-  std::string keys_owner;
-  if (!read_symbol_cursor_trim_nul(body, pos, keys_owner)) return std::nullopt;
+  if (!read_symbol_cursor_trim_nul(body, pos, anim.keys_owner))
+    return std::nullopt;
   if (revision > 3) {
     bool trans_spline = false;
     if (!read_bool_byte(body, pos, trans_spline)) return std::nullopt;
@@ -839,9 +843,8 @@ std::optional<MenuSliderAnim> parse_slider_trans_anim_source_order(
     if (!read_u32_cursor(body, pos, scale_spline)) return std::nullopt;
   }
 
-  if (anim.target.empty()) return std::nullopt;
   if (anim.rotation_keys.empty() && anim.translation_keys.empty() &&
-      anim.scale_keys.empty())
+      anim.scale_keys.empty() && anim.keys_owner.empty())
     return std::nullopt;
   anim.valid = true;
   return anim;
@@ -849,39 +852,97 @@ std::optional<MenuSliderAnim> parse_slider_trans_anim_source_order(
 
 std::optional<MenuAnimFilter> parse_anim_filter_source_order(
     const std::vector<uint8_t>& body, const std::string& name) {
-  const auto strings = embedded_strings(body);
-  for (const auto& s : strings) {
-    if (s.text.size() <= 4 ||
-        s.text.compare(s.text.size() - 4, 4, ".tnm") != 0) {
-      continue;
-    }
-    MenuAnimFilter filter;
-    filter.name = name;
-    filter.trans_anim = s.text;
+  if (body.size() < 41) return std::nullopt;
+  size_t pos = 0;
+  std::uint32_t combined = 0;
+  if (!read_u32_cursor(body, pos, combined) || low_revision(combined) != 1)
+    return std::nullopt;
 
-    filter.frame = s.offset >= 8 ? rf_or(body, s.offset - 8, 0.0f) : 0.0f;
-    const float tail_frame = rf_or(body, s.end + 12, 0.0f);
-    const float offset_frame = rf_or(body, s.end + 20, 0.0f);
-    if (!finite(filter.frame) || filter.frame <= 0.001f)
-      filter.frame = tail_frame;
-    if (!finite(filter.frame) || filter.frame <= 0.001f)
-      filter.frame = offset_frame;
-    if (!finite(filter.frame)) filter.frame = 0.0f;
-    filter.scale = rf_or(body, s.end + 0, 1.0f);
-    filter.offset = rf_or(body, s.end + 4, 0.0f);
-    filter.start = rf_or(body, s.end + 8, 0.0f);
-    filter.end = rf_or(body, s.end + 12, 0.0f);
-    filter.type = ri32(body, s.end + 16);
-    if (!finite(filter.scale) || std::fabs(filter.scale) <= 0.0001f)
-      filter.scale = 1.0f;
-    if (!finite(filter.offset)) filter.offset = 0.0f;
-    if (!finite(filter.start)) filter.start = 0.0f;
-    if (!finite(filter.end)) filter.end = filter.start;
-    if (filter.type < 0 || filter.type > 2) filter.type = 0;
-    filter.valid = !filter.trans_anim.empty();
-    return filter.valid ? std::optional<MenuAnimFilter>(filter) : std::nullopt;
+  // Hmx::Object fields for directory version 24: revision/type bytes plus the
+  // legacy proxy/load flags. This is the exact nine-byte block consumed by
+  // ObjectFields in MiloEditor/Harmonix source.
+  if (pos + 9 > body.size()) return std::nullopt;
+  pos += 9;
+
+  // Embedded RndAnimatable. GH2 AnimFilter entries use revision 4: frame then
+  // the serialized RndAnimatable::Rate enum.
+  std::uint32_t anim_combined = 0;
+  if (!read_u32_cursor(body, pos, anim_combined)) return std::nullopt;
+  const std::uint16_t anim_revision = low_revision(anim_combined);
+  if (anim_revision != 4) return std::nullopt;
+
+  MenuAnimFilter filter;
+  filter.name = name;
+  std::uint32_t rate = 0;
+  if (!read_f32_cursor(body, pos, filter.frame) ||
+      !read_u32_cursor(body, pos, rate) ||
+      !read_symbol_cursor_trim_nul(body, pos, filter.trans_anim) ||
+      !read_f32_cursor(body, pos, filter.scale) ||
+      !read_f32_cursor(body, pos, filter.offset) ||
+      !read_f32_cursor(body, pos, filter.start) ||
+      !read_f32_cursor(body, pos, filter.end) ||
+      !read_i32_cursor(body, pos, filter.type) ||
+      !read_f32_cursor(body, pos, filter.period)) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  (void)rate;
+  if (pos != body.size()) return std::nullopt;
+  if (!finite(filter.frame) || !finite(filter.scale) ||
+      std::fabs(filter.scale) <= 0.0001f || !finite(filter.offset) ||
+      !finite(filter.start) || !finite(filter.end) ||
+      !finite(filter.period) || filter.type < 0 || filter.type > 2 ||
+      filter.trans_anim.empty()) {
+    return std::nullopt;
+  }
+  filter.valid = true;
+  return filter;
+}
+
+std::optional<MenuUiTrigger> parse_ui_trigger_source_order(
+    const std::vector<uint8_t>& body, const std::string& name) {
+  if (body.size() < 0xB4) return std::nullopt;
+  size_t pos = 0;
+  std::uint32_t combined = 0;
+  if (!read_u32_cursor(body, pos, combined)) return std::nullopt;
+
+  MenuUiTrigger trigger;
+  trigger.name = name;
+  trigger.revision = low_revision(combined);
+  if (trigger.revision != 0) return std::nullopt;
+
+  std::uint32_t component_combined = 0;
+  if (!read_u32_cursor(body, pos, component_combined)) return std::nullopt;
+  trigger.component_revision = low_revision(component_combined);
+  if (trigger.component_revision != 1) return std::nullopt;
+
+  if (pos + 9 > body.size()) return std::nullopt;
+  pos += 9;  // embedded UIComponent Hmx::Object fields
+
+  const auto trans = parse_rnd_trans_at(body, pos);
+  if (!trans || trans->revision != 9) return std::nullopt;
+  pos = trans->end;
+
+  // Embedded RndDrawable revision 3: rev, showing, bounding sphere, draw order.
+  std::uint32_t drawable_combined = 0;
+  if (!read_u32_cursor(body, pos, drawable_combined) ||
+      low_revision(drawable_combined) != 3 || pos + 21 > body.size()) {
+    return std::nullopt;
+  }
+  pos += 21;
+
+  std::string nav_right;
+  std::string nav_down;
+  if (!read_symbol_cursor_trim_nul(body, pos, nav_right) ||
+      !read_symbol_cursor_trim_nul(body, pos, nav_down) ||
+      !read_symbol_cursor_trim_nul(body, pos, trigger.event) ||
+      !read_symbol_cursor_trim_nul(body, pos, trigger.anim_ref) ||
+      !read_bool_byte(body, pos, trigger.block_transition) ||
+      pos != body.size()) {
+    return std::nullopt;
+  }
+  trigger.valid = !trigger.event.empty();
+  return trigger.valid ? std::optional<MenuUiTrigger>(std::move(trigger))
+                       : std::nullopt;
 }
 
 bool skip_f32_values(const std::vector<uint8_t>& body, size_t& pos,
@@ -900,30 +961,58 @@ std::optional<MenuMaterialAnim> parse_material_anim_source_order(
   MenuMaterialAnim out;
   out.name = name;
   if (!read_symbol_cursor(body, pos, out.material)) return std::nullopt;
-  std::string self;
-  if (!read_symbol_cursor(body, pos, self) || self != name) return std::nullopt;
+  if (!read_symbol_cursor(body, pos, out.keys_owner)) return std::nullopt;
 
+  bool have_frame = false;
+  const auto note_frame = [&](float frame) {
+    if (!finite(frame)) return;
+    if (!have_frame) {
+      out.first_frame = out.last_frame = frame;
+      have_frame = true;
+    } else {
+      out.first_frame = std::min(out.first_frame, frame);
+      out.last_frame = std::max(out.last_frame, frame);
+    }
+  };
   std::uint32_t count = 0;
-  if (!read_u32_cursor(body, pos, count) ||
-      !skip_f32_values(body, pos, count, 5)) {
-    return std::nullopt;  // color keys: rgba + frame
+  if (!read_u32_cursor(body, pos, count) || count > 256)
+    return std::nullopt;
+  out.color_keys.reserve(count);
+  for (std::uint32_t i = 0; i < count; ++i) {
+    MenuMaterialColorKey key;
+    for (float& channel : key.color)
+      if (!read_f32_cursor(body, pos, channel)) return std::nullopt;
+    if (!read_f32_cursor(body, pos, key.frame)) return std::nullopt;
+    note_frame(key.frame);
+    out.color_keys.push_back(key);
   }
-  if (!read_u32_cursor(body, pos, count) ||
-      !skip_f32_values(body, pos, count, 2)) {
-    return std::nullopt;  // alpha keys: alpha + frame
+  if (!read_u32_cursor(body, pos, count) || count > 256)
+    return std::nullopt;
+  out.alpha_keys.reserve(count);
+  for (std::uint32_t i = 0; i < count; ++i) {
+    MenuMaterialFloatKey key;
+    if (!read_f32_cursor(body, pos, key.value) ||
+        !read_f32_cursor(body, pos, key.frame))
+      return std::nullopt;
+    note_frame(key.frame);
+    out.alpha_keys.push_back(key);
   }
-  if (!read_u32_cursor(body, pos, count) ||
-      !skip_f32_values(body, pos, count, 4)) {
-    return std::nullopt;  // texture translation keys: vec3 + frame
-  }
-  if (!read_u32_cursor(body, pos, count) ||
-      !skip_f32_values(body, pos, count, 4)) {
-    return std::nullopt;  // texture scale keys: vec3 + frame
-  }
-  if (!read_u32_cursor(body, pos, count) ||
-      !skip_f32_values(body, pos, count, 2)) {
-    return std::nullopt;  // texture rotation keys: angle + frame
-  }
+  const auto read_vec_keys = [&](std::vector<MenuTransVecKey>& keys) {
+    std::uint32_t key_count = 0;
+    if (!read_u32_cursor(body, pos, key_count) || key_count > 256)
+      return false;
+    keys.reserve(key_count);
+    for (std::uint32_t i = 0; i < key_count; ++i) {
+      MenuTransVecKey key;
+      if (!read_vec3_key_cursor(body, pos, key.value, key.frame)) return false;
+      note_frame(key.frame);
+      keys.push_back(key);
+    }
+    return true;
+  };
+  if (!read_vec_keys(out.translation_keys) ||
+      !read_vec_keys(out.scale_keys) || !read_vec_keys(out.rotation_keys))
+    return std::nullopt;
 
   std::uint32_t texture_count = 0;
   if (!read_u32_cursor(body, pos, texture_count) || texture_count > 256)
@@ -936,16 +1025,14 @@ std::optional<MenuMaterialAnim> parse_material_anim_source_order(
       return std::nullopt;
     }
     if (!finite(key.frame)) key.frame = 0.0f;
-    if (out.texture_keys.empty()) {
-      out.first_frame = key.frame;
-      out.last_frame = key.frame;
-    } else {
-      out.first_frame = std::min(out.first_frame, key.frame);
-      out.last_frame = std::max(out.last_frame, key.frame);
-    }
+    note_frame(key.frame);
     out.texture_keys.push_back(std::move(key));
   }
-  out.valid = !out.material.empty() && !out.texture_keys.empty();
+  // RndMatAnim::Load permits a null mMat.  Stock key-owner objects such as
+  // cashaward/ca_highlight.mnm deliberately carry keys without a material;
+  // another MatAnim points at them through mKeysOwner.  They are still fully
+  // valid serialized animations even though SetFrame has no direct target.
+  out.valid = !out.keys_owner.empty() && pos == body.size();
   return out.valid ? std::optional<MenuMaterialAnim>(std::move(out))
                    : std::nullopt;
 }
@@ -1045,16 +1132,13 @@ std::optional<MenuTextStyle> parse_rnd_text_style_source_order(
   const std::uint16_t revision = low_revision(combined);
   if (revision < 13 || revision > 21) return std::nullopt;
 
-  const auto strings = embedded_strings(body);
-  for (size_t i = 0; i < strings.size(); ++i) {
-    const auto& font = strings[i];
-    if (font.text.find(".font") == std::string::npos) continue;
-
-    size_t pos = font.end;
+  const auto parse_tail = [&](size_t pos, std::string font,
+                              std::string parent)
+      -> std::optional<MenuTextStyle> {
     MenuTextStyle style;
     style.name = name;
-    style.font = font.text;
-    if (i > 0) style.parent = strings[i - 1].text;
+    style.font = std::move(font);
+    style.parent = std::move(parent);
 
     if (!read_i32_cursor(body, pos, style.alignment)) return std::nullopt;
     if (style.alignment < 0 || style.alignment >= 255) return std::nullopt;
@@ -1105,6 +1189,31 @@ std::optional<MenuTextStyle> parse_rnd_text_style_source_order(
     style.has_world = style.has_local;
     style.valid = true;
     return style;
+  };
+
+  const auto strings = embedded_strings(body);
+  // RndText serializes its Transformable parent immediately before mFont.
+  // mFont is a nullable ObjPtr, so an empty symbol is valid (sc_label1.txt is
+  // the shipped GH2 example). Start from the parent boundary instead of
+  // assuming the first printable string is the font.
+  for (const auto& parent : strings) {
+    if (!is_parent_ref(parent.text)) continue;
+    size_t pos = parent.end;
+    std::string font;
+    if (!read_symbol_cursor(body, pos, font)) continue;
+    if (!font.empty() && font.find(".font") == std::string::npos) continue;
+    if (auto parsed = parse_tail(pos, std::move(font), parent.text))
+      return parsed;
+  }
+
+  // Parentless RndText objects still expose a non-null mFont. Retain the
+  // direct font boundary as the source-order fallback.
+  for (size_t i = 0; i < strings.size(); ++i) {
+    const auto& font = strings[i];
+    if (font.text.find(".font") == std::string::npos) continue;
+    if (auto parsed = parse_tail(font.end, font.text,
+                                 i > 0 ? strings[i - 1].text : std::string{}))
+      return parsed;
   }
 
   return std::nullopt;
@@ -1118,6 +1227,7 @@ bool parse_bandbutton_tail(const std::vector<uint8_t>& body, size_t label_end,
   // metrics. This is the shape used by main.milo_ps2.
   MenuLabel::ButtonTail legacy;
   legacy.valid = true;
+  legacy.legacy_layout = true;
   legacy.all_caps = body[label_end + 0];
   legacy.width = rf(body, label_end + 4);
   legacy.height = rf(body, label_end + 8);
@@ -1149,6 +1259,7 @@ bool parse_bandbutton_tail(const std::vector<uint8_t>& body, size_t label_end,
   // fitType, width, height, leading, and alignment. Video settings uses this
   // layout; its text size lives after the byte-sized all_caps/kerning slot.
   MenuLabel::ButtonTail modern;
+  modern.legacy_layout = false;
   modern.fit_text = ri32(body, label_end + 0);
   modern.width = rf(body, label_end + 4);
   modern.height = rf(body, label_end + 8);
@@ -1218,7 +1329,75 @@ bool parse_bandlabel_tail(const std::vector<uint8_t>& body, size_t label_end,
   return true;
 }
 
+bool parse_bandtextentry_tail(const std::vector<uint8_t>& body,
+                              MenuLabel::TextEntryTail& out) {
+  constexpr size_t kTailBytes = 44;
+  if (body.size() < kTailBytes) return false;
+  const size_t pos = body.size() - kTailBytes;
+  MenuLabel::TextEntryTail t;
+  t.flash_time = rf(body, pos + 0);
+  t.text_scale = rf(body, pos + 4);
+  t.arrow_offset = rf(body, pos + 8);
+  for (int i = 0; i < 4; ++i) {
+    t.entered_color[i] = rf(body, pos + 12 + static_cast<size_t>(i) * 4);
+    t.dynamic_color[i] = rf(body, pos + 28 + static_cast<size_t>(i) * 4);
+  }
+  const bool plausible =
+      finite(t.flash_time) && t.flash_time > 0.0f && t.flash_time < 30.0f &&
+      finite(t.text_scale) && t.text_scale >= 0.0f && t.text_scale <= 2.0f &&
+      finite(t.arrow_offset) && std::fabs(t.arrow_offset) < 100.0f;
+  if (!plausible) return false;
+  for (float c : t.entered_color)
+    if (!finite(c) || c < 0.0f || c > 1.0f) return false;
+  for (float c : t.dynamic_color)
+    if (!finite(c) || c < 0.0f || c > 1.0f) return false;
+  t.valid = true;
+  out = t;
+  return true;
+}
+
 }  // namespace
+
+MenuSliderAnim decode_menu_trans_anim_body(
+    const std::vector<std::uint8_t>& body, const std::string& name) {
+  if (auto parsed = parse_slider_trans_anim_source_order(body, name))
+    return *parsed;
+  MenuSliderAnim out;
+  out.name = name;
+  return out;
+}
+
+MenuAnimFilter decode_menu_anim_filter_body(
+    const std::vector<std::uint8_t>& body, const std::string& name) {
+  if (auto parsed = parse_anim_filter_source_order(body, name)) return *parsed;
+  MenuAnimFilter out;
+  out.name = name;
+  return out;
+}
+
+MenuUiTrigger decode_menu_ui_trigger_body(
+    const std::vector<std::uint8_t>& body, const std::string& name) {
+  if (auto parsed = parse_ui_trigger_source_order(body, name)) return *parsed;
+  MenuUiTrigger out;
+  out.name = name;
+  return out;
+}
+
+MenuMaterialAnim decode_menu_material_anim_body(
+    const std::vector<std::uint8_t>& body, const std::string& name) {
+  if (auto parsed = parse_material_anim_source_order(body, name))
+    return *parsed;
+  MenuMaterialAnim out;
+  out.name = name;
+  return out;
+}
+
+std::array<float, 3> transform_menu_text_point(
+    const std::array<float, 12>& xfm, float local_x, float local_z) {
+  return {{xfm[9] + local_x * xfm[0] + local_z * xfm[6],
+           xfm[10] + local_x * xfm[1] + local_z * xfm[7],
+           xfm[11] + local_x * xfm[2] + local_z * xfm[8]}};
+}
 
 std::vector<MenuLabel> extract_menu_labels(const std::string& hdr_path,
                                            const std::string& ark_path,
@@ -1235,7 +1414,8 @@ std::vector<MenuLabel> extract_menu_labels(const std::string& hdr_path,
     auto dir = gh::milo::parse_directory(payload);
 
     for (const auto& e : dir.entries) {
-      if (e.type != "BandButton" && e.type != "Text" && e.type != "BandLabel")
+      if (e.type != "BandButton" && e.type != "Text" &&
+          e.type != "BandLabel" && e.type != "BandTextEntry")
         continue;
       if (e.offset + e.size > payload.size()) continue;
       std::vector<uint8_t> body(payload.begin() + e.offset,
@@ -1272,6 +1452,51 @@ std::vector<MenuLabel> extract_menu_labels(const std::string& hdr_path,
             continue;
           }
         }
+        if (e.type == "BandTextEntry") {
+          // config.dtb::textentry/styles/high_score points at
+          // textentry.milo::label_hand_pen.txt, whose source RndText font is
+          // rockletters.font. The editable text itself is runtime state.
+          lbl.font = strs.front().text == "high_score" ? "rockletters" : "impact";
+          lbl.text.clear();
+          if (strs.front().text == "high_score") {
+            const MenuTextStyle style = extract_menu_text_style(
+                hdr_path, ark_path, "ui/gen/textentry.milo_ps2",
+                "label_hand_pen.txt");
+            if (style.valid) {
+              lbl.text_tail.valid = true;
+              lbl.text_tail.width = style.wrap_width;
+              lbl.text_tail.height = style.text_size;
+              lbl.text_tail.leading = style.leading;
+              lbl.text_tail.alignment = style.alignment;
+              lbl.text_tail.text_size = style.text_size;
+              lbl.text_tail.width_bound = style.wrap_width;
+            }
+          }
+          parse_bandtextentry_tail(body, lbl.text_entry_tail);
+        }
+        if (e.type == "Text") {
+          if (auto style = parse_rnd_text_style_source_order(body, e.name)) {
+            lbl.font = style->font;
+            lbl.parent = style->parent;
+            lbl.text = style->text;
+            lbl.text_tail.valid = true;
+            lbl.text_tail.width = style->wrap_width;
+            lbl.text_tail.height = style->text_size;
+            lbl.text_tail.leading = style->leading;
+            lbl.text_tail.alignment = style->alignment;
+            lbl.text_tail.text_size = style->text_size;
+            lbl.text_tail.width_bound = style->wrap_width;
+            lbl.text_tail.color = style->color;
+            lbl.local = style->local;
+            lbl.world = style->world;
+            lbl.has_local = style->has_local;
+            lbl.has_world = style->has_world;
+          } else {
+            // A Text object without a decoded/source mFont is not an Impact
+            // label. Leave it fontless so the renderer does not fabricate one.
+            lbl.font.clear();
+          }
+        }
         // BandButton inherits UIComponent before its label fields. Some stock
         // buttons, such as bonus_material/bm_hidden.btn, carry only nav/resource
         // object refs and no visible text token. Do not render those refs as
@@ -1281,8 +1506,10 @@ std::vector<MenuLabel> extract_menu_labels(const std::string& hdr_path,
           lbl.button_tail.valid = false;
         }
       }
-      lbl.has_local = find_local_world_matrices(body, lbl.local, lbl.world);
-      lbl.has_world = lbl.has_local;
+      if (!lbl.has_local) {
+        lbl.has_local = find_local_world_matrices(body, lbl.local, lbl.world);
+        lbl.has_world = lbl.has_local;
+      }
       out.push_back(std::move(lbl));
     }
   } catch (const std::exception& ex) {
@@ -1413,6 +1640,78 @@ MenuAnimFilter extract_menu_anim_filter(const std::string& hdr_path,
   return out;
 }
 
+std::vector<MenuSliderAnim> extract_menu_transform_anims(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path) {
+  std::vector<MenuSliderAnim> out;
+  try {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    auto entry = ark.find(milo_path);
+    if (!entry) entry = ark.find("../../system/run/" + milo_path);
+    if (!entry) return out;
+    auto bytes = ark.read_entry(*entry, {ark_path});
+    auto h = gh::milo::parse_header(bytes);
+    auto payload = gh::milo::inflate_payload(bytes, h);
+    auto dir = gh::milo::parse_directory(payload);
+    for (const auto& e : dir.entries) {
+      if (e.type != "TransAnim" || e.offset + e.size > payload.size())
+        continue;
+      std::vector<uint8_t> body(payload.begin() + e.offset,
+                                payload.begin() + e.offset + e.size);
+      if (auto parsed = parse_slider_trans_anim_source_order(body, e.name))
+        out.push_back(std::move(*parsed));
+    }
+    for (MenuSliderAnim& anim : out) {
+      if (anim.keys_owner.empty() || anim.keys_owner == anim.name) continue;
+      const auto owner = std::find_if(
+          out.begin(), out.end(), [&](const MenuSliderAnim& candidate) {
+            return candidate.name == anim.keys_owner;
+          });
+      if (owner == out.end()) continue;
+      anim.rotation_keys = owner->rotation_keys;
+      anim.translation_keys = owner->translation_keys;
+      anim.scale_keys = owner->scale_keys;
+      anim.first = owner->first;
+      anim.last = owner->last;
+      anim.first_frame = owner->first_frame;
+      anim.last_frame = owner->last_frame;
+    }
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[labels] TransAnim corpus %s: %s\n",
+                 milo_path.c_str(), ex.what());
+  }
+  return out;
+}
+
+std::vector<MenuUiTrigger> extract_menu_ui_triggers(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path) {
+  std::vector<MenuUiTrigger> out;
+  try {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    auto entry = ark.find(milo_path);
+    if (!entry) entry = ark.find("../../system/run/" + milo_path);
+    if (!entry) return out;
+    auto bytes = ark.read_entry(*entry, {ark_path});
+    auto h = gh::milo::parse_header(bytes);
+    auto payload = gh::milo::inflate_payload(bytes, h);
+    auto dir = gh::milo::parse_directory(payload);
+
+    for (const auto& e : dir.entries) {
+      if (e.type != "UITrigger" || e.offset + e.size > payload.size())
+        continue;
+      std::vector<uint8_t> body(payload.begin() + e.offset,
+                                payload.begin() + e.offset + e.size);
+      if (auto parsed = parse_ui_trigger_source_order(body, e.name))
+        out.push_back(std::move(*parsed));
+    }
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[labels] UITrigger %s: %s\n", milo_path.c_str(),
+                 ex.what());
+  }
+  return out;
+}
+
 MenuMaterialAnim extract_menu_material_anim(const std::string& hdr_path,
                                             const std::string& ark_path,
                                             const std::string& milo_path,
@@ -1441,6 +1740,49 @@ MenuMaterialAnim extract_menu_material_anim(const std::string& hdr_path,
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "[labels] MatAnim %s/%s: %s\n", milo_path.c_str(),
                  anim_name.c_str(), ex.what());
+  }
+  return out;
+}
+
+std::vector<MenuMaterialAnim> extract_menu_material_anims(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path) {
+  std::vector<MenuMaterialAnim> out;
+  try {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    auto entry = ark.find(milo_path);
+    if (!entry) entry = ark.find("../../system/run/" + milo_path);
+    if (!entry) return out;
+    auto bytes = ark.read_entry(*entry, {ark_path});
+    auto h = gh::milo::parse_header(bytes);
+    auto payload = gh::milo::inflate_payload(bytes, h);
+    auto dir = gh::milo::parse_directory(payload);
+    for (const auto& e : dir.entries) {
+      if (e.type != "MatAnim" || e.offset + e.size > payload.size()) continue;
+      std::vector<uint8_t> body(payload.begin() + e.offset,
+                                payload.begin() + e.offset + e.size);
+      if (auto parsed = parse_material_anim_source_order(body, e.name))
+        out.push_back(std::move(*parsed));
+    }
+    for (MenuMaterialAnim& anim : out) {
+      if (anim.keys_owner.empty() || anim.keys_owner == anim.name) continue;
+      const auto owner = std::find_if(
+          out.begin(), out.end(), [&](const MenuMaterialAnim& candidate) {
+            return candidate.name == anim.keys_owner;
+          });
+      if (owner == out.end()) continue;
+      anim.color_keys = owner->color_keys;
+      anim.alpha_keys = owner->alpha_keys;
+      anim.translation_keys = owner->translation_keys;
+      anim.scale_keys = owner->scale_keys;
+      anim.rotation_keys = owner->rotation_keys;
+      anim.texture_keys = owner->texture_keys;
+      anim.first_frame = owner->first_frame;
+      anim.last_frame = owner->last_frame;
+    }
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[labels] MatAnim corpus %s: %s\n",
+                 milo_path.c_str(), ex.what());
   }
   return out;
 }

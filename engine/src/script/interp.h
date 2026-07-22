@@ -117,6 +117,14 @@ class Host {
     return false;
   }
 
+  // Runtime `{new Class name}` used by stock panel handlers for ephemeral
+  // providers (for example endgame's StatsProvider).
+  virtual Object* create_object(Symbol cls, Symbol name) {
+    (void)cls;
+    (void)name;
+    return nullptr;
+  }
+
   // DataExists checks the current data directory first, then the registered
   // data-function table. Hosts can extend "object exists" beyond static
   // objects, e.g. named animation tasks.
@@ -173,6 +181,11 @@ class Interp {
   Object* eval_object(const Node& head, Env& env);
   // Evaluate children[arg_start..] of `cmd` into a positional DataArray.
   DataArray eval_args(const Node& cmd, std::size_t arg_start, Env& env);
+  // Script-time (...) arrays are values, but command/variable/property
+  // elements inside them are evaluated before the array is passed on.  Stock
+  // endgame.dtb relies on this for (adj {localize ...}) headline arguments.
+  DataNode eval_data_array(const Node& array, Env& env);
+  Symbol eval_message_symbol(const Node& message, Env& env);
   bool try_object_foreach(Object* target, Symbol msg, const Node& cmd,
                           Env& env, DataNode& out);
   DataNode assign_target(const Node& target, DataNode value, Env& env);
@@ -208,6 +221,7 @@ class Interp {
   DataNode bi_localize(const Node& c, Env&);
   DataNode bi_print(const Node& c, Env&);
   DataNode bi_script_task(const Node& c, Env&);
+  DataNode bi_new(const Node& c, Env&);
 };
 
 }  // namespace ghogx::script

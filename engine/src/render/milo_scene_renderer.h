@@ -109,6 +109,11 @@ class MiloSceneRenderer {
   // frames the orbit camera on the scene bounding box.
   void set_scene(milo_scene::Scene scene,
                  const std::map<std::string, ghogx::asset::Image>& textures);
+  bool select_authored_camera(const std::string& name);
+  bool select_scene_panel_camera();
+  const std::string& scene_panel_environment() const {
+    return scene_.panel_environment;
+  }
 
   // Mutable camera, so the app can drive it from input.
   OrbitCamera& camera() { return cam_; }
@@ -120,9 +125,20 @@ class MiloSceneRenderer {
     float u, v;
     uint32_t argb;
   };
+  struct TextTransformSpan {
+    size_t first_vertex = 0;
+    size_t vertex_count = 0;
+    std::string name;
+    std::string parent;
+    std::array<float, 16> local = {1, 0, 0, 0, 0, 1, 0, 0,
+                                   0, 0, 1, 0, 0, 0, 0, 1};
+    std::array<float, 16> bind_world = {1, 0, 0, 0, 0, 1, 0, 0,
+                                        0, 0, 1, 0, 0, 0, 0, 1};
+  };
   struct TextBatch {
     std::vector<TextVertex> verts;
     const ghogx::asset::Image* atlas = nullptr;
+    std::vector<TextTransformSpan> transform_spans;
   };
   // Hand the renderer the menu's text (triangle list, 3 verts/tri) + the font
   // atlas it samples. Drawn as an alpha-blended overlay after the 3-D scene.
@@ -163,6 +179,8 @@ class MiloSceneRenderer {
       std::map<std::string, std::array<float, 3>> offsets);
   void set_post_text_mesh_text_split(size_t batch_index);
   void set_material_alpha_multipliers(std::map<std::string, float> material_alpha);
+  void set_material_alpha_overrides(
+      std::map<std::string, float> material_alpha);
   void set_material_color_overrides(
       std::map<std::string, std::array<float, 4>> material_colors);
   void set_material_texture_overrides(
@@ -309,6 +327,7 @@ class MiloSceneRenderer {
   std::map<std::string, std::array<float, 3>> post_text_mesh_world_offsets_;
   size_t post_text_mesh_text_split_ = 0;
   std::map<std::string, float> material_alpha_;
+  std::map<std::string, float> material_alpha_overrides_;
   std::map<std::string, std::array<float, 4>> material_colors_;
   std::map<std::string, std::string> material_textures_;
   std::map<std::string, MaterialTexTransformSample> material_tex_transforms_;
@@ -328,6 +347,7 @@ class MiloSceneRenderer {
   uint8_t clear_b_ = 34;
   std::map<std::string, std::string> mesh_environments_;
   std::string default_environment_;
+  std::string selected_camera_name_;
   std::map<std::string, std::array<float, 4>> environment_color_overrides_;
   std::map<std::string, EnvironmentFogOverride> environment_fog_overrides_;
   std::map<std::string, std::array<float, 4>> light_color_overrides_;
@@ -359,6 +379,7 @@ class MiloSceneRenderer {
   // Menu text overlay: the font atlas + world-space triangle list.
   std::vector<IDirect3DTexture9*> text_tex_;
   std::vector<std::vector<TextVertex>> text_;
+  std::vector<std::vector<TextTransformSpan>> text_transform_spans_;
 
   // Scene bounding box in world space (after world-matrix composition).
   float bb_min_[3] = {0, 0, 0};

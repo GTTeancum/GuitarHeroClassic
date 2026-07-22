@@ -764,6 +764,10 @@ class Gameplay {
   // difficulty: 0=Easy 1=Medium 2=Hard 3=Expert.
   bool load_song(const std::string& hdr_path, const std::string& ark_path,
                  const std::string& shortname, int difficulty = 3);
+  std::string_view quickplay_character_outfit() const {
+    return quickplay_rig_ ? std::string_view(quickplay_rig_->character_outfit)
+                          : std::string_view();
+  }
 
   // Called each frame.
   // dt        — frame delta seconds.
@@ -834,6 +838,20 @@ class Gameplay {
   int    hit_count() const { return hit_count_; }
   int    miss_count() const { return miss_count_; }
   int    overstrum_count() const { return overstrum_count_; }
+  struct SectionResult {
+    std::string name;
+    int hit = 0;
+    int total = 0;
+  };
+  std::vector<SectionResult> section_results() const;
+  int completed_star_phrases() const { return completed_star_phrases_; }
+  int total_star_phrases() const;
+  float average_multiplier() const {
+    return multiplier_sample_count_ > 0
+               ? multiplier_sample_sum_ /
+                     static_cast<float>(multiplier_sample_count_)
+               : 1.0f;
+  }
   bool   star_power_active() const { return star_power_.active; }
   float  star_power_fill() const;
   float  rock_fill() const;
@@ -1509,6 +1527,9 @@ class Gameplay {
   // Index of the next unprocessed note in chart_.notes[difficulty_].
   size_t   next_note_idx_  = 0;
   std::vector<uint8_t> note_consumed_[4];
+  // 0=pending, 1=hit, 2=miss. Kept separately from consumed so the retail
+  // section-results receipt can report real per-song section accuracy.
+  std::vector<uint8_t> note_result_[4];
 
   int      score_          = 0;
   int      streak_         = 0;
@@ -1517,6 +1538,9 @@ class Gameplay {
   int      hit_count_      = 0;
   int      miss_count_     = 0;
   int      overstrum_count_ = 0;
+  int      completed_star_phrases_ = 0;
+  float    multiplier_sample_sum_ = 0.0f;
+  int      multiplier_sample_count_ = 0;
   FoFiXRockState rock_;
   FoFiXStarPowerState star_power_;
   std::optional<FoFiXGameplaySession> gameplay_session_mirror_;

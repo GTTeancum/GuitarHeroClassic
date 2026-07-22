@@ -23,10 +23,12 @@
 namespace ghogx::ui {
 
 struct MenuLabel {
+  std::string runtime_owner; // owning UIPanel; disambiguates duplicate child names
   std::string name;   // entry name, e.g. "main_career.btn"
   std::string type;   // "BandButton" / "Text" / "BandLabel"
   std::string font;   // first embedded string ("impact"); "" if only one string
   std::string parent; // authored parent group/view string, when serialized
+  std::vector<std::string> visibility_ancestors; // resolved MILO parent chain
   std::string text;   // last embedded string = label / locale key ("CAREER")
   std::string nav;    // BandButton nav target (the embedded "*.btn" string)
                       // focus-down link; "" if none (e.g. Text objects)
@@ -39,6 +41,7 @@ struct MenuLabel {
   // These names are conservative where the old and new layouts overlap.
   struct ButtonTail {
     bool valid = false;
+    bool legacy_layout = false;
     std::int32_t fit_text = 0;   // UILabel/BandButton fitType when present.
     std::int32_t alignment = 34; // UILabel::TextAlignments / RndText bits.
     std::uint8_t all_caps = 0;
@@ -72,6 +75,17 @@ struct MenuLabel {
     std::array<float, 4> color{{1.0f, 1.0f, 1.0f, 1.0f}};
   } text_tail;
 
+  // BandTextEntry revision-3 fields are the final 44 bytes of the component:
+  // timing/selection geometry followed by entered/current-character colors.
+  struct TextEntryTail {
+    bool valid = false;
+    float flash_time = 0.0f;
+    float text_scale = 0.0f;
+    float arrow_offset = 0.0f;
+    std::array<float, 4> entered_color{{1.0f, 1.0f, 1.0f, 1.0f}};
+    std::array<float, 4> dynamic_color{{1.0f, 1.0f, 1.0f, 1.0f}};
+  } text_entry_tail;
+
   // Local + world Trans matrices: row-major 3x3 (m[0..8]) + translation
   // (m[9..11]).
   std::array<float, 12> local{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
@@ -79,6 +93,12 @@ struct MenuLabel {
   std::array<float, 12> world{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
   bool has_world = false;
 };
+
+// Transform a point on RndText's local X/Z plane through a serialized
+// Harmonix Trans. Trans matrices use row-vector basis rows; local X follows
+// row 0 and local Z follows row 2.
+std::array<float, 3> transform_menu_text_point(
+    const std::array<float, 12>& xfm, float local_x, float local_z);
 
 struct MenuCheckbox {
   std::string name;      // entry name, e.g. "p_scan.chk"
@@ -126,6 +146,7 @@ struct MenuSliderAnim {
   bool valid = false;
   std::string name;
   std::string target; // TransAnim target, e.g. "char_slider_pod.mesh"
+  std::string keys_owner; // authored owner reference; self for embedded key sets
   std::vector<MenuTransQuatKey> rotation_keys;
   std::vector<MenuTransVecKey> translation_keys;
   std::vector<MenuTransVecKey> scale_keys;
@@ -145,6 +166,40 @@ struct MenuAnimFilter {
   float start = 0.0f;
   float end = 0.0f;
   std::int32_t type = 0;  // RndAnimFilter::Type: 0 range, 1 loop, 2 shuttle.
+  float period = 0.0f;
+};
+
+// GH2's legacy UITrigger revision stores one event, one RndAnimatable reference,
+// and a transition-blocking flag after an inherited UIComponent. PanelDir sends
+// ui_enter/ui_exit plus the direction-specific event; only a triggered entry
+// with a live animation and block_transition=true delays UIManager.
+struct MenuUiTrigger {
+  bool valid = false;
+  std::string name;
+  std::uint16_t revision = 0;
+  std::uint16_t component_revision = 0;
+  std::string event;
+  std::string anim_ref;
+  bool block_transition = false;
+};
+
+// Body-level decoders used by the runtime MILO loader after it has already
+// inflated a panel. Invalid input returns a value with valid=false.
+MenuSliderAnim decode_menu_trans_anim_body(
+    const std::vector<std::uint8_t>& body, const std::string& name);
+MenuAnimFilter decode_menu_anim_filter_body(
+    const std::vector<std::uint8_t>& body, const std::string& name);
+MenuUiTrigger decode_menu_ui_trigger_body(
+    const std::vector<std::uint8_t>& body, const std::string& name);
+
+struct MenuMaterialColorKey {
+  float frame = 0.0f;
+  std::array<float, 4> color{{1.0f, 1.0f, 1.0f, 1.0f}};
+};
+
+struct MenuMaterialFloatKey {
+  float frame = 0.0f;
+  float value = 0.0f;
 };
 
 struct MenuMaterialTextureKey {
@@ -156,10 +211,19 @@ struct MenuMaterialAnim {
   bool valid = false;
   std::string name;
   std::string material;  // RndMat target, e.g. "loading_word.mat"
+  std::string keys_owner;  // authored MatAnim key owner; may be another .mnm
+  std::vector<MenuMaterialColorKey> color_keys;
+  std::vector<MenuMaterialFloatKey> alpha_keys;
+  std::vector<MenuTransVecKey> translation_keys;
+  std::vector<MenuTransVecKey> scale_keys;
+  std::vector<MenuTransVecKey> rotation_keys;
   std::vector<MenuMaterialTextureKey> texture_keys;
   float first_frame = 0.0f;
   float last_frame = 0.0f;
 };
+
+MenuMaterialAnim decode_menu_material_anim_body(
+    const std::vector<std::uint8_t>& body, const std::string& name);
 
 struct MenuProxyTransform {
   bool valid = false;
@@ -218,6 +282,9 @@ struct UiListLayout {
 
   std::array<float, 12> world{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
   bool has_world = false;
+  std::array<float, 12> local{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
+  bool has_local = false;
+  std::string parent;
 };
 
 struct MenuTextStyle {
@@ -268,13 +335,26 @@ MenuSliderAnim extract_menu_slider_anim(const std::string& hdr_path,
                                         const std::string& milo_path,
                                         const std::string& anim_name);
 
+// Decode the complete authored TransAnim corpus for one panel in one ARK read.
+// External keys_owner references are resolved onto the consuming animation,
+// matching RndTransAnim's runtime delegation while preserving its own target.
+std::vector<MenuSliderAnim> extract_menu_transform_anims(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path);
+
 // Decode an AnimFilter entry enough to recover its source TransAnim reference
 // and stored frame. Harmonix AnimFilter drives a RndAnimatable to an authored
 // frame; this pins that source route for menu pose work.
 MenuAnimFilter extract_menu_anim_filter(const std::string& hdr_path,
                                         const std::string& ark_path,
                                         const std::string& milo_path,
-                                        const std::string& filter_name);
+                                         const std::string& filter_name);
+
+// Decode every legacy UITrigger in one stock panel MILO using Harmonix's
+// serialized UITrigger -> UIComponent -> RndTrans/RndDrawable field order.
+std::vector<MenuUiTrigger> extract_menu_ui_triggers(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path);
 
 // Decode a MatAnim entry enough to recover its material target and keyed diffuse
 // texture swaps. Loading's LOADING word uses this for the stock blink/flip.
@@ -282,6 +362,10 @@ MenuMaterialAnim extract_menu_material_anim(const std::string& hdr_path,
                                             const std::string& ark_path,
                                             const std::string& milo_path,
                                             const std::string& anim_name);
+
+std::vector<MenuMaterialAnim> extract_menu_material_anims(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path);
 
 // Decode a UIProxy's authored transform. GuitarDisplayPanel::show_guitar passes
 // panel-local UIProxy objects such as sel_guitar/guitar.pxy as live placement

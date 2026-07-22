@@ -8,6 +8,7 @@
 // runs the real menu scripts. Plus a preprocessor #ifdef/#define check.
 
 #include "core/object.h"
+#include "core/object_dir.h"
 #include "script/interp.h"
 #include "script/preprocess.h"
 
@@ -95,6 +96,7 @@ class MockHost : public Host {
   std::vector<std::string> unhandled;
   std::vector<std::pair<float, std::size_t>> scheduled;
   std::vector<std::string> commands;
+  std::vector<std::unique_ptr<MockObject>> created;
 
   void bind(const char* name, Object* o) { objs[Symbol(name).id()] = o; }
   void bind_func(const char* name, NodeList body) { funcs[Symbol(name).id()] = std::move(body); }
@@ -117,6 +119,14 @@ class MockHost : public Host {
     commands.push_back(rec);
     out = DataNode::Sym(n);
     return true;
+  }
+  Object* create_object(Symbol cls, Symbol name) override {
+    auto object = std::make_unique<MockObject>(cls.c_str());
+    object->set_name(name);
+    Object* raw = object.get();
+    created.push_back(std::move(object));
+    objs[name.id()] = raw;
+    return raw;
   }
   std::optional<std::string> consume_option_str(Symbol n) override {
     auto it = options.find(n.id());
@@ -171,6 +181,62 @@ static void test_vars_and_props() {
   // {$this set already_entered TRUE} then {! [already_entered]} == 0
   ip.eval(*mkcmd({mkvar("this"), mksym("set"), mksym("already_entered"), mksym("TRUE")}), env);
   CHECK(ip.eval(*mkcmd({mksym("!"), mkprop("already_entered")}), env).as_int().value() == 0);
+}
+
+static void test_handler_prefers_local_object_dir_child() {
+  Interp ip;
+  MockHost host;
+  Scope root;
+  ObjectDir panel;
+  panel.set_name(Symbol("endgame_stats_panel"));
+  auto local_owned = std::make_unique<MockObject>("BandLabel");
+  MockObject* local = local_owned.get();
+  panel.add(Symbol("song_name.lbl"), std::move(local_owned));
+  MockObject global("BandLabel");
+  global.set_name(Symbol("song_name.lbl"));
+  host.bind("song_name.lbl", &global);
+  Env env;
+  env.host = &host;
+  env.scope = &root;
+  env.self = &panel;
+
+  ip.eval(*mkcmd({mksym("song_name.lbl"), mksym("set"), mksym("text"),
+                  mkstr("LOCAL SONG")} ), env);
+  CHECK(local->get_property(Symbol("text")).as_string().value_or("") ==
+        "LOCAL SONG");
+  CHECK(global.get_property(Symbol("text")).empty());
+}
+
+static void test_runtime_new_and_message_output_refs() {
+  Interp ip;
+  MockHost host;
+  Scope root;
+  Env env;
+  env.host = &host;
+  env.scope = &root;
+
+  DataNode created = ip.eval(
+      *mkcmd({mksym("new"), mksym("StatsProvider"),
+              mksym("stats_provider")}),
+      env);
+  CHECK(created.as_object() != nullptr);
+  CHECK(host.resolve_object(Symbol("stats_provider")) == created.as_object());
+  CHECK(created.as_object() &&
+        created.as_object()->class_name() == Symbol("StatsProvider"));
+
+  MockObject highscores("Highscores");
+  auto values = std::make_shared<DataArray>();
+  values->push(DataNode::Int(2));
+  values->push(DataNode::Str("ACE"));
+  values->push(DataNode::Int(123456));
+  highscores.ret("get_highscore", DataNode::Array(values));
+  host.bind("highscores", &highscores);
+  ip.eval(*mkcmd({mksym("highscores"), mksym("get_highscore"),
+                  mkvar("slot"), mkvar("name"), mkvar("score")}),
+          env);
+  CHECK(host.get_global(Symbol("slot")).as_int().value_or(-1) == 2);
+  CHECK(host.get_global(Symbol("name")).as_string().value_or("") == "ACE");
+  CHECK(host.get_global(Symbol("score")).as_int().value_or(-1) == 123456);
 }
 
 // Exact shape of stock main.dtb (SELECT_START_MSG ...): pick quickplay.
@@ -322,6 +388,54 @@ static void test_run_handler_params() {
   DataArray args; args.push(DataNode::Sym(Symbol("my_cheat"))); args.push(DataNode::Int(1));
   ip.run_handler(handler, &self, args, env);
   CHECK(lbl.called("set_text:my_cheat"));
+}
+
+// endgame.dtb dispatches the selected headline generator as a command in the
+// message slot: {$this {cond (...) gen_headline_perfect_coop ...}}.  It also
+// passes evaluated keyed arrays such as (adj {localize ...}) to the native
+// EndGamePanel generator.
+static void test_dynamic_message_and_evaluated_array_args() {
+  Interp ip;
+  MockHost host;
+  MockObject self("EndGamePanel");
+  Scope root;
+  Env env;
+  env.host = &host;
+  env.scope = &root;
+  env.self = &self;
+
+  ip.eval(*mkcmd({
+              mkvar("this"),
+              mkcmd({mksym("if_else"), mksym("TRUE"),
+                     mksym("gen_headline_perfect_coop"),
+                     mksym("gen_headline_qc_1")})}),
+          env);
+  CHECK(self.called("gen_headline_perfect_coop:"));
+
+  root.declare(Symbol("word"), DataNode::Str("Mind-blowing"));
+  ip.eval(*mkcmd({mkvar("this"), mksym("generate_headline"),
+                  mksym("headline_quick_coop1"),
+                  mkarr({mksym("adj"), mkvar("word")}),
+                  mkarr({mksym("noun"),
+                         mkcmd({mksym("sprint"), mkstr("concert")})})}),
+          env);
+  CHECK(self.called("generate_headline:headline_quick_coop1,<>,<>"));
+  CHECK(self.calls.size() >= 2);
+  if (self.calls.size() >= 2) {
+    // MockObject's compact call string cannot flatten arrays, so inspect the
+    // evaluated value directly as a separate script-time array contract.
+    DataNode keyed = ip.eval(
+        *mkarr({mksym("adj"), mkvar("word"),
+                mkcmd({mksym("sprint"), mkstr("concert")})}),
+        env);
+    auto values = keyed.as_array();
+    CHECK(values && values->size() == 3);
+    if (values && values->size() == 3) {
+      CHECK(values->at(0).as_symbol().value_or(Symbol()) == Symbol("adj"));
+      CHECK(values->at(1).as_string().value_or("") == "Mind-blowing");
+      CHECK(values->at(2).as_string().value_or("") == "concert");
+    }
+  }
 }
 
 static void test_top_level_function_call() {
@@ -632,6 +746,8 @@ static void test_preprocess() {
 int main() {
   test_operators();
   test_vars_and_props();
+  test_handler_prefers_local_object_dir_child();
+  test_runtime_new_and_message_output_refs();
   test_main_select_switch();
   test_career_branch();
   test_do_local_object();
@@ -639,6 +755,7 @@ int main() {
   test_object_foreach_callback();
   test_foreach_int_and_string_target();
   test_run_handler_params();
+  test_dynamic_message_and_evaluated_array_args();
   test_top_level_function_call();
   test_sprintf();
   test_stock_collection_helpers();

@@ -60,6 +60,11 @@ Image load_ps2_bitmap_from_ark(const std::string& hdr_path,
                                const std::string& ark_path,
                                const std::string& entry_path);
 
+// GH2's endgame UIPicture selects loose portraits named
+// ui/image/og/gen/photo_<outfit>0_keep.bmp_ps2.  The trailing zero is the
+// first authored portrait variant, not part of the outfit symbol.
+std::string endgame_photo_bitmap_path_for_outfit(std::string outfit_key);
+
 // Resolve the guitarist-specific track surface selected by a character load.
 // GH2 stores the playable highway art as loose PS2 bitmap entries under
 // track/surfaces/gen/. The resolver first looks for an authored track/surfaces

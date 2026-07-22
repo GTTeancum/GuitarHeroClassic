@@ -29,6 +29,31 @@ here with its source. Nothing in the engine layer ships without a source tag.
 
 ---
 
+## 2026-07-21 canonical all-menu audit checkpoint
+
+- The stock registry contains 130 screen objects and 76 unique panel
+  compositions. Every composition completed a settled runtime capture at both
+  4:3 (960x720) and 16:9 (1280x720), with no missing MILO or failed render.
+  Stateful direct-start exceptions remain routed-flow obligations: guitar/bass
+  unlock screens require a queued campaign award, and tutorial overlays require
+  their active lesson state.
+- Complete independent autoplay loops passed in both aspects without bypassing
+  the stock menu manager: 4:3 used `badreputation`/Medium and 16:9 used
+  `strutter`/Hard. Both traversed splash -> main -> Quickplay song -> difficulty
+  -> loading -> gameplay -> YOU ROCK -> newspaper -> detailed stats -> high
+  score -> completion -> Quickplay, with no unresolved menu sound route or
+  script failure.
+- The source route audit covers 272 authored navigation calls (187 literal, 79
+  expression/variable-driven); all literal screen destinations resolve. The
+  dynamic set is retained explicitly for stateful branch validation rather than
+  guessed into literal targets.
+- The campaign award test now enters the shipped `unlock_guitar_panel` handler:
+  it consumes `next_guitar_award` and supplies the exact reward plus authored
+  proxy/filter references to `unlock_guitar_display_panel`. A bare direct-start
+  has no award by design and is not accepted as unlock-screen composition proof.
+
+---
+
 ## Judgement-debt ledger (open items from committed phase 1–3)
 These shipped in 36d3f23 / 2ea6b4d with inference that this directive requires we
 ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accepted.
@@ -652,18 +677,19 @@ never DEFINED as a handler are true engine primitives needing grounded C++:
   has not received `exit_complete`/`unload`, and the new screen's
   `TRANSITION_COMPLETE_MSG` is deferred until the timer closes. The menu
   renderer now consumes the manager's transition snapshot, keeps the exiting
-  screen rendered as a second layer during that window, and crossfades it with
-  the entering screen instead of visually hard-cutting at `goto_screen`.
+  screen (including live proxy/character state and text) rendered as a second
+  layer during that window, then draws the entering screen over it. The stock
+  `ui_exit`/`ui_enter` transforms and material animation therefore control the
+  visual handoff instead of a guessed generic crossfade or a hard cut.
   Static-capture state fires `TRANSITION_COMPLETE_MSG` immediately only for
   opt-out screens; gameplay loading handoffs (`loading_screen` /
   `practice_loading_screen`) keep completion external to menu rendering.
   `screen_back` exceptions (chooseprof/mem_card/bonus_material/credits) fall out of
   "fire screen_back only if the screen defines that handler" — no name list.
   goto=replace; push=overlay (underlying stays loaded + unpolled); pop=exit overlay,
-  resume underlying. OPEN `[INFERENCE]`: exact authored visual interpolation
-  curve/slide/camera work during the transition window, intra-message
+  resume underlying. Remaining `[INFERENCE]` is limited to intra-message
   screen-vs-panel sub-ordering, persistent-panel (meta/helpbar) reload
-  skipping, per-screen scene-state IDs + helpbar/focus application (Phase 5/6).
+  skipping, and per-screen scene-state IDs.
 
 - **Localized label writes — `[DTB-SURFACE]` + `[VERBATIM-DATA]`.** Stock
   `loading.dta` enters with `{tip.lbl set_localized_text {tips random_tip}}`;
@@ -872,16 +898,24 @@ actual decoded audio-bank playback, profilemgr/content_mgr/memcard.
   Stock `splash.dta::splash_screen` enters attract mode by setting
   `{game set_song {campaign pick_attract_song}}`, forcing expert difficulty,
   calling `game set_quickplay`, marking `game_screen attract_mode TRUE`, and
-  routing to `loading_screen`. The runtime now selects attract songs from the
-  decoded `config/gen/campaign` song order and advances deterministically for
-  repeatable harness captures; profile/random weighting remains open.
+  routing to `loading_screen`. The runtime now selects uniformly from the
+  decoded `config/gen/campaign` song order and avoids immediately repeating the
+  last attract song. An explicitly seeded `attract_song_index` remains a
+  deterministic diagnostic/test override without affecting production picks.
 - **Menu sound script events - `[DTB-SURFACE]`.** `synth play_sequence`,
   `synth stop_all_sfx`/`pause_all_sfx`, global `play_sfx`/`stop_sfx`,
   `meta_music`, `world play_sfx`/`play_meta_sfx`, and direct cue-object
   `sync_click.cue play` now land on menu singleton objects and preserve the
-  authored sequence/cue/control symbol. This removes them from the unhandled
-  path and gives transition/input work source-shaped sound events; real
-  bank/cue playback is still open.
+  authored sequence/cue/control symbol. The front end decodes and plays the
+  stock ingame, practice, metagame, current `game.venue`, and (while
+  `game.tutorial_running`) tutorial MILO sound banks. Keeping the tutorial bank
+  conditional preserves its authored duplicate cue definitions without
+  overriding the normal front-end versions outside tutorial flow.
+  Venue selection matters after gameplay: shipped `win_game_screen` requests
+  `crowd_win`, and `unlock_venue_screen` requests `vroom.cue`; both cues live in
+  `world/<venue>/gen/<venue>_bank.milo_ps2`, not the global metagame bank. The
+  menu audio route reloads that authored venue bank when `game.venue` changes,
+  so post-song and unlock sounds use the selected venue's own samples.
 - **Shared menu input SFX - `[DTB-SURFACE]`.** Stock `sfx.dta` top-level
   `SELECT_START_MSG`/`SCROLL_MSG`/`FOCUS_MSG`/`SCREEN_BACK_MSG` handlers are
   represented on the `ui` manager because they are not normal screen objects in

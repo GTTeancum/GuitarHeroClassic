@@ -25,6 +25,7 @@
 
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 namespace ghogx::ui {
 
@@ -55,6 +56,15 @@ class UiObject : public ObjectDir {
     return it == handlers_.end() ? nullptr : it->second;
   }
   std::size_t handler_count() const { return handlers_.size(); }
+  std::vector<std::shared_ptr<Node>> handler_blocks() const {
+    std::vector<std::shared_ptr<Node>> out;
+    out.reserve(handlers_.size());
+    for (const auto& [key, block] : handlers_) {
+      (void)key;
+      if (block) out.push_back(block);
+    }
+    return out;
+  }
 
   DataNode handle_property(Symbol msg, const DataArray& args) override;
 

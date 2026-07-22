@@ -26498,6 +26498,9 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     hit_count_    = 0;
     miss_count_   = 0;
     overstrum_count_ = 0;
+    completed_star_phrases_ = 0;
+    multiplier_sample_sum_ = 0.0f;
+    multiplier_sample_count_ = 0;
     rock_         = FoFiXRockState{};
     star_power_   = FoFiXStarPowerState{};
     gameplay_session_mirror_.reset();
@@ -26520,6 +26523,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     bad_highway_flash_ = 0.0f;
     multiplier_surface_flash_ = 0.0f;
     for (auto& consumed : note_consumed_) consumed.clear();
+    for (auto& result : note_result_) result.clear();
     difficulty_   = std::clamp(difficulty, 0, 3);
     hdr_path_     = hdr_path;
     ark_path_     = ark_path;
@@ -26832,6 +26836,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     chart_ = ghogx::chart::parse_midi(mid_bytes);
     for (int d = 0; d < 4; ++d) {
         note_consumed_[d].assign(chart_.notes[d].size(), 0);
+        note_result_[d].assign(chart_.notes[d].size(), 0);
     }
     gameplay_session_mirror_ =
         FoFiXGameplaySession::FromChart(chart_, difficulty_);
@@ -33648,6 +33653,87 @@ float Gameplay::rock_fill() const {
     return static_cast<float>(fofix_rock_fill(rock_));
 }
 
+std::vector<Gameplay::SectionResult> Gameplay::section_results() const {
+    std::vector<SectionResult> out;
+    if (!chart_loaded_) return out;
+    const int diff = std::clamp(difficulty_, 0, 3);
+    const auto& notes = chart_.notes[diff];
+    const auto& results = note_result_[diff];
+    if (notes.empty()) return out;
+
+    struct Boundary {
+        uint32_t tick = 0;
+        std::string name;
+    };
+    std::vector<Boundary> boundaries;
+    for (const auto& event : chart_.text_events) {
+        constexpr std::string_view prefix = "[section ";
+        if (event.text.rfind(prefix.data(), 0) != 0 ||
+            event.text.size() <= prefix.size() || event.text.back() != ']') {
+            continue;
+        }
+        std::string name = event.text.substr(
+            prefix.size(), event.text.size() - prefix.size() - 1);
+        if (!name.empty()) boundaries.push_back({event.tick, std::move(name)});
+    }
+
+    if (boundaries.empty()) {
+        SectionResult full{"full_song", 0, 0};
+        for (std::size_t i = 0; i < notes.size();) {
+            const uint32_t tick = notes[i].tick_on;
+            const uint8_t result = i < results.size() ? results[i] : 0;
+            ++full.total;
+            if (result == 1) ++full.hit;
+            do { ++i; } while (i < notes.size() && notes[i].tick_on == tick);
+        }
+        out.push_back(std::move(full));
+        return out;
+    }
+
+    const bool has_intro = notes.front().tick_on < boundaries.front().tick;
+    std::vector<SectionResult> buckets;
+    if (has_intro) buckets.push_back({"intro", 0, 0});
+    for (const auto& boundary : boundaries)
+        buckets.push_back({boundary.name, 0, 0});
+
+    std::size_t boundary_index = 0;
+    for (std::size_t i = 0; i < notes.size();) {
+        const uint32_t tick = notes[i].tick_on;
+        while (boundary_index + 1 < boundaries.size() &&
+               boundaries[boundary_index + 1].tick <= tick) {
+            ++boundary_index;
+        }
+        std::size_t bucket = boundary_index + (has_intro ? 1u : 0u);
+        if (has_intro && tick < boundaries.front().tick) bucket = 0;
+        bucket = std::min(bucket, buckets.size() - 1);
+        const uint8_t result = i < results.size() ? results[i] : 0;
+        ++buckets[bucket].total;
+        if (result == 1) ++buckets[bucket].hit;
+        do { ++i; } while (i < notes.size() && notes[i].tick_on == tick);
+    }
+    for (auto& bucket : buckets)
+        if (bucket.total > 0) out.push_back(std::move(bucket));
+    return out;
+}
+
+int Gameplay::total_star_phrases() const {
+    if (!chart_loaded_) return 0;
+    const auto& notes = chart_.notes[std::clamp(difficulty_, 0, 3)];
+    int phrases = 0;
+    bool in_phrase = false;
+    for (std::size_t i = 0; i < notes.size();) {
+        const uint32_t tick = notes[i].tick_on;
+        bool star = false;
+        do {
+            star = star || notes[i].star_power;
+            ++i;
+        } while (i < notes.size() && notes[i].tick_on == tick);
+        if (star && !in_phrase) ++phrases;
+        in_phrase = star;
+    }
+    return phrases;
+}
+
 void Gameplay::set_diagnostic_rock_fill(double fill) {
     const double clamped =
         std::clamp(std::isfinite(fill) ? fill : 0.0, 0.0, 1.0);
@@ -33716,6 +33802,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     std::memset(lane_hit_, 0, sizeof(lane_hit_));
     for (int d = 0; d < 4; ++d) {
         note_consumed_[d].assign(chart_.notes[d].size(), 0);
+        note_result_[d].assign(chart_.notes[d].size(), 0);
     }
 
     const auto& player_notes = chart_.notes[std::clamp(difficulty_, 0, 3)];
@@ -34933,16 +35020,19 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
     }
 
     bool bad_gameplay_feedback = false;
-    auto mark_source_group_consumed = [&](const FoFiXSessionEvent& event) {
+    auto mark_source_group_consumed = [&](const FoFiXSessionEvent& event,
+                                          uint8_t result) {
         if (event.source_index == static_cast<size_t>(-1) ||
             event.source_tick == UINT32_MAX) {
             return;
         }
         auto& consumed = note_consumed_[std::clamp(difficulty_, 0, 3)];
+        auto& results = note_result_[std::clamp(difficulty_, 0, 3)];
         const auto& notes = chart_.notes[std::clamp(difficulty_, 0, 3)];
         for (size_t i = event.source_index;
              i < notes.size() && notes[i].tick_on == event.source_tick; ++i) {
             if (i < consumed.size()) consumed[i] = 1;
+            if (i < results.size()) results[i] = result;
         }
         while (next_note_idx_ < notes.size() &&
                next_note_idx_ < consumed.size() &&
@@ -35017,7 +35107,9 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
 
         switch (event.type) {
         case FoFiXSessionEventType::Hit: {
-            mark_source_group_consumed(event);
+            mark_source_group_consumed(event, 1);
+            multiplier_sample_sum_ += static_cast<float>(event.multiplier);
+            ++multiplier_sample_count_;
             if (event.multiplier > multiplier_) {
                 multiplier_surface_flash_ = 1.0f;
             }
@@ -35042,7 +35134,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
             break;
         }
         case FoFiXSessionEventType::Miss:
-            mark_source_group_consumed(event);
+            mark_source_group_consumed(event, 2);
             if (diagnostic_autoplay_) {
                 std::fprintf(stderr,
                              "[gameplay] diagnostic autoplay suppressed miss presentation tick=%u mask=0x%02x\n",
@@ -35095,6 +35187,7 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                          event.score_delta, event.score);
             break;
         case FoFiXSessionEventType::StarPhraseComplete:
+            ++completed_star_phrases_;
             star_power_highway_flash_ = std::max(star_power_highway_flash_, 0.75f);
             // config/gen/player.dtb::phrase_captured schedules sp_awarded after
             // 0.2 seconds. Autoplay is not attract mode, so it must not silence
@@ -35507,6 +35600,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
     const auto& notes = chart_.notes[difficulty_];
     auto& consumed = note_consumed_[difficulty_];
     if (consumed.size() != notes.size()) consumed.assign(notes.size(), 0);
+    auto& note_results = note_result_[difficulty_];
+    if (note_results.size() != notes.size()) note_results.assign(notes.size(), 0);
     bool gameplay_session_already_ticked = false;
     if (diagnostic_autoplay_) {
         if (gameplay_session_mirror_) {
@@ -35578,6 +35673,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         if (!star_phrase_active_) return;
         if (!star_phrase_missed_) {
             fofix_award_star_phrase(star_power_);
+            ++completed_star_phrases_;
             std::fprintf(stderr,
                          "[gameplay] star phrase complete sp=%.2f\n",
                          fofix_star_power_fill(star_power_));
@@ -35694,6 +35790,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         const FoFiXScoreAward award = fofix_apply_hit(
             state, gem_count, fofix_star_power_score_multiplier(star_power_));
         commit_score_state(state);
+        multiplier_sample_sum_ += static_cast<float>(multiplier_);
+        ++multiplier_sample_count_;
         fofix_apply_rock_hit(
             rock_,
             static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
@@ -35715,6 +35813,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
                            : 0));
             if (n.star_power) star_collect_flash_[n.lane] = 1.0f;
             if (i < consumed.size()) consumed[i] = 1;
+            if (i < note_results.size()) note_results[i] = 1;
             apply_venue_event(player_fret_hit_event(n.lane), false);
         }
         start_sustain_group(start, end);
@@ -35739,6 +35838,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
             observe_star_phrase_group(skipped, skipped_end, false);
             for (size_t j = skipped; j < skipped_end; ++j) {
                 if (j < consumed.size()) consumed[j] = 1;
+                if (j < note_results.size()) note_results[j] = 2;
             }
             skipped = skipped_end;
         }
@@ -35799,6 +35899,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
                     missed = true;
                 }
                 if (j < consumed.size()) consumed[j] = 1;
+                if (j < note_results.size()) note_results[j] = 2;
             }
             if (missed) {
                 FoFiXScoreState state =

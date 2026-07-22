@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -70,6 +71,19 @@ static bool truthy(const DataNode& node) {
 
 static bool near(float a, float b, float eps = 0.0001f) {
   return a > b - eps && a < b + eps;
+}
+
+static std::vector<Symbol> stock_screen_panels(Object* screen) {
+  std::vector<Symbol> out;
+  if (!screen) return out;
+  DataNode panels = screen->get_property(Symbol("panels"));
+  if (auto array = panels.as_array()) {
+    for (std::size_t i = 0; i < array->size(); ++i)
+      if (auto panel = array->at(i).as_symbol()) out.push_back(*panel);
+  } else if (auto panel = panels.as_symbol()) {
+    out.push_back(*panel);
+  }
+  return out;
 }
 
 class RecordingObject : public Object {
@@ -153,37 +167,17 @@ static void check_transition_lifecycle_smoke() {
                        "trace_old_panel");
   add_recording_screen(mgr, &transition_log, "trace_new_screen",
                        "trace_new_panel");
-  mgr.set_transition_time(0.5f);
   mgr.goto_screen(Symbol("trace_old_screen"));
   transition_log.clear();
   mgr.goto_screen(Symbol("trace_new_screen"));
   const int ui_exit_i =
       log_index(transition_log, "trace_old_screen:ui_exit");
   CHECK(ui_exit_i >= 0);
-  CHECK(mgr.in_transition());
-  auto snapshot = mgr.transition_snapshot();
-  CHECK(snapshot.active);
-  CHECK(!snapshot.back);
-  CHECK(snapshot.exiting_screen != nullptr &&
-        snapshot.exiting_screen->name() == Symbol("trace_old_screen"));
-  CHECK(snapshot.entering_screen != nullptr &&
-        snapshot.entering_screen->name() == Symbol("trace_new_screen"));
-  CHECK(near(snapshot.duration, 0.5f));
-  CHECK(near(snapshot.remaining, 0.5f));
-  CHECK(near(snapshot.progress, 0.0f));
-  CHECK(log_index(transition_log, "trace_old_screen:exit_complete") < 0);
-  CHECK(log_index(transition_log, "trace_old_screen:unload") < 0);
-  CHECK(log_index(transition_log, "trace_new_screen:TRANSITION_COMPLETE_MSG") < 0);
-  mgr.update(0.25f);
-  CHECK(mgr.in_transition());
-  snapshot = mgr.transition_snapshot();
-  CHECK(snapshot.active);
-  CHECK(near(snapshot.remaining, 0.25f));
-  CHECK(near(snapshot.progress, 0.5f));
-  CHECK(log_index(transition_log, "trace_old_screen:exit_complete") < 0);
-  mgr.update(0.25f);
+  // Screens without authored blocking UITriggers complete synchronously. The
+  // shipped UIManager has no blanket transition timer or full-screen fade.
   CHECK(!mgr.in_transition());
-  CHECK(!mgr.transition_snapshot().active);
+  auto snapshot = mgr.transition_snapshot();
+  CHECK(!snapshot.active);
   const int exit_complete_i =
       log_index(transition_log, "trace_old_screen:exit_complete");
   const int unload_i =
@@ -208,7 +202,6 @@ static void check_backwards_anim_routes_goto_as_back_smoke() {
                           "back_old_panel");
   add_recording_ui_screen(mgr, &transition_log, "back_new_screen",
                           "back_new_panel");
-  mgr.set_transition_time(0.0f);
   mgr.goto_screen(Symbol("back_old_screen"));
   Object* old_screen = mgr.current_screen();
   CHECK(old_screen != nullptr);
@@ -242,6 +235,16 @@ static void check_backwards_anim_routes_goto_as_back_smoke() {
 static void check_menu_audio_surface_smoke() {
   ui::ScreenManager mgr;
   ui::install_default_singletons(mgr);
+  struct AudioEvent {
+    Symbol action;
+    Symbol cue;
+    bool value = false;
+  };
+  std::vector<AudioEvent> events;
+  mgr.set_audio_event_handler(
+      [&](Symbol action, Symbol cue, bool value) {
+        events.push_back({action, cue, value});
+      });
 
   Object* synth = mgr.resolve_object(Symbol("synth"));
   Object* world = mgr.resolve_object(Symbol("world"));
@@ -251,6 +254,13 @@ static void check_menu_audio_surface_smoke() {
   CHECK(sync_click != nullptr);
 
   if (synth) {
+    DataArray play_args;
+    play_args.push(DataNode::Sym(Symbol("button_select")));
+    synth->handle_property(Symbol("play_sequence"), play_args);
+    CHECK(!events.empty());
+    CHECK(events.back().action == Symbol("play_sequence"));
+    CHECK(events.back().cue == Symbol("button_select"));
+
     DataArray pause_args;
     pause_args.push(DataNode::Sym(Symbol("TRUE")));
     synth->handle_property(Symbol("pause_all_sfx"), pause_args);
@@ -259,12 +269,15 @@ static void check_menu_audio_surface_smoke() {
               .value_or(Symbol()) == Symbol("pause_all_sfx"));
     CHECK(synth->get_property(Symbol("paused")).as_int().value_or(0) == 1);
     CHECK(synth->get_property(Symbol("pause_all_count")).as_int().value_or(0) == 1);
+    CHECK(events.back().action == Symbol("pause_all_sfx"));
+    CHECK(events.back().value);
 
     synth->handle_property(Symbol("stop_all_sfx"), DataArray());
     CHECK(synth->get_property(Symbol("last_control"))
               .as_symbol()
               .value_or(Symbol()) == Symbol("stop_all_sfx"));
     CHECK(synth->get_property(Symbol("stop_all_count")).as_int().value_or(0) == 1);
+    CHECK(events.back().action == Symbol("stop_all_sfx"));
   }
 
   if (world) {
@@ -275,6 +288,8 @@ static void check_menu_audio_surface_smoke() {
               .as_symbol()
               .value_or(Symbol()) == Symbol("vroom.cue"));
     CHECK(world->get_property(Symbol("play_count")).as_int().value_or(0) == 1);
+    CHECK(events.back().action == Symbol("play_sfx"));
+    CHECK(events.back().cue == Symbol("vroom.cue"));
 
     DataArray meta_args;
     meta_args.push(DataNode::Sym(Symbol("encore_yes")));
@@ -283,6 +298,8 @@ static void check_menu_audio_surface_smoke() {
               .as_symbol()
               .value_or(Symbol()) == Symbol("encore_yes"));
     CHECK(world->get_property(Symbol("meta_play_count")).as_int().value_or(0) == 1);
+    CHECK(events.back().action == Symbol("play_sfx"));
+    CHECK(events.back().cue == Symbol("encore_yes"));
   }
 
   if (sync_click) {
@@ -291,6 +308,21 @@ static void check_menu_audio_surface_smoke() {
               .as_symbol()
               .value_or(Symbol()) == Symbol("play"));
     CHECK(sync_click->get_property(Symbol("play_count")).as_int().value_or(0) == 1);
+    CHECK(events.back().action == Symbol("play_sfx"));
+    CHECK(events.back().cue == Symbol("sync_click.cue"));
+  }
+
+  ui::register_ui_classes();
+  auto loading = std::make_unique<ui::UiObject>(Symbol("GHScreen"));
+  loading->set_name(Symbol("audio_loading_screen"));
+  mgr.add_object(std::move(loading));
+  Object* loading_screen = mgr.find_object(Symbol("audio_loading_screen"));
+  CHECK(loading_screen != nullptr);
+  if (loading_screen) {
+    loading_screen->handle_property(Symbol("reset_ambient"), DataArray());
+    CHECK(events.back().action == Symbol("meta_music"));
+    CHECK(events.back().cue == Symbol("stop"));
+    CHECK(!events.back().value);
   }
 }
 
@@ -376,7 +408,6 @@ static void check_bad_select_surface_smoke() {
 static void check_shared_menu_sfx_surface_smoke() {
   ui::ScreenManager mgr;
   ui::install_default_singletons(mgr);
-  mgr.set_transition_time(0.0f);
 
   std::vector<std::string> sfx_log;
   add_recording_screen(mgr, &sfx_log, "sfx_main_screen", "sfx_panel");
@@ -597,6 +628,59 @@ static void check_named_animation_exists_surface_smoke() {
   CHECK(anim_obj->get_property(Symbol("finished_anim_task"))
             .as_symbol()
             .value_or(Symbol()) == Symbol("unlock_anim"));
+
+  // RndAnimatable::OnAnimate uses StartFrame/EndFrame even with no keyed
+  // arguments, and stop_animation removes the task without changing the
+  // sampled pose.
+  anim_obj->set_property(Symbol("start_frame"), DataNode::Float(0.0f));
+  anim_obj->set_property(Symbol("end_frame"), DataNode::Float(30.0f));
+  anim_obj->handle_property(Symbol("animate"), DataArray());
+  mgr.update(0.5f);
+  CHECK(near(anim_obj->handle_property(Symbol("frame"), DataArray())
+                 .as_float().value_or(-1.0f),
+             15.0f));
+  CHECK(anim_obj->handle_property(Symbol("is_animating"), DataArray())
+            .as_int().value_or(0) == 1);
+  anim_obj->handle_property(Symbol("stop_animation"), DataArray());
+  const float stopped = anim_obj->handle_property(Symbol("frame"), DataArray())
+                            .as_float().value_or(-1.0f);
+  mgr.update(0.5f);
+  CHECK(near(anim_obj->handle_property(Symbol("frame"), DataArray())
+                 .as_float().value_or(-1.0f),
+             stopped));
+  CHECK(anim_obj->handle_property(Symbol("is_animating"), DataArray())
+            .as_int().value_or(1) == 0);
+
+  // RndGroup::SetFrame propagates the same frame to its authored animatable
+  // child list. The panel loader builds this graph from the stock Group body.
+  auto panel = std::make_unique<ui::UiObject>(Symbol("GHPanel"));
+  panel->set_name(Symbol("anim_graph_panel"));
+  panel->set_manager(&mgr);
+  auto* group = dynamic_cast<ui::UiObject*>(
+      panel->create_child(Symbol("Group"), Symbol("anim_graph.view")));
+  auto* child = dynamic_cast<ui::UiObject*>(
+      panel->create_child(Symbol("TransAnim"), Symbol("anim_graph.tnm")));
+  CHECK(group != nullptr);
+  CHECK(child != nullptr);
+  if (group && child) {
+    group->set_manager(&mgr);
+    child->set_manager(&mgr);
+    auto children = std::make_shared<DataArray>();
+    children->push(DataNode::Sym(Symbol("anim_graph.tnm")));
+    group->set_property(Symbol("anim_children"), DataNode::Array(children));
+    group->set_property(Symbol("start_frame"), DataNode::Float(0.0f));
+    group->set_property(Symbol("end_frame"), DataNode::Float(12.0f));
+  }
+  Object* graph_panel = panel.get();
+  mgr.add_object(std::move(panel));
+  if (group && child && graph_panel) {
+    DataArray frame;
+    frame.push(DataNode::Float(7.0f));
+    group->handle_property(Symbol("set_frame"), frame);
+    CHECK(near(child->get_property(Symbol("frame"))
+                   .as_float().value_or(-1.0f),
+               7.0f));
+  }
 }
 
 static void check_tutorial_panel_surface_smoke() {
@@ -707,8 +791,164 @@ int main(int argc, char** argv) {
   CHECK(n >= 35);                      // ~40 ui/gen DTBs
   CHECK(widget_n > 100);
   CHECK(mgr.registry().size() > 100);  // ~180 screen/panel objects
+  std::set<std::string> stock_screens;
+  int unresolved_panel_refs = 0;
+  for (std::size_t i = 0; i < mgr.registry().size(); ++i) {
+    Object* object = mgr.registry().at(i);
+    if (!object) continue;
+    const Symbol cls = object->class_name();
+    if (cls != Symbol("GHScreen") && cls != Symbol("MultiSelectScreen") &&
+        cls != Symbol("TrackBudgetScreen"))
+      continue;
+    stock_screens.insert(object->name().c_str());
+    for (Symbol panel : stock_screen_panels(object)) {
+      if (!mgr.find_object(panel)) {
+        std::fprintf(stderr, "missing stock panel reference: screen=%s panel=%s\n",
+                     object->name().c_str(), panel.c_str());
+        ++unresolved_panel_refs;
+      }
+    }
+  }
+  CHECK(stock_screens.size() == 130);
+  CHECK(unresolved_panel_refs == 0);
+  CHECK(ark.find("track/gen/track.milo_ps2").has_value());
+  CHECK(ark.find("hud/gen/hud.milo_ps2").has_value());
+  for (int venue = 1; venue <= 7; ++venue) {
+    CHECK(ark.find("ui/gen/unlockvenue" + std::to_string(venue) +
+                   ".milo_ps2")
+              .has_value());
+  }
+  const auto stock_routes = ui::collect_ui_route_refs(mgr);
+  int literal_routes = 0;
+  int dynamic_routes = 0;
+  int unresolved_routes = 0;
+  for (const auto& route : stock_routes) {
+    if (route.dynamic) {
+      ++dynamic_routes;
+      continue;
+    }
+    // A target-less pop_screen returns to the pushed stack and is complete as
+    // authored; every other literal destination must name a shipped screen.
+    if (route.target.empty() && route.operation == "pop_screen") continue;
+    ++literal_routes;
+    if (!mgr.find_object(Symbol(route.target.c_str()))) {
+      std::fprintf(stderr,
+                   "unresolved stock route: owner=%s op=%s target=%s line=%u\n",
+                   route.owner.c_str(), route.operation.c_str(),
+                   route.target.c_str(), route.source_line);
+      ++unresolved_routes;
+    }
+  }
+  CHECK(stock_routes.size() > 100);
+  CHECK(literal_routes > 75);
+  CHECK(dynamic_routes > 0);
+  CHECK(unresolved_routes == 0);
+  std::printf("ghogx_ui_test: routes=%zu literal=%d dynamic=%d unresolved=%d\n",
+              stock_routes.size(), literal_routes, dynamic_routes,
+              unresolved_routes);
+
+  // Source-authored transition timing: chooseprof's ui_enter trigger drives
+  // notebook_cover.filt from 0..10 at scale .5, i.e. 20 UI frames / 30 fps.
+  mgr.goto_screen(Symbol("main_screen"));
+  CHECK(!mgr.in_transition());
+  mgr.goto_screen(Symbol("chooseprof_screen"));
+  CHECK(mgr.in_transition());
+  auto chooseprof_transition = mgr.transition_snapshot();
+  CHECK(near(chooseprof_transition.duration, 20.0f / 30.0f));
+  CHECK(near(chooseprof_transition.remaining, 20.0f / 30.0f));
+  if (auto* chooseprof_dir = dynamic_cast<ObjectDir*>(
+          mgr.find_object(Symbol("chooseprof_panel")))) {
+    Object* trigger = chooseprof_dir->find(Symbol("chooseprof.trg"));
+    Object* filter = chooseprof_dir->find(Symbol("notebook_cover.filt"));
+    CHECK(trigger != nullptr);
+    CHECK(filter != nullptr);
+    if (trigger) {
+      CHECK(trigger->get_property(Symbol("event"))
+                .as_symbol()
+                .value_or(Symbol()) == Symbol("ui_enter"));
+      CHECK(trigger->get_property(Symbol("anim_ref"))
+                .as_symbol()
+                .value_or(Symbol()) == Symbol("notebook_cover.filt"));
+      CHECK(trigger->get_property(Symbol("block_transition"))
+                .as_int()
+                .value_or(0) == 1);
+    }
+    if (filter) {
+      CHECK(near(filter->get_property(Symbol("scale"))
+                     .as_float()
+                     .value_or(0.0f),
+                 0.5f));
+      CHECK(near(filter->get_property(Symbol("end"))
+                     .as_float()
+                     .value_or(0.0f),
+                 10.0f));
+      CHECK(mgr.is_animation_task_active(filter));
+      CHECK(near(filter->get_property(Symbol("frame"))
+                     .as_float()
+                     .value_or(-1.0f),
+                 0.0f));
+    }
+  } else {
+    CHECK(false);
+  }
+  mgr.update(10.0f / 30.0f);
+  CHECK(mgr.in_transition());
+  if (auto* chooseprof_dir = dynamic_cast<ObjectDir*>(
+          mgr.find_object(Symbol("chooseprof_panel")))) {
+    Object* filter = chooseprof_dir->find(Symbol("notebook_cover.filt"));
+    Object* source = chooseprof_dir->find(Symbol("notebook_cover.tnm"));
+    CHECK(filter != nullptr);
+    CHECK(source != nullptr);
+    if (filter) {
+      CHECK(near(filter->get_property(Symbol("frame"))
+                     .as_float()
+                     .value_or(-1.0f),
+                 10.0f));
+      CHECK(mgr.is_animation_task_active(filter));
+    }
+    if (source)
+      CHECK(near(source->get_property(Symbol("frame"))
+                     .as_float()
+                     .value_or(-1.0f),
+                 5.0f));
+  }
+  mgr.update(10.0f / 30.0f);
+  CHECK(!mgr.in_transition());
+  if (auto* chooseprof_dir = dynamic_cast<ObjectDir*>(
+          mgr.find_object(Symbol("chooseprof_panel")))) {
+    Object* filter = chooseprof_dir->find(Symbol("notebook_cover.filt"));
+    Object* source = chooseprof_dir->find(Symbol("notebook_cover.tnm"));
+    CHECK(filter != nullptr);
+    CHECK(source != nullptr);
+    if (filter) {
+      CHECK(near(filter->get_property(Symbol("frame"))
+                     .as_float()
+                     .value_or(-1.0f),
+                 20.0f));
+      CHECK(!mgr.is_animation_task_active(filter));
+    }
+    if (source)
+      CHECK(near(source->get_property(Symbol("frame"))
+                     .as_float()
+                     .value_or(-1.0f),
+                 10.0f));
+  }
+  mgr.goto_screen(Symbol("main_screen"));
+  CHECK(!mgr.in_transition());
+
+  if (auto* stats_panel = dynamic_cast<ObjectDir*>(
+          mgr.find_object(Symbol("endgame_stats_panel")))) {
+    CHECK(stats_panel->find_path("song_name.lbl") != nullptr);
+    CHECK(stats_panel->find_path("stats_sections.lst") != nullptr);
+  } else {
+    CHECK(false);
+  }
   for (const char* s : {"main_screen", "main_panel", "qp_selsong_screen", "options_screen"})
     CHECK(mgr.find_object(Symbol(s)) != nullptr);
+  Object* midi_loader = mgr.find_object(Symbol("midi_loader_panel"));
+  CHECK(midi_loader != nullptr);
+  if (midi_loader)
+    CHECK(midi_loader->class_name() == Symbol("MidiLoaderPanel"));
   if (auto* audio = dynamic_cast<ui::UiObject*>(
           mgr.find_object(Symbol("audio_settings_panel")))) {
     CHECK(audio->has_handler(Symbol("FOCUS_MSG")));
@@ -722,6 +962,33 @@ int main(int argc, char** argv) {
   ui::ConfigDb db;
   db.load(ark, arks);
   ui::install_meta_singletons(mgr, db);
+
+  // unlock_venue_panel's MILO filename is derived from campaign status. The
+  // real post-song route has already advanced that status before the panel is
+  // entered, so widget ingestion must see the same meta state; otherwise the
+  // authored unlock_anim task target is silently absent and the panel skips
+  // straight to complete_screen on its first poll.
+  {
+    ui::ScreenManager reward_mgr;
+    ui::install_default_singletons(reward_mgr);
+    CHECK(ui::load_all_ui_screens(ark, arks, reward_mgr) == n);
+    ui::install_meta_singletons(reward_mgr, db);
+    Object* campaign = reward_mgr.resolve_object(Symbol("campaign"));
+    CHECK(campaign != nullptr);
+    if (campaign)
+      campaign->set_property(Symbol("status"), DataNode::Int(1));
+    CHECK(ui::load_panel_milo_widgets(ark, arks, reward_mgr) > widget_n);
+    Object* unlock_panel = reward_mgr.find_object(Symbol("unlock_venue_panel"));
+    CHECK(unlock_panel != nullptr);
+    auto* unlock_dir = dynamic_cast<ObjectDir*>(unlock_panel);
+    Object* unlock_group =
+        unlock_dir ? unlock_dir->find(Symbol("unlock_anim.grp")) : nullptr;
+    CHECK(unlock_group != nullptr);
+    if (unlock_panel)
+      unlock_panel->handle_property(Symbol("TRANSITION_COMPLETE_MSG"),
+                                    DataArray());
+    CHECK(reward_mgr.is_animation_task_active(unlock_group));
+  }
   CHECK(db.song_count() > 40);  // GH2 songs.dtb has ~74 songs
   CHECK(db.first_guitar() == Symbol("lespaul"));
   CHECK(db.first_guitar_skin(Symbol("lespaul")) == Symbol("lp_cherry"));
@@ -803,6 +1070,24 @@ int main(int argc, char** argv) {
     CHECK(game->handle_property(Symbol("get_venue_index"), DataArray())
               .as_int()
               .value_or(-1) == 2);
+    CHECK(game->handle_property(Symbol("is_multiple_controllers"), DataArray())
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("FALSE"));
+    CHECK(game->handle_property(Symbol("is_missing_multi_controller"),
+                                DataArray())
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("TRUE"));
+    game->set_property(Symbol("multiple_controllers"), DataNode::Int(1));
+    game->set_property(Symbol("missing_multi_controller"), DataNode::Int(0));
+    CHECK(game->handle_property(Symbol("is_multiple_controllers"), DataArray())
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("TRUE"));
+    CHECK(game->handle_property(Symbol("is_missing_multi_controller"),
+                                DataArray())
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("FALSE"));
+    game->set_property(Symbol("multiple_controllers"), DataNode::Int(0));
+    game->set_property(Symbol("missing_multi_controller"), DataNode::Int(1));
     DataArray venue_arg;
     venue_arg.push(DataNode::Sym(Symbol("battle")));
     game->handle_property(Symbol("set_venue"), venue_arg);
@@ -823,7 +1108,7 @@ int main(int argc, char** argv) {
     game->handle_property(Symbol("set_difficulty"), hard_arg);
     CHECK(game->handle_property(Symbol("get_difficulty_sym"), p0_arg)
               .as_symbol()
-              .value_or(Symbol()) == Symbol("kDifficultyHard"));
+              .value_or(Symbol()) == Symbol("hard"));
     if (Object* player0 = mgr.resolve_object(Symbol("player0"))) {
       CHECK(player0->get_property(Symbol("difficulty"))
                 .as_symbol()
@@ -985,6 +1270,18 @@ int main(int argc, char** argv) {
                                       DataArray())
                 .as_symbol()
                 .value_or(Symbol()) == campaign_songs[1]);
+      campaign->set_property(Symbol("attract_song_index"), DataNode());
+      const Symbol random_first =
+          campaign->handle_property(Symbol("pick_attract_song"), DataArray())
+              .as_symbol().value_or(Symbol());
+      const Symbol random_second =
+          campaign->handle_property(Symbol("pick_attract_song"), DataArray())
+              .as_symbol().value_or(Symbol());
+      CHECK(std::find(campaign_songs.begin(), campaign_songs.end(),
+                      random_first) != campaign_songs.end());
+      CHECK(std::find(campaign_songs.begin(), campaign_songs.end(),
+                      random_second) != campaign_songs.end());
+      CHECK(random_first != random_second);
       campaign->set_property(Symbol("attract_song_index"), DataNode::Int(0));
     }
     if (!campaign_songs.empty()) {
@@ -1130,9 +1427,28 @@ int main(int argc, char** argv) {
       CHECK(campaign->handle_property(Symbol("num_guitar_awards"), DataArray())
                 .as_int()
                 .value_or(-1) == 1);
-      CHECK(campaign->handle_property(Symbol("next_guitar_award"), DataArray())
-                .as_symbol()
-                .value_or(Symbol()) == medium_tour_reward);
+      // Exercise the shipped unlock panel's enter path rather than consuming
+      // the queue directly.  unlock_guitar.dtb obtains next_guitar_award and
+      // passes it, plus its authored proxy/filter objects, to show_guitar.
+      Object* unlock_panel = mgr.find_object(Symbol("unlock_guitar_panel"));
+      Object* unlock_display =
+          mgr.find_object(Symbol("unlock_guitar_display_panel"));
+      CHECK(unlock_panel != nullptr);
+      CHECK(unlock_display != nullptr);
+      if (unlock_panel && unlock_display) {
+        unlock_panel->handle_property(Symbol("enter"), DataArray());
+        CHECK(unlock_display->get_property(Symbol("guitar"))
+                  .as_symbol()
+                  .value_or(Symbol()) == medium_tour_reward);
+        const DataNode proxy =
+            unlock_display->get_property(Symbol("guitar_proxy"));
+        const DataNode filter =
+            unlock_display->get_property(Symbol("guitar_filter"));
+        CHECK(proxy.as_object() != nullptr ||
+              proxy.as_symbol().value_or(Symbol()).valid());
+        CHECK(filter.as_object() != nullptr ||
+              filter.as_symbol().value_or(Symbol()).valid());
+      }
       CHECK(campaign->handle_property(Symbol("num_guitar_awards"), DataArray())
                 .as_int()
                 .value_or(-1) == 0);
@@ -1275,6 +1591,27 @@ int main(int argc, char** argv) {
               .as_symbol()
               .value_or(Symbol()) == Symbol("TRUE"));
   }
+
+  // Stock ERROR_SCREEN_HANDLERS reads `(title ...)` and `(message ...)` with
+  // zero-argument object messages, then assigns those tokens to dialog labels.
+  // This pins the native shorthand property-get contract used throughout the
+  // complete UI graph.
+  mgr.push_screen(Symbol("error_duplicate_profile_screen"));
+  CHECK(mgr.current_screen() != nullptr &&
+        mgr.current_screen()->name() == Symbol("error_duplicate_profile_screen"));
+  Object* error_title = mgr.resolve_object(Symbol("dl_title.lbl"));
+  Object* error_message = mgr.resolve_object(Symbol("dl_message.lbl"));
+  CHECK(error_title != nullptr && error_message != nullptr);
+  if (error_title && error_message) {
+    CHECK(error_title->get_property(Symbol("text"))
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("duplicate_profile"));
+    CHECK(error_message->get_property(Symbol("text"))
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("duplicate_profile_msg"));
+  }
+  mgr.pop_screen();
+  CHECK(mgr.current_screen() == main_screen);
 
   mgr.goto_screen(Symbol("chooseprof_screen"));
   CHECK(mgr.current_screen() != nullptr &&
@@ -1685,10 +2022,16 @@ int main(int argc, char** argv) {
   mgr.goto_screen(Symbol("main_screen"));
   // the authored (enter) -> reset_player_settings ran on the REAL game-side
   // objects: {game set_venue small2}{game set_character punk1 TRUE} and
-  // {{game get_player_config 0} set_difficulty kDifficultyMedium}.
+  // {{game get_player_config 0} set_difficulty kDifficultyMedium}. Native
+  // GameConfig keeps the selected outfit and its roster identity separately;
+  // career.dtb uses get_character for provider lookup/text and
+  // get_character_outfit for CharsysPanel loading.
   if (Object* game = mgr.resolve_object(Symbol("game"))) {
     CHECK(game->get_property(Symbol("venue")).as_symbol().value_or(Symbol()) == Symbol("small2"));
-    CHECK(game->get_property(Symbol("character")).as_symbol().value_or(Symbol()) == Symbol("punk1"));
+    CHECK(game->get_property(Symbol("character")).as_symbol().value_or(Symbol()) == Symbol("punk"));
+    CHECK(game->get_property(Symbol("character_outfit"))
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("punk1"));
   }
   if (Object* p0 = mgr.resolve_object(Symbol("player0")))
     CHECK(p0->get_property(Symbol("difficulty")).as_symbol().value_or(Symbol()) ==
@@ -2176,6 +2519,88 @@ int main(int argc, char** argv) {
       campaign->set_property(Symbol("multi_fo"), DataNode::Int(0));
   }
 
+  // Stock multiplayer.dtb delegates per-controller difficulty and outfit
+  // readiness to native MultiSelectScreen/MultiSelectPanel.  Prove the native
+  // controller fan-out reaches the authored all_ready routes for both players.
+  if (Object* gamecfg = mgr.resolve_object(Symbol("gamecfg")))
+    gamecfg->set_property(Symbol("mode"), DataNode::Sym(Symbol("multi_coop")));
+  auto multi_button = [&](int player, Symbol button) {
+    mgr.set_global(Symbol("player_num"), DataNode::Int(player));
+    mgr.set_global(Symbol("button"), DataNode::Sym(button));
+    if (Object* screen = mgr.current_screen())
+      screen->handle_property(Symbol("BUTTON_DOWN_MSG"), DataArray());
+  };
+  mgr.goto_screen(Symbol("multi_coop_seldiff_screen"));
+  CHECK(mgr.current_screen() != nullptr &&
+        mgr.current_screen()->name() == Symbol("multi_coop_seldiff_screen"));
+  multi_button(0, Symbol("kPad_X"));
+  CHECK(mgr.current_screen() != nullptr &&
+        mgr.current_screen()->name() == Symbol("multi_coop_seldiff_screen"));
+  multi_button(1, Symbol("kPad_X"));
+  CHECK(mgr.current_screen() != nullptr &&
+        mgr.current_screen()->name() == Symbol("multi_sel_character_screen"));
+  Object* outfit_panel0 = mgr.find_object(Symbol("multi_char_outfit0"));
+  Object* outfit_panel1 = mgr.find_object(Symbol("multi_char_outfit1"));
+  CHECK(outfit_panel0 != nullptr &&
+        !truthy(outfit_panel0->get_property(Symbol("active"))));
+  CHECK(outfit_panel1 != nullptr &&
+        !truthy(outfit_panel1->get_property(Symbol("active"))));
+  multi_button(0, Symbol("kPad_X"));  // character -> P1 outfit panel
+  CHECK(outfit_panel0 != nullptr &&
+        truthy(outfit_panel0->get_property(Symbol("active"))));
+  CHECK(outfit_panel0 != nullptr &&
+        !truthy(outfit_panel0->get_property(Symbol("ready"))));
+  CHECK(outfit_panel1 != nullptr &&
+        !truthy(outfit_panel1->get_property(Symbol("active"))));
+  if (auto* outfit_panel = dynamic_cast<ObjectDir*>(
+          mgr.find_object(Symbol("multi_char_outfit0")))) {
+    Object* outfit1 = outfit_panel->find_path("outfit1.btn");
+    Object* outfit2 = outfit_panel->find_path("outfit2.btn");
+    CHECK(outfit1 != nullptr);
+    CHECK(outfit2 != nullptr);
+    if (outfit1)
+      CHECK(outfit1->get_property(Symbol("text"))
+                .as_string()
+                .value_or("") == "punk1_outfit");
+    if (outfit2)
+      CHECK(outfit2->get_property(Symbol("text"))
+                .as_string()
+                .value_or("") == "punk2_outfit");
+  } else {
+    CHECK(false);
+  }
+  if (Object* char_multi = mgr.find_object(Symbol("char_multi")))
+    char_multi->set_property(Symbol("char_object_0"),
+                             DataNode::Sym(Symbol("punk1")));
+  multi_button(0, Symbol("kPad_DD"));
+  DataArray player0_args;
+  player0_args.push(DataNode::Int(0));
+  if (Object* player0 = mgr.resolve_object(Symbol("game"))
+                            ->handle_property(Symbol("get_player_config"),
+                                              player0_args)
+                            .as_object()) {
+    CHECK(player0->get_property(Symbol("outfit_index"))
+              .as_int().value_or(-1) == 1);
+    CHECK(player0->get_property(Symbol("character_outfit"))
+              .as_symbol().value_or(Symbol()) == Symbol("punk2"));
+  } else {
+    CHECK(false);
+  }
+  if (Object* char_multi = mgr.find_object(Symbol("char_multi"))) {
+    CHECK(char_multi->get_property(Symbol("char_transfer_pending_0"))
+              .as_int().value_or(0) == 1);
+    CHECK(char_multi->get_property(Symbol("char_transfer_source_0"))
+              .as_symbol().value_or(Symbol()) == Symbol("punk1"));
+  } else {
+    CHECK(false);
+  }
+  multi_button(0, Symbol("kPad_DU"));
+  multi_button(0, Symbol("kPad_X"));  // P1 outfit ready
+  multi_button(1, Symbol("kPad_X"));  // character -> P2 outfit panel
+  multi_button(1, Symbol("kPad_X"));  // P2 outfit ready -> guitars
+  CHECK(mgr.current_screen() != nullptr &&
+        mgr.current_screen()->name() == Symbol("multi_sel_guitar_screen"));
+
   mgr.goto_screen(Symbol("multi_sel_guitar_screen"));
   Object* multi_guitar_screen = mgr.current_screen();
   Object* multi_guitar_panel = mgr.find_object(Symbol("multi_sel_guitar_panel"));
@@ -2291,6 +2716,26 @@ int main(int argc, char** argv) {
     CHECK(mem_card_panel->get_property(Symbol("focus"))
               .as_symbol()
               .value_or(Symbol()) == Symbol("save_bands.btn"));
+    auto help_rows = mem_card_screen->get_property(Symbol("helpbar")).as_array();
+    CHECK(help_rows != nullptr);
+    if (help_rows) {
+      auto default_help = help_rows->find_keyed(Symbol("default"));
+      auto autosave_help = help_rows->find_keyed(Symbol("autosave.btn"));
+      CHECK(default_help != nullptr);
+      CHECK(autosave_help != nullptr);
+      if (default_help) {
+        CHECK(array_contains_symbol(DataNode::Array(default_help),
+                                    Symbol("help_continue")));
+        CHECK(!array_contains_symbol(DataNode::Array(default_help),
+                                     Symbol("help_onoff")));
+      }
+      if (autosave_help) {
+        CHECK(array_contains_symbol(DataNode::Array(autosave_help),
+                                    Symbol("help_onoff")));
+        CHECK(!array_contains_symbol(DataNode::Array(autosave_help),
+                                     Symbol("help_continue")));
+      }
+    }
     CHECK(autosave_check->handle_property(Symbol("get_check"), DataArray())
               .as_int()
               .value_or(-1) == 1);
@@ -2324,6 +2769,57 @@ int main(int argc, char** argv) {
   }
 
   mgr.goto_screen(Symbol("store_screen"));
+  CHECK(mgr.in_transition());
+  CHECK(near(mgr.transition_snapshot().duration, 50.0f / 30.0f));
+  if (auto* store_dir = dynamic_cast<ObjectDir*>(
+          mgr.find_object(Symbol("store_panel")))) {
+    Object* gate_filter = store_dir->find(Symbol("AnimFilter.filt"));
+    Object* gate_anim = store_dir->find(Symbol("us_gate.tnm"));
+    CHECK(gate_filter != nullptr);
+    CHECK(gate_anim != nullptr);
+    if (gate_filter) {
+      CHECK(mgr.is_animation_task_active(gate_filter));
+      CHECK(near(gate_filter->get_property(Symbol("frame"))
+                     .as_float()
+                     .value_or(-1.0f),
+                 0.0f));
+    }
+  }
+  mgr.update(50.0f / 30.0f);
+  CHECK(!mgr.in_transition());
+  if (auto* store_dir = dynamic_cast<ObjectDir*>(
+          mgr.find_object(Symbol("store_panel")))) {
+    Object* gate_filter = store_dir->find(Symbol("AnimFilter.filt"));
+    Object* gate_anim = store_dir->find(Symbol("us_gate.tnm"));
+    CHECK(gate_filter != nullptr);
+    CHECK(gate_anim != nullptr);
+    if (gate_filter) {
+      CHECK(!mgr.is_animation_task_active(gate_filter));
+      CHECK(near(gate_filter->get_property(Symbol("frame"))
+                     .as_float()
+                     .value_or(-1.0f),
+                 50.0f));
+    }
+    if (gate_filter && gate_anim) {
+      float scale = gate_filter->get_property(Symbol("scale"))
+                        .as_float().value_or(1.0f);
+      const float start = gate_filter->get_property(Symbol("start"))
+                              .as_float().value_or(0.0f);
+      const float end = gate_filter->get_property(Symbol("end"))
+                            .as_float().value_or(0.0f);
+      if (end < start) scale = -std::fabs(scale);
+      const float offset = gate_filter->get_property(Symbol("offset"))
+                               .as_float().value_or(0.0f) +
+                           (end < start ? start - end : 0.0f);
+      const float expected_source = std::clamp(
+          50.0f * scale + offset, std::min(start, end),
+          std::max(start, end));
+      CHECK(near(gate_anim->get_property(Symbol("frame"))
+                     .as_float()
+                     .value_or(-1.0f),
+                 expected_source));
+    }
+  }
   Object* store_screen = mgr.current_screen();
   Object* store_panel = mgr.find_object(Symbol("store_panel"));
   Object* st_screen1 = mgr.resolve_object(Symbol("st_screen1.view"));
@@ -3178,8 +3674,10 @@ int main(int argc, char** argv) {
                   .as_int()
                   .value_or(-1) == 1);
       }
+      // animate_transition=FALSE and no authored blocking UITrigger means the
+      // transition-complete handler ran at entry, before the 0.5 s poll above.
       CHECK(near(pscan_test_time(pscan_switch_screen),
-                 mgr.ui_seconds() + 15.0f, 0.01f));
+                 mgr.ui_seconds() + 14.5f, 0.01f));
 
       mgr.set_global(Symbol("component"), DataNode::Obj(pscan_yes));
       pscan_switch_screen->handle_property(Symbol("SELECT_START_MSG"),
@@ -3848,6 +4346,120 @@ int main(int argc, char** argv) {
     CHECK(dialog_button1->get_property(Symbol("disabled"))
               .as_symbol()
               .value_or(Symbol()) == Symbol("TRUE"));
+  }
+
+  // The stock newspaper is fully script-populated.  In Quickplay a perfect
+  // run chooses gen_headline_perfect_coop dynamically, then EndGamePanel's
+  // native generator substitutes the localized venue name.
+  std::string expected_endgame_headline;
+  if (Object* game = mgr.resolve_object(Symbol("game"))) {
+    game->handle_property(Symbol("set_quickplay"), DataArray());
+    game->set_property(Symbol("song_index"), DataNode::Int(0));
+    Symbol venue = game->handle_property(Symbol("get_venue"), DataArray())
+                       .as_symbol().value_or(Symbol());
+    expected_endgame_headline =
+        "Perfect performance at " + mgr.localize(venue);
+  }
+  if (Object* player0 = mgr.resolve_object(Symbol("player0"))) {
+    player0->set_property(Symbol("score"), DataNode::Int(151144));
+    player0->set_property(Symbol("percent_hit"), DataNode::Int(100));
+    player0->set_property(Symbol("longest_streak"), DataNode::Int(388));
+    player0->set_property(Symbol("num_stars"), DataNode::Int(5));
+    player0->set_property(Symbol("star_rating"), DataNode::Str("*****"));
+  }
+  mgr.goto_screen(Symbol("endgame_screen"));
+  if (auto* endgame =
+          dynamic_cast<ObjectDir*>(mgr.find_object(Symbol("endgame_panel")))) {
+    Object* headline = endgame->find_path("endgame_headline.lbl");
+    Object* song = endgame->find_path("endgame_song_data.lbl");
+    Object* rating = endgame->find_path("endgame_review_data.lbl");
+    Object* score = endgame->find_path("endgame_score_data.lbl");
+    Object* percent = endgame->find_path("endgame_percent_data.lbl");
+    Object* streak = endgame->find_path("endgame_streak_data.lbl");
+    CHECK(headline && headline->get_property(Symbol("text"))
+                          .as_string().value_or("") ==
+                          expected_endgame_headline);
+    CHECK(song && !song->get_property(Symbol("text"))
+                       .as_string().value_or("").empty());
+    CHECK(rating && rating->get_property(Symbol("text"))
+                         .as_string().value_or("") == "*****");
+    CHECK(score && score->get_property(Symbol("text"))
+                       .as_string().value_or("") == "151144");
+    CHECK(percent && percent->get_property(Symbol("text"))
+                           .as_string().value_or("") == "100%");
+    CHECK(streak && streak->get_property(Symbol("text"))
+                         .as_string().value_or("") == "388 Note Streak!");
+  } else {
+    CHECK(false);
+  }
+
+  // Quickplay's detailed-results panel chooses its MILO through an authored
+  // `file {if_else ...}` handler. Its live widgets must exist before Enter so
+  // the stock handler can populate values and attach the native StatsProvider.
+  if (Object* player0 = mgr.resolve_object(Symbol("player0"))) {
+    player0->set_property(Symbol("gems_hit"), DataNode::Int(7));
+    player0->set_property(Symbol("gems_passed"), DataNode::Int(3));
+    player0->set_property(Symbol("sp_phrases"), DataNode::Str("2/4"));
+    player0->set_property(Symbol("avg_multiplier"), DataNode::Float(2.5f));
+    auto section = std::make_shared<DataArray>();
+    section->push(DataNode::Sym(Symbol("verse_1")));
+    section->push(DataNode::Int(7));
+    section->push(DataNode::Int(10));
+    auto sections = std::make_shared<DataArray>();
+    sections->push(DataNode::Array(section));
+    player0->set_property(Symbol("section_stats"), DataNode::Array(sections));
+  }
+  mgr.goto_screen(Symbol("endgame_stats_screen"));
+  if (auto* stats_panel = dynamic_cast<ObjectDir*>(
+          mgr.find_object(Symbol("endgame_stats_panel")))) {
+    Object* notes = stats_panel->find_path("player0_notes_hit.lbl");
+    Object* phrases = stats_panel->find_path("player0_sp_phrases.lbl");
+    Object* average = stats_panel->find_path("player0_avg_multi.lbl");
+    Object* list = stats_panel->find_path("stats_sections.lst");
+    CHECK(notes && notes->get_property(Symbol("text"))
+                       .as_string().value_or("") == "7/10");
+    CHECK(phrases && phrases->get_property(Symbol("text"))
+                           .as_string().value_or("") == "2/4");
+    CHECK(average && average->get_property(Symbol("text"))
+                           .as_string().value_or("") == "2.5x");
+    Object* provider = list ? list->get_property(Symbol("provider")).as_object()
+                            : nullptr;
+    CHECK(provider != nullptr);
+    CHECK(provider && provider->handle_property(Symbol("num_data"), DataArray())
+                              .as_int().value_or(0) == 1);
+  } else {
+    CHECK(false);
+  }
+
+  // Quickplay Top Rockers uses the stock paired hs_nameN.lbl/hs_entryN.ten
+  // contract.  A qualifying score hides the static name, shows the editable
+  // resource in its row, and replaces the screen's default footer with the
+  // three TextEntry-native controls.
+  if (Object* player0 = mgr.resolve_object(Symbol("player0")))
+    player0->set_property(Symbol("score"), DataNode::Int(151144));
+  mgr.goto_screen(Symbol("highscore_screen"));
+  if (auto* highscore =
+          dynamic_cast<ObjectDir*>(mgr.find_object(Symbol("highscore_panel")))) {
+    Object* score1 = highscore->find_path("hs_score1.lbl");
+    Object* name1 = highscore->find_path("hs_name1.lbl");
+    Object* entry1 = highscore->find_path("hs_entry1.ten");
+    CHECK(score1 && score1->get_property(Symbol("text"))
+                         .as_string().value_or("") == "151144");
+    CHECK(name1 && !truthy(name1->get_property(Symbol("showing"))));
+    CHECK(entry1 && truthy(entry1->get_property(Symbol("showing"))));
+    CHECK(entry1 && entry1->get_property(Symbol("text"))
+                         .as_string().value_or("") == "AAAA");
+    Object* highscore_helpbar = mgr.resolve_object(Symbol("helpbar"));
+    CHECK(highscore_helpbar != nullptr);
+    if (highscore_helpbar) {
+      const DataNode display =
+          highscore_helpbar->get_property(Symbol("display"));
+      CHECK(array_contains_symbol(display, Symbol("help_nextletter")));
+      CHECK(array_contains_symbol(display, Symbol("help_deleteletter")));
+      CHECK(array_contains_symbol(display, Symbol("help_updown")));
+    }
+  } else {
+    CHECK(false);
   }
 
   // 4. Simulate a SELECT_START on main_quickspin.btn: the real SELECT_START_MSG

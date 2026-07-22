@@ -40,6 +40,9 @@ class Window {
   // released to pressed since the last pump().
   enum class Action { Confirm, Back, Up, Down, Left, Right, Start };
   bool action_pressed(Action a) const;
+  // Number of currently connected XInput pads across the four retail-style
+  // player slots, sampled by the latest pump().
+  int connected_gamepads() const;
   bool key_down(int virtual_key) const;
   void set_relative_mouse(bool enabled);
   void mouse_delta(int& dx, int& dy) const;

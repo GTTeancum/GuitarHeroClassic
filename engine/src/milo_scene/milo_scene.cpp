@@ -1016,6 +1016,138 @@ bool decode_spotlight_source_order(const std::vector<uint8_t>& body,
 
 }  // namespace
 
+PanelDirConfig decode_panel_dir_config(const std::vector<uint8_t>& body) {
+  PanelDirConfig out;
+  if (body.size() < 8) return out;
+  uint32_t panel_combined = 0;
+  uint32_t rnd_combined = 0;
+  std::memcpy(&panel_combined, body.data(), sizeof(panel_combined));
+  std::memcpy(&rnd_combined, body.data() + 4, sizeof(rnd_combined));
+  out.panel_revision = low_revision(panel_combined);
+  out.rnd_dir_revision = low_revision(rnd_combined);
+
+  // GH2's PanelDir rev 2 contains a RndDir rev 8. The exact source tail is
+  // mEnv, mTestEvent, two legacy RndDir symbols, mCam, and PanelDir::testEvent.
+  // The inherited ObjectDir block is variable-sized, so identify the unique
+  // six-symbol suffix and require it to consume the root body exactly.
+  if (out.panel_revision != 2 || out.rnd_dir_revision != 8) return out;
+  const auto sane_symbol = [](const std::string& value) {
+    if (value.size() > 256) return false;
+    return std::all_of(value.begin(), value.end(), [](unsigned char c) {
+      return c >= 32 && c < 127;
+    });
+  };
+  for (size_t start = 8; start + 24 <= body.size(); ++start) {
+    try {
+      Reader r(body.data() + start, body.size() - start);
+      std::array<std::string, 6> fields;
+      for (std::string& field : fields) field = r.str();
+      if (r.pos != r.n) continue;
+      if (!std::all_of(fields.begin(), fields.end(), sane_symbol)) continue;
+      const bool environment_valid =
+          fields[0].empty() ||
+          (fields[0].size() >= 4 &&
+           fields[0].compare(fields[0].size() - 4, 4, ".env") == 0);
+      const bool camera_valid =
+          fields[4].empty() ||
+          (fields[4].size() >= 4 &&
+           fields[4].compare(fields[4].size() - 4, 4, ".cam") == 0);
+      if (!environment_valid || !camera_valid || fields[5].empty()) continue;
+      out.environment = std::move(fields[0]);
+      out.camera = std::move(fields[4]);
+      out.enter_event = std::move(fields[5]);
+      out.valid = true;
+      return out;
+    } catch (const std::exception&) {
+    }
+  }
+  return out;
+}
+
+EnvAnimObj decode_env_anim(const std::string& entry_name,
+                           const std::vector<uint8_t>& body) {
+  EnvAnimObj out;
+  out.name = entry_name;
+  try {
+    Reader r(body.data(), body.size());
+    out.revision = low_revision(r.u32());
+    if (out.revision != 4)
+      throw std::runtime_error("unsupported EnvAnim revision");
+    r.skip(kObjMeta);  // rev 4 loads Hmx::Object before RndAnimatable.
+    out.anim_revision = low_revision(r.u32());
+    if (out.anim_revision != 4)
+      throw std::runtime_error("unsupported EnvAnim RndAnimatable revision");
+    out.frame = r.f32();
+    out.rate = r.u32();
+    out.environment = r.str();
+
+    const auto read_color_keys = [&](std::vector<EnvAnimColorKey>& keys) {
+      const uint32_t count = r.u32();
+      if (count > 4096) throw std::runtime_error("implausible EnvAnim color key count");
+      keys.reserve(count);
+      for (uint32_t i = 0; i < count; ++i) {
+        EnvAnimColorKey key;
+        for (float& component : key.value) component = r.f32();
+        key.frame = r.f32();
+        keys.push_back(key);
+      }
+    };
+    read_color_keys(out.ambient_color_keys);
+    out.keys_owner = r.str();
+    read_color_keys(out.fog_color_keys);
+    const uint32_t range_count = r.u32();
+    if (range_count > 4096)
+      throw std::runtime_error("implausible EnvAnim fog-range key count");
+    out.fog_range_keys.reserve(range_count);
+    for (uint32_t i = 0; i < range_count; ++i) {
+      EnvAnimRangeKey key;
+      key.value[0] = r.f32();
+      key.value[1] = r.f32();
+      key.frame = r.f32();
+      out.fog_range_keys.push_back(key);
+    }
+    if (r.pos != r.n) throw std::runtime_error("trailing EnvAnim bytes");
+    out.decoded = true;
+  } catch (const std::exception& ex) {
+    out.error = ex.what();
+  }
+  return out;
+}
+
+ScreenMaskObj decode_screen_mask(const std::string& entry_name,
+                                 const std::vector<uint8_t>& body) {
+  ScreenMaskObj out;
+  out.name = entry_name;
+  try {
+    Reader r(body.data(), body.size());
+    out.revision = low_revision(r.u32());
+    if (out.revision > 2)
+      throw std::runtime_error("unsupported ScreenMask revision");
+    r.skip(kObjMeta);
+    out.drawable_revision = low_revision(r.u32());
+    if (out.drawable_revision > 3)
+      throw std::runtime_error("unsupported ScreenMask RndDrawable revision");
+    out.showing = r.u8() != 0;
+    if (out.drawable_revision < 2) {
+      const uint32_t legacy_count = r.u32();
+      for (uint32_t i = 0; i < legacy_count; ++i) (void)r.str();
+    }
+    if (out.drawable_revision > 0)
+      for (float& component : out.sphere) component = r.f32();
+    if (out.drawable_revision > 2) out.draw_order = r.f32();
+    out.material = r.str();
+    for (float& component : out.color) component = r.f32();
+    if (out.revision > 0)
+      for (float& component : out.rect) component = r.f32();
+    if (out.revision > 1) out.use_camera_rect = r.u8() != 0;
+    if (r.pos != r.n) throw std::runtime_error("trailing ScreenMask bytes");
+    out.decoded = true;
+  } catch (const std::exception& ex) {
+    out.error = ex.what();
+  }
+  return out;
+}
+
 SourceMiloEditorDtbNodePayloadPlan
 source_milo_editor_dtb_node_payload_plan(int32_t node_type) {
   SourceMiloEditorDtbNodePayloadPlan plan;
@@ -4239,6 +4371,15 @@ bool find_transform_node(const Scene& scene, const std::string& name,
       return true;
     }
   }
+  for (const CamObj& camera : scene.cams) {
+    if (camera.name == name && camera.decoded) {
+      out.local = camera.local;
+      out.world_stored = camera.world_stored;
+      out.parent = camera.parent;
+      out.constraint = camera.constraint;
+      return true;
+    }
+  }
   return false;
 }
 
@@ -4343,6 +4484,24 @@ std::array<float, 16> Scene::world_matrix(const ParticleSysObj& particle) const 
   return composed;
 }
 
+std::array<float, 16> Scene::world_matrix(const CamObj& camera) const {
+  return world_matrix(camera, xfm_to_mat4(camera.local));
+}
+
+std::array<float, 16> Scene::world_matrix(
+    const CamObj& camera,
+    const std::array<float, 16>& local_override) const {
+  if (camera.parent.empty()) return local_override;
+  std::array<float, 16> parent_world{};
+  if (!source_world_for_name(*this, camera.parent, parent_world, 0)) {
+    if (!xfm_nearly_equal(camera.local, camera.world_stored))
+      return xfm_to_mat4(camera.world_stored);
+    return local_override;
+  }
+  return apply_transform_constraint(local_override, parent_world,
+                                    camera.constraint);
+}
+
 bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                 const std::string& milo_path, Scene& out) {
   try {
@@ -4359,6 +4518,19 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
     auto dir = gh::milo::parse_directory(payload);
     out.dir_name = dir.dir_name;
     out.dir_type = dir.dir_type;
+    if (dir.dir_type == "PanelDir" &&
+        dir.dir_entry_offset <= payload.size() &&
+        dir.dir_entry_size <= payload.size() - dir.dir_entry_offset) {
+      std::vector<uint8_t> root(
+          payload.begin() + static_cast<std::ptrdiff_t>(dir.dir_entry_offset),
+          payload.begin() + static_cast<std::ptrdiff_t>(dir.dir_entry_offset +
+                                                        dir.dir_entry_size));
+      const PanelDirConfig config = decode_panel_dir_config(root);
+      out.panel_dir_config_valid = config.valid;
+      out.panel_environment = config.environment;
+      out.panel_camera = config.camera;
+      out.panel_enter_event = config.enter_event;
+    }
 
     int mesh_ok = 0, mesh_fail = 0;
     int particle_ok = 0, particle_fail = 0;
@@ -4387,6 +4559,10 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
           out.lights.push_back(decode_light(de.name, b));
         } else if (de.type == "Environ") {
           out.environs.push_back(decode_environ(de.name, b));
+        } else if (de.type == "EnvAnim") {
+          out.env_anims.push_back(decode_env_anim(de.name, b));
+        } else if (de.type == "ScreenMask") {
+          out.screen_masks.push_back(decode_screen_mask(de.name, b));
         } else if (de.type == "Group") {
           GroupObj group = decode_group(de.name, b, dir.dir_version);
           group.dir_index = &de - dir.entries.data();

@@ -93,6 +93,14 @@ int main(int argc, char** argv) {
                 o.write(reinterpret_cast<const char*>(payload.data()),
                         static_cast<std::streamsize>(payload.size()));
             }
+            if (d.dir_entry_offset + d.dir_entry_size <= payload.size()) {
+                std::ofstream o(fs::path(outdir) / (d.dir_type + "__" +
+                                                    d.dir_name + ".root"),
+                                std::ios::binary);
+                o.write(reinterpret_cast<const char*>(payload.data() +
+                                                      d.dir_entry_offset),
+                        static_cast<std::streamsize>(d.dir_entry_size));
+            }
             int ok = 0;
             for (const auto& e : d.entries) {
                 if (e.offset + e.size > payload.size()) continue;
