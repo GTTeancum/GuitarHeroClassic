@@ -190,15 +190,11 @@ int main() {
                  "hand_relative,hand_output_bones,true);",
                  "hand-driver child rows stay hand-local before IK");
   ok &= contains(char_clip_c,
-                 "staticboolis_constant_fret_hand_target_key("
-                 "conststd::string&key){returnkey==\"bone_fret_hand\";}",
-                 "constant fret-hand target root is sourced from hand output");
+                 "character.runtime_pose_output_worlds[nodes[i].key]=world;",
+                 "sampled hand target root is retained by output key");
   ok &= contains(char_clip_c,
-                 "if(force_selected_output){for(size_ti=0;i<nodes.size();++i)"
-                 "{if(node_driven[i])continue;"
-                 "if(is_constant_fret_hand_target_key(nodes[i].key)){"
-                 "node_driven[i]=true;}}}",
-                 "hand output applies authored constant bone_fret_hand rows");
+                 "character.runtime_pose_output_worlds[nodes[i].name]=world;",
+                 "sampled hand target root is retained by authored name");
   ok &= contains(char_clip_c,
                  "staticboolapply_source_ik_hand(Character&character,"
                  "constCharIKHand&ik)",
@@ -255,9 +251,11 @@ int main() {
       "target blend uses the live MIDI IK scalar first");
 
   ok &= contains(gameplay_c,
-                 "constboolsame_fret_note_event=desired_mask!=0&&desired_mask"
-                 "==perf.last_anim_note_mask&&desired_tick=="
-                 "perf.last_anim_note_tick;",
+                 "constboolsame_fret_note_event=(desired_mask!=0||"
+                 "!explicit_fret_event.empty())&&desired_mask=="
+                 "perf.last_anim_note_mask&&selected_tick=="
+                 "perf.last_anim_note_tick&&explicit_fret_event=="
+                 "perf.last_anim_hand_event;",
                  "same MIDI note event keeps the selected HandMap child");
   ok &= contains(gameplay_c,
                  "requested_fret_names=perf.active_fret_clip_names;"
@@ -504,11 +502,12 @@ int main() {
               "GHOGX_ENABLE_CHARBONE_FACE_OUTPUT",
               "face CharBone output is not a live-write switch");
   ok &= contains(char_clip_c,
-                 "constboolcompare_output=charbone_output_compare_enabled();",
-                 "broad CharBone rows are compare-only diagnostics");
+                 "dump_charbone_output_map(character,nodes,by_key,node_driven,"
+                 "true);",
+                 "source output diagnostics identify live writes");
   ok &= contains(char_clip_c,
-                 "returnfalse;}structTargetUpdate{",
-                 "only selected hand output can write reconstructed output rows");
+                 "returntrue;}staticvoidapply_hand_driver_output_layer",
+                 "source output graph owns frames with authored output rows");
 
   if (!ok) {
     std::cerr

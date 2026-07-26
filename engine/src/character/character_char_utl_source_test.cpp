@@ -89,6 +89,7 @@ int main() {
   using ghogx::character::source_char_utl_name_with_suffix;
   using ghogx::character::source_char_utl_reset_hair_names;
   using ghogx::character::source_char_utl_reset_transform_names;
+  using ghogx::character::source_char_walk_facing_sample;
 
   bool ok = true;
 
@@ -314,6 +315,34 @@ int main() {
   source_char_utl_clip_predict(wrap_state, {{{0.0f, 0.0f, 0.0f}}, 3.0f},
                                {{{0.0f, 0.0f, 0.0f}}, -3.0f});
   ok &= expect_near(wrap_state.ang, -3.0f, "ClipPredict wraps angle");
+
+  ghogx::character::ClipChannel facing_pos;
+  facing_pos.type = ghogx::character::ClipChannel::kPos;
+  facing_pos.bone_name = "bone_facing.mesh";
+  facing_pos.pos[0] = 4.0f;
+  facing_pos.pos[1] = -2.0f;
+  facing_pos.pos[2] = 1.5f;
+  ghogx::character::ClipChannel facing_rot;
+  facing_rot.type = ghogx::character::ClipChannel::kRotZ;
+  facing_rot.bone_name = "bone_facing.mesh";
+  facing_rot.angle = 0.75f;
+  const auto facing =
+      source_char_walk_facing_sample({facing_pos, facing_rot});
+  ok &= expect_present(facing.has_value(),
+                       "CharWalk facing channel sample");
+  if (facing) {
+    ok &= expect_near(facing->facing_pos[0], 4.0f,
+                      "CharWalk facing position x");
+    ok &= expect_near(facing->facing_pos[1], -2.0f,
+                      "CharWalk facing position y");
+    ok &= expect_near(facing->facing_pos[2], 1.5f,
+                      "CharWalk facing position z");
+    ok &= expect_near(facing->facing_rot, 0.75f,
+                      "CharWalk facing rotation remains radians");
+  }
+  ok &= expect_bool(
+      source_char_walk_facing_sample({facing_rot}).has_value(), false,
+      "CharWalk facing sample requires authored position");
 
   return ok ? 0 : 1;
 }

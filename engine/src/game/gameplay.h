@@ -26,11 +26,17 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace ghogx::render { class Window; }
 
 namespace ghogx::game {
+
+struct VenueScriptExpression {
+  std::string atom;
+  std::vector<VenueScriptExpression> children;
+};
 
 struct VenueScriptStep {
   enum class Kind {
@@ -39,18 +45,35 @@ struct VenueScriptStep {
     FireFilter,
     AnimateEnv,
     AnimateObject,
+    AnimateTo,
+    AnimTask,
+    SwitchAnim,
     SetObjectShowing,
+    SetNamedObjectShowing,
+    SetSingerEnvironment,
+    AddTransformChild,
+    SetFlareSteps,
+    UnhookAnimParents,
+    RemoveAnim,
     StopObjectAnimation,
     IfAllStates,
-    IfTaskExists,
+    IfStateEquals,
+    IfObjectExists,
+    IfExcitementGreater,
+    IfElse,
+    WithNamespace,
     ScheduleTask,
     CancelTask,
     TaskSleep,
     TaskLoop,
     TaskSetName,
+    ForEach,
+    Switch,
+    Unsupported,
   };
   Kind kind = Kind::CallHandler;
   std::string name;
+  std::string target;
   int value = 0;
   double delay = 0.0;
   double delay_max = 0.0;
@@ -64,14 +87,33 @@ struct VenueScriptStep {
   float anim_period_max = 0.0f;
   bool anim_period_random = false;
   float anim_start_frame = 0.0f;
+  float anim_start_frame_max = 0.0f;
+  bool anim_start_random = false;
   float anim_end_frame = 0.0f;
   bool anim_has_range = false;
+  bool anim_realtime = false;
+  float anim_scale = 1.0f;
+  float anim_blend_seconds = 0.0f;
   std::string assign_state;
   std::vector<std::string> state_names;
+  bool name_is_variable = false;
+  struct Argument {
+    bool variable = false;
+    bool switch_expression = false;
+    std::string selector;
+    std::vector<std::string> values;
+    std::map<int, std::vector<std::string>> switch_values;
+  };
+  std::vector<Argument> arguments;
+  std::map<int, std::vector<VenueScriptStep>> switch_branches;
   std::vector<VenueScriptStep> children;
+  std::vector<VenueScriptStep> else_children;
+  VenueScriptExpression expression;
+  bool has_expression = false;
 };
 
 struct VenueScriptHandler {
+  std::vector<std::string> parameters;
   std::vector<VenueScriptStep> steps;
 };
 
@@ -232,6 +274,9 @@ class Gameplay {
     bool has_camshot_anim_frame = false;
     float screen_offset[2] = {0.0f, 0.0f};
     bool has_screen_offset = false;
+    float target_offset[3] = {0.0f, 0.0f, 0.0f};
+    bool has_target_offset = false;
+    bool rotate_for_screen_offset = false;
     float blur_depth = 0.35f;
     float max_blur = 1.0f;
     float min_blur = 0.0f;
@@ -557,6 +602,7 @@ class Gameplay {
     std::string name;
     std::string material;
     std::string keys_owner;
+    int anim_rate = 0;
     bool has_alpha = false;
     float start_alpha = 1.0f;
     float end_alpha = 1.0f;
@@ -743,6 +789,9 @@ class Gameplay {
     std::string name;
     HandClipChoice regular;
     HandClipChoice fallback;
+    HandClipChoice single;
+    HandClipChoice chord;
+    bool source_has_chord_split = false;
   };
   struct ActiveVenueAnimFilter {
     std::string event_name;
@@ -764,6 +813,22 @@ class Gameplay {
   // difficulty: 0=Easy 1=Medium 2=Hard 3=Expert.
   bool load_song(const std::string& hdr_path, const std::string& ark_path,
                  const std::string& shortname, int difficulty = 3);
+  // Keep GH2's gameplay presentation mounted while songs/worlds/performers
+  // come from another game's content archive.  If unset, the content archive
+  // remains the presentation source for backwards-compatible direct boots.
+  void set_base_asset_paths(const std::string& hdr_path,
+                            const std::string& ark_path) {
+    base_hdr_path_ = hdr_path;
+    base_ark_path_ = ark_path;
+  }
+  // Additional read-only content archives which may supply independently
+  // selected characters (and that character's authored highway surface).
+  // Selection is asset-backed: the runtime probes the selected content
+  // archive, the GH2 base archive, then these archives in configured order.
+  void set_auxiliary_asset_paths(
+      std::vector<std::pair<std::string, std::string>> archives) {
+    auxiliary_asset_paths_ = std::move(archives);
+  }
   std::string_view quickplay_character_outfit() const {
     return quickplay_rig_ ? std::string_view(quickplay_rig_->character_outfit)
                           : std::string_view();
@@ -779,6 +844,7 @@ class Gameplay {
   // Draw the highway for this frame. Creates the HighwayRenderer on first call.
   void draw(ghogx::render::Window& win);
   void stop_audio();
+  void set_paused(bool paused);
 
   bool is_loaded()   const { return chart_loaded_; }
   // Song is finished when the audio clock passes the chart duration.
@@ -793,6 +859,14 @@ class Gameplay {
   }
   void set_diagnostic_character_override(const std::string& character) {
     diagnostic_character_override_ = character;
+  }
+  // General role-scoped proof route. The reference accepts the same
+  // archive-qualified `source:model` form as the selected guitarist and is
+  // resolved by the normal performer loader.
+  void set_diagnostic_performer_override(std::string role,
+                                         std::string character_reference) {
+    diagnostic_performer_overrides_[std::move(role)] =
+        std::move(character_reference);
   }
   // Diagnostic venue breadth helper: keeps song/band data from songs.dtb, but
   // routes world/lighting/characters/drums through another authored venue.
@@ -852,11 +926,25 @@ class Gameplay {
                      static_cast<float>(multiplier_sample_count_)
                : 1.0f;
   }
+  // Retail menu/campaign selection, distinct from diagnostic overrides.
+  void set_selected_venue(const std::string& venue) {
+    selected_venue_ = venue;
+  }
+  void set_intro_camera_category(const std::string& category) {
+    intro_camera_category_ = category.empty() ? "INTRO" : category;
+  }
   bool   star_power_active() const { return star_power_.active; }
   float  star_power_fill() const;
   float  rock_fill() const;
   bool   failed() const { return failed_; }
   bool   track_intro_active() const { return track_intro_active_; }
+  double track_intro_elapsed() const {
+    return std::max(0.0, song_time_ - intro_camera_seconds_);
+  }
+  bool venue_intro_active() const {
+    return track_intro_active_ && intro_camera_seconds_ > 0.0 &&
+           song_time_ < intro_camera_seconds_;
+  }
   int    difficulty()const { return difficulty_; }
 
  private:
@@ -1003,7 +1091,10 @@ class Gameplay {
           std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
               spots) const;
   void update_lighting_spotlight_renderer();
-  void execute_venue_script_event(const std::string& event_name);
+  void execute_venue_script_event(
+      const std::string& event_name,
+      const std::map<std::string, std::vector<std::string>>* variables =
+          nullptr);
   bool execute_venue_script_object_messages(
       const std::map<std::string, std::vector<VenueScriptObjectMessage>>&
           routes,
@@ -1011,10 +1102,24 @@ class Gameplay {
   bool execute_venue_script_object_message(
       const VenueScriptObjectMessage& message);
   void execute_venue_script_steps(const std::vector<VenueScriptStep>& steps,
-                                  std::vector<std::string>& stack);
+                                  std::vector<std::string>& stack,
+                                  const std::map<std::string,
+                                                 std::vector<std::string>>*
+                                      variables = nullptr);
+  std::string evaluate_venue_script_expression(
+      const VenueScriptExpression& expression) const;
+  bool set_namespaced_performer_object_showing(
+      const std::string& role, const std::string& object_name, bool showing);
   bool apply_venue_script_env_anim(const std::string& anim_name,
                                    float dest_frame,
-                                   float period_seconds);
+                                   float period_seconds,
+                                   const VenueScriptStep* switch_step = nullptr);
+  bool apply_venue_script_animate_to(const VenueScriptStep& step);
+  bool apply_venue_script_light_anim(const std::string& anim_name,
+                                     const VenueScriptStep& switch_step);
+  bool apply_legacy_venue_switch_anim(const VenueScriptStep& step);
+  bool set_legacy_venue_object_showing(const std::string& object_name,
+                                       bool showing);
   bool execute_venue_proxy_object_message(
       const VenueScriptObjectMessage& message);
   void set_venue_proxy_object_showing(const std::string& object_name,
@@ -1081,6 +1186,10 @@ class Gameplay {
   std::unique_ptr<ghogx::render::MiloSceneRenderer> drum_kit_;
 
   struct Performer {
+    struct Gh1WalkClip {
+      ghogx::character::CharClip clip;
+      std::vector<std::string> source_flags;
+    };
     std::string role;
     std::string character_name;
     std::string event_track;
@@ -1088,19 +1197,28 @@ class Gameplay {
     std::string lighting_environment_ref;
     std::string prop_milo_ref;
     std::string prop_attach_bone;
+    bool gh1_character_runtime = false;
     std::unique_ptr<ghogx::character::CharRenderer> renderer;
     ghogx::character::CharClip idle_clip;
     ghogx::character::CharClip intro_clip;
     ghogx::character::CharClip active_clip;
+    ghogx::character::CharClip active_bad_clip;
+    ghogx::character::CharClip active_extreme_clip;
     ghogx::character::CharClip active_allbeat_clip;
     ghogx::character::CharClip active_double_clip;
     ghogx::character::CharClip active_half_clip;
     ghogx::character::CharClip active_nosnare_clip;
     ghogx::character::CharClip band_jump_clip;
+    ghogx::character::CharClip win_clip;
+    ghogx::character::CharClip lose_clip;
+    ghogx::character::CharClip win_final_clip;
     std::vector<ghogx::character::CharClip> star_power_group_clips;
     ghogx::character::CharClip face_base_clip;
     ghogx::character::CharClip face_visemes_clip;
     std::vector<ghogx::character::CharClip> active_group_clips;
+    std::vector<Gh1WalkClip> gh1_walk_turn_clips;
+    std::vector<Gh1WalkClip> gh1_walk_loop_clips;
+    std::vector<Gh1WalkClip> gh1_walk_stop_clips;
     ghogx::character::CharClip strum_open_clip;
     ghogx::character::CharClip strum_clip;
     ghogx::character::CharClip fret_open_clip;
@@ -1111,9 +1229,23 @@ class Gameplay {
     std::vector<ghogx::character::FaceFxLipSyncServo> facefx_servos;
     std::optional<ghogx::character::FaceFxGraph> facefx_graph;
     std::optional<ghogx::character::FaceFxAnimation> facefx_blink_animation;
+    std::map<std::string, std::vector<std::string>>
+        gh1_face_excitement_poses;
+    std::vector<std::string> gh1_face_poses;
+    std::string gh1_face_event_list;
+    int gh1_face_event_offset = 0;
+    float gh1_face_blend_seconds = 0.0f;
+    float gh1_face_pose_seconds = 0.0f;
+    std::string gh1_face_current_pose;
+    std::string gh1_face_previous_pose;
+    double gh1_face_pose_started = 0.0;
+    double gh1_face_next_pose_time = 0.0;
+    size_t gh1_face_random_draw_index = 0;
+    std::string gh1_face_pose_group;
     ghogx::character::CharClipPlayer idle_player;
     ghogx::character::CharClipPlayer intro_player;
     ghogx::character::CharClipPlayer active_player;
+    ghogx::character::CharClipPlayer gh1_walk_player;
     ghogx::character::CharClipPlayer face_base_player;
     ghogx::character::CharClipPlayer strum_open_player;
     ghogx::character::CharClipPlayer strum_player;
@@ -1141,8 +1273,32 @@ class Gameplay {
     int32_t active_group_which = 0;
     double active_group_started = 0.0;
     uint32_t active_group_last_bar = UINT32_MAX;
+    bool gh1_walk_global_enabled = false;
+    bool gh1_walk_venue_allowed = false;
+    bool gh1_walk_venue_gate_explicit = false;
+    std::array<bool, 5> gh1_walk_delay_enabled = {};
+    std::array<float, 5> gh1_walk_delay_min = {};
+    std::array<float, 5> gh1_walk_delay_max = {};
+    std::array<float, 5> gh1_walk_delay_sample = {};
+    float gh1_walk_slop = 12.0f;
+    float gh1_walk_undershoot = 0.0f;
+    float gh1_walk_overshoot = -18.0f;
+    int gh1_walk_state = 0;
+    std::string gh1_walk_current_waypoint;
+    std::string gh1_walk_target_waypoint;
+    std::array<float, 16> gh1_walk_target_world = {};
+    std::array<float, 16> gh1_walk_root_world = {};
+    bool gh1_walk_has_root_world = false;
+    ghogx::character::SourceCharUtlClipPredictState gh1_walk_predict;
+    ghogx::character::SourceCharUtlClipPredictFrame gh1_walk_last_facing;
+    bool gh1_walk_predict_initialized = false;
+    bool gh1_walk_has_last_facing = false;
+    double gh1_walk_delay_epoch = -1.0;
+    size_t gh1_walk_random_draw_index = 0;
     uint32_t last_anim_note_mask = UINT32_MAX;
     uint32_t last_anim_note_tick = UINT32_MAX;
+    std::string last_anim_hand_event;
+    uint32_t last_direct_hand_event_tick = UINT32_MAX;
     size_t strum_hand_scheduler_child_index = 0;
     size_t fret_hand_scheduler_child_index = 0;
     double next_performer_sync_log_time = 0.0;
@@ -1246,8 +1402,11 @@ class Gameplay {
       lighting_event_light_anims_;
   std::map<std::string, std::vector<VenueParticleRoute>>
       lighting_event_particle_systems_;
+  std::map<std::string, VenueParticleRoute> lighting_direct_particle_anims_;
   std::map<std::string, std::vector<VenueAnimFilter>>
       lighting_event_anim_filters_;
+  std::map<std::string, std::vector<VenueAnimFilter>>
+      lighting_direct_anim_filters_;
   std::map<std::string, VenueGroupVisibility> lighting_event_group_visibility_;
   std::map<std::string, std::vector<VenueScriptObjectMessage>>
       lighting_event_script_messages_;
@@ -1275,6 +1434,9 @@ class Gameplay {
   std::vector<ActiveVenueLightAnim> active_lighting_light_anims_;
   std::map<std::string, ghogx::milo_scene::LightObj> lighting_lights_;
   std::map<std::string, ghogx::milo_scene::EnvironObj> lighting_environs_;
+  std::unordered_set<std::string> legacy_gh1_performer_environments_;
+  std::string legacy_gh1_singer_environment_;
+  std::unordered_set<std::string> logged_legacy_gh1_performer_environments_;
   double last_lighting_env_anim_debug_time_ = -1.0;
   double last_lighting_light_anim_debug_time_ = -1.0;
   std::unordered_set<std::string> lighting_active_particle_systems_;
@@ -1302,6 +1464,9 @@ class Gameplay {
   double last_lighting_filter_debug_time_ = -1.0;
   std::unordered_set<std::string> lighting_base_hidden_meshes_;
   std::unordered_set<std::string> lighting_runtime_hidden_meshes_;
+  std::map<std::string, std::vector<std::string>> lighting_group_meshes_;
+  std::map<std::string, std::vector<std::string>>
+      lighting_anim_group_children_;
   std::map<std::string, VenueMaterialAnim> venue_mat_anims_;
   std::map<std::string, std::vector<VenueEventAnimRoute>>
       venue_event_mat_anims_;
@@ -1313,6 +1478,7 @@ class Gameplay {
       venue_event_light_anims_;
   std::map<std::string, std::vector<VenueParticleRoute>>
       venue_event_particle_systems_;
+  std::map<std::string, VenueParticleRoute> venue_direct_particle_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_filters_;
   std::map<std::string, std::vector<std::string>> venue_filter_mesh_targets_;
   std::map<std::string, VenueProxyObject> venue_proxy_objects_;
@@ -1325,6 +1491,7 @@ class Gameplay {
   std::map<std::string, std::vector<std::string>> venue_event_next_links_;
   std::vector<VenueEventTriggerGate> venue_event_trigger_gates_;
   std::map<std::string, VenueScriptHandler> venue_script_handlers_;
+  std::map<std::string, VenueScriptHandler> venue_script_functions_;
   std::map<std::string, std::map<std::string, VenueScriptHandler>>
       venue_script_object_handlers_;
   std::map<std::string, VenueScriptObjectInstance> venue_script_objects_;
@@ -1339,7 +1506,10 @@ class Gameplay {
   ActiveVenueScriptTask* running_venue_script_task_ = nullptr;
   std::string venue_script_context_object_;
   std::string venue_script_context_type_;
+  std::string venue_script_namespace_role_;
   bool executing_venue_script_ = false;
+  bool legacy_gh1_venue_script_ = false;
+  std::string legacy_gh1_lighting_message_;
   std::unordered_set<std::string> venue_light_names_;
   std::unordered_set<std::string> venue_environ_names_;
   std::map<std::string, ghogx::milo_scene::LightObj> venue_lights_;
@@ -1400,12 +1570,16 @@ class Gameplay {
   std::map<std::string, std::vector<std::array<float, 4>>>
       venue_latched_mesh_color_overrides_;
   std::vector<ActiveVenueAnimFilter> active_venue_anim_filters_;
+  std::unordered_map<std::string, float> venue_animate_to_frames_;
   double last_venue_filter_debug_time_ = -1.0;
   std::unordered_set<std::string> venue_base_hidden_meshes_;
   std::unordered_set<std::string> venue_runtime_hidden_meshes_;
   std::unordered_set<std::string> venue_crowd_meshes_;
   std::unordered_set<std::string> venue_mesh_names_;
   std::map<std::string, std::vector<std::string>> venue_group_meshes_;
+  std::map<std::string, std::vector<std::string>> venue_anim_group_children_;
+  std::map<std::string, std::string> venue_transform_parent_overrides_;
+  std::map<std::string, int> venue_flare_steps_;
   std::map<std::string, std::array<float, 16>> venue_camera_target_worlds_;
   ghogx::milo_scene::Scene venue_chars_scene_;
   bool venue_chars_scene_loaded_ = false;
@@ -1504,6 +1678,7 @@ class Gameplay {
   std::map<std::string, std::vector<std::string>> drum_event_mesh_targets_;
   std::map<std::string, FretHandMap> fret_hand_maps_;
   std::map<std::string, StrumHandMap> strum_hand_maps_;
+  std::map<int, std::string> hand_event_clips_;
 
   double last_anim_time_ = -1.0;
   uint32_t last_band_note_tick_ = UINT32_MAX;
@@ -1574,7 +1749,12 @@ class Gameplay {
   bool diagnostic_autoplay_ = false;
   uint32_t diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
   std::string diagnostic_character_override_;
+  std::string diagnostic_character_archive_id_;
+  std::unordered_map<std::string, std::string>
+      diagnostic_performer_overrides_;
   std::string diagnostic_venue_override_;
+  std::string selected_venue_;
+  std::string intro_camera_category_ = "INTRO";
   std::string diagnostic_guitar_override_;
   std::string diagnostic_venue_event_;
   std::string diagnostic_camera_shot_;
@@ -1589,6 +1769,11 @@ class Gameplay {
 
   std::string hdr_path_;
   std::string ark_path_;
+  std::string base_hdr_path_;
+  std::string base_ark_path_;
+  std::vector<std::pair<std::string, std::string>> auxiliary_asset_paths_;
+  std::string highway_asset_hdr_path_;
+  std::string highway_asset_ark_path_;
   std::string song_shortname_;
 };
 

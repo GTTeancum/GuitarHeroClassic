@@ -55,7 +55,8 @@ std::map<std::string, Image> load_milo_textures_from_sources(
     const std::vector<std::string>& entry_names);
 
 // Load a raw PS2 HMX bitmap entry directly from the ARK, e.g.
-// track/surfaces/gen/<character>_keep.bmp_ps2.
+// track/surfaces/gen/<character>_keep.bmp_ps2 (GH2) or
+// track/surfaces/gen/<character>.bmp_ps2 (GH1).
 Image load_ps2_bitmap_from_ark(const std::string& hdr_path,
                                const std::string& ark_path,
                                const std::string& entry_path);

@@ -3,12 +3,14 @@
 #include "ui/menu_labels.h"
 
 #include "ark_v3.h"
+#include "dtb.h"
 #include "milo.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <optional>
 
 namespace ghogx::ui {
@@ -102,7 +104,7 @@ bool find_local_world_matrices(const std::vector<uint8_t>& d,
   float best_pair_score = 1e30f;
   std::array<float, 12> best_local{};
   std::array<float, 12> best_world{};
-  for (size_t M = 0x10; M + 96 <= d.size(); ++M) {
+  for (size_t M = 0x04; M + 96 <= d.size(); ++M) {
     if (looks_like_matrix(d, M) && looks_like_matrix(d, M + 48)) {
       std::array<float, 12> candidate_local{};
       std::array<float, 12> candidate_world{};
@@ -127,7 +129,7 @@ bool find_local_world_matrices(const std::vector<uint8_t>& d,
   bool found_single = false;
   float best_single_score = 1e30f;
   std::array<float, 12> best_single{};
-  for (size_t M = 0x10; M + 48 <= d.size(); ++M) {
+  for (size_t M = 0x04; M + 48 <= d.size(); ++M) {
     if (looks_like_matrix(d, M)) {
       std::array<float, 12> candidate{};
       read_matrix(d, M, candidate);
@@ -1367,6 +1369,34 @@ MenuSliderAnim decode_menu_trans_anim_body(
   return out;
 }
 
+bool parse_labelex_tail(const std::vector<uint8_t>& body,
+                        const EmbeddedString& type_resource,
+                        MenuLabel::TextTail& out) {
+  // GH1 LabelEx revision 6 is loaded by BandLabel::PreLoad's old-class path.
+  // Immediately before the type-resource Symbol are its fit byte, width,
+  // height, leading, and alignment, followed by the four retired fields kept
+  // by that serialized revision.
+  if (type_resource.offset < 33) return false;
+  const size_t fit_offset = type_resource.offset - 33;
+  const uint8_t fit = body[fit_offset];
+  const float width = rf(body, fit_offset + 1);
+  const float height = rf(body, fit_offset + 5);
+  const float leading = rf(body, fit_offset + 9);
+  const int32_t alignment = ri32(body, fit_offset + 13);
+  if (fit > 1 || !finite(width) || !finite(height) || !finite(leading) ||
+      width < 0.0f || width > 10000.0f || height < 0.0f ||
+      height > 10000.0f || leading < 0.0f || leading > 100.0f)
+    return false;
+  out.valid = true;
+  out.fit_text = fit ? 1 : 0;
+  out.width = width;
+  out.height = height;
+  out.leading = leading;
+  out.alignment = alignment;
+  out.width_bound = width;
+  return true;
+}
+
 MenuAnimFilter decode_menu_anim_filter_body(
     const std::vector<std::uint8_t>& body, const std::string& name) {
   if (auto parsed = parse_anim_filter_source_order(body, name)) return *parsed;
@@ -1399,6 +1429,56 @@ std::array<float, 3> transform_menu_text_point(
            xfm[11] + local_x * xfm[2] + local_z * xfm[8]}};
 }
 
+struct Gh1LabelResource {
+  std::string text_object;
+  std::array<float, 4> color{{1.0f, 1.0f, 1.0f, 1.0f}};
+};
+
+std::optional<Gh1LabelResource> find_gh1_label_resource(
+    const gh::dtb::Tree& tree, const std::string& resource_name) {
+  const gh::dtb::Node* match = nullptr;
+  std::function<void(const gh::dtb::Node&)> find =
+      [&](const gh::dtb::Node& node) {
+        if (match || !gh::dtb::is_array(node)) return;
+        const auto& kids = gh::dtb::children(node);
+        if (!kids.empty() && kids[0] &&
+            gh::dtb::as_string(*kids[0]).value_or("") == resource_name) {
+          match = &node;
+          return;
+        }
+        for (const auto& child : kids)
+          if (child) find(*child);
+      };
+  for (const auto& root : tree.root)
+    if (root) find(*root);
+  if (!match) return std::nullopt;
+
+  Gh1LabelResource out;
+  std::function<void(const gh::dtb::Node&)> collect =
+      [&](const gh::dtb::Node& node) {
+        if (!gh::dtb::is_array(node)) return;
+        const auto& kids = gh::dtb::children(node);
+        const std::string head =
+            !kids.empty() && kids[0]
+                ? gh::dtb::as_string(*kids[0]).value_or("")
+                : std::string{};
+        if (head == "text" && kids.size() >= 2 && kids[1]) {
+          out.text_object = gh::dtb::as_string(*kids[1]).value_or("");
+        } else if (head == "text_color" && kids.size() >= 4) {
+          for (size_t i = 0; i < 3; ++i) {
+            if (kids[i + 1])
+              out.color[i] =
+                  gh::dtb::as_float(*kids[i + 1]).value_or(out.color[i]);
+          }
+        }
+        for (const auto& child : kids)
+          if (child) collect(*child);
+      };
+  collect(*match);
+  return out.text_object.empty() ? std::nullopt
+                                 : std::optional<Gh1LabelResource>(out);
+}
+
 std::vector<MenuLabel> extract_menu_labels(const std::string& hdr_path,
                                            const std::string& ark_path,
                                            const std::string& milo_path) {
@@ -1412,21 +1492,63 @@ std::vector<MenuLabel> extract_menu_labels(const std::string& hdr_path,
     auto h = gh::milo::parse_header(bytes);
     auto payload = gh::milo::inflate_payload(bytes, h);
     auto dir = gh::milo::parse_directory(payload);
+    std::optional<gh::dtb::Tree> gh1_config;
+    if (std::any_of(dir.entries.begin(), dir.entries.end(),
+                    [](const gh::milo::Entry& e) {
+                      return e.type == "LabelEx";
+                    })) {
+      if (auto config_entry = ark.find("ghui/gen/config.dtb")) {
+        gh1_config =
+            gh::dtb::parse(ark.read_entry(*config_entry, {ark_path}));
+      }
+    }
 
     for (const auto& e : dir.entries) {
       if (e.type != "BandButton" && e.type != "Text" &&
-          e.type != "BandLabel" && e.type != "BandTextEntry")
+          e.type != "BandLabel" && e.type != "LabelEx" &&
+          e.type != "BandTextEntry")
         continue;
       if (e.offset + e.size > payload.size()) continue;
       std::vector<uint8_t> body(payload.begin() + e.offset,
                                 payload.begin() + e.offset + e.size);
       MenuLabel lbl;
       lbl.name = e.name;
-      lbl.type = e.type;
+      // DirLoader maps the GH1 class name LabelEx to BandLabel before
+      // instantiation. Preserve that source compatibility boundary here too.
+      lbl.type = e.type == "LabelEx" ? "BandLabel" : e.type;
       auto strs = embedded_strings(body);
       if (!strs.empty()) {
         lbl.text = strs.back().text;
-        if (strs.size() >= 2) lbl.font = strs.front().text;
+        if (e.type == "LabelEx" && strs.size() >= 3) {
+          const std::string resource_name = strs[strs.size() - 2].text;
+          parse_labelex_tail(body, strs[strs.size() - 2], lbl.text_tail);
+          const auto resource =
+              gh1_config
+                  ? find_gh1_label_resource(*gh1_config, resource_name)
+                  : std::nullopt;
+          const MenuTextStyle style =
+              resource
+                  ? extract_menu_text_style(
+                        hdr_path, ark_path, "ghui/gen/resources.rnd_ps2",
+                        resource->text_object)
+                  : MenuTextStyle{};
+          if (style.valid) {
+            lbl.font = style.font;
+            if (!lbl.text_tail.valid) {
+              lbl.text_tail.valid = true;
+              lbl.text_tail.width = style.wrap_width;
+              lbl.text_tail.height = style.text_size;
+              lbl.text_tail.leading = style.leading;
+              lbl.text_tail.alignment = style.alignment;
+              lbl.text_tail.width_bound = style.wrap_width;
+            }
+            lbl.text_tail.text_size = style.text_size;
+            lbl.text_tail.color =
+                resource ? resource->color : style.color;
+          }
+        } else if (strs.size() >= 2) {
+          lbl.font = strs.front().text;
+        }
         for (const auto& s : strs) {
           if (is_parent_ref(s.text)) {
             lbl.parent = s.text;
@@ -1696,7 +1818,6 @@ std::vector<MenuUiTrigger> extract_menu_ui_triggers(
     auto h = gh::milo::parse_header(bytes);
     auto payload = gh::milo::inflate_payload(bytes, h);
     auto dir = gh::milo::parse_directory(payload);
-
     for (const auto& e : dir.entries) {
       if (e.type != "UITrigger" || e.offset + e.size > payload.size())
         continue;

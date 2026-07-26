@@ -2,12 +2,12 @@
 //
 // CharClipSamples / CharBonesSamples decoder.
 //
-// Decoder evidence is bounded by ihatecompvir source. rb3-latest exposes
-// CharClip/CharBones/CharBonesSamples layouts and call flow, while the
-// rb3-retail-old RB2 dump maps CharClipSamples runtime functions. Some exact
-// sample math bodies are still absent from the checked public C++ source. Keep
-// broad output writes diagnostic until the corresponding runtime path is ported
-// from source or proved by direct trace.
+// Serialization evidence is bounded by ihatecompvir source. The GH2 XEX /
+// generated ReXGlue bodies additionally recover the runtime publisher:
+// AcquirePose resolves exact .trans then .mesh targets, ScaleDown and ScaleAdd
+// mix every typed row, and PoseMeshes commits the live locals. The native path
+// below mirrors that graph for every decoded output row; serialized
+// OutputBone.local values are inventory, never pose seeds.
 //
 // Grim-backed GH2-era format:
 //  A CharClipSamples entry contains a CharClipSamples version, the CharClip
@@ -1934,6 +1934,32 @@ void source_char_utl_clip_predict(SourceCharUtlClipPredictState& state,
       state.ang + source_limit_ang(second.facing_rot - first.facing_rot));
 }
 
+std::optional<SourceCharUtlClipPredictFrame>
+source_char_walk_facing_sample(const std::vector<ClipChannel>& channels) {
+  SourceCharUtlClipPredictFrame result;
+  bool has_position = false;
+  for (const ClipChannel& channel : channels) {
+    std::string target = channel.bone_name;
+    std::transform(target.begin(), target.end(), target.begin(),
+                   [](unsigned char c) {
+                     return static_cast<char>(std::tolower(c));
+                   });
+    if (target != "bone_facing.mesh" && target != "bone_facing") continue;
+    if (channel.type == ClipChannel::kPos) {
+      result.facing_pos = {
+          channel.pos[0], channel.pos[1], channel.pos[2]};
+      has_position = true;
+    } else if (channel.type == ClipChannel::kRotZ) {
+      // read_angle() already converts GH1/GH2 compressed scalar rotations to
+      // radians, which is exactly the unit consumed by ClipPredict.
+      result.facing_rot = channel.angle;
+    }
+  }
+  return has_position
+             ? std::optional<SourceCharUtlClipPredictFrame>(result)
+             : std::nullopt;
+}
+
 SourceCharLookAtBounds source_char_lookat_sync_limits(
     float min_yaw, float max_yaw, float min_pitch, float max_pitch) {
   constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
@@ -3013,6 +3039,106 @@ std::vector<std::vector<ClipChannel>> parse_all(
   return frames;
 }
 
+// GH1's standalone AnimClipSamples revision 18 predates CharBonesSamples.
+// Each of its two channel sets is simply: names, sample count, compression;
+// both sample blocks follow the two headers.  Positions stay full-float while
+// quaternions and scalar rotations use the normal compressed encodings.
+std::vector<std::vector<ClipChannel>> parse_gh1_anim_clip_samples(
+    const uint8_t* d, size_t n, int& num_samples_out,
+    CharClip::RawChannelCounts* raw_channel_counts) {
+  num_samples_out = 0;
+  if (n < 40) return {};
+  uint32_t version = 0;
+  std::memcpy(&version, d, 4);
+  if (version != 18) return {};
+
+  auto read_list = [&](size_t& at, BoneList& out) -> bool {
+    if (at + 4 > n) return false;
+    Cur c(d, n);
+    c.pos = at;
+    const uint32_t count = c.u32();
+    if (count > 300) return false;
+    out = BoneList{};
+    // GH1 static hand poses can omit one of the two channel sets. The empty
+    // set still carries its zero sample count and compression field.
+    for (uint32_t i = 0; i < count; ++i) {
+      if (!is_bone_name_at(d, n, c.pos)) return false;
+      const uint32_t len = c.u32();
+      std::string name(reinterpret_cast<const char*>(d + c.pos), len);
+      c.pos += len;
+      if (!is_valid_category_name(name)) return false;
+      out.names.push_back(name);
+      out.cats.push_back(gh2_char_bones_samples_get_type_of(name));
+      out.weights.push_back(1.0f);
+    }
+    if (c.pos + 8 > n) return false;
+    out.num_samples = static_cast<int>(c.u32());
+    out.compression = static_cast<int>(c.u32());
+    if ((count == 0 ? out.num_samples != 0 : out.num_samples <= 0) ||
+        out.num_samples > 100000 ||
+        !source_char_bones_compression_known(out.compression)) return false;
+    for (int cat : out.cats) {
+      const size_t bytes =
+          gh2_char_bones_samples_file_type_size(cat, out.compression);
+      if (bytes == 0) return false;
+      out.frame_bytes += bytes;
+    }
+    at = c.pos;
+    return true;
+  };
+
+  // The rev18 base header is 32 bytes. Validate the complete declared payload
+  // so a coincidental string inside animation data cannot be accepted.
+  size_t data = 32;
+  std::vector<BoneList> lists(2);
+  if (!read_list(data, lists[0]) || !read_list(data, lists[1])) return {};
+  uint64_t declared = 0;
+  for (const BoneList& list : lists) {
+    declared += static_cast<uint64_t>(list.frame_bytes) * list.num_samples;
+  }
+  if (declared != n - data) return {};
+
+  int num_samples = 0;
+  for (const BoneList& list : lists)
+    num_samples = std::max(num_samples, list.num_samples);
+  if (num_samples <= 0) return {};
+  num_samples_out = num_samples;
+  if (raw_channel_counts) {
+    *raw_channel_counts = CharClip::RawChannelCounts{};
+    for (const BoneList& list : lists)
+      for (int cat : list.cats) add_raw_channel_count(*raw_channel_counts, cat);
+  }
+
+  std::vector<std::vector<ClipChannel>> frames(num_samples);
+  for (const BoneList& list : lists) {
+    const bool compressed = list.compression != 0;
+    for (int f = 0; f < num_samples; ++f) {
+      const int sample = list.num_samples == 1 ? 0 : f;
+      if (sample >= list.num_samples) break;
+      Cur c(d, n);
+      c.pos = data + static_cast<size_t>(sample) * list.frame_bytes;
+      for (size_t i = 0; i < list.names.size(); ++i) {
+        ClipChannel ch;
+        ch.bone_name = gh2_char_bones_samples_target_name(list.names[i]);
+        ch.source_weight = 1.0f;
+        const int cat = list.cats[i];
+        if (cat == kGh2CharBonesTypePos || cat == kGh2CharBonesTypeScale) {
+          read_vec(c, cat, list.compression, ch);
+        } else if (cat == kGh2CharBonesTypeQuat) {
+          read_quat(c, compressed, ch);
+        } else {
+          read_angle(c, compressed, cat, ch);
+        }
+        frames[f].push_back(ch);
+      }
+    }
+    data += static_cast<size_t>(list.num_samples) * list.frame_bytes;
+  }
+  for (auto& frame : frames)
+    source_grim_char_bones_samples_sort_decoded_channels(frame);
+  return frames;
+}
+
 }  // namespace
 
 std::string source_grim_char_bones_samples_channel_mesh_name(
@@ -3926,6 +4052,52 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
     std::fprintf(stderr, "[clip] '%s' not found in %s\n", clip_name.c_str(), milo_path.c_str());
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "[clip] load_clip: %s\n", ex.what());
+  }
+  return result;
+}
+
+CharClip load_acp_clip(const std::string& hdr_path,
+                       const std::string& ark_path,
+                       const std::string& acp_path) {
+  CharClip result;
+  try {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    auto entry = ark.find(acp_path);
+    if (!entry) return result;
+    auto bytes = ark.read_entry(*entry, {ark_path});
+    size_t pos = 0;
+    const std::string class_name =
+        read_len_string(bytes.data(), bytes.size(), pos);
+    result.name = read_len_string(bytes.data(), bytes.size(), pos);
+    result.source_milo_path = acp_path;
+    if (class_name != "AnimClipSamples" || pos >= bytes.size()) return result;
+    const uint8_t* body = bytes.data() + pos;
+    const size_t size = bytes.size() - pos;
+    int ns = 0;
+    const CharClipMetadata metadata = read_char_clip_metadata(body, size);
+    result.frames = parse_gh1_anim_clip_samples(
+        body, size, ns, &result.raw_channel_counts);
+    result.fps = 30;
+    result.start_frame = 0.0f;
+    result.end_frame = result.frames.empty()
+                           ? 0.0f
+                           : static_cast<float>(result.frames.size() - 1);
+    result.flags = metadata.valid ? metadata.flags : 0;
+    result.default_play_flags =
+        metadata.valid ? metadata.play_flags : kCharPlayLoop;
+    result.blend_width = metadata.valid ? metadata.blend_width : 0.0f;
+    result.range = metadata.valid ? metadata.range : 0.0f;
+    result.relative = metadata.valid && !metadata.relative.empty();
+    result.loaded = !result.frames.empty();
+    if (result.loaded) {
+      std::fprintf(stderr,
+                   "[clip] GH1 ACP '%s' from %s: %zu frames, %zu channels/frame\n",
+                   result.name.c_str(), acp_path.c_str(), result.frames.size(),
+                   result.frames.front().size());
+    }
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[clip] load_acp_clip(%s): %s\n", acp_path.c_str(),
+                 ex.what());
   }
   return result;
 }
@@ -5808,13 +5980,26 @@ static void dump_arm_pose(const Character& character, const char* tag) {
   dump("bone_R-hand");
 }
 
-static bool transform_local_chain_world(const Character& character,
-                                        const std::string& name,
-                                        std::array<float, 16>& out) {
+static bool transform_local_chain_world_depth(
+    const Character& character, const std::string& name,
+    std::array<float, 16>& out, int depth) {
+  if (depth > 128) return false;
   const auto runtime_it = character.runtime_world_overrides.find(name);
   if (runtime_it != character.runtime_world_overrides.end()) {
     out = runtime_it->second;
     return true;
+  }
+  const auto pose_it = character.runtime_pose_output_worlds.find(name);
+  if (pose_it != character.runtime_pose_output_worlds.end()) {
+    out = pose_it->second;
+    return true;
+  }
+  for (const auto& [pose_name, pose_world] :
+       character.runtime_pose_output_worlds) {
+    if (channel_matches_bone(pose_name, name)) {
+      out = pose_world;
+      return true;
+    }
   }
   for (const auto& b : character.bones) {
     if (b.name == name || channel_matches_bone(b.name, name)) {
@@ -5828,7 +6013,35 @@ static bool transform_local_chain_world(const Character& character,
       return true;
     }
   }
+  for (const auto& [proxy_name, proxy] :
+       character.attached_prop_transform_proxies) {
+    if (proxy_name != name && !channel_matches_bone(proxy_name, name)) {
+      continue;
+    }
+    out = {proxy.local.rot[0][0], proxy.local.rot[0][1],
+           proxy.local.rot[0][2], 0.0f,
+           proxy.local.rot[1][0], proxy.local.rot[1][1],
+           proxy.local.rot[1][2], 0.0f,
+           proxy.local.rot[2][0], proxy.local.rot[2][1],
+           proxy.local.rot[2][2], 0.0f,
+           proxy.local.pos[0],    proxy.local.pos[1],
+           proxy.local.pos[2],    1.0f};
+    if (!proxy.parent.empty()) {
+      std::array<float, 16> parent_world{};
+      if (transform_local_chain_world_depth(character, proxy.parent,
+                                            parent_world, depth + 1)) {
+        out = mat4_mul(out, parent_world);
+      }
+    }
+    return true;
+  }
   return false;
+}
+
+static bool transform_local_chain_world(const Character& character,
+                                        const std::string& name,
+                                        std::array<float, 16>& out) {
+  return transform_local_chain_world_depth(character, name, out, 0);
 }
 
 static std::array<float, 16> mat4_mul(const std::array<float, 16>& a,
@@ -6864,12 +7077,12 @@ void source_char_bones_meshes_set_axis_rotation(
 static void apply_pose_axis_rotation(milo_scene::Xfm& xfm,
                                      ClipChannel::Type axis,
                                      float angle_radians,
-                                     bool relative) {
-  (void)relative;
-  // The exact GH2 PoseMeshes axis setters are retained separately above, but
-  // applying them through the native partial output bridge produced visibly
-  // marionette-like live legs. Keep the established composition path active
-  // until RexGlue/PCSX2 proves the complete target-resolution and servo layer.
+                                     bool relative,
+                                     bool absolute_axis_channel) {
+  if (absolute_axis_channel && !relative) {
+    source_char_bones_meshes_set_axis_rotation(xfm, axis, angle_radians);
+    return;
+  }
   post_rotate_axis(xfm, axis, angle_radians);
 }
 
@@ -7783,6 +7996,149 @@ static bool apply_source_fore_twist(Character& character,
   return true;
 }
 
+static SkinnedMesh* find_gh1_transform_mesh(Character& character,
+                                            const std::string& name) {
+  for (auto& mesh : character.meshes) {
+    if (mesh.name == name) return &mesh;
+  }
+  return nullptr;
+}
+
+static bool is_gh1_mesh_transform_graph(const Character& character) {
+  return character.dir_type.empty() && character.dir_version == 10 &&
+         character.bones.empty();
+}
+
+static bool apply_gh1_anim_servo_fore_twist(
+    Character& character, const Gh1AnimServoForeTwist& servo) {
+  if (!is_gh1_mesh_transform_graph(character)) return false;
+  auto* fore_arm = find_gh1_transform_mesh(character, servo.fore_arm);
+  auto* twist1 = find_gh1_transform_mesh(character, servo.twist1);
+  auto* twist2 = find_gh1_transform_mesh(character, servo.twist2);
+  auto* hand = find_gh1_transform_mesh(character, servo.hand);
+  if (!fore_arm || !twist1 || !twist2 || !hand) return false;
+
+  // Validate the packed controller against the character's serialized graph.
+  // GH1's servo reads the forearm/hand chain and writes the two sibling/child
+  // twist transforms; no character or side names are inferred here.
+  if (hand->parent != fore_arm->name || twist2->parent != twist1->name ||
+      twist1->parent.empty()) {
+    return false;
+  }
+  if (std::fabs(hand->local.pos[0]) <= 1.0e-6f) return false;
+
+  std::array<float, 16> fore_arm_world{};
+  std::array<float, 16> hand_world{};
+  std::array<float, 16> twist1_parent_world{};
+  if (!transform_local_chain_world(character, fore_arm->name,
+                                   fore_arm_world) ||
+      !transform_local_chain_world(character, hand->name, hand_world) ||
+      !transform_local_chain_world(character, twist1->parent,
+                                   twist1_parent_world)) {
+    return false;
+  }
+
+  CharForeTwist source_contract;
+  source_contract.name = servo.name;
+  source_contract.offset_degrees = servo.offset_degrees;
+  source_contract.hand = servo.hand;
+  source_contract.twist2 = servo.twist2;
+  SourceCharForeTwistPollWorldResult result;
+  if (!source_char_fore_twist_poll_world(
+          source_contract, true, true, true, true, fore_arm_world, hand_world,
+          hand->local.pos[0], twist2->local.pos[0], result)) {
+    return false;
+  }
+
+  set_local_from_world(twist1->local, result.twist_parent_world,
+                       twist1_parent_world);
+  set_local_from_world(twist2->local, result.twist2_world,
+                       result.twist_parent_world);
+  if (debug_ik_enabled()) {
+    std::fprintf(
+        stderr,
+        "[gh1-fore-twist] %s fore=%s twist1=%s twist2=%s hand=%s "
+        "offset=%.3f angle=%.5f applied=%.5f ratio=%.5f\n",
+        servo.name.c_str(), servo.fore_arm.c_str(), servo.twist1.c_str(),
+        servo.twist2.c_str(), servo.hand.c_str(), servo.offset_degrees,
+        result.source_angle_radians, result.applied_rotation_radians,
+        result.twist2_position_ratio);
+  }
+  return true;
+}
+
+static void apply_gh1_anim_servo_fore_twists(Character& character) {
+  for (const auto& servo : character.gh1_fore_twists)
+    apply_gh1_anim_servo_fore_twist(character, servo);
+}
+
+static bool apply_gh1_anim_servo_upper_twist(
+    Character& character, const Gh1AnimServoUpperTwist& servo) {
+  if (!is_gh1_mesh_transform_graph(character)) return false;
+  auto* twist1 = find_gh1_transform_mesh(character, servo.twist1);
+  auto* twist2 = find_gh1_transform_mesh(character, servo.twist2);
+  auto* upper_arm = find_gh1_transform_mesh(character, servo.upper_arm);
+  if (!twist1 || !twist2 || !upper_arm || upper_arm->parent.empty() ||
+      twist1->parent.empty() || twist2->parent.empty()) {
+    return false;
+  }
+
+  std::array<float, 16> source_parent_world{};
+  std::array<float, 16> source_world{};
+  std::array<float, 16> twist1_world{};
+  std::array<float, 16> twist2_world{};
+  std::array<float, 16> twist1_parent_world{};
+  if (!transform_local_chain_world(character, upper_arm->parent,
+                                   source_parent_world) ||
+      !transform_local_chain_world(character, upper_arm->name, source_world) ||
+      !transform_local_chain_world(character, twist1->name, twist1_world) ||
+      !transform_local_chain_world(character, twist2->name, twist2_world) ||
+      !transform_local_chain_world(character, twist1->parent,
+                                   twist1_parent_world)) {
+    return false;
+  }
+
+  SourceCharUpperTwistPollWorldResult result;
+  if (!source_char_upper_twist_poll_world(
+          true, true, true, true, source_parent_world, source_world,
+          twist1_world, twist2_world, result)) {
+    return false;
+  }
+  set_local_from_world(twist1->local, result.twist1_world,
+                       twist1_parent_world);
+
+  // Re-resolve the second transform after the first write. This preserves the
+  // source poll sequencing even when a packed graph parents the two twists.
+  std::array<float, 16> twist2_world_after_twist1{};
+  std::array<float, 16> twist2_parent_world{};
+  if (!transform_local_chain_world(character, twist2->name,
+                                   twist2_world_after_twist1) ||
+      !transform_local_chain_world(character, twist2->parent,
+                                   twist2_parent_world)) {
+    return false;
+  }
+  SourceCharUpperTwistPollWorldResult sequenced;
+  if (!source_char_upper_twist_poll_world(
+          true, true, true, true, source_parent_world, source_world,
+          result.twist1_world, twist2_world_after_twist1, sequenced)) {
+    return false;
+  }
+  set_local_from_world(twist2->local, sequenced.twist2_world,
+                       twist2_parent_world);
+  if (debug_ik_enabled()) {
+    std::fprintf(stderr,
+                 "[gh1-upper-twist] %s twist1=%s twist2=%s upper=%s\n",
+                 servo.name.c_str(), servo.twist1.c_str(),
+                 servo.twist2.c_str(), servo.upper_arm.c_str());
+  }
+  return true;
+}
+
+static void apply_gh1_anim_servo_upper_twists(Character& character) {
+  for (const auto& servo : character.gh1_upper_twists)
+    apply_gh1_anim_servo_upper_twist(character, servo);
+}
+
 static void apply_source_upper_twists(
     Character& character, const std::vector<milo_scene::Xfm>& bind_bones) {
   (void)bind_bones;
@@ -7852,6 +8208,7 @@ static void apply_source_upper_twists(
                               twist2.local);
     }
   }
+  apply_gh1_anim_servo_upper_twists(character);
 }
 
 static void apply_source_pos_constraints(Character& character) {
@@ -8836,7 +9193,164 @@ static float effective_ik_hand_target_blend_weight(const Character& character,
   return effective_ik_hand_solver_weight(character, ik);
 }
 
+struct MutableCharacterTransform {
+  std::string name;
+  std::string parent;
+  milo_scene::Xfm* local = nullptr;
+};
+
+static bool resolve_mutable_character_transform(
+    Character& character, const std::string& requested,
+    MutableCharacterTransform& out) {
+  for (auto& bone : character.bones) {
+    if (bone.name != requested &&
+        !channel_matches_bone(bone.name, requested)) {
+      continue;
+    }
+    out = {bone.name, bone.parent, &bone.local};
+    return true;
+  }
+  for (auto& mesh : character.meshes) {
+    if (mesh.name != requested &&
+        !channel_matches_bone(mesh.name, requested)) {
+      continue;
+    }
+    out = {mesh.name, mesh.parent, &mesh.local};
+    return true;
+  }
+  return false;
+}
+
+static bool apply_gh1_anim_servo_ik(Character& character,
+                                    const CharIKHand& ik) {
+  // GH1 SLUS_212.24 0x00184198 is AnimServoIK::Poll. Its setup path at
+  // 0x00184DE8 retains `(bones root count)`, walks parent transforms, measures
+  // the two segment lengths, bends the first transform from the law of
+  // cosines, swings the parent toward the destination, then optionally aligns
+  // quaternion and stretches the source onto the destination. Keep this path
+  // separate from later serialized CharIKHand revision semantics.
+  if (!ik.legacy_anim_servo_ik || ik.legacy_chain_bones != 2 ||
+      ik.legacy_chain_root.empty()) {
+    return false;
+  }
+
+  MutableCharacterTransform hand;
+  MutableCharacterTransform fore;
+  MutableCharacterTransform upper;
+  const bool hand_found =
+      resolve_mutable_character_transform(character, ik.hand, hand);
+  const bool fore_found = resolve_mutable_character_transform(
+      character, ik.legacy_chain_root, fore);
+  const bool upper_found =
+      fore_found && !fore.parent.empty() &&
+      resolve_mutable_character_transform(character, fore.parent, upper);
+  std::array<float, 16> target_world{};
+  const bool target_found =
+      transform_local_chain_world(character, ik.target, target_world);
+  if (!hand_found || !fore_found || !upper_found || !target_found ||
+      !hand.local || !fore.local || !upper.local) {
+    if (debug_ik_enabled()) {
+      std::fprintf(
+          stderr,
+          "[animservoik-source] %s skipped source=%s dest=%s chain=%s/%d "
+          "found=(%d,%d,%d,%d)\n",
+          ik.name.c_str(), ik.hand.c_str(), ik.target.c_str(),
+          ik.legacy_chain_root.c_str(), ik.legacy_chain_bones,
+          hand_found ? 1 : 0, fore_found ? 1 : 0, upper_found ? 1 : 0,
+          target_found ? 1 : 0);
+    }
+    return false;
+  }
+
+  std::array<float, 16> hand_world{};
+  std::array<float, 16> fore_world{};
+  std::array<float, 16> upper_world{};
+  if (!transform_local_chain_world(character, hand.name, hand_world) ||
+      !transform_local_chain_world(character, fore.name, fore_world) ||
+      !transform_local_chain_world(character, upper.name, upper_world)) {
+    return false;
+  }
+
+  const milo_scene::Xfm fore_local0 = *fore.local;
+  const milo_scene::Xfm upper_local0 = *upper.local;
+  const float forearm_len =
+      vlen(vsub(mat_pos(hand_world), mat_pos(fore_world)));
+  const float upperarm_len =
+      vlen({fore.local->pos[0], fore.local->pos[1], fore.local->pos[2]});
+  if (forearm_len <= 1.0e-5f || upperarm_len <= 1.0e-5f) return false;
+
+  SourceCharIKHandMeasure measure =
+      source_char_ik_hand_measure_lengths(true, forearm_len, upperarm_len);
+  const Vec3 shoulder = mat_pos(upper_world);
+  const Vec3 target = mat_pos(target_world);
+  const float dist2 = vdot(vsub(target, shoulder), vsub(target, shoulder));
+  float cos_elbow = 0.0f;
+  if (!source_char_ik_hand_elbow_cosine(measure, dist2, cos_elbow)) {
+    return false;
+  }
+  // AnimServoIK::Poll clamps this older servo to +/-0.985 before sqrt; the
+  // later CharIKHand path uses its own full [-1,1] source contract.
+  cos_elbow = std::clamp(cos_elbow, -0.985f, 0.985f);
+  const float sin_elbow =
+      std::sqrt(std::max(0.0f, 1.0f - cos_elbow * cos_elbow));
+  write_source_elbow_z_bend(*fore.local, fore_local0, cos_elbow, sin_elbow);
+  normalize_xfm_rows(*fore.local);
+
+  std::array<float, 16> upper_world_after_bend{};
+  std::array<float, 16> hand_world_after_bend{};
+  if (!transform_local_chain_world(character, upper.name,
+                                   upper_world_after_bend) ||
+      !transform_local_chain_world(character, hand.name,
+                                   hand_world_after_bend)) {
+    return false;
+  }
+  const Vec3 current_local = local_vec_from_world_rows(
+      upper_world_after_bend,
+      vsub(mat_pos(hand_world_after_bend), mat_pos(upper_world_after_bend)));
+  const Vec3 target_local = local_vec_from_world_rows(
+      upper_world_after_bend,
+      vsub(target, mat_pos(upper_world_after_bend)));
+  float swing_quat[4] = {};
+  quat_from_vec_to_vec(current_local, target_local, swing_quat);
+  float swing_rot[3][3] = {};
+  quat_to_rot(swing_quat, swing_rot);
+  pre_multiply_local_rot(*upper.local, upper_local0, swing_rot, 1.0f);
+
+  std::array<float, 16> solved_world{};
+  if (!transform_local_chain_world(character, hand.name, solved_world)) {
+    return false;
+  }
+  if (ik.orientation) {
+    for (int r = 0; r < 3; ++r)
+      for (int c = 0; c < 3; ++c)
+        solved_world[r * 4 + c] = target_world[r * 4 + c];
+  }
+  if (ik.stretch) {
+    solved_world[12] = target_world[12];
+    solved_world[13] = target_world[13];
+    solved_world[14] = target_world[14];
+  }
+  normalize_mat3_rows(solved_world);
+  character.runtime_world_overrides[hand.name] = solved_world;
+
+  if (debug_ik_enabled()) {
+    const float final_error =
+        vlen(vsub(mat_pos(solved_world), mat_pos(target_world)));
+    std::fprintf(
+        stderr,
+        "[animservoik-source] %s source=%s dest=%s chain=%s/%d "
+        "segments=(%.4f,%.4f) cos=%.5f align=%d stretch=%d error=%.5f\n",
+        ik.name.c_str(), hand.name.c_str(), ik.target.c_str(),
+        fore.name.c_str(), ik.legacy_chain_bones, forearm_len, upperarm_len,
+        cos_elbow, ik.orientation ? 1 : 0, ik.stretch ? 1 : 0, final_error);
+  }
+  return true;
+}
+
 static bool apply_source_ik_hand(Character& character, const CharIKHand& ik) {
+  if (ik.legacy_anim_servo_ik) {
+    return apply_gh1_anim_servo_ik(character, ik);
+  }
   // Bounded single-target slice of ihatecompvir's CharIKHand::Poll/IKElbow
   // dataflow. PullShoulder is a real source function but its body is not in the
   // available ihatecompvir C++, so the remaining branches stay fenced.
@@ -9130,6 +9644,7 @@ static void apply_source_ik_hands_and_fore_twists(
     apply_source_fore_twist(character, bind_bones,
                             character.fore_twists[ft_index]);
   }
+  apply_gh1_anim_servo_fore_twists(character);
 }
 
 struct PendingPose {
@@ -9158,6 +9673,9 @@ static bool source_channel_weight_is_full(const ClipChannel* channel) {
   return channel == nullptr ||
          std::fabs(channel->source_weight - 1.0f) <= 0.001f;
 }
+
+static float xfm_axis_radians(const milo_scene::Xfm& xfm,
+                              ClipChannel::Type axis);
 
 static const char* pose_debug_channel_type_name(ClipChannel::Type type) {
   switch (type) {
@@ -9226,7 +9744,8 @@ static void dump_pose_source_weight_channel(const ClipChannel& ch,
 }
 
 static void apply_pending_pose(const PendingPose& pose, milo_scene::Xfm& local,
-                               bool relative = false) {
+                               bool relative,
+                               bool absolute_axis_channels) {
   if (pose.quat) {
     float scale[3] = {};
     for (int r = 0; r < 3; ++r) {
@@ -9263,21 +9782,21 @@ static void apply_pending_pose(const PendingPose& pose, milo_scene::Xfm& local,
         local, ClipChannel::kRotX,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotX,
                                                        pose.rotx->angle),
-        relative);
+        relative, absolute_axis_channels);
   }
   if (pose.roty) {
     apply_pose_axis_rotation(
         local, ClipChannel::kRotY,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotY,
                                                        pose.roty->angle),
-        relative);
+        relative, absolute_axis_channels);
   }
   if (pose.rotz) {
     apply_pose_axis_rotation(
         local, ClipChannel::kRotZ,
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotZ,
                                                        pose.rotz->angle),
-        relative);
+        relative, absolute_axis_channels);
   }
   if (pose.dx) {
     post_rotate_axis(
@@ -9333,7 +9852,8 @@ static void renormalize_rows(milo_scene::Xfm& local) {
 static void apply_pending_pose_weighted(const PendingPose& pose,
                                         milo_scene::Xfm& local,
                                         float weight,
-                                        bool relative = false) {
+                                        bool relative,
+                                        bool absolute_axis_channels) {
   weight = std::clamp(weight, 0.0f, 1.0f);
   if (weight <= 0.0f) return;
   if (weight >= 0.999f && source_channel_weight_is_full(pose.pos) &&
@@ -9345,7 +9865,7 @@ static void apply_pending_pose_weighted(const PendingPose& pose,
       source_channel_weight_is_full(pose.dx) &&
       source_channel_weight_is_full(pose.dy) &&
       source_channel_weight_is_full(pose.dz)) {
-    apply_pending_pose(pose, local, relative);
+    apply_pending_pose(pose, local, relative, absolute_axis_channels);
     return;
   }
 
@@ -9388,30 +9908,45 @@ static void apply_pending_pose_weighted(const PendingPose& pose,
   }
   const float rotx_weight = effective_pose_channel_weight(weight, pose.rotx);
   if (pose.rotx && rotx_weight > 0.0f) {
-    apply_pose_axis_rotation(
-        local, ClipChannel::kRotX,
+    const float target =
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotX,
-                                                       pose.rotx->angle) *
-            rotx_weight,
-        relative);
+                                                       pose.rotx->angle);
+    const float angle =
+        absolute_axis_channels && !relative
+            ? xfm_axis_radians(local, ClipChannel::kRotX) *
+                      (1.0f - rotx_weight) +
+                  target * rotx_weight
+            : target * rotx_weight;
+    apply_pose_axis_rotation(
+        local, ClipChannel::kRotX, angle, relative, absolute_axis_channels);
   }
   const float roty_weight = effective_pose_channel_weight(weight, pose.roty);
   if (pose.roty && roty_weight > 0.0f) {
-    apply_pose_axis_rotation(
-        local, ClipChannel::kRotY,
+    const float target =
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotY,
-                                                       pose.roty->angle) *
-            roty_weight,
-        relative);
+                                                       pose.roty->angle);
+    const float angle =
+        absolute_axis_channels && !relative
+            ? xfm_axis_radians(local, ClipChannel::kRotY) *
+                      (1.0f - roty_weight) +
+                  target * roty_weight
+            : target * roty_weight;
+    apply_pose_axis_rotation(
+        local, ClipChannel::kRotY, angle, relative, absolute_axis_channels);
   }
   const float rotz_weight = effective_pose_channel_weight(weight, pose.rotz);
   if (pose.rotz && rotz_weight > 0.0f) {
-    apply_pose_axis_rotation(
-        local, ClipChannel::kRotZ,
+    const float target =
         source_grim_char_bones_samples_pose_axis_angle(ClipChannel::kRotZ,
-                                                       pose.rotz->angle) *
-            rotz_weight,
-        relative);
+                                                       pose.rotz->angle);
+    const float angle =
+        absolute_axis_channels && !relative
+            ? xfm_axis_radians(local, ClipChannel::kRotZ) *
+                      (1.0f - rotz_weight) +
+                  target * rotz_weight
+            : target * rotz_weight;
+    apply_pose_axis_rotation(
+        local, ClipChannel::kRotZ, angle, relative, absolute_axis_channels);
   }
   const float dx_weight = effective_pose_channel_weight(weight, pose.dx);
   if (pose.dx && dx_weight > 0.0f) {
@@ -9987,6 +10522,18 @@ static bool apply_clip_pose_output_layer(
     nodes[i].current_local = *targets[i].local;
   }
 
+  // CharBones owns an output transform graph, not merely a list of resident
+  // Character objects. GH1 hand ACPs publish bone_fret_hand/bone_strum_hand
+  // here even though those target names are created by the runtime graph and
+  // are absent from the revision-3 character mesh directory. Preserve the
+  // sampled output worlds for the following AnimServoIK controller pass.
+  for (size_t i = 0; i < nodes.size(); ++i) {
+    if (!node_driven[i]) continue;
+    const auto world = output_node_local_chain(nodes, by_key, i, false);
+    character.runtime_pose_output_worlds[nodes[i].key] = world;
+    character.runtime_pose_output_worlds[nodes[i].name] = world;
+  }
+
   dump_charbone_output_map(character, nodes, by_key, node_driven,
                            true);
 
@@ -10185,8 +10732,9 @@ static void apply_hand_driver_output_layers(
     bool hand_relative_set = false;
     std::vector<ClipChannelLayer> hand_source_layers;
     for (const auto& layer : layers) {
-      if (!layer.overlay_override || !layer.output_bones) continue;
-      if (!output_bones_have_hand_driver_group_root(*layer.output_bones,
+      if (!layer.overlay_override) continue;
+      if (layer.output_bones && !layer.output_bones->empty() &&
+          !output_bones_have_hand_driver_group_root(*layer.output_bones,
                                                     group)) {
         continue;
       }
@@ -10230,7 +10778,6 @@ static void apply_hand_driver_output_layers(
         hand_output_bones.push_back(out);
       }
     }
-    if (hand_output_bones.empty()) return;
 
     const auto hand_frame = blend_channel_layers(hand_source_layers);
     if (hand_frame.empty()) return;
@@ -10238,14 +10785,36 @@ static void apply_hand_driver_output_layers(
     std::vector<ClipChannel> hand_channels;
     hand_channels.reserve(hand_frame.size());
     for (const auto& ch : hand_frame) {
-      if (hand_keys.find(strip_transform_suffix(ch.bone_name)) ==
-          hand_keys.end()) {
+      if (!hand_output_bones.empty() &&
+          hand_keys.find(strip_transform_suffix(ch.bone_name)) ==
+              hand_keys.end()) {
         continue;
       }
       hand_channels.push_back(ch);
     }
     if (hand_channels.empty()) return;
 
+    if (group == HandDriverOutputGroup::Fret) {
+      for (const auto& ch : hand_channels) {
+        const std::string key = strip_transform_suffix(ch.bone_name);
+        if (std::find(character.runtime_fret_driver_outputs.begin(),
+                      character.runtime_fret_driver_outputs.end(),
+                      key) == character.runtime_fret_driver_outputs.end()) {
+          character.runtime_fret_driver_outputs.push_back(key);
+        }
+      }
+    }
+
+    if (hand_output_bones.empty()) {
+      // GH1 ACPs carry typed channels but no serialized CharBones output list;
+      // charbase.dtb creates the drivers and resolves those channels against
+      // the shared character+instrument ObjectDir. The attached-prop transform
+      // proxy import supplies that same namespace, so the old-format overlay
+      // can publish directly without inventing an OutputBone graph.
+      apply_clip_pose_sampled_direct(hand_channels, 1.0f, character,
+                                     hand_relative);
+      return;
+    }
     apply_clip_pose_output_layer(hand_channels, 1.0f, character, hand_relative,
                                  hand_output_bones, true);
   };
@@ -10327,6 +10896,25 @@ static std::array<float, 16> blend_world_rows(
   return out;
 }
 
+static AttachedPropTransformProxy* find_attached_prop_transform_proxy(
+    Character& character, const std::string& name) {
+  for (auto& [proxy_name, proxy] :
+       character.attached_prop_transform_proxies) {
+    if (proxy_name == name || channel_matches_bone(proxy_name, name)) {
+      return &proxy;
+    }
+  }
+  return nullptr;
+}
+
+static bool runtime_fret_driver_publishes(
+    const Character& character, const std::string& transform_name) {
+  const std::string key = strip_transform_suffix(transform_name);
+  return std::find(character.runtime_fret_driver_outputs.begin(),
+                   character.runtime_fret_driver_outputs.end(),
+                   key) != character.runtime_fret_driver_outputs.end();
+}
+
 void apply_ik_midi_fret_target(Character& character,
                                const std::string& spot_name,
                                float time_seconds) {
@@ -10371,6 +10959,74 @@ void apply_ik_midi_fret_target(Character& character,
                    ik.name.c_str(), bone.name.c_str(), spot_name.c_str(),
                    age, blend_seconds, std::clamp(weight, 0.0f, 1.0f),
                    desired_world[12], desired_world[13], desired_world[14]);
+    }
+  }
+
+  // GH1 charbase.dtb creates AnimServoIK instead of serializing CharIKMidi.
+  // Its fret overlay publishes the IK destination in the shared
+  // character+instrument ObjectDir. The destination's parent transform and
+  // the mapped neck spot are siblings under the instrument attachment, which
+  // is the old-format equivalent of GH2's CharIKMidi `bone`/`cur_spot` graph.
+  // Associate them through the channel actually published by the fret driver;
+  // do not infer a character, instrument, side, or transform name.
+  for (const auto& hand : character.ik_hands) {
+    if (debug_ik_enabled() && hand.legacy_anim_servo_ik) {
+      std::fprintf(stderr,
+                   "[ikmidi-gh1-route] controller=%s target=%s "
+                   "published=%d output_count=%zu\n",
+                   hand.name.c_str(), hand.target.c_str(),
+                   runtime_fret_driver_publishes(character, hand.target)
+                       ? 1
+                       : 0,
+                   character.runtime_fret_driver_outputs.size());
+    }
+    if (!hand.legacy_anim_servo_ik ||
+        !runtime_fret_driver_publishes(character, hand.target)) {
+      continue;
+    }
+    AttachedPropTransformProxy* destination =
+        find_attached_prop_transform_proxy(character, hand.target);
+    if (destination == nullptr || destination->parent.empty()) continue;
+    AttachedPropTransformProxy* target_parent =
+        find_attached_prop_transform_proxy(character, destination->parent);
+    AttachedPropTransformProxy* spot =
+        find_attached_prop_transform_proxy(character, spot_name);
+    if (target_parent == nullptr || spot == nullptr ||
+        target_parent->parent != spot->parent) {
+      continue;
+    }
+
+    RuntimeIKMidiState& state =
+        character.runtime_ik_midi_states["legacy::" + hand.name];
+    if (!state.initialized || state.active_spot != spot_name) {
+      state.initialized = true;
+      state.active_spot = spot_name;
+      state.spot_start_time_seconds = time_seconds;
+      transform_local_chain_world(character, target_parent->name,
+                                  state.start_world);
+    }
+
+    const float age =
+        std::max(0.0f, time_seconds - state.spot_start_time_seconds);
+    const float weight = blend_seconds > 0.0f ? age / blend_seconds : 1.0f;
+    const auto desired_world =
+        blend_world_rows(state.start_world, spot_world, weight);
+    std::array<float, 16> parent_world =
+        {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    if (!target_parent->parent.empty()) {
+      transform_local_chain_world(character, target_parent->parent,
+                                  parent_world);
+    }
+    set_local_from_world(target_parent->local, desired_world, parent_world);
+    if (debug_ik_enabled()) {
+      std::fprintf(
+          stderr,
+          "[ikmidi-gh1] %s driver_dest=%s target_parent=%s spot=%s "
+          "age=%.3f blend=%.3f weight=%.3f target=[%.3f %.3f %.3f]\n",
+          hand.name.c_str(), hand.target.c_str(), target_parent->name.c_str(),
+          spot_name.c_str(), age, blend_seconds,
+          std::clamp(weight, 0.0f, 1.0f), desired_world[12],
+          desired_world[13], desired_world[14]);
     }
   }
 }
@@ -10603,6 +11259,8 @@ void set_runtime_driver_evaluate_flags(Character& character,
 
 void clear_runtime_trans_worlds(Character& character) {
   character.runtime_world_overrides.clear();
+  character.runtime_pose_output_worlds.clear();
+  character.runtime_fret_driver_outputs.clear();
 }
 
 void apply_character_controllers(Character& character, float time_seconds) {
@@ -10666,8 +11324,18 @@ void apply_clip_pose(const std::vector<ClipChannel>& channels, Character& charac
 static void apply_clip_pose_sampled_direct(
     const std::vector<ClipChannel>& channels, float weight, Character& character,
     bool relative) {
+  // GH1 selectable characters are revision-10 anonymous RndDir graphs. Their
+  // skeleton transforms are serialized as zero-geometry RndMesh objects and
+  // standalone AnimClipSamples ACP rows publish absolute scalar axes. GH2
+  // BandCharacter graphs carry a non-empty directory type and resident Trans
+  // bones, so they retain their existing direct-fallback composition here;
+  // their normal OutputBone publisher already uses the traced absolute setter.
+  const bool absolute_axis_channels =
+      character.dir_type.empty() && character.dir_version == 10 &&
+      character.bones.empty();
   std::vector<PendingPose> poses(character.bones.size());
   std::vector<PendingPose> mesh_poses(character.meshes.size());
+  std::map<std::string, PendingPose> prop_proxy_poses;
   for (const auto& ch : channels) {
     bool matched = false;
     for (size_t i = 0; i < character.bones.size(); ++i) {
@@ -10701,17 +11369,43 @@ static void apply_clip_pose_sampled_direct(
         case ClipChannel::kDeltaY: mesh_poses[i].dy = &ch; break;
         case ClipChannel::kDeltaZ: mesh_poses[i].dz = &ch; break;
       }
+      matched = true;
+      break;
+    }
+    if (matched) continue;
+    for (auto& [proxy_name, proxy] :
+         character.attached_prop_transform_proxies) {
+      (void)proxy;
+      if (!channel_matches_bone(proxy_name, ch.bone_name)) continue;
+      PendingPose& pose = prop_proxy_poses[proxy_name];
+      switch (ch.type) {
+        case ClipChannel::kPos: pose.pos = &ch; break;
+        case ClipChannel::kScale: pose.scale = &ch; break;
+        case ClipChannel::kQuat: pose.quat = &ch; break;
+        case ClipChannel::kRotX: pose.rotx = &ch; break;
+        case ClipChannel::kRotY: pose.roty = &ch; break;
+        case ClipChannel::kRotZ: pose.rotz = &ch; break;
+        case ClipChannel::kDeltaX: pose.dx = &ch; break;
+        case ClipChannel::kDeltaY: pose.dy = &ch; break;
+        case ClipChannel::kDeltaZ: pose.dz = &ch; break;
+      }
       break;
     }
   }
 
   for (size_t i = 0; i < character.bones.size(); ++i) {
     apply_pending_pose_weighted(poses[i], character.bones[i].local, weight,
-                                relative);
+                                relative, absolute_axis_channels);
   }
   for (size_t i = 0; i < character.meshes.size(); ++i) {
     apply_pending_pose_weighted(mesh_poses[i], character.meshes[i].local, weight,
-                                relative);
+                                relative, absolute_axis_channels);
+  }
+  for (const auto& [proxy_name, pose] : prop_proxy_poses) {
+    auto proxy = character.attached_prop_transform_proxies.find(proxy_name);
+    if (proxy == character.attached_prop_transform_proxies.end()) continue;
+    apply_pending_pose_weighted(pose, proxy->second.local, weight, relative,
+                                absolute_axis_channels);
   }
   if (debug_leg_pose_enabled()) dump_leg_pose(character, "clip");
 }
@@ -11098,8 +11792,11 @@ void dump_lane_mixer_layers(const std::vector<ClipChannelLayer>& layers) {
       const std::string key =
           std::string(channel_type_name(ch.type)) + ":" + ch.bone_name;
       owners[key].push_back(name);
-      if (debug_face_enabled() && is_face_quat_bone(ch.bone_name)) {
-        std::fprintf(stderr, "[lane-mix]     face %s %s",
+      const std::string channel_key =
+          strip_transform_suffix(ch.bone_name);
+      if ((debug_face_enabled() && is_face_quat_bone(ch.bone_name)) ||
+          is_hand_driver_root_key(channel_key)) {
+        std::fprintf(stderr, "[lane-mix]     value %s %s",
                      name.c_str(), key.c_str());
         dump_lane_channel_value(ch);
         std::fprintf(stderr, "\n");
@@ -11529,6 +12226,18 @@ void CharClipPlayer::set_speed(float speed) {
   for (auto& layer : layers_) {
     layer.speed = speed;
   }
+}
+
+void CharClipPlayer::seek_current_time_seconds(float time_seconds) {
+  if (layers_.empty()) return;
+  Layer& current = layers_.back();
+  if (!current.clip) return;
+  const float duration = current.clip->duration_seconds();
+  if (!std::isfinite(time_seconds)) time_seconds = 0.0f;
+  current.time_seconds =
+      duration > 0.0f
+          ? std::clamp(time_seconds, 0.0f, duration)
+          : std::max(0.0f, time_seconds);
 }
 
 void CharClipPlayer::advance(float dt_seconds) {

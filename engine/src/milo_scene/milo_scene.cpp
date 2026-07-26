@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
@@ -211,6 +212,7 @@ struct TransFields {
   std::string target;
   bool preserve_scale = false;
   std::string parent;
+  std::vector<std::string> legacy_children;
 };
 
 // MiloLib RndTrans.Read order:
@@ -235,9 +237,9 @@ TransFields read_trans_block(Reader& r,
     const uint32_t trans_count = r.u32();
     for (uint32_t i = 0; i < trans_count; ++i) {
       if (plan.old_child_list_is_null_terminated_strings) {
-        (void)r.utf8_z();
+        out.legacy_children.push_back(r.utf8_z());
       } else {
-        (void)r.str();
+        out.legacy_children.push_back(r.str());
       }
     }
   }
@@ -248,7 +250,8 @@ TransFields read_trans_block(Reader& r,
   return out;
 }
 
-void read_animatable_block(Reader& r) {
+void read_animatable_block(Reader& r,
+                           std::vector<std::string>* anim_refs = nullptr) {
   const uint32_t combined_revision = r.u32();
   const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
   if (ver > 1) (void)r.f32();
@@ -266,12 +269,16 @@ void read_animatable_block(Reader& r) {
       (void)r.f32();
     }
     const uint32_t anim_count = r.u32();
-    for (uint32_t i = 0; i < anim_count; ++i) (void)r.str();
+    for (uint32_t i = 0; i < anim_count; ++i) {
+      std::string ref = r.str();
+      if (anim_refs) anim_refs->push_back(std::move(ref));
+    }
   }
 }
 
 void read_drawable_block(Reader& r, int32_t parent_dir_revision,
-                         bool& showing, float& draw_order) {
+                         bool& showing, float& draw_order,
+                         std::vector<std::string>* drawable_children = nullptr) {
   const uint32_t combined_revision = r.u32();
   const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
   const SourceRndDrawableLoadPlan plan =
@@ -282,12 +289,19 @@ void read_drawable_block(Reader& r, int32_t parent_dir_revision,
   if (plan.reads_showing) showing = r.u8() != 0;
   if (plan.reads_old_drawable_list) {
     const uint32_t drawable_count = r.u32();
+    if (drawable_children) {
+      drawable_children->clear();
+      drawable_children->reserve(drawable_count);
+    }
     for (uint32_t i = 0; i < drawable_count; ++i) {
+      std::string ref;
       if (plan.old_list_is_null_terminated_strings) {
-        (void)r.utf8_z();
+        ref = r.utf8_z();
       } else {
-        (void)r.str();
+        ref = r.str();
       }
+      if (drawable_children && !ref.empty())
+        drawable_children->push_back(std::move(ref));
     }
   }
   if (plan.reads_sphere) r.skip(16);
@@ -681,9 +695,18 @@ void append_group_draw_order(const Scene& scene, const GroupObj& group,
                              std::vector<std::string>& order) {
   if (!group.showing) return;
   if (!visiting_groups.insert(group.name).second) return;
+  const auto append_mesh = [&](auto&& self, const std::string& name) -> void {
+    const auto mesh_it = std::find_if(
+        scene.meshes.begin(), scene.meshes.end(),
+        [&](const MeshObj& mesh) { return mesh.name == name; });
+    if (mesh_it == scene.meshes.end()) return;
+    if (emitted_meshes.insert(name).second) order.push_back(name);
+    for (const auto& drawable_child : mesh_it->drawable_children)
+      self(self, drawable_child);
+  };
   const auto visit_child = [&](const std::string& child) {
     if (name_has_suffix(child, ".mesh") && scene_has_mesh(scene, child)) {
-      if (emitted_meshes.insert(child).second) order.push_back(child);
+      append_mesh(append_mesh, child);
     } else if (const GroupObj* child_group = find_group_obj(scene, child)) {
       append_group_draw_order(scene, *child_group, visiting_groups,
                               emitted_meshes, order);
@@ -1062,6 +1085,22 @@ PanelDirConfig decode_panel_dir_config(const std::vector<uint8_t>& body) {
     }
   }
   return out;
+}
+
+std::string legacy_directory_root_view_name(const std::string& milo_path) {
+  const size_t slash = milo_path.find_last_of("/\\");
+  std::string leaf = milo_path.substr(
+      slash == std::string::npos ? 0 : slash + 1);
+  for (const std::string_view suffix : {std::string_view{".rnd_ps2"},
+                                        std::string_view{".milo_ps2"},
+                                        std::string_view{".rnd"},
+                                        std::string_view{".milo"}}) {
+    if (name_has_suffix(leaf, suffix)) {
+      leaf.resize(leaf.size() - suffix.size());
+      break;
+    }
+  }
+  return leaf.empty() ? std::string{} : leaf + ".view";
 }
 
 EnvAnimObj decode_env_anim(const std::string& entry_name,
@@ -2695,7 +2734,8 @@ TransObj decode_trans(const std::string& entry_name,
 }
 
 CamObj decode_cam(const std::string& entry_name,
-                  const std::vector<uint8_t>& body) {
+                  const std::vector<uint8_t>& body,
+                  int32_t parent_dir_revision) {
   CamObj c;
   c.name = entry_name;
   try {
@@ -2704,20 +2744,22 @@ CamObj decode_cam(const std::string& entry_name,
     const uint16_t version = static_cast<uint16_t>(combined_revision & 0xffff);
     c.revision = version;
     c.alt_revision = static_cast<uint16_t>((combined_revision >> 16) & 0xffff);
-    if (version > 10) r.skip(kObjMeta);
+    if (version > 10) read_object_fields(r);
 
-    const uint32_t trans_revision = r.u32();
-    c.trans_revision = static_cast<uint16_t>(trans_revision & 0xffff);
-    c.local = r.matrix();
-    c.world_stored = r.matrix();
-    if (trans_revision > 6) c.constraint = r.u32();
-    if (trans_revision > 5) c.target = r.str();
-    if (trans_revision > 6) c.preserve_scale = r.u8() != 0;
-    c.parent = r.str();
+    const TransFields trans = read_trans_block(r, false, parent_dir_revision);
+    c.trans_revision = static_cast<uint16_t>(
+        parent_dir_revision < 24 ? 8 : 9);
+    c.local = trans.local;
+    c.world_stored = trans.world;
+    c.constraint = trans.constraint;
+    c.target = trans.target;
+    c.preserve_scale = trans.preserve_scale;
+    c.parent = trans.parent;
 
     if (version < 10) {
-      r.i32();       // Draw revision.
-      r.skip(21);    // Draw payload: showing + bounds + draw order byte.
+      bool showing = true;
+      float draw_order = 0.0f;
+      read_drawable_block(r, parent_dir_revision, showing, draw_order);
       if (version == 8) {
         const uint32_t objects = r.u32();
         for (uint32_t i = 0; i < objects; ++i) (void)r.str();
@@ -2829,6 +2871,54 @@ SpotlightObj decode_spotlight(const std::string& entry_name,
   return s;
 }
 
+FlareObj decode_flare(const std::string& entry_name,
+                      const std::vector<uint8_t>& body,
+                      int32_t parent_dir_revision) {
+  FlareObj flare;
+  flare.name = entry_name;
+  try {
+    Reader r(body.data(), body.size());
+    flare.revision = low_revision(r.u32());
+    if (flare.revision > 7) {
+      throw std::runtime_error("milo_scene: unsupported Flare revision");
+    }
+    if (flare.revision > 3) read_object_fields(r);
+
+    const size_t trans_at = r.pos;
+    flare.trans_revision = low_revision(read_u32_at(body, trans_at));
+    const TransFields trans =
+        read_trans_block(r, false, parent_dir_revision);
+    flare.local = trans.local;
+    flare.world_stored = trans.world;
+    flare.constraint = trans.constraint;
+    flare.target = trans.target;
+    flare.preserve_scale = trans.preserve_scale;
+    flare.parent = trans.parent;
+    flare.draw_revision =
+        read_rnd_drawable_source_layout(r, flare.showing, flare.draw_order);
+    if (flare.revision != 0) flare.material = r.str();
+    flare.sizes[0] = r.f32();
+    flare.sizes[1] =
+        flare.revision > 2 ? r.f32() : flare.sizes[0];
+    if (flare.revision > 1) {
+      flare.range[0] = r.f32();
+      flare.range[1] = r.f32();
+      flare.steps = r.i32();
+    }
+    if (flare.revision > 4) flare.point_test = r.u8() != 0;
+    if (flare.revision > 6) flare.offset = r.f32();
+    if (r.pos != r.n) {
+      throw std::runtime_error(
+          "milo_scene: Flare source reader did not consume EOF");
+    }
+    flare.source_order_decoded = true;
+    flare.decoded = true;
+  } catch (const std::exception& e) {
+    flare.error = e.what();
+  }
+  return flare;
+}
+
 LightObj decode_light(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   LightObj light;
@@ -2836,12 +2926,24 @@ LightObj decode_light(const std::string& entry_name,
   try {
     Reader r(body.data(), body.size());
     const uint16_t light_revision = low_revision(r.u32());
-    if (light_revision != 6) {
+    if (light_revision != 3 && light_revision != 6) {
       throw std::runtime_error("milo_scene: unsupported Light version");
     }
-    r.skip(kObjMeta);
-    read_trans_block(r, light.local, light.world_stored, light.constraint,
-                     light.target, light.preserve_scale, light.parent, false);
+    if (light_revision == 3) {
+      const TransFields trans = read_trans_block(r, false, 10);
+      light.local = trans.local;
+      light.world_stored = trans.world;
+      light.constraint = trans.constraint;
+      light.target = trans.target;
+      light.preserve_scale = trans.preserve_scale;
+      light.parent = trans.parent;
+    } else {
+      r.skip(kObjMeta);
+      read_trans_block(r, light.local, light.world_stored, light.constraint,
+                       light.target, light.preserve_scale, light.parent,
+                       false);
+    }
+    if (light.parent == light.name) light.parent.clear();
     for (int i = 0; i < 4; ++i) {
       light.color[i] = r.f32();
       if (!std::isfinite(light.color[i])) {
@@ -2856,9 +2958,11 @@ LightObj decode_light(const std::string& entry_name,
     if (light_revision < 0x0e && type > 1) --type;
     if (type < 0 || type > 4) type = 0;
     light.type = type;
-    light.animate_color_from_preset = r.u8() != 0;
-    light.animate_position_from_preset = r.u8() != 0;
-    light.animate_range_from_preset = light.animate_color_from_preset;
+    if (light_revision >= 6) {
+      light.animate_color_from_preset = r.u8() != 0;
+      light.animate_position_from_preset = r.u8() != 0;
+      light.animate_range_from_preset = light.animate_color_from_preset;
+    }
     light.source_order_decoded = true;
     light.decoded = true;
   } catch (const std::exception& ex) {
@@ -2875,10 +2979,40 @@ EnvironObj decode_environ(const std::string& entry_name,
     Reader r(body.data(), body.size());
     const uint16_t revision = low_revision(r.u32());
     env.revision = revision;
-    if (revision != 5) {
+    if (revision != 1 && revision != 5) {
       throw std::runtime_error("milo_scene: unsupported Environ version");
     }
-    read_object_fields(r);
+    if (revision == 1) {
+      // GH1 Environ revision 1 still serializes an obsolete RndDrawable block.
+      // Harmonix's later matching loader calls RndDrawable::DumpLoad here:
+      // showing, old drawable list, and sphere are consumed but do not confer
+      // membership. Preserve the refs for format evidence only.
+      const uint16_t drawable_revision = low_revision(r.u32());
+      if (drawable_revision >= 4) {
+        throw std::runtime_error(
+            "milo_scene: unsupported GH1 Environ drawable version");
+      }
+      env.legacy_drawable_showing = r.u8() != 0;
+      if (drawable_revision < 2) {
+        const uint32_t drawable_count = r.u32();
+        if (drawable_count > 4096) {
+          throw std::runtime_error(
+              "milo_scene: implausible GH1 Environ drawable count");
+        }
+        env.legacy_drawable_refs.reserve(drawable_count);
+        for (uint32_t i = 0; i < drawable_count; ++i) {
+          std::string ref = r.str();
+          if (!name_has_suffix(ref, ".mesh")) {
+            throw std::runtime_error(
+                "milo_scene: invalid GH1 Environ drawable ref");
+          }
+          env.legacy_drawable_refs.push_back(std::move(ref));
+        }
+      }
+      if (drawable_revision > 0) r.skip(16);  // RndDrawable bounding sphere.
+    } else {
+      read_object_fields(r);
+    }
     const uint32_t light_count = r.u32();
     if (light_count > 64) {
       throw std::runtime_error("milo_scene: implausible Environ light count");
@@ -2910,11 +3044,17 @@ EnvironObj decode_environ(const std::string& entry_name,
       env.fog_color[i] = env.color_b[i];
     }
     env.fog_enabled = r.u8() != 0;
-    env.animate_from_preset = r.u8() != 0;
-    env.fade_out = r.u8() != 0;
-    env.fade_start = r.f32();
-    env.fade_end = r.f32();
-    env.range = env.fade_end;
+    if (revision >= 5) {
+      env.animate_from_preset = r.u8() != 0;
+      env.fade_out = r.u8() != 0;
+      env.fade_start = r.f32();
+      env.fade_end = r.f32();
+      env.range = env.fade_end;
+    } else {
+      env.fade_start = env.range_a;
+      env.fade_end = env.range_b;
+      env.range = env.range_b;
+    }
     if (!std::isfinite(env.range_a) || !std::isfinite(env.range_b) ||
         !std::isfinite(env.fade_start) || !std::isfinite(env.fade_end) ||
         env.range_a < 0.0f || env.range_b < 0.0f ||
@@ -2938,6 +3078,75 @@ GroupObj decode_group(const std::string& entry_name,
     Reader r(body.data(), body.size());
     const uint32_t combined_revision = r.u32();
     const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
+    if (parent_dir_revision == 10 && ver == 7) {
+      group.legacy_view = true;
+      // GH1 `View` is remapped to RndGroup by ObjectDir::DirLoader.  Its old
+      // serialized layout carries a revision-0 RndAnimatable payload whose
+      // animation-reference vector propagates SetFrame to nested
+      // Views/animations. The drawable member vector follows embedded Trans8.
+      auto decode_view_tail = [&](Reader& view_reader) {
+        const TransFields trans = read_trans_block(
+            view_reader, false, parent_dir_revision);
+        group.local = trans.local;
+        group.world_stored = trans.world;
+        group.constraint = trans.constraint;
+        group.target = trans.target;
+        group.preserve_scale = trans.preserve_scale;
+        group.parent = trans.parent;
+        if (group.parent == group.name) group.parent.clear();
+        group.has_transform = true;
+        group.showing = view_reader.u8() != 0;
+        view_reader.skip(4);  // legacy view flags
+        const uint32_t object_count = view_reader.u32();
+        if (object_count > 4096) {
+          throw std::runtime_error(
+              "milo_scene: implausible GH1 View member count");
+        }
+        group.children.clear();
+        group.children.reserve(object_count);
+        for (uint32_t i = 0; i < object_count; ++i) {
+          std::string ref = view_reader.str();
+          if (name_has_suffix(ref, ".env")) group.environment_ref = ref;
+          group.children.push_back(std::move(ref));
+        }
+      };
+      try {
+        group.anim_children.clear();
+        read_animatable_block(r, &group.anim_children);
+        for (const auto& ref : group.anim_children)
+          if (name_has_suffix(ref, ".env")) group.environment_ref = ref;
+        decode_view_tail(r);
+      } catch (const std::exception&) {
+        // Animated GH1 Views serialize a legacy animatable payload between
+        // View7 and embedded Trans8. Locate that strongly typed Trans block
+        // rather than assuming the empty-animatable layout used by most
+        // character Views.
+        bool decoded_tail = false;
+        for (size_t offset = 4; offset + 4 + 96 <= body.size(); ++offset) {
+          uint32_t revision = 0;
+          std::memcpy(&revision, body.data() + offset, sizeof(revision));
+          if ((revision & 0xffffu) != 8 ||
+              !is_plausible_matrix_at(body, offset + 4) ||
+              !is_plausible_matrix_at(body, offset + 52)) {
+            continue;
+          }
+          try {
+            Reader candidate(body.data() + offset, body.size() - offset);
+            decode_view_tail(candidate);
+            decoded_tail = true;
+            break;
+          } catch (const std::exception&) {
+          }
+        }
+        if (!decoded_tail) {
+          throw std::runtime_error(
+              "milo_scene: no valid GH1 View embedded Trans8");
+        }
+      }
+      group.source_order_decoded = true;
+      group.decoded = true;
+      return group;
+    }
     if (ver > 7) read_object_fields(r);
     read_animatable_block(r);
     const TransFields trans = read_trans_block(r, false, parent_dir_revision);
@@ -3656,6 +3865,81 @@ MatObj decode_mat(const std::string& entry_name,
   m.name = entry_name;
   const int32_t ver = r.i32();     // = 27 for GH2 PS2 stock character mats.
   const SourceRndMatLoadPlan plan = source_rndmat_load_plan(ver);
+  if (ver == 21) {
+    // GH1 version-10 directories do not serialize Hmx::Object metadata inside
+    // entry bodies. RndMat revision 21 begins immediately with a texture-map
+    // array, followed by blend, RGB, and alpha. This is the source order used
+    // by MiloLib/Grim's explicit GH1 reader.
+    bool has_legacy_environment_texture = false;
+    const uint32_t tex_count = r.u32();
+    if (tex_count > 64) {
+      throw std::runtime_error("milo_scene: implausible GH1 Mat texture count");
+    }
+    for (uint32_t i = 0; i < tex_count; ++i) {
+      const uint32_t map_slot = r.u32();
+      const uint32_t map_type = r.u32();
+      float tex_xfm[12] = {};
+      for (float& value : tex_xfm) value = r.f32();
+      const uint32_t tex_wrap = r.u32();
+      const std::string texture = r.str();
+      (void)map_slot;
+      // GH1 Mat21 uses both selector 0 and selector 1 for the material's
+      // sampled 2-D texture. Real small_club selector-1 entries include
+      // smokemat, color_plane, and spot_beam_mat; dropping them produces
+      // untextured additive polygons. Selector 5 is the sphere/environment
+      // map family. Mackiloha likewise exposes the first non-empty legacy
+      // TextureEntry as the material texture rather than requiring selector 0.
+      if ((map_type == 0 || map_type == 1) && m.diffuse_tex.empty()) {
+        m.diffuse_tex = texture;
+        m.tex_wrap = static_cast<uint8_t>(
+            tex_wrap <= 4 ? tex_wrap : 1);
+        m.tex_xfm[0][0] = tex_xfm[0];
+        m.tex_xfm[0][1] = tex_xfm[1];
+        m.tex_xfm[0][2] = 0.0f;
+        m.tex_xfm[1][0] = tex_xfm[3];
+        m.tex_xfm[1][1] = tex_xfm[4];
+        m.tex_xfm[1][2] = 0.0f;
+        m.tex_xfm[2][0] = tex_xfm[9];
+        m.tex_xfm[2][1] = tex_xfm[10];
+        m.tex_xfm[2][2] = 1.0f;
+        m.tex_scale[0] = m.tex_xfm[0][0];
+        m.tex_scale[1] = m.tex_xfm[1][1];
+        m.tex_offset[0] = m.tex_xfm[2][0];
+        m.tex_offset[1] = m.tex_xfm[2][1];
+      } else if (map_type == 5) {
+        has_legacy_environment_texture =
+            has_legacy_environment_texture || !texture.empty();
+      }
+    }
+    const uint32_t primary_blend = r.u32();
+    if (primary_blend <= 6) m.legacy_primary_blend =
+        static_cast<uint8_t>(primary_blend);
+    m.color[0] = r.f32();
+    m.color[1] = r.f32();
+    m.color[2] = r.f32();
+    m.color[3] = r.f32();
+    // Mat21 legacy tail (gh1_mat.bt / Mackiloha MatSerializer): the first
+    // three bytes retain the old compact RndMat state ordering documented by
+    // RndMat::Load after colour: use-environ, prelit, then ZMode.  Reading the
+    // latter pair as one little-endian short explains the retail 0x0000,
+    // 0x0001, 0x0100, and 0x0101 values without inventing material-name rules.
+    m.use_environ = (r.u8() != 0) || has_legacy_environment_texture;
+    const uint16_t prelit_zmode = r.u16();
+    m.prelit = (prelit_zmode & 0xffu) != 0;
+    const uint8_t z_mode = static_cast<uint8_t>(prelit_zmode >> 8);
+    if (z_mode <= 4) m.z_mode = z_mode;
+    (void)r.i32();
+    (void)r.u16();
+    const uint32_t blend = r.u32();
+    if (blend <= 6) {
+      m.blend = static_cast<uint8_t>(blend);
+      m.legacy_tail_blend = static_cast<uint8_t>(blend);
+    }
+    m.has_legacy_blends = primary_blend <= 6 && blend <= 6;
+    (void)r.u16();
+    m.decoded = true;
+    return m;
+  }
   read_object_fields(r);     // base metadata
   const uint32_t blend = plan.reads_blend ? r.u32() : 0;
   if (blend <= 6) {
@@ -3808,14 +4092,17 @@ MeshObj decode_mesh(const std::string& entry_name,
                     int32_t parent_dir_revision) {
   MeshObj mesh;
   mesh.name = entry_name;
+  const char* decode_stage = "header";
   try {
     Reader r(body.data(), body.size());
-    int32_t ver = r.i32();   // mesh version = 28 (0x1c)
-    if (ver != 28) {
+    int32_t ver = r.i32();   // GH1=25, GH2=28.
+    if (ver != 25 && ver != 28) {
       // Not fatal — some mesh variants exist — but record it.
       mesh.error = "unexpected mesh version " + std::to_string(ver);
     }
-    read_object_fields(r);  // Hmx::Object fields for the Mesh object.
+    // GH1 version-10 directories omit per-entry Hmx::Object metadata.
+    if (parent_dir_revision >= 24) read_object_fields(r);
+    decode_stage = "transform";
     const TransFields trans = read_trans_block(r, false, parent_dir_revision);
     mesh.local = trans.local;
     mesh.world_stored = trans.world;
@@ -3823,15 +4110,15 @@ MeshObj decode_mesh(const std::string& entry_name,
     mesh.target = trans.target;
     mesh.preserve_scale = trans.preserve_scale;
     mesh.parent = trans.parent;
+    mesh.legacy_children = trans.legacy_children;
 
-    // Draw base: version (= 3), showing flag, then sphere + draw-order.
-    int32_t draw_ver = r.i32();
-    (void)draw_ver;
-    mesh.showing = r.u8() != 0;
-    r.skip(16);
-    mesh.draw_order = r.f32();
+    // GH1 embeds Drawable revision 1; GH2 embeds revision 3.
+    decode_stage = "drawable";
+    read_drawable_block(r, parent_dir_revision, mesh.showing,
+                        mesh.draw_order, &mesh.drawable_children);
 
     // Mesh fields.
+    decode_stage = "mesh fields";
     mesh.material = r.str();           // material name
     if (ver == 27) r.str();            // legacy secondary material name
     mesh.geometry_owner = r.str();     // geometry-owner name (usually self)
@@ -3867,6 +4154,7 @@ MeshObj decode_mesh(const std::string& entry_name,
     }
     if (ver == 7) (void)r.u8();
     if (ver < 11) (void)r.u32();
+    decode_stage = "vertex count";
     uint32_t vcount = r.u32();
 
     // Sanity-gate the vertex count against the remaining bytes: we need at least
@@ -3878,6 +4166,7 @@ MeshObj decode_mesh(const std::string& entry_name,
     }
     mesh.vertex_count = vcount;
     mesh.verts.resize(vcount);
+    decode_stage = "vertices";
     for (uint32_t i = 0; i < vcount; ++i) {
       Vertex& v = mesh.verts[i];
       v.px = r.f32(); v.py = r.f32(); v.pz = r.f32();
@@ -3896,6 +4185,7 @@ MeshObj decode_mesh(const std::string& entry_name,
       v.u  = r.f32(); v.v  = r.f32();
     }
 
+    decode_stage = "faces";
     uint32_t fcount = r.u32();
     if (static_cast<uint64_t>(fcount) * 6 > body.size() - r.pos) {
       mesh.error = "face_count " + std::to_string(fcount) + " exceeds entry";
@@ -3973,7 +4263,7 @@ MeshObj decode_mesh(const std::string& entry_name,
     }
     mesh.decoded = mesh.error.empty();
   } catch (const std::exception& ex) {
-    mesh.error = ex.what();
+    mesh.error = std::string(decode_stage) + ": " + ex.what();
   }
   return mesh;
 }
@@ -3982,24 +4272,70 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
                                    const std::vector<uint8_t>& body) {
   ParticleSysObj part;
   part.name = entry_name;
+  const char* decode_stage = "header";
+  Reader r(body.data(), body.size());
   try {
-    Reader r(body.data(), body.size());
     part.revision = low_revision(r.u32());
-    if (part.revision != 27) {
+    const bool gh1_revision = part.revision == 22;
+    if (!gh1_revision && part.revision != 27) {
       throw std::runtime_error("milo_scene: unsupported ParticleSys revision");
     }
 
-    r.skip(kObjMeta);
-    part.anim_revision = read_rnd_animatable_source_layout(r);
-    read_trans_block(r, part.local, part.world_stored, part.constraint,
-                     part.target, part.preserve_scale, part.parent, false,
-                     &part.trans_revision);
-    if (part.trans_revision != 9) {
+    if (!gh1_revision) r.skip(kObjMeta);
+    if (gh1_revision) {
+      part.anim_revision = low_revision(r.u32());
+      if (part.anim_revision != 0) {
+        throw std::runtime_error(
+            "milo_scene: unsupported GH1 ParticleSys Animatable");
+      }
+      // GH1's embedded Animatable rev 0 carries the legacy named-range and
+      // animation-reference lists. Most venue particles leave both empty;
+      // Arena's stage flames contain a named-range row.
+      const uint32_t range_count = r.u32();
+      if (range_count > 2048) {
+        throw std::runtime_error(
+            "milo_scene: implausible GH1 ParticleSys animation ranges");
+      }
+      for (uint32_t i = 0; i < range_count; ++i) {
+        (void)r.str();
+        (void)r.f32();
+        (void)r.f32();
+      }
+      const uint32_t animation_count = r.u32();
+      if (animation_count > 2048) {
+        throw std::runtime_error(
+            "milo_scene: implausible GH1 ParticleSys animations");
+      }
+      for (uint32_t i = 0; i < animation_count; ++i) (void)r.str();
+    } else {
+      part.anim_revision = read_rnd_animatable_source_layout(r);
+    }
+    if (gh1_revision) {
+      part.trans_revision = low_revision(r.u32());
+      part.local = r.matrix();
+      part.world_stored = r.matrix();
+      const uint32_t legacy_child_count = r.u32();
+      if (legacy_child_count > 2048) {
+        throw std::runtime_error(
+            "milo_scene: implausible GH1 ParticleSys Trans children");
+      }
+      for (uint32_t i = 0; i < legacy_child_count; ++i) (void)r.str();
+      part.constraint = r.u32();
+      part.target = r.str();
+      part.preserve_scale = r.u8() != 0;
+      part.parent = r.str();
+    } else {
+      read_trans_block(r, part.local, part.world_stored, part.constraint,
+                       part.target, part.preserve_scale, part.parent, false,
+                       &part.trans_revision);
+    }
+    if (part.trans_revision != (gh1_revision ? 8 : 9)) {
       throw std::runtime_error("milo_scene: unsupported ParticleSys Trans");
     }
-    part.draw_revision =
-        read_rnd_drawable_source_layout(r, part.showing, part.draw_order);
-    if (part.draw_revision != 3) {
+    part.draw_revision = low_revision(r.u32());
+    r.pos -= sizeof(uint32_t);
+    (void)read_rnd_drawable_source_layout(r, part.showing, part.draw_order);
+    if (part.draw_revision != (gh1_revision ? 1 : 3)) {
       throw std::runtime_error("milo_scene: unsupported ParticleSys Drawable");
     }
 
@@ -4023,8 +4359,9 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     };
 
     const std::array<float, 2> life = read_vec2();
-    part.life_min_frames = std::max(1.0f, life[0]);
-    part.life_max_frames = std::max(part.life_min_frames, life[1]);
+    part.life_min_frames = std::max(1.0f, std::min(life[0], life[1]));
+    part.life_max_frames =
+        std::max(part.life_min_frames, std::max(life[0], life[1]));
     read_vec3_to(part.box_extent_min);
     read_vec3_to(part.box_extent_max);
     for (int i = 0; i < 3; ++i) {
@@ -4032,8 +4369,8 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
       part.velocity_max[i] = part.box_extent_max[i];
     }
     const std::array<float, 2> speed = read_vec2();
-    part.speed_min = std::max(0.0f, speed[0]);
-    part.speed_max = std::max(part.speed_min, speed[1]);
+    part.speed_min = std::max(0.0f, std::min(speed[0], speed[1]));
+    part.speed_max = std::max(part.speed_min, std::max(speed[0], speed[1]));
     const std::array<float, 2> pitch = read_vec2();
     part.pitch_min = pitch[0];
     part.pitch_max = pitch[1];
@@ -4041,8 +4378,9 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     part.yaw_min = yaw[0];
     part.yaw_max = yaw[1];
     const std::array<float, 2> emit_rate = read_vec2();
-    part.emit_rate_min = std::max(0.0f, emit_rate[0]);
-    part.emit_rate_max = std::max(part.emit_rate_min, emit_rate[1]);
+    part.emit_rate_min = std::max(0.0f, std::min(emit_rate[0], emit_rate[1]));
+    part.emit_rate_max =
+        std::max(part.emit_rate_min, std::max(emit_rate[0], emit_rate[1]));
     const std::array<float, 2> start_size = read_vec2();
     part.start_size_min = std::max(0.0f, start_size[0]);
     part.start_size_max = std::max(part.start_size_min, start_size[1]);
@@ -4064,9 +4402,39 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     part.end_color_low = read_color();
     part.end_color_high = read_color();
 
+    decode_stage = "bounce";
     part.bounce = r.str();
     read_vec3_to(part.force_dir);
+    if (gh1_revision) {
+      // GH1 rev 22 has two observed legacy pre-material encodings. Most
+      // objects carry one additional byte before the three floats; fest's
+      // nuke_toxic omits it. Select the source shape by validating the
+      // following length-prefixed material reference, never by object name.
+      const auto plausible_ref_at = [&](size_t offset) {
+        if (offset + 4 > body.size()) return false;
+        const uint32_t len =
+            static_cast<uint32_t>(body[offset]) |
+            (static_cast<uint32_t>(body[offset + 1]) << 8) |
+            (static_cast<uint32_t>(body[offset + 2]) << 16) |
+            (static_cast<uint32_t>(body[offset + 3]) << 24);
+        if (len == 0 || len > 127 || offset + 4 + len > body.size())
+          return false;
+        for (uint32_t i = 0; i < len; ++i) {
+          const uint8_t c = body[offset + 4 + i];
+          if (c < 0x20 || c > 0x7e) return false;
+        }
+        return true;
+      };
+      const bool has_legacy_prefix_byte =
+          plausible_ref_at(r.pos + 13) && !plausible_ref_at(r.pos + 12);
+      if (has_legacy_prefix_byte) (void)r.u8();
+      (void)read_f();
+      (void)read_f();
+      (void)read_f();
+    }
+    decode_stage = "material";
     part.material = r.str();
+    decode_stage = "post-material";
     part.particle_flags = r.u32();
     part.grow_ratio = std::clamp(read_f(), 0.0f, 1.0f);
     part.shrink_ratio = std::clamp(read_f(), 0.0f, 1.0f);
@@ -4086,8 +4454,9 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     part.bubble_size_max = bubble_size[1];
     part.bubble = r.u8() != 0;
     part.relative_motion = read_f();
+    decode_stage = "relative-parent";
     part.relative_parent = r.str();
-    part.emitter_mesh = r.str();
+    if (!gh1_revision) part.emitter_mesh = r.str();
     part.preserve_particles = r.u8() != 0;
     if (part.preserve_particles) {
       part.preserved_particle_count = r.u32();
@@ -4126,7 +4495,8 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     part.source_order_decoded = true;
     part.decoded = true;
   } catch (const std::exception& ex) {
-    part.error = ex.what();
+    part.error = std::string(decode_stage) + "@" + std::to_string(r.pos) +
+                 ": " + ex.what();
   }
   return part;
 }
@@ -4456,6 +4826,15 @@ std::array<float, 16> Scene::world_matrix(const MeshObj& mesh) const {
   node.constraint = mesh.constraint;
   std::array<float, 16> composed{};
   const bool resolved_parent = source_world_from_node(*this, node, composed, 0);
+  // GH1 Drawable1 aggregate roots (main_hall.mesh, floor shells, etc.) carry
+  // a stale serialized world cache even though they have no transform parent.
+  // Native WorldXfm_Force rebuilds those roots from local before their listed
+  // drawable children inherit from them. Keep child caches authoritative;
+  // forcing every revision-10 mesh local moves theatre across its camera path.
+  if (resolved_parent && dir_revision == 10 &&
+      !mesh.drawable_children.empty()) {
+    return composed;
+  }
   if (resolved_parent && mesh.constraint != 0) return composed;
 
   // The PS2 Trans block also carries the resolved world matrix immediately
@@ -4518,6 +4897,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
     auto dir = gh::milo::parse_directory(payload);
     out.dir_name = dir.dir_name;
     out.dir_type = dir.dir_type;
+    out.dir_revision = dir.dir_version;
     if (dir.dir_type == "PanelDir" &&
         dir.dir_entry_offset <= payload.size() &&
         dir.dir_entry_size <= payload.size() - dir.dir_entry_offset) {
@@ -4533,6 +4913,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
     }
 
     int mesh_ok = 0, mesh_fail = 0;
+    std::string first_mesh_error;
     int particle_ok = 0, particle_fail = 0;
     size_t source_order_particles = 0;
     int world_crowd_ok = 0, world_crowd_fail = 0;
@@ -4543,16 +4924,26 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         if (de.type == "Mesh") {
           MeshObj m = decode_mesh(de.name, b, dir.dir_version);
           m.dir_index = &de - dir.entries.data();
-          if (m.decoded) ++mesh_ok; else ++mesh_fail;
+          if (m.decoded) {
+            ++mesh_ok;
+          } else {
+            ++mesh_fail;
+            if (first_mesh_error.empty()) {
+              first_mesh_error = de.name + ": " + m.error;
+            }
+          }
           out.meshes.push_back(std::move(m));
         } else if (de.type == "Trans") {
           out.transes.push_back(decode_trans(de.name, b, dir.dir_version));
         } else if (de.type == "Mat") {
           out.mats.push_back(decode_mat(de.name, b));
         } else if (de.type == "Cam") {
-          out.cams.push_back(decode_cam(de.name, b));
+          out.cams.push_back(decode_cam(de.name, b, dir.dir_version));
         } else if (de.type == "Waypoint") {
           out.waypoints.push_back(decode_waypoint(de.name, b));
+        } else if (de.type == "Flare") {
+          out.flares.push_back(
+              decode_flare(de.name, b, dir.dir_version));
         } else if (de.type == "Spotlight") {
           out.spotlights.push_back(decode_spotlight(de.name, b));
         } else if (de.type == "Light") {
@@ -4563,7 +4954,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
           out.env_anims.push_back(decode_env_anim(de.name, b));
         } else if (de.type == "ScreenMask") {
           out.screen_masks.push_back(decode_screen_mask(de.name, b));
-        } else if (de.type == "Group") {
+        } else if (de.type == "Group" || de.type == "View") {
           GroupObj group = decode_group(de.name, b, dir.dir_version);
           group.dir_index = &de - dir.entries.data();
           if (!group.decoded) {
@@ -4631,8 +5022,40 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                 p.preserved_particle_stride_bytes);
           } else if (!p.error.empty() && debug_particle_decode_enabled()) {
             std::fprintf(stderr,
-                         "[milo_scene] ParticleSys %s decode failed: %s\n",
-                         p.name.c_str(), p.error.c_str());
+                         "[milo_scene] ParticleSys %s decode failed: %s "
+                         "(rev=%u anim_rev=%u trans_rev=%u draw_rev=%u)\n",
+                         p.name.c_str(), p.error.c_str(), p.revision,
+                         p.anim_revision, p.trans_revision, p.draw_revision);
+            unsigned printed_refs = 0;
+            for (size_t off = 0; off + 4 <= b.size() && printed_refs < 16;
+                 ++off) {
+              const uint32_t len =
+                  static_cast<uint32_t>(b[off]) |
+                  (static_cast<uint32_t>(b[off + 1]) << 8) |
+                  (static_cast<uint32_t>(b[off + 2]) << 16) |
+                  (static_cast<uint32_t>(b[off + 3]) << 24);
+              if (len < 3 || len > 127 || off + 4 + len > b.size()) continue;
+              bool printable = true;
+              for (uint32_t i = 0; i < len; ++i) {
+                if (b[off + 4 + i] < 0x20 || b[off + 4 + i] > 0x7e) {
+                  printable = false;
+                  break;
+                }
+              }
+              if (!printable) continue;
+              std::fprintf(stderr,
+                           "[milo_scene]   ParticleSys raw ref @%zu: %.*s "
+                           "(prefix",
+                           off, static_cast<int>(len),
+                           reinterpret_cast<const char*>(b.data() + off + 4));
+              const size_t prefix_begin = off > 16 ? off - 16 : 0;
+              for (size_t i = prefix_begin; i < off; ++i) {
+                std::fprintf(stderr, " %02x", static_cast<unsigned>(b[i]));
+              }
+              std::fprintf(stderr, ")\n");
+              ++printed_refs;
+              off += 3 + len;
+            }
           }
           out.particles.push_back(std::move(p));
         } else if (de.type == "WorldCrowd") {
@@ -4654,23 +5077,190 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                      de.type.c_str(), de.name.c_str(), ex.what());
       }
     }
-    for (auto& m : out.meshes) {
-      if (m.vertex_count != 0 || m.geometry_owner.empty() || m.geometry_owner == m.name) continue;
-      for (const auto& owner : out.meshes) {
-        if (owner.name != m.geometry_owner || owner.vertex_count == 0) continue;
-        m.vertex_count = owner.vertex_count;
-        m.face_count = owner.face_count;
-        m.verts = owner.verts;
-        m.indices = owner.indices;
-        m.bones = owner.bones;
-        std::memcpy(m.bb_min, owner.bb_min, sizeof(m.bb_min));
-        std::memcpy(m.bb_max, owner.bb_max, sizeof(m.bb_max));
-        m.decoded = true;
-        m.error.clear();
-        break;
+    if (dir.dir_version == 10) {
+      for (auto& mesh : out.meshes) {
+        if (mesh.parent == mesh.name) mesh.parent.clear();
+      }
+      for (auto& flare : out.flares) {
+        if (flare.parent == flare.name) flare.parent.clear();
+      }
+      for (auto& trans : out.transes) {
+        if (trans.parent == trans.name) trans.parent.clear();
+      }
+      for (auto& cam : out.cams) {
+        if (cam.parent == cam.name) cam.parent.clear();
+      }
+      for (auto& spotlight : out.spotlights) {
+        if (spotlight.parent == spotlight.name) spotlight.parent.clear();
+      }
+      for (auto& light : out.lights) {
+        if (light.parent == light.name) light.parent.clear();
+      }
+      for (auto& group : out.groups) {
+        if (group.parent == group.name) group.parent.clear();
+      }
+      const auto set_legacy_transform_parent =
+          [&](const std::string& child_name,
+              const std::string& parent_name) {
+            for (auto& mesh : out.meshes) {
+              if (mesh.name == child_name) {
+                mesh.parent = parent_name;
+                return;
+              }
+            }
+            for (auto& flare : out.flares) {
+              if (flare.name == child_name) {
+                flare.parent = parent_name;
+                return;
+              }
+            }
+            for (auto& trans : out.transes) {
+              if (trans.name == child_name) {
+                trans.parent = parent_name;
+                return;
+              }
+            }
+            for (auto& cam : out.cams) {
+              if (cam.name == child_name) {
+                cam.parent = parent_name;
+                return;
+              }
+            }
+            for (auto& spotlight : out.spotlights) {
+              if (spotlight.name == child_name) {
+                spotlight.parent = parent_name;
+                return;
+              }
+            }
+            for (auto& light : out.lights) {
+              if (light.name == child_name) {
+                light.parent = parent_name;
+                return;
+              }
+            }
+            for (auto& group : out.groups) {
+              if (group.name == child_name) {
+                group.parent = parent_name;
+                return;
+              }
+            }
+          };
+      for (const auto& parent : out.meshes) {
+        for (const auto& child_name : parent.legacy_children) {
+          set_legacy_transform_parent(child_name, parent.name);
+        }
+      }
+      if (std::getenv("GHOGX_DEBUG_GH1_TRANSFORMS")) {
+        size_t parented = 0;
+        size_t local_equals_stored = 0;
+        size_t composed_position_differs = 0;
+        size_t reported = 0;
+        for (const auto& mesh : out.meshes) {
+          if (mesh.parent.empty()) continue;
+          ++parented;
+          const bool equal = xfm_nearly_equal(mesh.local, mesh.world_stored);
+          if (equal) ++local_equals_stored;
+          const auto stored = xfm_to_mat4(mesh.world_stored);
+          const auto runtime = out.world_matrix(mesh);
+          const float dx = runtime[12] - stored[12];
+          const float dy = runtime[13] - stored[13];
+          const float dz = runtime[14] - stored[14];
+          const float delta = std::sqrt(dx * dx + dy * dy + dz * dz);
+          if (delta > 0.001f) ++composed_position_differs;
+          if (reported < 32 && (equal || delta > 0.001f)) {
+            std::fprintf(
+                stderr,
+                "[milo_scene] GH1 transform mesh=%s parent=%s mat=%s geom=%s verts=%u faces=%u bb=(%.2f %.2f %.2f)..(%.2f %.2f %.2f) equal=%d local=(%.3f %.3f %.3f) stored=(%.3f %.3f %.3f) runtime=(%.3f %.3f %.3f) delta=%.3f\n",
+                mesh.name.c_str(), mesh.parent.c_str(),
+                mesh.material.empty() ? "<none>" : mesh.material.c_str(),
+                mesh.geometry_owner.empty() ? "<none>"
+                                            : mesh.geometry_owner.c_str(),
+                mesh.vertex_count, mesh.face_count, mesh.bb_min[0],
+                mesh.bb_min[1], mesh.bb_min[2], mesh.bb_max[0],
+                mesh.bb_max[1], mesh.bb_max[2], equal ? 1 : 0,
+                mesh.local.pos[0], mesh.local.pos[1], mesh.local.pos[2],
+                stored[12], stored[13], stored[14], runtime[12], runtime[13],
+                runtime[14], delta);
+            ++reported;
+          }
+        }
+        std::fprintf(
+            stderr,
+            "[milo_scene] GH1 transform summary: parented=%zu local_equals_stored=%zu runtime_position_differs=%zu\n",
+            parented, local_equals_stored, composed_position_differs);
       }
     }
+    struct SharedSceneGeometry {
+      size_t index = 0;
+      uint32_t vertex_count = 0;
+      uint32_t face_count = 0;
+      std::vector<Vertex> verts;
+      std::vector<uint16_t> indices;
+      std::vector<BoneTransform> bones;
+      float bb_min[3] = {};
+      float bb_max[3] = {};
+    };
+    std::map<std::string, const MeshObj*> geometry_owners;
+    for (const auto& mesh : out.meshes) geometry_owners[mesh.name] = &mesh;
+    std::vector<SharedSceneGeometry> shared_geometry;
+    for (size_t i = 0; i < out.meshes.size(); ++i) {
+      const auto& mesh = out.meshes[i];
+      const auto owner = geometry_owners.find(mesh.geometry_owner);
+      if (owner == geometry_owners.end() || owner->second == &mesh) continue;
+      // GH1 RndMesh accessors always forward to mGeomOwner, even when the
+      // alias body also serialized stale backing arrays.
+      if (dir.dir_version != 10 && mesh.vertex_count != 0) continue;
+      SharedSceneGeometry row;
+      row.index = i;
+      row.vertex_count = owner->second->vertex_count;
+      row.face_count = owner->second->face_count;
+      row.verts = owner->second->verts;
+      row.indices = owner->second->indices;
+      row.bones = owner->second->bones;
+      std::memcpy(row.bb_min, owner->second->bb_min, sizeof(row.bb_min));
+      std::memcpy(row.bb_max, owner->second->bb_max, sizeof(row.bb_max));
+      shared_geometry.push_back(std::move(row));
+    }
+    for (auto& row : shared_geometry) {
+      auto& mesh = out.meshes[row.index];
+      mesh.vertex_count = row.vertex_count;
+      mesh.face_count = row.face_count;
+      mesh.verts = std::move(row.verts);
+      mesh.indices = std::move(row.indices);
+      mesh.bones = std::move(row.bones);
+      std::memcpy(mesh.bb_min, row.bb_min, sizeof(mesh.bb_min));
+      std::memcpy(mesh.bb_max, row.bb_max, sizeof(mesh.bb_max));
+      mesh.decoded = true;
+      mesh.error.clear();
+    }
     rebuild_group_authored_draw_order(out);
+    if (dir.dir_version == 10) {
+      // A legacy ObjectDir draws through its authored root View.  Subdirs such
+      // as lighting.rnd_ps2 contain unreferenced editor/helper meshes (notably
+      // crowd_limits*.mesh); treating every ungrouped object as a root makes
+      // those helpers visible.  Top-level venues conventionally use
+      // venue.view, while nested directories use <directory-name>.view.
+      const GroupObj* authored_root = find_group_obj(out, "venue.view");
+      if (!authored_root) {
+        authored_root = find_group_obj(
+            out, legacy_directory_root_view_name(milo_path));
+      }
+      if (authored_root) {
+        out.draw_order.clear();
+        std::unordered_set<std::string> visiting;
+        std::unordered_set<std::string> emitted;
+        append_group_draw_order(out, *authored_root, visiting, emitted,
+                                out.draw_order);
+        // Treat every directory mesh as group-owned for this legacy root so
+        // the renderer does not append unreferenced editor/reference meshes
+        // after the authored venue list.
+        out.grouped_meshes.clear();
+        out.grouped_meshes.reserve(out.meshes.size());
+        for (const auto& mesh : out.meshes)
+          out.grouped_meshes.push_back(mesh.name);
+        std::sort(out.grouped_meshes.begin(), out.grouped_meshes.end());
+      }
+    }
     size_t source_order_groups = 0;
     for (const auto& group : out.groups) {
       if (group.source_order_decoded) ++source_order_groups;
@@ -4683,6 +5273,10 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                  out.cams.size(), out.waypoints.size(), out.groups.size(),
                  source_order_groups, out.world_crowds.size(), world_crowd_ok,
                  world_crowd_fail);
+    if (!first_mesh_error.empty()) {
+      std::fprintf(stderr, "[milo_scene]   first mesh failure: %s\n",
+                   first_mesh_error.c_str());
+    }
     if (!out.spotlights.empty()) {
       size_t transformed = 0;
       size_t source_order = 0;

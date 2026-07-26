@@ -36,16 +36,20 @@ ExtractedTex parse_tex_entry(const std::string& entry_name,
 
     need(4);
     int32_t tex_version = rd_i32(p + pos); pos += 4;
-    if (tex_version != 10) {
+    if (tex_version != 8 && tex_version != 10) {
         std::ostringstream oss;
         oss << "tex '" << entry_name << "': version " << tex_version
-            << " not supported (only v10 = PS2 GH2 / GH80s)";
+            << " not supported (expected v8 GH1 or v10 GH2/GH80s)";
         throw std::runtime_error(oss.str());
     }
 
-    // 9 zero-pad bytes between version and width.
-    need(9);
-    pos += 9;
+    // GH2 version-24 directories serialize the empty Hmx::Object metadata
+    // block here. GH1 version-10 directories omit per-entry object metadata,
+    // so revision-8 Tex proceeds directly to dimensions.
+    if (tex_version == 10) {
+        need(9);
+        pos += 9;
+    }
 
     need(12);
     out.width  = rd_i32(p + pos); pos += 4;

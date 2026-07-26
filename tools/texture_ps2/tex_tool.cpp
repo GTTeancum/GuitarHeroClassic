@@ -1,21 +1,45 @@
 // tex_tool - CLI for inspecting and decoding Harmonix PS2 textures
-// (.bmp_ps2 / .png_ps2 - both wrap HMXBitmap).
+// (.bmp_ps2 / .png_ps2 wrap HMXBitmap; extracted .tex files wrap an embedded
+// HMXBitmap in a revision-8/10 Milo Tex entry).
 //
 // Usage:
 //   tex_tool info   <file>
 //   tex_tool decode <file> --out <out.bmp>
 
+#include "milo_tex.h"
 #include "ps2_texture.h"
 
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <string>
+#include <vector>
+
+static std::vector<uint8_t> read_file(const std::string& path) {
+    std::ifstream in(path, std::ios::binary | std::ios::ate);
+    if (!in) throw std::runtime_error("cannot open " + path);
+    const auto size = in.tellg();
+    if (size < 0) throw std::runtime_error("cannot size " + path);
+    std::vector<uint8_t> bytes(static_cast<size_t>(size));
+    in.seekg(0);
+    in.read(reinterpret_cast<char*>(bytes.data()), size);
+    if (!in) throw std::runtime_error("short read from " + path);
+    return bytes;
+}
+
+static gh::tex::HmxBitmap parse_input(const std::string& path) {
+    if (path.size() >= 4 && path.compare(path.size() - 4, 4, ".tex") == 0) {
+        const auto bytes = read_file(path);
+        return ghogx::milo::parse_tex_entry(path, bytes).bitmap;
+    }
+    return gh::tex::parse_file(path);
+}
 
 static void usage() {
     std::fprintf(stderr,
         "Usage:\n"
-        "  tex_tool info   <file.bmp_ps2|file.png_ps2>\n"
-        "  tex_tool decode <file.bmp_ps2|file.png_ps2> --out <out.bmp>\n");
+        "  tex_tool info   <file.bmp_ps2|file.png_ps2|extracted.tex>\n"
+        "  tex_tool decode <file.bmp_ps2|file.png_ps2|extracted.tex> --out <out.bmp>\n");
     std::exit(2);
 }
 
@@ -24,7 +48,7 @@ int main(int argc, char** argv) {
     std::string sub = argv[1];
     std::string path = argv[2];
     try {
-        auto bm = gh::tex::parse_file(path);
+        auto bm = parse_input(path);
         if (sub == "info") {
             std::printf("file       : %s\n", path.c_str());
             std::printf("magic      : 0x%02X\n", bm.magic);

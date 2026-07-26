@@ -91,6 +91,10 @@ bool expect_upper_rows(const std::array<float, 16>& world, float weight,
 
 int main() {
   using ghogx::character::CharForeTwist;
+  using ghogx::character::Character;
+  using ghogx::character::Gh1AnimServoForeTwist;
+  using ghogx::character::Gh1AnimServoUpperTwist;
+  using ghogx::character::SkinnedMesh;
   using ghogx::character::SourceGh2TraceForeTwistLocalResult;
   using ghogx::character::SourceGh2TraceUpperTwistLocalResult;
   using ghogx::character::SourceCharForeTwistPollDeps;
@@ -107,6 +111,7 @@ int main() {
   using ghogx::character::source_char_upper_twist_poll_deps;
   using ghogx::character::source_char_upper_twist_poll_world;
   using ghogx::character::source_char_upper_twist_save_plan;
+  using ghogx::character::apply_character_controllers;
 
   constexpr float kPi = 3.14159265358979323846f;
   bool ok = true;
@@ -283,6 +288,65 @@ int main() {
   ok &= near(gh2_upper_out.twist2_local.rot[1][2],
              std::sin(kPi * 0.5f * 0.3330000043f),
              "GH2 trace UpperTwist twist2 inverse sign");
+
+  auto mesh = [](const std::string& name, const std::string& parent,
+                 float x, float roll = 0.0f) {
+    SkinnedMesh row;
+    row.name = name;
+    row.parent = parent;
+    row.local = trace_local_x_source(roll, x, 0.0f, 0.0f);
+    return row;
+  };
+  Character gh1;
+  gh1.dir_version = 10;
+  gh1.meshes = {
+      mesh("root.mesh", "", 0.0f),
+      mesh("clavicle.mesh", "root.mesh", 0.0f),
+      mesh("upperArm.mesh", "clavicle.mesh", 1.0f, kPi * 0.5f),
+      mesh("upperTwist1.mesh", "clavicle.mesh", 1.0f),
+      mesh("upperTwist2.mesh", "clavicle.mesh", 1.0f),
+      mesh("foreArm.mesh", "upperArm.mesh", 10.0f),
+      mesh("foreTwist1.mesh", "upperArm.mesh", 10.0f),
+      mesh("foreTwist2.mesh", "foreTwist1.mesh", 4.5f),
+      mesh("hand.mesh", "foreArm.mesh", 9.0f),
+  };
+  Gh1AnimServoForeTwist gh1_fore;
+  gh1_fore.name = "fore.servo";
+  gh1_fore.fore_arm = "foreArm.mesh";
+  gh1_fore.twist1 = "foreTwist1.mesh";
+  gh1_fore.twist2 = "foreTwist2.mesh";
+  gh1_fore.hand = "hand.mesh";
+  gh1_fore.offset_degrees = 90.0f;
+  gh1.gh1_fore_twists.push_back(gh1_fore);
+  Gh1AnimServoUpperTwist gh1_upper;
+  gh1_upper.name = "upper.servo";
+  gh1_upper.twist1 = "upperTwist1.mesh";
+  gh1_upper.twist2 = "upperTwist2.mesh";
+  gh1_upper.upper_arm = "upperArm.mesh";
+  gh1.gh1_upper_twists.push_back(gh1_upper);
+  apply_character_controllers(gh1, 0.0f);
+  ok &= expect_bool(std::fabs(gh1.meshes[6].local.rot[1][2]) > 0.1f,
+                    true, "GH1 mesh foreTwist1 servo writes rotation");
+  ok &= expect_bool(std::fabs(gh1.meshes[7].local.rot[1][2]) > 0.1f,
+                    true, "GH1 mesh foreTwist2 servo writes rotation");
+  ok &= near(gh1.meshes[7].local.pos[0], 4.5f,
+             "GH1 mesh foreTwist2 preserves authored half-arm position");
+  ok &= expect_bool(std::fabs(gh1.meshes[3].local.rot[1][2]) > 0.1f,
+                    true, "GH1 mesh upperTwist1 servo writes rotation");
+  ok &= expect_bool(std::fabs(gh1.meshes[4].local.rot[1][2]) > 0.1f,
+                    true, "GH1 mesh upperTwist2 servo writes rotation");
+
+  Character gh2_gate = gh1;
+  gh2_gate.dir_type = "BandCharacter";
+  gh2_gate.meshes[3].local = trace_local_x_source(0.0f, 1.0f);
+  gh2_gate.meshes[4].local = trace_local_x_source(0.0f, 1.0f);
+  gh2_gate.meshes[6].local = trace_local_x_source(0.0f, 10.0f);
+  gh2_gate.meshes[7].local = trace_local_x_source(0.0f, 4.5f);
+  apply_character_controllers(gh2_gate, 0.0f);
+  ok &= near(gh2_gate.meshes[3].local.rot[1][2], 0.0f,
+             "GH1 upper servo does not enter GH2 graph");
+  ok &= near(gh2_gate.meshes[6].local.rot[1][2], 0.0f,
+             "GH1 fore servo does not enter GH2 graph");
 
   return ok ? 0 : 1;
 }

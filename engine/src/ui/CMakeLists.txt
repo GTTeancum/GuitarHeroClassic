@@ -29,7 +29,8 @@ endif()
 # is CPU-side; no D3D9), so it can be unit-tested headless.
 add_library(ghogx_menu_font STATIC menu_font.cpp menu_font.h menu_labels.cpp menu_labels.h)
 target_include_directories(ghogx_menu_font PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
-target_link_libraries(ghogx_menu_font PUBLIC ghogx_asset ark_v3 milo)
+target_link_libraries(ghogx_menu_font PUBLIC ghogx_asset ark_v3 milo dtb
+                                               ghogx_milo_scene)
 # The stock panel loader seeds UITrigger/AnimFilter/TransAnim runtime state from
 # the same byte-exact decoders used by the renderer and corpus tests.
 target_link_libraries(ghogx_ui_core PUBLIC ghogx_menu_font)
@@ -43,6 +44,7 @@ endif()
 # MiloSceneRenderer; WIN32/D3D9-only (its deps are the WIN32 render targets).
 add_library(ghogx_ui_render STATIC
     menu_app.cpp menu_app.h
+    song_intro_overlay.cpp song_intro_overlay.h
     pss_video_player_win32.cpp pss_video_player_win32.h)
 target_include_directories(ghogx_ui_render PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_ui_render PUBLIC
@@ -66,6 +68,16 @@ if(MSVC)
     target_compile_options(ghogx_menu_labels_test PRIVATE /W4)
 endif()
 add_test(NAME ghogx_menu_labels_test COMMAND ghogx_menu_labels_test)
+
+add_executable(ghogx_song_intro_overlay_format_test
+    song_intro_overlay_format_test.cpp)
+target_link_libraries(ghogx_song_intro_overlay_format_test PRIVATE
+    ghogx_menu_font ghogx_milo_scene)
+if(MSVC)
+    target_compile_options(ghogx_song_intro_overlay_format_test PRIVATE /W4)
+endif()
+add_test(NAME ghogx_song_intro_overlay_format_test
+         COMMAND ghogx_song_intro_overlay_format_test)
 
 # Headless boot test against the real stock ARK (skips if the ARK is absent).
 add_executable(ghogx_ui_test ui_test.cpp)

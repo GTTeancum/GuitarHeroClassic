@@ -55,8 +55,9 @@ struct Tree {
 };
 
 // Parse a DTB blob. Auto-detects encryption: if first byte is 0x01 the bytes
-// are treated as plaintext; otherwise the first 4 bytes are interpreted as
-// the PS2 cipher seed and the rest is decrypted in place.
+// are treated as plaintext. A four-byte zero header followed by 0x01 (used by
+// venue .seq files) is also plaintext. Otherwise the first 4 bytes are
+// interpreted as the PS2 cipher seed and the rest is decrypted in place.
 //
 // Throws std::runtime_error on malformed input.
 Tree parse(const std::vector<uint8_t>& bytes);

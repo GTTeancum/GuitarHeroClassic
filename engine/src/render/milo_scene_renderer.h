@@ -22,6 +22,7 @@
 #include <vector>
 
 struct IDirect3DDevice9;
+struct IDirect3DQuery9;
 struct IDirect3DTexture9;
 
 namespace ghogx::asset {
@@ -251,6 +252,9 @@ class MiloSceneRenderer {
   };
   void set_mesh_transform_offsets(
       std::map<std::string, MeshTransformSample> offsets);
+  void set_transform_parent_overrides(
+      std::map<std::string, std::string> parents);
+  void set_flare_steps(std::map<std::string, int> steps);
   void set_mesh_position_overrides(
       std::map<std::string, std::vector<std::array<float, 3>>> positions);
   void set_mesh_normal_overrides(
@@ -293,6 +297,8 @@ class MiloSceneRenderer {
   const milo_scene::MatObj* find_material(const std::string& name) const;
   void frame_camera_on_bounds();
   void draw_impl(bool clear_target, bool draw_scene, bool draw_text);
+  bool resolve_transform_parent_world(const std::string& name,
+                                      std::array<float, 16>& world) const;
 
   Window* win_ = nullptr;
   IDirect3DDevice9* dev_ = nullptr;
@@ -342,10 +348,13 @@ class MiloSceneRenderer {
   bool force_environment_dynamic_lights_ = false;
   float global_brightness_ = 1.0f;
   float global_alpha_ = 1.0f;
-  uint8_t clear_r_ = 20;
-  uint8_t clear_g_ = 22;
-  uint8_t clear_b_ = 34;
+  // Retail world passes clear to black unless a caller supplies a backdrop.
+  // Legacy splash cards fade to black at their borders and rely on that clear.
+  uint8_t clear_r_ = 0;
+  uint8_t clear_g_ = 0;
+  uint8_t clear_b_ = 0;
   std::map<std::string, std::string> mesh_environments_;
+  std::unordered_set<std::string> legacy_environment_drawables_;
   std::string default_environment_;
   std::string selected_camera_name_;
   std::map<std::string, std::array<float, 4>> environment_color_overrides_;
@@ -354,6 +363,15 @@ class MiloSceneRenderer {
   std::map<std::string, LightStateOverride> light_state_overrides_;
   std::map<std::string, std::array<float, 3>> mesh_translation_offsets_;
   std::map<std::string, MeshTransformSample> mesh_transform_offsets_;
+  std::map<std::string, std::string> transform_parent_overrides_;
+  std::map<std::string, int> flare_steps_;
+  struct FlareVisibilityState {
+    IDirect3DQuery9* query = nullptr;
+    bool query_issued = false;
+    bool target_visible = false;
+    float fade = 0.0f;
+  };
+  std::map<std::string, FlareVisibilityState> flare_visibility_;
   std::map<std::string, std::vector<std::array<float, 3>>>
       mesh_position_overrides_;
   std::map<std::string, std::vector<std::array<float, 3>>>

@@ -129,7 +129,8 @@ class HighwayRenderer {
              float rock_fill = 1.0f,
              float star_power_flash = 0.0f,
              float surface_flash = 0.0f,
-             bool track_intro_active = true);
+             bool track_intro_active = true,
+             double track_intro_elapsed = 0.0);
   void draw_over_scene(double song_time, const ghogx::chart::Chart& chart,
                        int difficulty, uint32_t fret_held_mask,
                        const float hit_flash[5], float lookahead_sec = 1.5f,
@@ -147,7 +148,8 @@ class HighwayRenderer {
                         float rock_fill = 1.0f,
                         float star_power_flash = 0.0f,
                         float surface_flash = 0.0f,
-                        bool track_intro_active = true);
+                        bool track_intro_active = true,
+                        double track_intro_elapsed = 0.0);
 
  private:
   struct MeshVertex {
@@ -274,7 +276,8 @@ class HighwayRenderer {
                    float rock_fill,
                    float star_power_flash,
                    float surface_flash,
-                   bool track_intro_active);
+                   bool track_intro_active,
+                   double track_intro_elapsed);
   void draw_debug_note_counter_overlay(double song_time,
                                        const ghogx::chart::Chart& chart,
                                        int difficulty) const;

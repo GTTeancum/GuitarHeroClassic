@@ -30,6 +30,10 @@ class ConfigDb {
   // Load the named config/gen DTBs from the ARK. Missing/unparsable files are
   // skipped (logged), so this never aborts.
   void load(const gh::ark::ArkV3Reader& ark, const std::vector<std::string>& ark_paths);
+  // Replace only the song catalog from a mounted content archive while
+  // retaining the front-end's guitars/store/campaign/UI configuration.
+  void load_songs(const gh::ark::ArkV3Reader& ark,
+                  const std::vector<std::string>& ark_paths);
 
   // A loaded table by name ("songs"/"guitars"/"store"/"campaign"/"gh2"/...), or null.
   const DataArray* table(Symbol name) const;
@@ -38,6 +42,7 @@ class ConfigDb {
   std::size_t song_count() const;
   const DataArray* song(std::size_t index) const;      // the Nth (key (...)...)
   Symbol song_key(std::size_t index) const;            // the Nth song's symbol key
+  int song_index(Symbol song) const;                   // zero-based, -1 when absent
   DataNode song_field(std::size_t index, Symbol field) const;  // name/artist/...
   DataNode store_field(Symbol category, Symbol item, Symbol field) const;
   std::size_t store_item_count(Symbol category) const;
@@ -51,6 +56,9 @@ class ConfigDb {
   bool is_venue(Symbol venue) const;
   int venue_index(Symbol venue) const;  // zero-based, -1 when absent
   Symbol default_venue() const;
+  std::vector<Symbol> campaign_songs(Symbol venue) const;
+  Symbol campaign_venue(Symbol song) const;
+  Symbol campaign_venue_at(std::size_t tier_index) const;
 
   // --- guitar table convenience (config/gen/guitars.dtb) ---
   const DataArray* guitar(Symbol guitar) const;

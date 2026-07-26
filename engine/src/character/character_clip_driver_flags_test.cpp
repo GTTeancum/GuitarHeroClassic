@@ -1234,6 +1234,8 @@ bool expect_clip_driver_helpers() {
     ok = false;
   }
   ghogx::character::Character rotz_character;
+  rotz_character.dir_type = "BandCharacter";
+  rotz_character.dir_version = 10;
   ghogx::milo_scene::TransObj rotz_bone;
   rotz_bone.name = "bone_pelvis.mesh";
   rotz_bone.local.rot[0][0] = 0.0f;
@@ -1256,6 +1258,8 @@ bool expect_clip_driver_helpers() {
     ok = false;
   }
   ghogx::character::Character weighted_rotz_character;
+  weighted_rotz_character.dir_type = "BandCharacter";
+  weighted_rotz_character.dir_version = 10;
   ghogx::milo_scene::TransObj weighted_rotz_bone;
   weighted_rotz_bone.name = "bone_pelvis.mesh";
   weighted_rotz_bone.local.rot[0][0] = 0.0f;
@@ -1276,17 +1280,35 @@ bool expect_clip_driver_helpers() {
     std::cerr << "source-weighted Grim rotz pose application ignored channel weight\n";
     ok = false;
   }
+  ghogx::character::Character gh1_rotz_character;
+  gh1_rotz_character.dir_version = 10;
+  ghogx::character::SkinnedMesh gh1_rotz_bone;
+  gh1_rotz_bone.name = "bone_pelvis.mesh";
+  gh1_rotz_bone.local = rotz_bone.local;
+  gh1_rotz_character.meshes.push_back(gh1_rotz_bone);
+  ghogx::character::apply_clip_pose_sampled({rotz_channel}, 1.0f,
+                                            gh1_rotz_character);
+  const auto& gh1_rotz_local = gh1_rotz_character.meshes[0].local;
+  if (!nearf(gh1_rotz_local.rot[0][0], 0.0f) ||
+      !nearf(gh1_rotz_local.rot[0][1], 1.0f) ||
+      !nearf(gh1_rotz_local.rot[1][0], -1.0f) ||
+      !nearf(gh1_rotz_local.rot[1][1], 0.0f)) {
+    std::cerr << "GH1 absolute rotz channel composed with the bind row\n";
+    ok = false;
+  }
   ghogx::character::Character relative_rotz_character;
-  ghogx::milo_scene::TransObj relative_rotz_bone;
+  relative_rotz_character.dir_version = 10;
+  ghogx::character::SkinnedMesh relative_rotz_bone;
   relative_rotz_bone.name = "bone_pelvis.mesh";
   relative_rotz_bone.local.rot[0][0] = 0.0f;
   relative_rotz_bone.local.rot[0][1] = 1.0f;
   relative_rotz_bone.local.rot[1][0] = -1.0f;
   relative_rotz_bone.local.rot[1][1] = 0.0f;
-  relative_rotz_character.bones.push_back(relative_rotz_bone);
+  relative_rotz_character.meshes.push_back(relative_rotz_bone);
   ghogx::character::apply_clip_pose_sampled({rotz_channel}, 1.0f,
                                             relative_rotz_character, true);
-  const auto& relative_rotz_local = relative_rotz_character.bones[0].local;
+  const auto& relative_rotz_local =
+      relative_rotz_character.meshes[0].local;
   if (!nearf(relative_rotz_local.rot[0][0], -1.0f) ||
       !nearf(relative_rotz_local.rot[0][1], 0.0f) ||
       !nearf(relative_rotz_local.rot[1][0], 0.0f) ||

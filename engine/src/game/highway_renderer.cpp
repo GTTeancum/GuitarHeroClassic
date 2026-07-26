@@ -4526,14 +4526,15 @@ void HighwayRenderer::draw(double song_time, const ghogx::chart::Chart& chart,
                            float rock_fill,
                            float star_power_flash,
                            float surface_flash,
-                           bool track_intro_active) {
+                           bool track_intro_active,
+                           double track_intro_elapsed) {
   draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
             lookahead_sec, true, consumed_notes, active_sustains,
             star_power_active, whammy_active, whammy_axis,
             star_collect_flash, miss_flash,
             star_miss_flash, hit_phrase_state, combo_multiplier,
             bad_feedback_flash, rock_fill, star_power_flash, surface_flash,
-            track_intro_active);
+            track_intro_active, track_intro_elapsed);
 }
 
 void HighwayRenderer::draw_over_scene(double song_time,
@@ -4556,14 +4557,15 @@ void HighwayRenderer::draw_over_scene(double song_time,
                                         float rock_fill,
                                         float star_power_flash,
                                         float surface_flash,
-                                        bool track_intro_active) {
+                                        bool track_intro_active,
+                                        double track_intro_elapsed) {
   draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
             lookahead_sec, false, consumed_notes, active_sustains,
             star_power_active, whammy_active, whammy_axis,
             star_collect_flash, miss_flash,
             star_miss_flash, hit_phrase_state, combo_multiplier,
             bad_feedback_flash, rock_fill, star_power_flash, surface_flash,
-            track_intro_active);
+            track_intro_active, track_intro_elapsed);
 }
 
 void HighwayRenderer::draw_debug_note_counter_overlay(
@@ -4892,7 +4894,8 @@ void HighwayRenderer::draw_impl(double song_time,
                                  float rock_fill,
                                  float star_power_flash,
                                  float surface_flash,
-                                 bool track_intro_active) {
+                                 bool track_intro_active,
+                                 double authored_track_intro_elapsed) {
   if (!dev_) return;
   if (clear_target) {
     dev_->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
@@ -4925,7 +4928,7 @@ void HighwayRenderer::draw_impl(double song_time,
                                  track_surface_mesh_.max_y, top_y_)
           : 1.0f;
   const double track_intro_elapsed =
-      track_intro_active ? std::max(0.0, song_time)
+      track_intro_active ? std::max(0.0, authored_track_intro_elapsed)
                          : kTrackIntroFirstSmasherSeconds +
                                kTrackIntroSmasherStepSeconds * 5.0;
   const float track_intro_frame = static_cast<float>(

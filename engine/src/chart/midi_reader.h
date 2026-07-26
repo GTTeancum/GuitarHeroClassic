@@ -82,8 +82,26 @@ struct VenueCue {
     std::string event;
 };
 
+struct SingerFaceCue {
+    uint32_t tick_on = 0;
+    uint32_t tick_off = 0;
+    int pitch = 0;
+};
+
+struct HandMapCue {
+    uint32_t tick = 0;
+    std::string map;
+};
+
+struct HandAnimationCue {
+    uint32_t tick_on = 0;
+    uint32_t tick_off = 0;
+    int pitch = 0;
+};
+
 struct Chart {
     uint32_t ticks_per_beat = 480;
+    bool gh1_anim_track = false;
     std::vector<TempoChange> tempo_map;     // sorted by tick ascending
     std::vector<Note>        notes[4];      // [0]=Easy [1]=Medium [2]=Hard [3]=Expert
     std::vector<Note>        bass_notes[4]; // PART RHYTHM/PART BASS gems by difficulty
@@ -97,6 +115,18 @@ struct Chart {
     std::vector<DrumCue>     bass_cues;      // BAND BASS speaker_pulse cues
     std::vector<LightingCue> lighting_cues;  // TRIGGERS lighting_parser cues
     std::vector<VenueCue>    venue_cues;     // TRIGGERS effect_parser cues
+    // GH1 singer EventList rows. Retail midi_parsers.dtb maps guitar-track
+    // pitch 108 note spans to the "singer" list with payload "open".
+    std::vector<SingerFaceCue> singer_face_cues;
+    // GH1's ANIM parser owns these independently of the gameplay-gem track.
+    // charsys.dtb maps ANIM text beginning HandMap_/StrumMap_ to persistent
+    // mapper selection lists and maps pitches 40..59 to fret positions.
+    std::vector<HandMapCue> hand_map_cues;
+    std::vector<HandMapCue> strum_map_cues;
+    // Other ANIM notes are looked up through charsys.dtb::hand_events. Retail
+    // songs normally derive fingers/strums from gems, but Get Ready 2 Rokk
+    // contains explicit pitch-60 finger_powerchord_1 events.
+    std::vector<HandAnimationCue> hand_animation_cues;
 
     // Convert a MIDI tick to wall-clock seconds using the tempo map.
     double tick_to_sec(uint32_t tick) const;

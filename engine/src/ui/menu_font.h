@@ -60,7 +60,8 @@ class MenuFont {
   // Load impact (or any RndFont .milo) from the PS2 ARK. `milo_path` is the ARK
   // entry, e.g. "ui/gen/impact.milo_ps2". Returns false (logged) on any failure.
   bool load(const std::string& hdr_path, const std::string& ark_path,
-            const std::string& milo_path);
+            const std::string& milo_path,
+            const std::string& font_entry_name = {});
 
   bool valid() const { return atlas_.valid() && glyph_count_ > 0; }
 
@@ -115,6 +116,7 @@ class MenuFont {
   void apply_source_char_info();
 
   asset::Image atlas_;
+  std::string material_name_;
   std::string charset_;                 // 104 chars, exact order from the file
   std::array<Glyph, 256> glyphs_{};     // indexed by Latin-1 code
   std::array<SourceCharInfo, 256> char_info_{};

@@ -290,10 +290,39 @@ std::vector<uint8_t> ArkV3Reader::read_entry(const Entry& e,
 }
 
 std::optional<Entry> ArkV3Reader::find(std::string_view full_path) const {
-    auto it = std::find_if(entries_.begin(), entries_.end(),
-                           [&](const Entry& e) { return e.full_path == full_path; });
-    if (it == entries_.end()) return std::nullopt;
-    return *it;
+    const auto find_exact = [&](std::string_view path) {
+        return std::find_if(entries_.begin(), entries_.end(),
+                            [&](const Entry& e) { return e.full_path == path; });
+    };
+
+    auto it = find_exact(full_path);
+    if (it != entries_.end()) return *it;
+
+    // Guitar Hero 1 uses the original .rnd_ps2 suffix for the same Milo
+    // object-directory containers renamed .milo_ps2 by GH2.  Keep this at the
+    // archive boundary so every scene, texture, character, HUD, and venue
+    // caller receives the native GH1 counterpart without game-specific path
+    // rewrites.  Exact paths above always win for GH2/GH80s archives.
+    constexpr std::string_view kMiloSuffix = ".milo_ps2";
+    constexpr std::string_view kRndSuffix = ".rnd_ps2";
+    if (full_path.size() >= kMiloSuffix.size() &&
+        full_path.substr(full_path.size() - kMiloSuffix.size()) == kMiloSuffix) {
+        std::string gh1_path(full_path.substr(0, full_path.size() - kMiloSuffix.size()));
+        gh1_path.append(kRndSuffix);
+        it = find_exact(gh1_path);
+        if (it != entries_.end()) return *it;
+
+        // GH1 roots venue scenes under venues/; GH2 renamed that root world/.
+        // Apply the namespace bridge only after both exact GH2 forms miss.
+        constexpr std::string_view kGh2WorldRoot = "world/";
+        if (gh1_path.rfind(kGh2WorldRoot, 0) == 0) {
+            gh1_path.replace(0, kGh2WorldRoot.size(), "venues/");
+            it = find_exact(gh1_path);
+            if (it != entries_.end()) return *it;
+        }
+    }
+
+    return std::nullopt;
 }
 
 }  // namespace gh::ark

@@ -9,6 +9,7 @@
 #include "ui/pss_video_player_win32.h"
 #include "ui/screen_loader.h"
 #include "ui/screen_manager.h"
+#include "ui/song_intro_overlay.h"
 #include "ui/ui_classes.h"
 
 #include "asset/milo_image.h"
@@ -295,7 +296,64 @@ std::vector<std::string> texture_sources_for_panel(
 
 // Append a panel's MILO (its (file) value, e.g. "main.milo" -> ui/gen/main.milo_ps2)
 // into the combined scene + texture set the renderer draws.
+int quickplay_display_row_for_song(const ConfigDb& db, int selected_song);
+
+void apply_quickplay_setlist_scroll(const std::string& hdr,
+                                    const std::string& ark,
+                                    ScreenManager& mgr, const ConfigDb& db,
+                                    const std::string& file,
+                                    milo_scene::Scene& scene) {
+  if (file != "sel_song_quickplay.milo") return;
+  auto* panel =
+      dynamic_cast<ObjectDir*>(mgr.find_object(Symbol("sel_song_panel")));
+  Object* list = panel ? panel->find_path("ss_song.lst") : nullptr;
+  const int selected_song =
+      panel ? panel->get_property(Symbol("ss_song_selected"))
+                    .as_int()
+                    .value_or(list ? list->handle_property(
+                                             Symbol("selected_pos"), DataArray())
+                                             .as_int()
+                                             .value_or(0)
+                                   : 0)
+            : 0;
+  const int selected_display =
+      quickplay_display_row_for_song(db, std::max(0, selected_song));
+  const UiListLayout layout = extract_ui_list_layout(
+      hdr, ark, "ui/gen/sel_song_quickplay.milo_ps2", "ss_song.lst");
+  if (!layout.valid || !layout.has_legacy_row_metrics ||
+      layout.legacy_row_height <= 0.0f)
+    return;
+  const float row_height = layout.legacy_row_height;
+  const float dz =
+      static_cast<float>(std::max(0, selected_display - 1)) * row_height;
+  if (dz == 0.0f) return;
+
+  std::unordered_set<std::string> shifted{"ss_setlist.view"};
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    auto add_child = [&](const std::string& name, const std::string& parent) {
+      if (!name.empty() && shifted.find(parent) != shifted.end() &&
+          shifted.insert(name).second)
+        changed = true;
+    };
+    for (const auto& group : scene.groups) add_child(group.name, group.parent);
+    for (const auto& trans : scene.transes) add_child(trans.name, trans.parent);
+    for (const auto& mesh : scene.meshes) add_child(mesh.name, mesh.parent);
+  }
+  for (auto& group : scene.groups) {
+    if (shifted.find(group.name) == shifted.end()) continue;
+    group.world_stored.pos[2] += dz;
+    if (group.name == "ss_setlist.view") group.local.pos[2] += dz;
+  }
+  for (auto& trans : scene.transes)
+    if (shifted.find(trans.name) != shifted.end()) trans.world_stored.pos[2] += dz;
+  for (auto& mesh : scene.meshes)
+    if (shifted.find(mesh.name) != shifted.end()) mesh.world_stored.pos[2] += dz;
+}
+
 void add_panel_milo(const std::string& hdr, const std::string& ark,
+                    ScreenManager& mgr, const ConfigDb& db,
                     const std::string& file, milo_scene::Scene& combined,
                     std::map<std::string, asset::Image>& textures) {
   if (file.empty()) return;
@@ -305,6 +363,7 @@ void add_panel_milo(const std::string& hdr, const std::string& ark,
   const std::string path = "ui/gen/" + file + "_ps2";  // "main.milo" -> ".milo_ps2"
   milo_scene::Scene s;
   if (!milo_scene::load_scene(hdr, ark, path, s)) return;
+  apply_quickplay_setlist_scroll(hdr, ark, mgr, db, file, s);
 
   if (s.panel_dir_config_valid && !combined.panel_dir_config_valid) {
     combined.panel_dir_config_valid = true;
@@ -1723,14 +1782,14 @@ std::unordered_set<std::string> hidden_meshes_from_live_views(
 
 // Build the renderer's scene from the current screen's panels' MILOs.
 void rebuild_scene(const std::string& hdr, const std::string& ark, ScreenManager& mgr,
-                   Object* screen,
+                   Object* screen, const ConfigDb& db,
                    ghogx::render::MiloSceneRenderer& renderer) {
   milo_scene::Scene combined;
   std::map<std::string, asset::Image> textures;
   for (Symbol pn : screen_panel_names(screen)) {
     Object* panel = mgr.find_object(pn);
     if (!panel_showing(panel)) continue;
-    add_panel_milo(hdr, ark, panel_file(panel), combined, textures);
+    add_panel_milo(hdr, ark, mgr, db, panel_file(panel), combined, textures);
   }
   // PanelDir::CamOverride refers to metacam through a stock subdirectory on
   // ordinary menu panels. Make that authored camera/environment available to
@@ -4124,6 +4183,16 @@ std::vector<SongListEntry> quickplay_entries(
       }
     }
   }
+  const auto bonus_songs = db.store_items(Symbol("song"));
+  if (!bonus_songs.empty()) {
+    std::string header = "song_header_store";
+    if (auto it = locale.find(header); it != locale.end()) header = it->second;
+    out.push_back({true, header, -1});
+    for (Symbol song : bonus_songs) {
+      if (!song.valid()) continue;
+      out.push_back({false, song_title_by_key(db, song), song_pos++});
+    }
+  }
   if (!out.empty()) return out;
 
   for (std::size_t i = 0; i < db.song_count(); ++i) {
@@ -4188,7 +4257,9 @@ void seed_source_list_layouts(const std::string& hdr, const std::string& ark,
       panel_child(mgr, Symbol("sel_song_panel"), Symbol("ss_song.lst")),
       extract_ui_list_layout(hdr, ark, "ui/gen/sel_song_quickplay.milo_ps2",
                              "ss_song.lst"),
-      song_entries.size());
+      static_cast<std::size_t>(std::count_if(
+          song_entries.begin(), song_entries.end(),
+          [](const SongListEntry& entry) { return !entry.header; })));
 
   const auto credit_entries = credits_entries(db);
   seed_ui_list_source_fields(
@@ -4202,6 +4273,17 @@ int display_row_for_song(const std::vector<SongListEntry>& entries, int selected
   for (std::size_t i = 0; i < entries.size(); ++i)
     if (!entries[i].header && entries[i].song_pos == selected_song) return static_cast<int>(i);
   return 0;
+}
+
+int quickplay_display_row_for_song(const ConfigDb& db, int selected_song) {
+  return display_row_for_song(quickplay_entries(db, {}), selected_song);
+}
+
+std::size_t quickplay_song_count(const ConfigDb& db) {
+  std::size_t count = 0;
+  for (const SongListEntry& entry : quickplay_entries(db, {}))
+    if (!entry.header) ++count;
+  return count;
 }
 
 float source_text_scale(const UiListLayout& layout, const MenuFont& font,
@@ -4242,8 +4324,9 @@ void append_quickplay_song_list(const std::string& hdr, const std::string& ark,
                                 const std::map<std::string, std::string>& locale,
                                 const MenuFont& font,
                                 std::vector<ghogx::render::MiloSceneRenderer::TextVertex>& out) {
-  Object* list = mgr.resolve_object(Symbol("ss_song.lst"));
   Object* panel = mgr.find_object(Symbol("sel_song_panel"));
+  Object* list = panel_child(mgr, Symbol("sel_song_panel"),
+                             Symbol("ss_song.lst"));
   int selected = 0;
   if (list) selected = list->handle_property(Symbol("selected_pos"), DataArray()).as_int().value_or(0);
   else if (panel) selected = panel->get_property(Symbol("ss_song_selected")).as_int().value_or(0);
@@ -4253,21 +4336,13 @@ void append_quickplay_song_list(const std::string& hdr, const std::string& ark,
       hdr, ark, "ui/gen/sel_song_quickplay.milo_ps2", "ss_song.lst");
   const int source_visible_rows =
       list_layout.valid ? std::clamp(list_layout.num_display, 1, 32) : 7;
-  int source_min_display =
-      list_layout.valid ? std::clamp(list_layout.min_display, 0,
-                                     source_visible_rows - 1)
-                        : 0;
-  int source_max_display = source_visible_rows - 1;
-  if (list_layout.valid && list_layout.max_display >= 0) {
-    source_max_display =
-        std::clamp(list_layout.max_display, source_min_display,
-                   source_visible_rows - 1);
-  }
   if (std::getenv("GHOGX_LOG_MENU_LISTS")) {
     std::fprintf(stderr,
                  "[menu-list] ss_song.lst source valid=%d rev=%u "
                  "num_display=%d min=%d max=%d circular=%d speed=%.3f "
-                 "row=%.3f text_h=%.3f\n",
+                 "row=%.3f text_h=%.3f world=%d "
+                 "world_pos=(%.3f %.3f %.3f) local=%d "
+                 "local_pos=(%.3f %.3f %.3f) parent=%s\n",
                  list_layout.valid ? 1 : 0,
                  static_cast<unsigned>(list_layout.revision),
                  list_layout.num_display, list_layout.min_display,
@@ -4278,7 +4353,12 @@ void append_quickplay_song_list(const std::string& hdr, const std::string& ark,
                      : 0.0f,
                  list_layout.has_legacy_row_metrics
                      ? list_layout.legacy_text_height
-                     : 0.0f);
+                     : 0.0f,
+                 list_layout.has_world ? 1 : 0, list_layout.world[9],
+                 list_layout.world[10], list_layout.world[11],
+                 list_layout.has_local ? 1 : 0, list_layout.local[9],
+                 list_layout.local[10], list_layout.local[11],
+                 list_layout.parent.c_str());
   }
 
   // ss_song.lst behavior comes from the authored UIList fields decoded above
@@ -4286,15 +4366,23 @@ void append_quickplay_song_list(const std::string& hdr, const std::string& ark,
   // metrics. The live glyph size comes from the cloned slot label/text objects:
   // UIListLabel::CreateElement ResourceCopy()s list_song.milo's UILabel, whose
   // UILabel/RndText source fields carry the visible text size.
-  const int kVisibleRows = source_visible_rows;
-  constexpr float kBaseX = 25.0f;
-  constexpr float kBaseY = 0.0f;
-  constexpr float kBaseZ = 105.0f;
   const float row_h =
       (list_layout.valid && list_layout.has_legacy_row_metrics &&
        list_layout.legacy_row_height > 0.0f)
           ? list_layout.legacy_row_height
           : 40.0f;
+  const float kBaseX = list_layout.has_local ? list_layout.local[9] : 25.0f;
+  const float kBaseY = list_layout.has_local ? list_layout.local[10] : 0.0f;
+  const float list_center_z =
+      list_layout.has_local ? list_layout.local[11] : 25.0f;
+  // At the top, retail uses the authored UIList local position so the Setlist
+  // title remains visible. Once the user scrolls, the five-slot list window
+  // centers around that authored position and keeps the selected song there.
+  const float kBaseZ =
+      selected == 0
+          ? list_center_z
+          : list_center_z +
+                0.5f * static_cast<float>(source_visible_rows - 1) * row_h;
   const MenuTextStyle list_style = extract_menu_text_style(
       hdr, ark, "ui/gen/list_song.milo_ps2", "list.txt");
   const MenuTextStyle header_style = extract_menu_text_style(
@@ -4320,20 +4408,15 @@ void append_quickplay_song_list(const std::string& hdr, const std::string& ark,
 
   std::vector<SongListEntry> entries = quickplay_entries(db, locale);
   int selected_display = display_row_for_song(entries, selected);
-  int first_display = 0;
-  if (selected_display > source_max_display) {
-    first_display = selected_display - source_max_display;
-  } else if (selected_display < source_min_display) {
-    first_display = selected_display - source_min_display;
-  }
-  const int max_first =
-      std::max(0, static_cast<int>(entries.size()) - kVisibleRows);
-  first_display = std::clamp(first_display, 0, max_first);
-  for (int row = 0; row < kVisibleRows; ++row) {
-    int ei = first_display + row;
-    if (ei < 0 || ei >= static_cast<int>(entries.size())) break;
+  // Retail PS2 trace (2026-07-24) shows the complete authored list moving with
+  // ss_setlist.view by one UIList row per display entry. The selected song
+  // remains in display slot 1 (slot 0 is the first tier header); screen bounds
+  // provide clipping instead of replacing the data with a five-row window.
+  const int scroll_rows = std::max(0, selected_display - 1);
+  for (int ei = 0; ei < static_cast<int>(entries.size()); ++ei) {
     const SongListEntry& e = entries[ei];
-    float rz = kBaseZ - row * row_h;
+    float rz = kBaseZ - static_cast<float>(ei) * row_h +
+               static_cast<float>(scroll_rows) * row_h;
     if (e.header) {
       append_song_string(e.text, font, kBaseX + kHeaderX, kBaseY, rz + kHeaderZ,
                          header_text_scale, 0xFFB30000u, out);
@@ -5128,7 +5211,10 @@ void focus_move(ScreenManager& mgr, const std::vector<MenuLabel>& labels,
     const bool song_list = cur == "ss_song.lst";
     const Symbol stored(song_list ? "ss_song_selected" : "credits_selected");
     const std::size_t item_count = song_list ? song_count : credits_count;
-    if (Object* list = mgr.resolve_object(Symbol(cur.c_str()))) {
+    Object* list = nullptr;
+    if (auto* panel_dir = dynamic_cast<ObjectDir*>(panel))
+      list = panel_dir->find_path(cur.c_str());
+    if (list) {
       int pos =
           list->handle_property(Symbol("selected_pos"), DataArray()).as_int().value_or(0);
       pos += dir;
@@ -5234,7 +5320,6 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
   milo_scene::Scene textentry_scene;
   milo_scene::load_scene(hdr, ark, "ui/gen/textentry.milo_ps2",
                          textentry_scene);
-  asset::Image setlist_title_ink;
   for (Symbol pn : screen_panel_names(screen)) {
     Object* panel = mgr.find_object(pn);
     if (!panel_showing(panel)) continue;
@@ -5308,18 +5393,6 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
   append_help_footer(screen, helpbar_font, helpbar_text_style, mgr, focused,
                      renderer.camera(), locale, help_icons, helpbar_scene,
                      helpbar_verts, helpbar_batches);
-  if (screen && screen->name() == Symbol("qp_selsong_screen")) {
-    auto setlist_title = asset::load_milo_textures(
-        hdr, ark, "ui/gen/sel_song_quickplay.milo_ps2", {"setlist_top.tex"});
-    if (auto it = setlist_title.find("setlist_top.tex");
-        it != setlist_title.end() && it->second.valid()) {
-      setlist_title_ink = ink_alpha_image(std::move(it->second));
-      std::vector<ghogx::render::MiloSceneRenderer::TextVertex> title_verts;
-      append_image_quad(15.0f, 0.0f, 205.0f, 350.0f, 160.0f, 0xFFFFFFFFu,
-                        title_verts);
-      batches.push_back({std::move(title_verts), &setlist_title_ink});
-    }
-  }
   std::vector<ghogx::render::MiloSceneRenderer::TextVertex> song_verts;
   if (screen && screen->name() == Symbol("qp_selsong_screen") && song_font.valid()) {
     append_quickplay_song_list(hdr, ark, mgr, db, locale, song_font, song_verts);
@@ -5478,6 +5551,19 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   int n = load_all_ui_screens(arkr, arks, mgr);
   ConfigDb db;
   db.load(arkr, arks);
+  std::string gameplay_hdr = hdr;
+  std::string gameplay_ark = ark;
+  if (!options.content_hdr.empty() && !options.content_ark.empty()) {
+    const auto content_reader =
+        gh::ark::ArkV3Reader::load(options.content_hdr);
+    db.load_songs(content_reader, {options.content_ark});
+    gameplay_hdr = options.content_hdr;
+    gameplay_ark = options.content_ark;
+    std::fprintf(stderr,
+                 "[menu] mounted independent gameplay content archive: "
+                 "songs=%zu\n",
+                 db.song_count());
+  }
   install_meta_singletons(mgr, db);
 
   // Some stock panel (file) expressions depend on live meta state. In
@@ -5657,17 +5743,32 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   bool outgoing_transition_visible = false;
   bool outgoing_guitar_visible = false;
   ghogx::game::Gameplay gameplay;
+  SongIntroOverlay song_intro_overlay(*win);
+  // GH2 remains the visual/gameplay owner even when songs, venues, or
+  // characters are mounted from an independent content archive.
+  gameplay.set_base_asset_paths(hdr, ark);
+  gameplay.set_auxiliary_asset_paths(options.auxiliary_asset_archives);
   ghogx::hud::HudRenderer gameplay_hud;
   YouRockOverlay you_rock_overlay;
   auto* d3d = static_cast<IDirect3DDevice9*>(win->device_ptr());
   const bool hud_ready = gameplay_hud.load(d3d, hdr, ark);
+  const bool hide_gameplay_hud =
+      std::getenv("GHOGX_HIDE_GAMEPLAY_HUD") != nullptr ||
+      std::getenv("GHOGX_DEBUG_VENUE_ONLY_CAPTURE") != nullptr;
   const MenuFont* rockletters_font = fonts.get("rockletters");
   const MenuFont* impact_font = fonts.get("impact");
   if (rockletters_font || impact_font)
     you_rock_overlay.load(d3d, rockletters_font ? *rockletters_font
                                                 : *impact_font);
 
-  enum class RuntimePhase { BootLogos, IntroVideo, Menus, Gameplay, YouRock };
+  enum class RuntimePhase {
+    BootLogos,
+    IntroVideo,
+    Menus,
+    Gameplay,
+    Paused,
+    YouRock
+  };
   const bool explicit_start_screen = std::getenv("GHOGX_MENU_START_SCREEN") != nullptr;
   const bool disable_live_input =
       std::getenv("GHOGX_MENU_DISABLE_LIVE_INPUT") != nullptr;
@@ -5839,7 +5940,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                    award.c_str());
     }
   }
-  rebuild_scene(hdr, ark, mgr, shown, renderer);
+  rebuild_scene(hdr, ark, mgr, shown, db, renderer);
   bool guitar_visible =
       rebuild_guitar_display_scene(hdr, ark, mgr, shown, db, guitar_renderer);
   character_previews =
@@ -6035,7 +6136,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
           missing_resources, labels, lists, checkboxes, sliders,
           was_redirected && s ? s->name().c_str() : "self",
           screen_ok ? "OK" : "FAIL");
-      rebuild_scene(hdr, ark, mgr, s, renderer);
+      rebuild_scene(hdr, ark, mgr, s, db, renderer);
       guitar_visible =
           rebuild_guitar_display_scene(hdr, ark, mgr, s, db, guitar_renderer);
       apply_loading_source_anims(hdr, ark, mgr, s, renderer);
@@ -6067,7 +6168,12 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   std::unordered_set<std::string> cur_disabled = compute_disabled(mgr);
   auto list_state_key = [&](Symbol list_name, int fallback_pos) -> std::string {
     std::string key = list_name.c_str();
-    Object* list = mgr.resolve_object(list_name);
+    Object* list = nullptr;
+    if (list_name == Symbol("ss_song.lst"))
+      list = panel_child(mgr, Symbol("sel_song_panel"), list_name);
+    else if (list_name == Symbol("credits.lst"))
+      list = panel_child(mgr, Symbol("credits_panel"), list_name);
+    if (!list) list = mgr.resolve_object(list_name);
     const int pos =
         list ? list->handle_property(Symbol("selected_pos"), DataArray())
                    .as_int()
@@ -6212,7 +6318,28 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   };
   auto prepare_gameplay = [&]() -> bool {
     const std::size_t index = current_song_index();
-    const Symbol song = db.song_key(index);
+    Object* song_provider = mgr.resolve_object(Symbol("song_provider"));
+    Object* game_config = mgr.resolve_object(Symbol("game"));
+    const Symbol game_mode =
+        game_config
+            ? symbol_value(game_config->get_property(Symbol("mode")))
+            : Symbol();
+    const bool quickplay =
+        game_mode.valid()
+            ? game_mode == Symbol("quickplay")
+            : song_provider &&
+                  song_provider
+                          ->handle_property(Symbol("get_quickplay"), DataArray())
+                          .as_int()
+                          .value_or(0) != 0;
+    Symbol song;
+    if (song_provider) {
+      DataArray provider_args;
+      provider_args.push(DataNode::Int(static_cast<int>(index)));
+      song = symbol_value(
+          song_provider->handle_property(Symbol("get_symbol"), provider_args));
+    }
+    if (!song.valid()) song = db.song_key(index);
     if (!song.valid()) {
       std::fprintf(stderr, "[flow] no selected song at index %zu\n", index);
       return false;
@@ -6221,11 +6348,33 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     loaded_difficulty = current_difficulty();
     gameplay.set_diagnostic_autoplay(options.gameplay_autoplay);
     gameplay.set_deterministic_clock(fixed_dt > 0.0f);
-    if (!gameplay.load_song(hdr, ark, loaded_song, loaded_difficulty)) {
+    Symbol selected_venue;
+    bool encore = false;
+    if (!quickplay) {
+      selected_venue = db.campaign_venue(song);
+      const auto tier_songs = db.campaign_songs(selected_venue);
+      encore = !tier_songs.empty() && tier_songs.back() == song;
+      if (game_config)
+        game_config->set_property(Symbol("venue"),
+                                  DataNode::Sym(selected_venue));
+    }
+    gameplay.set_selected_venue(selected_venue.c_str());
+    gameplay.set_intro_camera_category(encore ? "INTRO_ENCORE" : "INTRO");
+    std::fprintf(
+        stderr,
+        "[flow] selected song handoff: provider_index=%zu song=%s mode=%s "
+        "venue=%s intro_category=%s\n",
+        index, loaded_song.c_str(), quickplay ? "quickplay" : "career",
+        selected_venue.valid() ? selected_venue.c_str() : "<song-quickplay>",
+        encore ? "INTRO_ENCORE" : "INTRO");
+    if (!gameplay.load_song(gameplay_hdr, gameplay_ark, loaded_song,
+                            loaded_difficulty)) {
       std::fprintf(stderr, "[flow] gameplay load failed: %s diff=%d\n",
                    loaded_song.c_str(), loaded_difficulty);
       return false;
     }
+    song_intro_overlay.reset(hdr, ark, gameplay_hdr, gameplay_ark,
+                             loaded_song);
     // Full-loop proof still enters through the shipped menu/loading route, but
     // may replay the already-loaded chart/world state near the song ending so
     // gameplay exit and the stock post-show chain can be verified without a
@@ -6312,7 +6461,8 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   };
   auto draw_gameplay = [&](bool show_you_rock) {
     gameplay.draw(*win);
-    if (hud_ready) {
+    song_intro_overlay.draw(gameplay.song_time());
+    if (hud_ready && !hide_gameplay_hud) {
       ghogx::hud::HudState state;
       state.score = gameplay.score();
       state.streak = gameplay.streak();
@@ -6321,7 +6471,8 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       state.sp_fill = gameplay.star_power_fill();
       state.sp_active = gameplay.star_power_active();
       state.rock_fill = gameplay.rock_fill();
-      state.anim_seconds = static_cast<float>(gameplay.song_time());
+      state.anim_seconds =
+          static_cast<float>(gameplay.track_intro_elapsed());
       state.track_intro_active = gameplay.track_intro_active();
       gameplay_hud.draw(d3d, state);
     }
@@ -6403,6 +6554,17 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   if (const char* count = std::getenv("GHOGX_MENU_GAMEPAD_COUNT"))
     diagnostic_gamepad_count = std::clamp(std::atoi(count), 0, 4);
   if (!screenshot_path.empty() && max_frames == 0) max_frames = screenshot_frame + 3;
+  if (!options.screenshot_sequence.empty() && max_frames == 0)
+    max_frames =
+        static_cast<int>(options.screenshot_sequence.rbegin()->first + 3);
+  auto capture_frame = [&]() {
+    if (!screenshot_path.empty() &&
+        frame == static_cast<uint64_t>(screenshot_frame))
+      win->save_screenshot(screenshot_path.c_str());
+    const auto sequence = options.screenshot_sequence.find(frame);
+    if (sequence != options.screenshot_sequence.end())
+      win->save_screenshot(sequence->second.c_str());
+  };
 
   while (!win->should_close()) {
     win->pump();
@@ -6461,9 +6623,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         win->clear(0.0f, 0.0f, 0.0f);
         win->blit_fullscreen_rgba(image.rgba.data(), image.width, image.height,
                                   std::clamp(brightness, 0.0f, 1.0f));
-        if (!screenshot_path.empty() &&
-            frame == static_cast<uint64_t>(screenshot_frame))
-          win->save_screenshot(screenshot_path.c_str());
+        capture_frame();
         win->present();
         ++frame;
         if (max_frames > 0 && frame >= static_cast<uint64_t>(max_frames)) break;
@@ -6482,9 +6642,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         win->clear(0.0f, 0.0f, 0.0f);
         win->blit_fullscreen_rgba(intro_video.rgba().data(),
                                   intro_video.width(), intro_video.height());
-        if (!screenshot_path.empty() &&
-            frame == static_cast<uint64_t>(screenshot_frame))
-          win->save_screenshot(screenshot_path.c_str());
+        capture_frame();
         win->present();
         ++frame;
         if (max_frames > 0 && frame >= static_cast<uint64_t>(max_frames)) break;
@@ -6495,34 +6653,41 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     }
 
     if (phase == RuntimePhase::Gameplay) {
-      const uint32_t guitar_input =
-          win->guitar_input_held() |
-          (win->guitar_input_edge() & ((1u << 5) | (1u << 6)));
-      gameplay.tick(dt, guitar_input, win->guitar_whammy_axis());
-      if (gameplay.failed()) {
-        gameplay.stop_audio();
-        commit_gameplay_results();
-        gameplay_loaded = false;
-        mgr.goto_screen(Symbol("lose_screen"));
-        phase = RuntimePhase::Menus;
+      if (!disable_live_input && win->action_pressed(Action::Start)) {
+        gameplay.set_paused(true);
+        mgr.goto_screen(Symbol("pause_screen"));
+        phase = RuntimePhase::Paused;
         phase_seconds = 0.0f;
         screen_seconds = 0.0f;
-        std::fprintf(stderr, "[flow] song failed -> lose_screen\n");
-      } else if (gameplay.is_finished()) {
-        gameplay.stop_audio();
-        commit_gameplay_results();
-        phase = RuntimePhase::YouRock;
-        phase_seconds = 0.0f;
-        std::fprintf(stderr, "[flow] song complete -> YOU ROCK\n");
+        std::fprintf(stderr, "[flow] gameplay Start -> pause_screen\n");
+      } else {
+        const uint32_t guitar_input =
+            win->guitar_input_held() |
+            (win->guitar_input_edge() & ((1u << 5) | (1u << 6)));
+        gameplay.tick(dt, guitar_input, win->guitar_whammy_axis());
+        if (gameplay.failed()) {
+          gameplay.stop_audio();
+          commit_gameplay_results();
+          gameplay_loaded = false;
+          mgr.goto_screen(Symbol("lose_screen"));
+          phase = RuntimePhase::Menus;
+          phase_seconds = 0.0f;
+          screen_seconds = 0.0f;
+          std::fprintf(stderr, "[flow] song failed -> lose_screen\n");
+        } else if (gameplay.is_finished()) {
+          gameplay.stop_audio();
+          commit_gameplay_results();
+          phase = RuntimePhase::YouRock;
+          phase_seconds = 0.0f;
+          std::fprintf(stderr, "[flow] song complete -> YOU ROCK\n");
+        }
+        draw_gameplay(phase == RuntimePhase::YouRock);
+        capture_frame();
+        win->present();
+        ++frame;
+        if (max_frames > 0 && frame >= static_cast<uint64_t>(max_frames)) break;
+        continue;
       }
-      draw_gameplay(phase == RuntimePhase::YouRock);
-      if (!screenshot_path.empty() &&
-          frame == static_cast<uint64_t>(screenshot_frame))
-        win->save_screenshot(screenshot_path.c_str());
-      win->present();
-      ++frame;
-      if (max_frames > 0 && frame >= static_cast<uint64_t>(max_frames)) break;
-      continue;
     }
 
     if (phase == RuntimePhase::YouRock) {
@@ -6531,9 +6696,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
           (win->action_pressed(Action::Confirm) ||
            win->action_pressed(Action::Start));
       draw_gameplay(true);
-      if (!screenshot_path.empty() &&
-          frame == static_cast<uint64_t>(screenshot_frame))
-        win->save_screenshot(screenshot_path.c_str());
+      capture_frame();
       win->present();
       if (continue_pressed || phase_seconds >= 4.0f) {
         gameplay_loaded = false;
@@ -6571,12 +6734,28 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     // Input (live controller/keyboard) -> focus nav + the real menu scripts.
     bool visual_dirty = false;
     if (!disable_live_input && win->action_pressed(Action::Down))
-      focus_move(mgr, cur_labels, cur_disabled, +1, db.song_count(),
+      focus_move(mgr, cur_labels, cur_disabled, +1, quickplay_song_count(db),
                  credit_count);
     if (!disable_live_input && win->action_pressed(Action::Up))
-      focus_move(mgr, cur_labels, cur_disabled, -1, db.song_count(),
+      focus_move(mgr, cur_labels, cur_disabled, -1, quickplay_song_count(db),
                  credit_count);
-    if (!disable_live_input && win->action_pressed(Action::Confirm)) {
+    const bool pause_start =
+        phase == RuntimePhase::Paused && !disable_live_input &&
+        win->action_pressed(Action::Start);
+    if (pause_start) {
+      Object* screen = mgr.current_screen();
+      Symbol panel_name =
+          screen ? screen->get_property(Symbol("focus"))
+                       .as_symbol()
+                       .value_or(Symbol())
+                 : Symbol();
+      Object* panel =
+          panel_name.valid() ? mgr.find_object(panel_name) : nullptr;
+      fire_button_down(mgr, screen, panel, Symbol("kPad_Start"));
+      visual_dirty = true;
+    }
+    if (!pause_start && !disable_live_input &&
+        win->action_pressed(Action::Confirm)) {
       do_confirm(mgr);
       visual_dirty = true;
     }
@@ -6589,10 +6768,10 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     if (nav_i < nav.size() && frame == (nav_i + 1) * kNavStep) {
       const std::string& a = nav[nav_i++];
       if (a == "down")
-        focus_move(mgr, cur_labels, cur_disabled, +1, db.song_count(),
+        focus_move(mgr, cur_labels, cur_disabled, +1, quickplay_song_count(db),
                    credit_count);
       else if (a == "up")
-        focus_move(mgr, cur_labels, cur_disabled, -1, db.song_count(),
+        focus_move(mgr, cur_labels, cur_disabled, -1, quickplay_song_count(db),
                    credit_count);
       else if (a == "confirm") {
         do_confirm(mgr);
@@ -6666,6 +6845,21 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
 
     mgr.update(dt);
 
+    if (phase == RuntimePhase::Paused && mgr.current_screen() &&
+        mgr.current_screen()->name() == Symbol("game_screen")) {
+      gameplay.set_paused(false);
+      phase = RuntimePhase::Gameplay;
+      phase_seconds = 0.0f;
+      screen_seconds = 0.0f;
+      shown = mgr.current_screen();
+      draw_gameplay(false);
+      capture_frame();
+      win->present();
+      ++frame;
+      if (max_frames > 0 && frame >= static_cast<uint64_t>(max_frames)) break;
+      continue;
+    }
+
     // Reload the scene + text when the screen changed; re-render text (re-colour)
     // when only the focus moved.
     if (mgr.current_screen() != shown) {
@@ -6674,7 +6868,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
           transition.active && transition.duration > 0.0001f &&
           transition.exiting_screen == shown;
       if (outgoing_transition_visible) {
-        rebuild_scene(hdr, ark, mgr, shown, outgoing_renderer);
+        rebuild_scene(hdr, ark, mgr, shown, db, outgoing_renderer);
         outgoing_guitar_visible = rebuild_guitar_display_scene(
             hdr, ark, mgr, shown, db, outgoing_guitar_renderer);
         outgoing_character_previews = std::move(character_previews);
@@ -6693,7 +6887,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       automated_screen.clear();
       cur_labels = gather_labels(hdr, ark, mgr, shown);
       cur_disabled = compute_disabled(mgr);
-      rebuild_scene(hdr, ark, mgr, shown, renderer);
+      rebuild_scene(hdr, ark, mgr, shown, db, renderer);
       guitar_visible =
       rebuild_guitar_display_scene(hdr, ark, mgr, shown, db, guitar_renderer);
       character_previews =
@@ -6707,7 +6901,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     } else if (visual_dirty) {
       cur_labels = gather_labels(hdr, ark, mgr, shown);
       cur_disabled = compute_disabled(mgr);
-      rebuild_scene(hdr, ark, mgr, shown, renderer);
+      rebuild_scene(hdr, ark, mgr, shown, db, renderer);
       guitar_visible =
           rebuild_guitar_display_scene(hdr, ark, mgr, shown, db, guitar_renderer);
       character_previews =
@@ -6740,7 +6934,12 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                                        outgoing_renderer);
     renderer.update(dt);
     guitar_renderer.update(dt);
-    if (outgoing_transition_visible) {
+    if (phase == RuntimePhase::Paused) {
+      draw_gameplay(false);
+      draw_menu_layers(renderer, guitar_renderer, guitar_visible,
+                       character_previews,
+                       /*clear_target=*/false);
+    } else if (outgoing_transition_visible) {
       outgoing_renderer.update(dt);
       outgoing_guitar_renderer.update(dt);
     }
@@ -6786,8 +6985,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                        /*clear_target=*/true);
     }
 
-    if (!screenshot_path.empty() && frame == static_cast<uint64_t>(screenshot_frame))
-      win->save_screenshot(screenshot_path.c_str());
+    capture_frame();
     win->present();
 
     ++frame;

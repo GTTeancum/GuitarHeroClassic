@@ -144,6 +144,28 @@ int main() {
   CHECK(ghogx::character::source_character_mesh_renders_decoded_skinning(
       far_negative_arm));
 
+  // GH1 body directories also store the weighted upper-head shell as a
+  // compact mesh-parented RndMesh with head/neck/spine palette rows.  Compact
+  // bounds and a mesh parent do not turn a weighted record into raw geometry.
+  ghogx::character::SkinnedMesh compact_head = mesh;
+  compact_head.name = "weighted_head.mesh";
+  compact_head.parent = "body.mesh";
+  compact_head.bb_min[0] = -4.9f;
+  compact_head.bb_min[1] = -4.4f;
+  compact_head.bb_min[2] = -4.3f;
+  compact_head.bb_max[0] = 1.6f;
+  compact_head.bb_max[1] = 3.4f;
+  compact_head.bb_max[2] = 4.5f;
+  compact_head.bone_palette = {
+      "bone_head.mesh", "bone_neck.mesh", "bone_spine2.mesh"};
+  CHECK(ghogx::character::source_character_mesh_renders_decoded_skinning(
+      compact_head));
+
+  ghogx::character::SkinnedMesh weighted_eye = compact_head;
+  weighted_eye.name = "eye_weighted.mesh";
+  CHECK(ghogx::character::source_character_mesh_renders_decoded_skinning(
+      weighted_eye));
+
   std::printf("  [ok] skinning preserves four source slots, offsets, and submission space\n");
   return 0;
 }

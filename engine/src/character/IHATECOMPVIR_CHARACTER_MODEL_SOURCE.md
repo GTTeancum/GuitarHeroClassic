@@ -4,6 +4,16 @@ This file is the source-backed map for the native GH2 PS2 character model path.
 Treat ihatecompvir's repos as the authority; do not use the older
 `CHARACTER_FORMAT_NOTES.md` as proof when these sources disagree.
 
+## Current-status reading rule
+
+This is a chronological reverse-engineering ledger. Statements before the
+2026-07-18 GH2 XEX publisher closure that describe broad `CharBone` output as
+fenced, compare-only, or an open publisher gap are retained as historical
+evidence, not current runtime status. The current contract is the later
+`AcquirePose -> ScaleDown -> ScaleAdd -> PoseMeshes` closure: exact `.trans`
+then `.mesh` target resolution, all recovered typed channels, live-local
+acquisition, and no pose seeding from serialized `OutputBone.local`.
+
 ## Source Snapshot
 
 The small `third_party/ihatecompvir-public-milo-sources` tree is an
@@ -7011,6 +7021,30 @@ targets, and hide-eye experiments remain outside source authority.
   corners, paired lower/upper lip points, and their centers. No rigid eye mesh
   appears in that typed set, so the eye write precedes servo sampling without
   being overwritten by the later mouth/lid commit.
+
+## 2026-07-26 GH1 packed-directory execution boundary
+
+- Packed inspection corrects the former revision assumption for GH1 selectable
+  bodies: they are anonymous revision-10 `RndDir` graphs whose bone transforms
+  are zero-geometry `RndMesh` objects. They are not typed `BandCharacter`
+  directories and do not populate the separate decoded `Trans` bone vector.
+- The standalone GH1 `AnimClipSamples` ACP path publishes absolute scalar-axis
+  values for that exact directory shape. The native gate uses the three
+  decoded format facts—empty directory type, revision 10, and an empty
+  separate-bone vector—rather than a character, clip, role, or archive name.
+  Relative ACP layers remain relative. Typed GH2 directories are excluded.
+- Decoded `RndMesh` palette presence is authoritative for geometry submission.
+  Every nonempty palette consumes its serialized offsets and current bone
+  worlds; every empty palette uses the decoded mesh transform. In particular,
+  the compact weighted GH1 singer head is not a raw head attachment, and
+  weighted eyes are not raw eye attachments. Bounds, parent suffixes,
+  materials, and anatomy cannot supersede the serialized palette.
+- Deterministic runtime comparison confirms this shared correction leaves the
+  GH2 Metal1 route unchanged: frames 20, 60, and 100 match the previously
+  deployed executable byte for byte. The GH1 role matrix exercises guitarist,
+  male singer, female singer, bassist, drummer, and YYZ's authored keyboard
+  slot; the all-guitarist matrix separately exercises alterna, classic, grim,
+  hair_metal, hiphop, metal, nu_metal, and punk.
 
 ## Native Rules
 

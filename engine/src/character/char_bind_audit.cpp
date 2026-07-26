@@ -191,6 +191,20 @@ bool should_dump_types(int argc, char** argv) {
   return false;
 }
 
+bool should_dump_bones(int argc, char** argv) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--bones") == 0) return true;
+  }
+  return false;
+}
+
+bool should_dump_meshes(int argc, char** argv) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--meshes") == 0) return true;
+  }
+  return false;
+}
+
 bool has_trans_or_mesh(const Character& c, const std::string& name) {
   if (name.empty()) return false;
   for (const auto& bone : c.bones) {
@@ -807,6 +821,11 @@ void audit_mesh_detail(const Character& c, const SkinnedMesh& m,
   if (!m.parent.empty()) {
     print_matrix("parentWorld", c.bone_world_local_chain(m.parent));
   }
+  if (!m.legacy_children.empty()) {
+    std::printf("[mesh-detail]   legacyChildren=%zu", m.legacy_children.size());
+    for (const auto& child : m.legacy_children) std::printf(" %s", child.c_str());
+    std::printf("\n");
+  }
 
   std::vector<float> weight_sum(nb, 0.0f);
   std::vector<float> weight_max(nb, 0.0f);
@@ -839,6 +858,49 @@ void audit_mesh_detail(const Character& c, const SkinnedMesh& m,
   }
 
   print_bounds("[mesh-detail]   raw", raw_bounds);
+  Bounds indexed_bounds;
+  size_t invalid_indices = 0;
+  size_t degenerate_faces = 0;
+  std::vector<uint8_t> indexed_vertices(m.verts.size(), 0);
+  for (uint16_t index : m.indices) {
+    if (index >= m.verts.size()) {
+      ++invalid_indices;
+      continue;
+    }
+    indexed_vertices[index] = 1;
+    add_bounds(indexed_bounds, m.verts[index]);
+  }
+  for (size_t fi = 0; fi + 2 < m.indices.size(); fi += 3) {
+    const uint16_t ia = m.indices[fi + 0];
+    const uint16_t ib = m.indices[fi + 1];
+    const uint16_t ic = m.indices[fi + 2];
+    if (ia >= m.verts.size() || ib >= m.verts.size() ||
+        ic >= m.verts.size()) {
+      continue;
+    }
+    const auto& a = m.verts[ia];
+    const auto& b = m.verts[ib];
+    const auto& c0 = m.verts[ic];
+    const float abx = b.px - a.px;
+    const float aby = b.py - a.py;
+    const float abz = b.pz - a.pz;
+    const float acx = c0.px - a.px;
+    const float acy = c0.py - a.py;
+    const float acz = c0.pz - a.pz;
+    const float cx = aby * acz - abz * acy;
+    const float cy = abz * acx - abx * acz;
+    const float cz = abx * acy - aby * acx;
+    if (cx * cx + cy * cy + cz * cz < 1.0e-12f) ++degenerate_faces;
+  }
+  const size_t indexed_vertex_count =
+      static_cast<size_t>(std::count(indexed_vertices.begin(),
+                                     indexed_vertices.end(), uint8_t{1}));
+  std::printf(
+      "[mesh-index] mesh=%s indices=%zu indexedVerts=%zu invalid=%zu "
+      "degenerateFaces=%zu ",
+      m.name.c_str(), m.indices.size(), indexed_vertex_count, invalid_indices,
+      degenerate_faces);
+  print_bounds("indexed", indexed_bounds);
   for (size_t i = 0; i < nb; ++i) {
     std::printf(
         "[mesh-detail]   slot=%zu bone=%s weightSum=%.3f max=%.3f "
@@ -880,9 +942,10 @@ void audit_mesh_detail(const Character& c, const SkinnedMesh& m,
       const auto& v = m.verts[vi];
       std::printf(
           "[mesh-vert] mesh=%s vi=%zu raw=(%.5f %.5f %.5f) "
-          "weights=(%.5f %.5f %.5f %.5f)\n",
-          m.name.c_str(), vi, v.px, v.py, v.pz, v.w[0], v.w[1],
-          v.w[2], v.w[3]);
+          "normal=(%.5f %.5f %.5f) weights=(%.5f %.5f %.5f %.5f) "
+          "uv=(%.5f %.5f)\n",
+          m.name.c_str(), vi, v.px, v.py, v.pz, v.nx, v.ny, v.nz,
+          v.w[0], v.w[1], v.w[2], v.w[3], v.u, v.v);
     }
   }
 }
@@ -970,7 +1033,9 @@ void usage() {
   std::fprintf(stderr,
                "usage: ghogx_character_bind_audit --ark-dir <GEN> [--all] "
                "[--mesh-detail <mesh>] [--dump-verts] [--materials] [--hair] "
-               "[--controllers] [--groups] [--types] [char/...milo_ps2 ...]\n");
+               "[--controllers] [--groups] [--types] [--bones] "
+               "[--meshes] "
+               "[char/...milo_ps2 ...]\n");
 }
 
 }  // namespace
@@ -998,6 +1063,10 @@ int main(int argc, char** argv) {
       // handled after character load
     } else if (arg == "--types") {
       // handled after character load
+    } else if (arg == "--bones") {
+      // handled after character load
+    } else if (arg == "--meshes") {
+      // handled after character load
     } else if (!arg.empty() && arg[0] != '-') {
       milos.push_back(arg);
     } else {
@@ -1016,6 +1085,8 @@ int main(int argc, char** argv) {
   const bool dump_controllers = should_dump_controllers(argc, argv);
   const bool dump_groups = should_dump_groups(argc, argv);
   const bool dump_types = should_dump_types(argc, argv);
+  const bool dump_bones = should_dump_bones(argc, argv);
+  const bool dump_meshes = should_dump_meshes(argc, argv);
 
   const std::filesystem::path dir(ark_dir);
   const std::string hdr = (dir / "main.hdr").string();
@@ -1062,6 +1133,70 @@ int main(int argc, char** argv) {
     if (dump_controllers) audit_controllers(c, milo);
     if (dump_types) audit_types(c, milo);
     if (dump_hair) audit_hair(c, milo);
+    if (dump_bones) {
+      for (size_t i = 0; i < c.bones.size(); ++i) {
+        const auto& bone = c.bones[i];
+        std::printf(
+            "[bone-detail] char=%s index=%zu name=%s parent=%s target=%s "
+            "constraint=%u preserveScale=%d\n",
+            c.dir_name.c_str(), i, bone.name.c_str(), bone.parent.c_str(),
+            bone.target.c_str(), static_cast<unsigned>(bone.constraint),
+            bone.preserve_scale ? 1 : 0);
+        print_matrix("local", xfm_to_mat4(bone.local));
+        print_matrix("storedWorld", xfm_to_mat4(bone.world_stored));
+        if (i < c.bind_bone_local.size()) {
+          print_matrix("bindLocal", xfm_to_mat4(c.bind_bone_local[i]));
+        }
+        print_matrix("bindLocalChain",
+                     c.bone_world_bind_local_chain(bone.name));
+      }
+    }
+    if (dump_meshes) {
+      const std::string char_name =
+          std::filesystem::path(milo).stem().string();
+      for (size_t i = 0; i < c.meshes.size(); ++i) {
+        const auto& mesh = c.meshes[i];
+        std::printf(
+            "[mesh-row] path=%s char=%s dirType=%s dirVersion=%d index=%zu "
+            "name=%s parent=%s mat=%s "
+            "constraint=%u target=%s preserveScale=%d "
+            "geometryOwner=%s showing=%d verts=%zu faces=%zu palette=%zu "
+            "drawOrder=%.4f "
+            "localRows=(%.6f %.6f %.6f|%.6f %.6f %.6f|"
+            "%.6f %.6f %.6f) localPos=(%.6f %.6f %.6f)\n",
+            milo.c_str(), char_name.c_str(), c.dir_type.c_str(),
+            c.dir_version, i,
+            mesh.name.c_str(),
+            mesh.parent.c_str(),
+            mesh.material.c_str(), static_cast<unsigned>(mesh.constraint),
+            none_if_empty(mesh.target), mesh.preserve_scale ? 1 : 0,
+            none_if_empty(mesh.geometry_owner),
+            mesh.showing ? 1 : 0, mesh.verts.size(), mesh.indices.size() / 3,
+            mesh.bone_palette.size(), mesh.draw_order,
+            mesh.local.rot[0][0], mesh.local.rot[0][1],
+            mesh.local.rot[0][2], mesh.local.rot[1][0],
+            mesh.local.rot[1][1], mesh.local.rot[1][2],
+            mesh.local.rot[2][0], mesh.local.rot[2][1],
+            mesh.local.rot[2][2], mesh.local.pos[0], mesh.local.pos[1],
+            mesh.local.pos[2]);
+      }
+      for (size_t i = 0; i < c.morphs.size(); ++i) {
+        const auto& morph = c.morphs[i];
+        std::printf(
+            "[morph-row] char=%s index=%zu name=%s target=%s decoded=%d "
+            "poses=%zu normals=%d spline=%d intensity=%.4f\n",
+            c.dir_name.c_str(), i, morph.name.c_str(),
+            none_if_empty(morph.target), morph.decoded ? 1 : 0,
+            morph.poses.size(), morph.normals ? 1 : 0,
+            morph.spline ? 1 : 0, morph.intensity);
+        for (size_t p = 0; p < morph.poses.size(); ++p) {
+          std::printf(
+              "[morph-pose] char=%s morph=%s index=%zu mesh=%s keys=%zu\n",
+              c.dir_name.c_str(), morph.name.c_str(), p,
+              morph.poses[p].mesh.c_str(), morph.poses[p].keys.size());
+        }
+      }
+    }
     if (dump_groups) {
       const std::string char_name =
           std::filesystem::path(milo).stem().string();
@@ -1074,10 +1209,31 @@ int main(int argc, char** argv) {
                      group.environment_ref.c_str(), group.draw_only.c_str(),
                      group.sort_in_world ? 1 : 0);
         for (size_t i = 0; i < group.children.size(); ++i) {
+          const auto mesh_it = std::find_if(
+              c.meshes.begin(), c.meshes.end(), [&](const SkinnedMesh& mesh) {
+                return mesh.name == group.children[i];
+              });
+          const auto owner_it = mesh_it == c.meshes.end()
+                                    ? c.meshes.end()
+                                    : std::find_if(
+                                          c.meshes.begin(), c.meshes.end(),
+                                          [&](const SkinnedMesh& mesh) {
+                                            return mesh.name ==
+                                                   mesh_it->geometry_owner;
+                                          });
           std::fprintf(stderr,
-                       "[group-child] char=%s group=%s index=%zu object=%s\n",
+                       "[group-child] char=%s group=%s index=%zu object=%s parent=%s mat=%s geomOwner=%s selfVerts=%zu ownerVerts=%zu\n",
                        char_name.c_str(), group.name.c_str(), i,
-                       group.children[i].c_str());
+                       group.children[i].c_str(),
+                       mesh_it == c.meshes.end() ? "<none>"
+                                                 : mesh_it->parent.c_str(),
+                       mesh_it == c.meshes.end() ? "<none>"
+                                                 : mesh_it->material.c_str(),
+                       mesh_it == c.meshes.end()
+                           ? "<non-mesh>"
+                           : mesh_it->geometry_owner.c_str(),
+                       mesh_it == c.meshes.end() ? 0u : mesh_it->verts.size(),
+                       owner_it == c.meshes.end() ? 0u : owner_it->verts.size());
         }
       }
     }

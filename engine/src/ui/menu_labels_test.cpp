@@ -53,6 +53,24 @@ int main(int argc, char** argv) {
     std::printf("ghogx_menu_labels_test: SKIP (no stock ARK at %s)\n", ark_dir.c_str());
     return 0;
   }
+  if (argc > 2) {
+    const auto probe =
+        ghogx::ui::extract_menu_labels(hdr, ark0, argv[2]);
+    for (const auto& label : probe) {
+      std::printf(
+          "probe label: %s type=%s font=%s text='%s' parent='%s' "
+          "local=(%.3f %.3f %.3f) world=(%.3f %.3f %.3f) "
+          "style=%d size=%.3f align=%d color=(%.3f %.3f %.3f %.3f)\n",
+          label.name.c_str(), label.type.c_str(), label.font.c_str(),
+          label.text.c_str(), label.parent.c_str(), label.local[9],
+          label.local[10], label.local[11], label.world[9], label.world[10],
+          label.world[11], label.text_tail.valid ? 1 : 0,
+          label.text_tail.text_size, label.text_tail.alignment,
+          label.text_tail.color[0], label.text_tail.color[1],
+          label.text_tail.color[2], label.text_tail.color[3]);
+    }
+    return probe.empty() ? 1 : 0;
+  }
 
   CHECK(ghogx::asset::endgame_photo_bitmap_path_for_outfit("rock2") ==
         "ui/image/og/gen/photo_rock20_keep.bmp_ps2");

@@ -5346,6 +5346,205 @@ int main() {
   ok &= contains(gameplay_c,
                  "venue_script_delay_seconds(amount,beat_units)",
                  "task delays can run in seconds or chart beat units");
+  ok &= contains(
+      gameplay_c,
+      "gh::dtb::as_string(*kids[1]).value_or(\"\")==\"delay_task\"",
+      "GH1 Arena delay_task statements enter the common script-task scheduler");
+  ok &= contains(
+      gameplay_c,
+      "step.delay=std::max(0.0,*delay_frames)/480.0",
+      "GH1 Arena delay_task converts authored k480_fpb frames to beat units");
+  ok &= contains(
+      gameplay_c,
+      "gh::dtb::as_string(*kids[1]).value_or(\"\")==\"set_singer_env\"",
+      "GH1 Arena set_singer_env statements retain the authored Environ ref");
+  ok &= contains(
+      gameplay_c,
+      "gh::dtb::as_string(*kids[1]).value_or(\"\")==\"set_frame\"",
+      "GH1 direct RndAnimatable set_frame enters the shared animation route");
+  ok &= contains(
+      gameplay_c,
+      "\"unhook_anim_parents\"",
+      "GH1 finish-loading animation-parent detach operations are retained");
+  ok &= contains(
+      gameplay_c,
+      "gh::dtb::as_string(*kids[1]).value_or(\"\")==\"remove_anim\"",
+      "GH1 View remove_anim operations are retained");
+  ok &= appears_before(
+      gameplay_c,
+      "execute_venue_script_event(\"init\")",
+      "execute_venue_script_event(\"finish_loading\")",
+      "GH1 init precedes finish_loading after all venue sections are resident");
+  ok &= appears_before(
+      gameplay_c,
+      "execute_venue_script_event(\"finish_loading\")",
+      "execute_venue_script_event(\"intro_start\")",
+      "GH1 finish_loading graph setup precedes replayed intro animation");
+  ok &= contains(
+      gameplay_c,
+      "head==\"foreach\"",
+      "GH1 venue functions retain generic foreach iteration");
+  ok &= contains(
+      gameplay_c,
+      "parse_venue_script_parameter_list(*kids[2],handler.parameters)",
+      "GH1 venue function declarations retain DataVariable parameters");
+  ok &= contains(
+      gameplay_c,
+      "argument.switch_expression=true",
+      "GH1 venue function arguments retain switch expressions");
+  ok &= contains(
+      gameplay_c,
+      "step.kind=VenueScriptStep::Kind::Switch",
+      "GH1 venue scripts retain statement switch branches");
+  ok &= contains(
+      gameplay_c,
+      "\"random_int\"",
+      "GH1 speaker animation ranges retain authored random_int expressions");
+  ok &= contains(
+      gameplay_c,
+      "gh::dtb::as_string(*kids[1]).value_or(\"\")==\"add_trans\"",
+      "GH1 RndTransformable add_trans statements retain parent and child refs");
+  ok &= contains(
+      gameplay_c,
+      "venue_transform_parent_overrides_[child]=parent",
+      "GH1 add_trans stores the source child-to-parent graph edge");
+  ok &= contains(
+      gameplay_c,
+      "world_->set_transform_parent_overrides(venue_transform_parent_overrides_)",
+      "GH1 add_trans publishes transform-parent graph changes to the renderer");
+  ok &= contains(
+      renderer_c,
+      "transform_parent_overrides_.find(node)",
+      "venue rendering resolves source add_trans parent overrides recursively");
+  ok &= contains(
+      renderer_c,
+      "out=apply_transform_constraint(local,parent_world,constraint)",
+      "source add_trans preserves the child local transform under its new parent");
+  ok &= contains(
+      gameplay_c,
+      "gh::dtb::as_string(*kids[1]).value_or(\"\")==\"set_steps\"",
+      "GH1 RndFlare set_steps statements retain their authored count");
+  ok &= contains(
+      gameplay_c,
+      "step.kind=VenueScriptStep::Kind::SetFlareSteps",
+      "GH1 flare scripts route through a typed SetFlareSteps step");
+  ok &= contains(
+      gameplay_c,
+      "venue_flare_steps_[target]=step.value",
+      "GH1 RndFlare SetSteps publishes the resolved foreach target");
+  ok &= contains(
+      milo_scene_cpp_c,
+      "out.flares.push_back(decode_flare(de.name,b,dir.dir_version))",
+      "venue MILOs decode native RndFlare entries");
+  ok &= contains(
+      milo_scene_cpp_c,
+      "flare.steps=r.i32()",
+      "native RndFlare decoding retains its authored step count");
+  ok &= contains(
+      renderer_c,
+      "for(constauto&flare:scene_.flares)",
+      "venue rendering submits decoded native RndFlare billboards");
+  ok &= contains(
+      renderer_c,
+      "flare_source_world=xfm_to_mat4(flare.world_stored)",
+      "root GH1 RndFlare rendering uses its serialized cached WorldXfm");
+  ok &= contains(
+      renderer_c,
+      "dev_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,2,query_quad,sizeof(SVtx))",
+      "GH1 RndFlare point visibility uses a rasterized occlusion-query probe");
+  ok &= contains(
+      renderer_c,
+      "visibility.fade=std::clamp(visibility.fade+(visibility.target_visible?delta:-delta),0.0f,1.0f)",
+      "GH1 RndFlare point visibility transitions by its authored mSteps");
+  ok &= contains(
+      milo_scene_cpp_c,
+      "if(flare.name==child_name){flare.parent=parent_name;return;}",
+      "legacy RndTransformable child lists reconstruct Flare parent ownership");
+  ok &= contains(
+      gameplay_c,
+      "head==\"if_else\"",
+      "GH1 DataIfElse retains one condition and two lazy alternatives");
+  ok &= contains(
+      gameplay_c,
+      "step.kind=VenueScriptStep::Kind::WithNamespace",
+      "GH1 with_namespace retains its resolved ObjectDir scope");
+  ok &= contains(
+      gameplay_c,
+      "venue_script_namespace_role_=step.name",
+      "GH1 with_namespace scopes nested object lookup and restores it");
+  ok &= contains(
+      gameplay_c,
+      "performer.renderer->set_object_showing(object_name,showing)",
+      "GH1 performer geom_space messages resolve against that character");
+  ok &= contains(
+      char_renderer_c,
+      "impl.hidden_meshes.find(m.name)!=impl.hidden_meshes.end()",
+      "character rendering honors namespace-scoped source group visibility");
+  ok &= contains(
+      gameplay_c,
+      "expression.atom==\"arena\"&&child(0)==\"cam_msg\"",
+      "GH1 visibility expressions read the active source camera message");
+  ok &= contains(
+      gameplay_c,
+      "execute_venue_script_event(\"hit_gem\",&gh1_message_arguments)",
+      "GH2 fret hits dispatch GH1 hit_gem with the authored zero-based slot");
+  ok &= contains(
+      gameplay_c,
+      "gh::dtb::as_string(*kids[1]).value_or(\"\")==\"anim_task\"",
+      "GH1 game anim_task statements retain their source argument contract");
+  ok &= contains(
+      gameplay_c,
+      "step.anim_period=static_cast<float>(std::max(0.0,*period_ms)/1000.0)",
+      "GH1 game anim_task converts its authored millisecond period");
+  ok &= contains(
+      gameplay_c,
+      "step.anim_end_frame-step.anim_start_frame",
+      "GH1 game anim_task computes native AnimTask speed from its explicit range");
+  ok &= contains(
+      gameplay_c,
+      "span/(step.anim_period*fpu)",
+      "GH1 game anim_task converts authored period to source frames-per-unit scale");
+  ok &= contains(
+      gameplay_c,
+      "read_stage_vec3_keys(\"stagetranslation\",anim.tex_translation_keys)",
+      "legacy GH1 MatAnim retains authored stage-zero translation keys");
+  ok &= contains(
+      gameplay_c,
+      "read_stage_vec3_keys(\"stagescale\",anim.tex_scale_keys)",
+      "legacy GH1 MatAnim retains authored stage-zero scale keys");
+  ok &= contains(
+      gameplay_c,
+      "read_stage_vec3_keys(\"stagerotation\",anim.tex_rotation_keys)",
+      "legacy GH1 MatAnim retains authored stage-zero rotation keys");
+  ok &= contains(
+      gameplay_c,
+      "perf.role==\"singer\"&&!legacy_gh1_singer_environment_.empty()?"
+      "legacy_gh1_singer_environment_:"
+      "std::string{\"stagechar.env\"}",
+      "GH1 singer and stage-character roles select their source lighting Environs");
+  ok &= contains(
+      gameplay_c,
+      "environment_owner->apply_environment_lighting_state("
+      "performer_environment)",
+      "GH1 performer Environs are applied by their owning lighting RndDir");
+  ok &= contains(gameplay_c,
+                 "step.kind=VenueScriptStep::Kind::IfStateEquals",
+                 "delayed GH1 venue tasks retain boolean state guards");
+  ok &= contains(
+      gameplay_c,
+      "if(node.tag==0x02)returngh::dtb::as_string(node)",
+      "GH1 DataVariable refs such as reactorState enter the common state map");
+  ok &= contains(milo_scene_cpp_c,
+                 "group.legacy_view=true",
+                 "GH1 View7 identity survives the shared Group representation");
+  ok &= contains(
+      gameplay_c,
+      "if(group.anim_children.empty()&&!group.legacy_view)continue",
+      "source-null GH1 Views remain distinguishable from absent animation routes");
+  ok &= contains(
+      gameplay_c,
+      "resolvedsource-nullViewanimationno-op",
+      "empty GH1 View7 animation vectors resolve as authored SetFrame no-ops");
   ok &= appears_before(gameplay_c,
                        "update_venue_script_tasks();",
                        "update_active_venue_material_anims();",
@@ -5362,6 +5561,17 @@ int main() {
                  "active_venue_event_==event_name&&world_&&"
                  "!force_persistent",
                  "normal repeated persistent venue events still no-op");
+  const std::string apply_venue_event_body = compact(function_body(
+      gameplay, "void Gameplay::apply_venue_event("));
+  ok &= appears_before(
+      apply_venue_event_body,
+      "active_venue_event_==event_name&&world_&&!force_persistent",
+      "execute_venue_script_event(event_name);",
+      "persistent duplicate suppression precedes venue script dispatch");
+  ok &= appears_before(
+      apply_venue_event_body, "active_venue_anim_filters_.erase(",
+      "execute_venue_script_event(event_name);",
+      "persistent state cleanup precedes replacement venue script dispatch");
   ok &= contains(gameplay_c,
                  "apply_venue_event(active,true,true);",
                  "resending the active excitement event does not fabricate a peak transition");
@@ -8270,7 +8480,8 @@ int main() {
                  "camera low-excitement gate mirrors GH2 kExcitementBoot/Bad numeric values");
   ok &= contains(gameplay_c,
                  "choose_lighting_preset(lighting_presets_,lighting_request,"
-                 "lighting_excitement)",
+                 "lighting_excitement,active_lighting_preset_,"
+                 "venue_script_rng_state_)",
                  "lighting preset selection consumes active venue excitement");
   ok &= contains(gameplay_c,
                  "\"blackout\",\"strobe\",\"flare\",\"color1\",\"color2\","
@@ -8290,18 +8501,33 @@ int main() {
                  "lighting category fallback mirrors one_bar_to solo order");
   ok &= contains(gameplay_c,
                  "if(!request.adjective.empty()){for(std::string_viewcategory:"
-                 "categories){for(constauto&p:presets){if(!matches_category(p,"
-                 "category))continue;if(p.adjective==request.adjective)return&p;}}}",
+                 "categories){std::vector<constGameplay::LightingPreset*>matches;"
+                 "for(constauto&p:presets){if(!matches_category(p,category))"
+                 "continue;if(p.adjective==request.adjective)"
+                 "matches.push_back(&p);}if(constauto*selected=pick(matches))"
+                 "returnselected;}}",
                  "lighting adjective selection tries authored category fallbacks first");
   ok &= absent(gameplay_c,
                "constexpruint32_tkDefaultExcitement=2;",
                "lighting preset selection must not hardcode okay excitement");
   ok &= contains(gameplay_c,
+                 "if(!legacy_gh1_venue_script_){"
+                 "if(source_game_lost_camera_dispatched_||failed_){"
+                 "lighting_request.category=\"LOSE\";",
+                 "GH2 failure presentation selects the authored LOSE lighting category");
+  ok &= contains(gameplay_c,
+                 "encore_win?\"WIN_ENCORE\":\"WIN\"",
+                 "GH2 completion presentation selects authored normal/encore win lighting");
+  ok &= contains(gameplay_c,
+                 "intro_camera_category_==\"INTRO_ENCORE\"",
+                 "GH2 encore entry selects the authored INTRO_ENCORE lighting category");
+  ok &= contains(gameplay_c,
                  "song_time_+kLightingAdvanceDelaySeconds",
-                 "lighting cue events use the traced PS2 timer-plus-four queue");
+                 "lighting cue events use the traced GH2 PS2 timer-plus-four queue");
   ok &= contains(gameplay_c,
                  "lighting_keyframe_index_after_event(pending.event,"
-                 "active_lighting_keyframe_index_,preset->keyframes.size())",
+                 "active_lighting_keyframe_index_,preset->keyframes.size(),"
+                 "preset->looping)",
                  "queued lighting cue events advance first/next/prev exactly");
   ok &= contains(gameplay_c,
                  "chart_.lighting_cues.empty()?lighting_keyframe_index_at("
@@ -8321,8 +8547,15 @@ int main() {
                  "transition_fade_frames=previous_fade;",
                  "outgoing LightPreset fade_out drives keyframe transitions");
   ok &= contains(gameplay_c,
-                 "lighting_frames_to_seconds(transition_fade_frames)",
-                 "LightPreset fade frames are converted to runtime seconds");
+                 "lighting_frames_to_seconds(transition_fade_frames,"
+                 "preset->anim_rate,chart_,song_time_)",
+                 "GH2 LightPreset fades use serialized RndAnimatable rate");
+  ok &= contains(gameplay_c,
+                 "preset.anim_rate==1?480.0:1.0",
+                 "GH2 beat-rate presets use k480_fpb/k1_fpb frame units");
+  ok &= contains(gameplay_c,
+                 "if(preset.looping){local=std::fmod(local,total_frames);}",
+                 "only authored looping LightPresets wrap keyframe time");
   ok &= contains(gameplay_c,
                  "boolplausible_lighting_frame_count(floatframes)",
                  "LightPreset timing decode rejects non-frame packed bytes");
@@ -9084,6 +9317,14 @@ int main() {
   ok &= contains(renderer_c,
                  "install_approx_scene_lights(",
                  "source approximate Environ lights feed a separate normal-aware install path");
+  ok &= contains(
+      renderer_c,
+      "install_approx_scene_lights(dev_,approx_directional_lights,mesh_env==nullptr)",
+      "authored zero-light Environs do not inherit diagnostic scene-fill lights");
+  ok &= contains(
+      renderer_c,
+      "dev->LightEnable(kSceneFillLightFirstSlot+i,FALSE)",
+      "ambient-only Environs explicitly disable every fallback fill slot");
   ok &= contains(renderer_c,
                  "light.Type=D3DLIGHT_DIRECTIONAL;",
                  "approximate Environ lights are applied as directional lighting, not point/fake-spot real lights");
@@ -15283,9 +15524,12 @@ int main() {
                  "conststd::vector<CameraShotSourceFilter>&filters)",
                  "regular camera selection can evaluate the authored filter array in source order");
   ok &= contains(gameplay_c,
-                 "constexprstd::array<std::string_view,9>"
+                 "constexprstd::array<std::string_view,12>"
                  "kNormalCamShotCategoryOrder",
-                 "regular camera selection preserves the authored normal CamShot category order");
+                 "regular camera selection preserves the authored GH2 and legacy GH1 CamShot category order");
+  ok &= contains(gameplay_c,
+                 "\"MULTIPLAYER\",\"MULTIPLAYER_0\",\"MULTIPLAYER_1\"",
+                 "GH1 multiplayer-only venue camera buckets participate in regular shot selection");
   ok &= contains(gameplay_c,
                  "std::stringcamera_source_pick_shot_scan_scope("
                  "CameraShotModemode,size_tnormal_category_cursor=0)",
@@ -16161,8 +16405,8 @@ int main() {
                  "camera_source_guitarist0_charwalk_state(){",
                  "regular camera walking bridge exposes a source CharWalk::mState helper");
   ok &= contains(gameplay_c,
-                 "returnCameraSourceCharWalkState::kStateNone;",
-                 "regular camera walking bridge stays pinned to source CharWalk::mState none until native CharWalk state behavior is recovered");
+                 "returng_camera_source_guitarist0_charwalk_state;",
+                 "regular camera walking bridge returns the live recovered CharWalk state");
   ok &= contains(gameplay_c,
                  "\"[world]cameraCharWalkobjects:"
                  "scope=guitarist0_character"
@@ -16176,8 +16420,8 @@ int main() {
                  "\"CharWalk::mState=\"+"
                  "camera_source_charwalk_state_label("
                  "camera_source_guitarist0_charwalk_state())+"
-                 "\"native_bridge=object_presence_onlybody_unrecovered)\";",
-                 "regular camera diagnostics label the deferred CharWalk mState gate without implying a proven moving state");
+                 "\"native_bridge=retail_0x197548_state_and_active_walk_clip)\";",
+                 "regular camera diagnostics label the recovered retail CharWalk state/clip gate");
   ok &= contains(gameplay_c,
                  "constboolkGuitaristWalking="
                  "camera_source_guitarist0_actually_walking();",

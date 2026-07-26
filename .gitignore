@@ -19,6 +19,12 @@
 /*.png
 /smoke_shots/
 /analysis/
+/.codex/
+/engine/.codex-*.log
+
+# Local reverse-engineering probe outputs
+/ark_extract_probe.obj
+/ark_v3.obj
 
 # Backups
 /*.bak

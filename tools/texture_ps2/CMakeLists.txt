@@ -15,6 +15,12 @@ add_library(ps2_texture STATIC ps2_texture.cpp ps2_texture.h)
 target_include_directories(ps2_texture PUBLIC .)
 
 add_executable(tex_tool tex_tool.cpp)
+target_sources(tex_tool PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/src/milo_tex.cpp
+)
+target_include_directories(tex_tool PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/src
+)
 target_link_libraries(tex_tool PRIVATE ps2_texture)
 if(COMMAND ghogx_add_windows_import_guard)
     ghogx_add_windows_import_guard(tex_tool)

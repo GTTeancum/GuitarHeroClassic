@@ -1282,6 +1282,30 @@ struct WaypointObj {
   bool decoded = false;
 };
 
+struct FlareObj {
+  std::string name;
+  uint16_t revision = 0;
+  uint16_t trans_revision = 0;
+  uint16_t draw_revision = 0;
+  std::string parent;
+  Xfm local;
+  Xfm world_stored;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
+  bool showing = true;
+  float draw_order = 0.0f;
+  std::string material;
+  float sizes[2] = {0.1f, 0.1f};
+  float range[2] = {0.0f, 0.0f};
+  float offset = 0.0f;
+  int32_t steps = 1;
+  bool point_test = true;
+  bool source_order_decoded = false;
+  bool decoded = false;
+  std::string error;
+};
+
 struct SpotlightObj {
   std::string name;
   uint16_t revision = 0;
@@ -1361,6 +1385,8 @@ struct LightObj {
 struct EnvironObj {
   std::string name;
   uint16_t revision = 0;
+  bool legacy_drawable_showing = true;
+  std::vector<std::string> legacy_drawable_refs;
   std::vector<std::string> lights;
   float color_a[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   float fog_start = 0.0f;
@@ -1392,9 +1418,13 @@ struct GroupObj {
   bool has_transform = false;
   bool decoded = false;
   bool source_order_decoded = false;
+  bool legacy_view = false;
   bool showing = true;
   float draw_order = 0.0f;
   size_t dir_index = 0;
+  // Legacy View7 animation/message propagation members. These precede the
+  // embedded Trans/Drawable payload and are distinct from drawable children.
+  std::vector<std::string> anim_children;
   std::vector<std::string> children;
   std::string environment_ref;
   std::string draw_only;
@@ -1930,6 +1960,11 @@ struct MatObj {
   std::string diffuse_tex;   // diffuse .tex reference ("" if none)
   float color[4] = {1, 1, 1, 1};  // diffuse RGBA
   uint8_t blend = 0;         // BLEND_ENUM from macros.dta: Src/Add/SrcAlpha/...
+  // Mat21 carries two authored blend values. Preserve both so the legacy
+  // platform state can be audited without material-name special cases.
+  uint8_t legacy_primary_blend = 0;
+  uint8_t legacy_tail_blend = 0;
+  bool has_legacy_blends = false;
   // Diffuse texcoord transform, mapped from the Mat's 12-float source texture
   // matrix and applied as [u v 1] * tex_xfm by 2-D UV renderers.
   // Row 2 carries offset; off-diagonal and negative scale are used by mirrored
@@ -1940,7 +1975,9 @@ struct MatObj {
   // Compatibility fields for older render paths and diagnostics.
   float tex_scale[2] = {1.0f, 1.0f};
   float tex_offset[2] = {0.0f, 0.0f};
-  bool use_environ = false;
+  // RndMat constructor default. GH1 Mat21 overrides this in the first byte of
+  // its compact post-colour render-state tail.
+  bool use_environ = true;
   bool prelit = false;
   // Source schema render state immediately after color. GH2 PS2 v27 does not
   // serialize alpha_threshold; later revisions do. The default threshold is 0,
@@ -2195,6 +2232,8 @@ struct BoneTransform {
 struct MeshObj {
   std::string name;          // entry name (e.g. "green_gem.mesh")
   std::string parent;        // Trans parent name (links into the parent chain)
+  std::vector<std::string> legacy_children;  // Trans rev<9 child list
+  std::vector<std::string> drawable_children; // Drawable rev<2 draw list
   std::string material;      // Mat entry name this mesh draws with
   std::string geometry_owner;// Mesh entry that owns reusable geometry.
   Xfm local;                 // the mesh's own Trans local matrix
@@ -2319,11 +2358,15 @@ TransObj decode_trans(const std::string& entry_name,
                       const std::vector<uint8_t>& body,
                       int32_t parent_dir_revision = 24);
 CamObj decode_cam(const std::string& entry_name,
-                  const std::vector<uint8_t>& body);
+                  const std::vector<uint8_t>& body,
+                  int32_t parent_dir_revision = 24);
 WaypointObj decode_waypoint(const std::string& entry_name,
                              const std::vector<uint8_t>& body);
 SpotlightObj decode_spotlight(const std::string& entry_name,
                               const std::vector<uint8_t>& body);
+FlareObj decode_flare(const std::string& entry_name,
+                      const std::vector<uint8_t>& body,
+                      int32_t parent_dir_revision = 0);
 LightObj decode_light(const std::string& entry_name,
                       const std::vector<uint8_t>& body);
 EnvironObj decode_environ(const std::string& entry_name,
@@ -2410,6 +2453,7 @@ struct Scene {
   std::vector<MatObj> mats;
   std::vector<CamObj> cams;
   std::vector<WaypointObj> waypoints;
+  std::vector<FlareObj> flares;
   std::vector<SpotlightObj> spotlights;
   std::vector<LightObj> lights;
   std::vector<EnvironObj> environs;
@@ -2423,6 +2467,7 @@ struct Scene {
   std::vector<std::string> grouped_meshes;  // Meshes referenced by any Group.
   std::string dir_name;
   std::string dir_type;
+  int32_t dir_revision = 0;
   // PanelDir revision 2 / RndDir revision 8 tail, decoded in exact source
   // order from the directory object's own body.
   bool panel_dir_config_valid = false;

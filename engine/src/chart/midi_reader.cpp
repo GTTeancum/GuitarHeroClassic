@@ -85,6 +85,12 @@ struct TrackNoteOn {
     int velocity;
 };
 
+struct TrackNoteSpan {
+    uint32_t tick_on;
+    uint32_t tick_off;
+    int pitch;
+};
+
 // Star power region.
 struct SPRegion {
     uint32_t tick_on;
@@ -108,6 +114,7 @@ void parse_track(const uint8_t* data, size_t start, size_t end,
                  std::vector<SPRegion>& sp_regions,
                  std::vector<TextEvent>& text_events,
                  std::vector<TrackNoteOn>& note_ons,
+                 std::vector<TrackNoteSpan>& note_spans,
                  std::string& name_out) {
     size_t pos = start;
     uint32_t abs_tick = 0;
@@ -121,10 +128,12 @@ void parse_track(const uint8_t* data, size_t start, size_t end,
     uint32_t active_sp_tick = 0;
     bool     active_sp = false;
     const uint32_t kMinDur = 1;  // minimum tick duration for tap notes
+    int active_span_idx[128];
 
     for (int d = 0; d < 4; ++d)
         for (int l = 0; l < 5; ++l)
             active_gem_idx[d][l] = -1;
+    std::fill(std::begin(active_span_idx), std::end(active_span_idx), -1);
 
     while (pos < end) {
         // Delta-time VLQ
@@ -203,6 +212,19 @@ void parse_track(const uint8_t* data, size_t start, size_t end,
             if (is_on) {
                 note_ons.push_back(
                     {abs_tick, pitch, static_cast<int>(p2)});
+                if (pitch >= 0 && pitch < 128) {
+                    note_spans.push_back(
+                        {abs_tick, abs_tick + kMinDur, pitch});
+                    active_span_idx[pitch] =
+                        static_cast<int>(note_spans.size()) - 1;
+                }
+            } else if (is_off && pitch >= 0 && pitch < 128 &&
+                       active_span_idx[pitch] >= 0) {
+                const size_t idx =
+                    static_cast<size_t>(active_span_idx[pitch]);
+                if (idx < note_spans.size())
+                    note_spans[idx].tick_off = abs_tick;
+                active_span_idx[pitch] = -1;
             }
 
             // GH2 PS2 star power phrases are authored as guitar-track note 103.
@@ -244,6 +266,12 @@ void parse_track(const uint8_t* data, size_t start, size_t end,
                 if (idx < raw_notes.size() && raw_notes[idx].tick_off < abs_tick)
                     raw_notes[idx].tick_off = abs_tick;
             }
+    for (int pitch = 0; pitch < 128; ++pitch) {
+        if (active_span_idx[pitch] < 0) continue;
+        const size_t idx = static_cast<size_t>(active_span_idx[pitch]);
+        if (idx < note_spans.size() && note_spans[idx].tick_off < abs_tick)
+            note_spans[idx].tick_off = abs_tick;
+    }
 }
 
 }  // namespace
@@ -465,6 +493,7 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     std::vector<std::vector<SPRegion>> all_sp(tracks.size());
     std::vector<std::vector<TextEvent>> all_text(tracks.size());
     std::vector<std::vector<TrackNoteOn>> all_note_ons(tracks.size());
+    std::vector<std::vector<TrackNoteSpan>> all_note_spans(tracks.size());
 
     // Extra tempo events collected across all tracks (merged after).
     std::vector<TempoChange> extra_tempos;
@@ -473,7 +502,7 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
         std::vector<TempoChange> local_tempos;
         parse_track(data, tracks[t].start, tracks[t].end,
                     local_tempos, all_raw[t], all_sp[t], all_text[t],
-                    all_note_ons[t], tracks[t].name);
+                    all_note_ons[t], all_note_spans[t], tracks[t].name);
         // Merge tempos from all tracks.
         for (auto& tc : local_tempos)
             extra_tempos.push_back(tc);
@@ -511,13 +540,57 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
         std::fprintf(stderr, "[midi] no EVENTS track found; using track 0 text events\n");
     }
     for (size_t t : event_tracks) {
-        for (auto& ev : all_text[t]) chart.text_events.push_back(std::move(ev));
+        // Keep the parsed source rows available for the GH1 ANIM/EVENTS
+        // mapper pass below; TextEvent is small and the retained copy avoids
+        // reading moved-from event names.
+        for (const auto& ev : all_text[t]) chart.text_events.push_back(ev);
         std::fprintf(stderr, "[midi] using event track %zu '%s'\n",
                      t, tracks[t].name.c_str());
     }
 
     for (size_t t = 0; t < tracks.size(); ++t) {
-        if (tracks[t].name == "EVENTS" || tracks[t].name.empty()) continue;
+        if (tracks[t].name != "ANIM") continue;
+        chart.gh1_anim_track = true;
+        append_fret_position_cues(all_note_ons[t], chart.fret_positions);
+        for (const auto& ev : all_text[t]) {
+            if (ev.text.rfind("HandMap_", 0) == 0) {
+                chart.hand_map_cues.push_back({ev.tick, ev.text});
+            } else if (ev.text.rfind("StrumMap_", 0) == 0) {
+                chart.strum_map_cues.push_back({ev.tick, ev.text});
+            }
+        }
+        for (const auto& span : all_note_spans[t]) {
+            if ((span.pitch >= 24 && span.pitch <= 26) ||
+                (span.pitch >= 60 && span.pitch <= 83)) {
+                chart.hand_animation_cues.push_back(
+                    {span.tick_on, span.tick_off, span.pitch});
+            }
+        }
+    }
+
+    // GH1 normally authors HandMap/StrumMap text on ANIM, but the retail
+    // corpus also contains an EVENTS-authored StrumMap stream. Preserve the
+    // same semantic map cue regardless of which of those two GH1 source tracks
+    // owns it; do not move unrelated EVENTS text into the performer-track
+    // representation used by GH2.
+    if (chart.gh1_anim_track) {
+        for (size_t t = 0; t < tracks.size(); ++t) {
+            if (tracks[t].name != "EVENTS") continue;
+            for (const auto& ev : all_text[t]) {
+                if (ev.text.rfind("HandMap_", 0) == 0) {
+                    chart.hand_map_cues.push_back({ev.tick, ev.text});
+                } else if (ev.text.rfind("StrumMap_", 0) == 0) {
+                    chart.strum_map_cues.push_back({ev.tick, ev.text});
+                }
+            }
+        }
+    }
+
+    for (size_t t = 0; t < tracks.size(); ++t) {
+        if (tracks[t].name == "EVENTS" || tracks[t].name == "ANIM" ||
+            tracks[t].name.empty()) {
+            continue;
+        }
         for (const auto& ev : all_text[t]) {
             chart.performer_events.push_back({ev.tick, tracks[t].name, ev.text});
         }
@@ -587,6 +660,19 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                      [](const TrackTextEvent& a, const TrackTextEvent& b) {
                          return a.tick < b.tick;
                      });
+    auto sort_hand_maps = [](std::vector<HandMapCue>& cues) {
+        std::stable_sort(cues.begin(), cues.end(),
+                         [](const HandMapCue& a, const HandMapCue& b) {
+                             return a.tick < b.tick;
+                         });
+    };
+    sort_hand_maps(chart.hand_map_cues);
+    sort_hand_maps(chart.strum_map_cues);
+    std::stable_sort(
+        chart.hand_animation_cues.begin(), chart.hand_animation_cues.end(),
+        [](const HandAnimationCue& a, const HandAnimationCue& b) {
+            return a.tick_on < b.tick_on;
+        });
     std::sort(chart.drum_cues.begin(), chart.drum_cues.end(),
               [](const DrumCue& a, const DrumCue& b) {
                   if (a.tick != b.tick) return a.tick < b.tick;
@@ -609,6 +695,10 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     std::fprintf(stderr, "[midi] text events=%zu\n", chart.text_events.size());
     std::fprintf(stderr, "[midi] performer text events=%zu\n",
                  chart.performer_events.size());
+    std::fprintf(stderr,
+                 "[midi] GH1 ANIM handMap=%zu strumMap=%zu directHand=%zu\n",
+                 chart.hand_map_cues.size(), chart.strum_map_cues.size(),
+                 chart.hand_animation_cues.size());
     std::fprintf(stderr, "[midi] drum cues=%zu\n", chart.drum_cues.size());
     std::fprintf(stderr, "[midi] bass cues=%zu\n", chart.bass_cues.size());
     std::fprintf(stderr, "[midi] lighting cues=%zu\n",
@@ -793,7 +883,18 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
         for (auto& n : all_raw[t]) raw_notes.push_back(n);
         for (auto& s : all_sp[t])  sp_regions.push_back(s);
         append_fret_position_cues(all_note_ons[t], chart.fret_positions);
+        for (const auto& span : all_note_spans[t]) {
+            if (span.pitch == 108) {
+                chart.singer_face_cues.push_back(
+                    {span.tick_on, span.tick_off, span.pitch});
+            }
+        }
     }
+    std::stable_sort(
+        chart.singer_face_cues.begin(), chart.singer_face_cues.end(),
+        [](const SingerFaceCue& a, const SingerFaceCue& b) {
+            return a.tick_on < b.tick_on;
+        });
 
     append_chart_notes(raw_notes, sp_regions, chart.notes);
     append_hand_gem_cues(chart, chart.notes, chart.fret_hand_cues);
@@ -823,13 +924,14 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     sort_fret_position_cues(chart.bass_fret_positions);
     apply_fret_position_min_gap(chart, chart.bass_fret_positions);
 
-    std::fprintf(stderr, "[midi] parsed: Easy=%zu Med=%zu Hard=%zu Expert=%zu BassMed=%zu fretPos=%zu bassFretPos=%zu handCues=%zu bassHandCues=%zu dur=%.1fs\n",
+    std::fprintf(stderr, "[midi] parsed: Easy=%zu Med=%zu Hard=%zu Expert=%zu BassMed=%zu fretPos=%zu bassFretPos=%zu handCues=%zu bassHandCues=%zu singerFace=%zu dur=%.1fs\n",
                  chart.notes[0].size(), chart.notes[1].size(),
                  chart.notes[2].size(), chart.notes[3].size(),
                  chart.bass_notes[1].size(), chart.fret_positions.size(),
                  chart.bass_fret_positions.size(),
                  chart.fret_hand_cues[3].size(),
                  chart.bass_fret_hand_cues[3].size(),
+                 chart.singer_face_cues.size(),
                  chart.duration_sec());
     return chart;
 }

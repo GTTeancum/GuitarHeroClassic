@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <limits>
 #include <unordered_map>
 #include <unordered_set>
@@ -238,7 +239,12 @@ BlendState blend_state_for(uint8_t blend) {
     case kBlendSrc:
       return {D3DBLEND_ONE, D3DBLEND_ZERO, D3DBLENDOP_ADD, false};
     case kBlendAdd:
-      return {D3DBLEND_ONE, D3DBLEND_ONE, D3DBLENDOP_ADD, true};
+      // Milo's PS2 indexed textures decode to straight-alpha RGBA, not
+      // premultiplied RGB. Weight the source by its authored texture alpha
+      // before adding it to the framebuffer. ONE/ONE exposes RGB stored in
+      // fully transparent palette entries (for example GH1 band_shadow.tex's
+      // transparent white border) and is only valid for premultiplied input.
+      return {D3DBLEND_SRCALPHA, D3DBLEND_ONE, D3DBLENDOP_ADD, true};
     case kBlendSrcAlpha:
       return {D3DBLEND_SRCALPHA, D3DBLEND_INVSRCALPHA, D3DBLENDOP_ADD,
               false};
@@ -408,10 +414,21 @@ void install_default_scene_fill_lights(IDirect3DDevice9* dev) {
 
 void install_approx_scene_lights(
     IDirect3DDevice9* dev,
-    std::vector<ApproxLightCandidate>& candidates) {
+    std::vector<ApproxLightCandidate>& candidates,
+    bool install_defaults_when_empty) {
   if (!dev) return;
   if (candidates.empty()) {
-    install_default_scene_fill_lights(dev);
+    if (install_defaults_when_empty) {
+      install_default_scene_fill_lights(dev);
+    } else {
+      // A decoded RndEnviron with no approximate lights is an authored
+      // ambient-only state.  The renderer's fallback fill lights are only for
+      // meshes with no Environ ownership; adding them here double-lights
+      // use_environ materials (especially additive venue light pools).
+      for (DWORD i = 0; i < kSceneFillLightSlotCount; ++i) {
+        dev->LightEnable(kSceneFillLightFirstSlot + i, FALSE);
+      }
+    }
     return;
   }
   std::sort(candidates.begin(), candidates.end(),
@@ -1778,7 +1795,8 @@ debug_venue_inspector_states() {
 
 bool debug_venue_inspector_enabled() {
   return env_enabled("GHOGX_VENUE_FREECAM") ||
-         env_enabled("GHOGX_DEBUG_VENUE_FREECAM");
+         env_enabled("GHOGX_DEBUG_VENUE_FREECAM") ||
+         env_enabled("GHOGX_DEBUG_VENUE_PICK_AUTHORED");
 }
 
 const char* cull_mode_name(DWORD mode) {
@@ -2732,6 +2750,10 @@ MiloSceneRenderer::MiloSceneRenderer(Window& win) : win_(&win) {
 
 MiloSceneRenderer::~MiloSceneRenderer() {
   debug_venue_inspector_states().erase(this);
+  for (auto& [name, state] : flare_visibility_) {
+    (void)name;
+    if (state.query) state.query->Release();
+  }
   for (auto& kv : tex_)
     if (kv.second) kv.second->Release();
   for (auto* t : text_tex_)
@@ -2984,7 +3006,7 @@ bool MiloSceneRenderer::apply_environment_lighting_state(
   }
   if (has_env_color) dev_->SetRenderState(D3DRS_AMBIENT,
                                           d3d_color_from_rgba(env_color));
-  install_approx_scene_lights(dev_, approx_directional_lights);
+  install_approx_scene_lights(dev_, approx_directional_lights, false);
 
   if (env_enabled("GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS")) return true;
 
@@ -3291,6 +3313,11 @@ const milo_scene::MatObj* MiloSceneRenderer::find_material(
 void MiloSceneRenderer::set_scene(
     milo_scene::Scene scene,
     const std::map<std::string, ghogx::asset::Image>& textures) {
+  for (auto& [name, state] : flare_visibility_) {
+    (void)name;
+    if (state.query) state.query->Release();
+  }
+  flare_visibility_.clear();
   scene_ = std::move(scene);
   selected_camera_name_.clear();
   materials_by_name_.clear();
@@ -3311,16 +3338,44 @@ void MiloSceneRenderer::set_scene(
   queued.reserve(scene_.meshes.size());
   std::unordered_set<std::string> grouped_meshes(scene_.grouped_meshes.begin(),
                                                  scene_.grouped_meshes.end());
-  for (const auto& name : scene_.draw_order) {
+  std::unordered_set<std::string> visited_draw_groups;
+  std::function<void(const std::string&)> queue_authored_draw =
+      [&](const std::string& name) {
     for (const auto& mesh : scene_.meshes) {
       if (queued.find(&mesh) == queued.end() && mesh.name == name) {
         ordered_draw_meshes_.push_back(&mesh);
         queued.insert(&mesh);
-        break;
+        return;
       }
     }
+    const auto group_it = groups_by_name_.find(name);
+    if (group_it == groups_by_name_.end() || !group_it->second ||
+        !visited_draw_groups.insert(name).second) {
+      return;
+    }
+    for (const auto& child : group_it->second->children) {
+      queue_authored_draw(child);
+    }
+  };
+  for (const auto& name : scene_.draw_order) {
+    queue_authored_draw(name);
   }
+  // GH1 Environ revision 1 is itself a drawable in the authored root graph.
+  // Its legacy drawable list is therefore an additional draw traversal, not
+  // part of ObjectDir's ungrouped-object fallback.
+  for (const auto& env : scene_.environs) {
+    if (!env.decoded || !env.legacy_drawable_showing) continue;
+    for (const auto& mesh : env.legacy_drawable_refs) {
+      queue_authored_draw(mesh);
+    }
+  }
+  const bool legacy_authored_root_only =
+      scene_.dir_revision == 10 && !scene_.draw_order.empty();
   for (const auto& mesh : scene_.meshes) {
+    // GH1 revision-10 RndDirs draw through their selected authored root View.
+    // Ungrouped objects include placement, crowd-limit, and editor helpers;
+    // ObjectDir does not implicitly append them after drawing that root.
+    if (legacy_authored_root_only) continue;
     if (!scene_.draw_order.empty() &&
         grouped_meshes.find(mesh.name) != grouped_meshes.end()) {
       continue;
@@ -3371,6 +3426,7 @@ void MiloSceneRenderer::set_scene(
   active_spotlight_filter_ = false;
   active_spotlights_.clear();
   mesh_environments_.clear();
+  legacy_environment_drawables_.clear();
 
   size_t mesh_environment_conflicts = 0;
   auto assign_group_environments =
@@ -3383,10 +3439,6 @@ void MiloSceneRenderer::set_scene(
       return;
     }
     const auto& group = *group_it->second;
-    if (!group.showing) {
-      visiting.erase(group_name);
-      return;
-    }
     if (!group.environment_ref.empty()) current_env = group.environment_ref;
     const auto assign_child = [&](const std::string& child) {
       if (has_suffix(child, ".mesh")) {
@@ -3397,7 +3449,7 @@ void MiloSceneRenderer::set_scene(
             ++mesh_environment_conflicts;
           }
         }
-      } else if (has_suffix(child, ".grp")) {
+      } else if (groups_by_name_.find(child) != groups_by_name_.end()) {
         self(self, child, current_env, visiting);
       }
     };
@@ -3411,7 +3463,18 @@ void MiloSceneRenderer::set_scene(
   for (const auto& group : scene_.groups) {
     std::unordered_set<std::string> visiting;
     assign_group_environments(assign_group_environments, group.name, {},
-                              visiting);
+                               visiting);
+  }
+  for (const auto& env : scene_.environs) {
+    if (!env.decoded || !env.legacy_drawable_showing) continue;
+    for (const auto& mesh : env.legacy_drawable_refs) {
+      const auto it = mesh_environments_.find(mesh);
+      if (it != mesh_environments_.end() && it->second != env.name) {
+        ++mesh_environment_conflicts;
+      }
+      mesh_environments_[mesh] = env.name;
+      legacy_environment_drawables_.insert(mesh);
+    }
   }
   if (env_enabled("GHOGX_LOG_ENVIRON_MESHES")) {
     size_t decoded_refs = 0;
@@ -3498,6 +3561,128 @@ void MiloSceneRenderer::set_scene(
                  authored->parent.empty() ? "<none>" : authored->parent.c_str(),
                  authored->target.empty() ? "<none>" : authored->target.c_str());
   }
+}
+
+void MiloSceneRenderer::set_transform_parent_overrides(
+    std::map<std::string, std::string> parents) {
+  transform_parent_overrides_ = std::move(parents);
+}
+
+void MiloSceneRenderer::set_flare_steps(std::map<std::string, int> steps) {
+  flare_steps_ = std::move(steps);
+}
+
+bool MiloSceneRenderer::resolve_transform_parent_world(
+    const std::string& name, std::array<float, 16>& world) const {
+  auto resolve = [&](auto&& self, const std::string& node,
+                     std::array<float, 16>& out, int guard) -> bool {
+    if (guard >= 64) return false;
+
+    if (node == selected_camera_name_ && cam_.result_frame.valid) {
+      const auto& frame = cam_.result_frame;
+      auto normalize3 = [](std::array<float, 3> value) {
+        const float length = std::sqrt(value[0] * value[0] +
+                                       value[1] * value[1] +
+                                       value[2] * value[2]);
+        if (length > 0.000001f) {
+          for (float& component : value) component /= length;
+        }
+        return value;
+      };
+      const auto forward = normalize3(
+          {frame.forward[0], frame.forward[1], frame.forward[2]});
+      const auto up =
+          normalize3({frame.up[0], frame.up[1], frame.up[2]});
+      const auto right = normalize3(
+          {forward[1] * up[2] - forward[2] * up[1],
+           forward[2] * up[0] - forward[0] * up[2],
+           forward[0] * up[1] - forward[1] * up[0]});
+      out = {right[0], right[1], right[2], 0.0f,
+             forward[0], forward[1], forward[2], 0.0f,
+             up[0], up[1], up[2], 0.0f,
+             frame.position[0], frame.position[1], frame.position[2], 1.0f};
+      return true;
+    }
+
+    std::array<float, 16> local{};
+    std::string parent;
+    uint32_t constraint = 0;
+    bool found = false;
+    for (const auto& mesh : scene_.meshes) {
+      if (mesh.name != node) continue;
+      local = xfm_to_mat4(mesh.local);
+      parent = mesh.parent;
+      constraint = mesh.constraint;
+      found = true;
+      break;
+    }
+    if (!found) {
+      for (const auto& group : scene_.groups) {
+        if (group.name != node) continue;
+        local =
+            group.has_transform ? xfm_to_mat4(group.local) : identity16();
+        parent = group.parent;
+        constraint = group.constraint;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      for (const auto& trans : scene_.transes) {
+        if (trans.name != node) continue;
+        local = xfm_to_mat4(trans.local);
+        parent = trans.parent;
+        constraint = trans.constraint;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      for (const auto& flare : scene_.flares) {
+        if (flare.name != node) continue;
+        local = xfm_to_mat4(flare.local);
+        parent = flare.parent;
+        constraint = flare.constraint;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      for (const auto& light : scene_.lights) {
+        if (light.name != node) continue;
+        local = xfm_to_mat4(light.local);
+        parent = light.parent;
+        constraint = light.constraint;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      for (const auto& camera : scene_.cams) {
+        if (camera.name != node) continue;
+        local = xfm_to_mat4(camera.local);
+        parent = camera.parent;
+        constraint = camera.constraint;
+        found = true;
+        break;
+      }
+    }
+    if (!found) return false;
+
+    if (const auto override_it = transform_parent_overrides_.find(node);
+        override_it != transform_parent_overrides_.end()) {
+      parent = override_it->second;
+    }
+    if (parent.empty() || parent == node) {
+      out = local;
+      return true;
+    }
+    std::array<float, 16> parent_world{};
+    if (!self(self, parent, parent_world, guard + 1)) return false;
+    out = apply_transform_constraint(local, parent_world, constraint);
+    return true;
+  };
+  return resolve(resolve, name, world, 0);
 }
 
 bool MiloSceneRenderer::select_authored_camera(const std::string& name) {
@@ -3655,9 +3840,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
 
   DebugVenueInspectorState* debug_venue = nullptr;
   if (draw_scene && debug_venue_inspector_enabled() &&
-      scene_has_debug_venue_markers(scene_)) {
+      (scene_has_debug_venue_markers(scene_) ||
+       env_enabled("GHOGX_DEBUG_VENUE_FREECAM") ||
+       env_enabled("GHOGX_DEBUG_VENUE_PICK_AUTHORED"))) {
     debug_venue = &debug_venue_inspector_states()[this];
-    apply_debug_venue_freecam(win_, cam_, *debug_venue);
+    if (!env_enabled("GHOGX_DEBUG_VENUE_PICK_AUTHORED")) {
+      apply_debug_venue_freecam(win_, cam_, *debug_venue);
+    }
   }
 
   float eye[3];
@@ -3836,6 +4025,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   auto sampled_light_world = [&](const milo_scene::LightObj& light,
                                  const std::string& ref) {
     auto world = xfm_to_mat4(light.world_stored);
+    if (transform_parent_overrides_.find(ref) !=
+        transform_parent_overrides_.end()) {
+      (void)resolve_transform_parent_world(ref, world);
+    }
     if (transform_target_has_sample(ref)) {
       apply_transform_samples_to_target(world, ref);
     }
@@ -3985,7 +4178,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
                                    const std::string* material_override = nullptr,
                                    const SpotlightState* spotlight_state = nullptr,
                                    bool force_debug_draw = false) {
-    if (!m.decoded || (!m.showing && !force_debug_draw) ||
+    const bool legacy_environment_drawable =
+        legacy_environment_drawables_.find(m.name) !=
+        legacy_environment_drawables_.end();
+    if (!m.decoded ||
+        (!m.showing && !legacy_environment_drawable && !force_debug_draw) ||
         m.vertex_count == 0 || m.face_count == 0) {
       return;
     }
@@ -4033,21 +4230,50 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       material_z_mode = mat->z_mode;
     }
     if (env_enabled("GHOGX_LOG_VENUE_MATERIAL") &&
-        (m.name.find("stadium_spotlight") != std::string::npos ||
+        (mesh_matches_env_spec("GHOGX_LOG_VENUE_MATERIAL_MATCH", m.name) ||
+         m.name.find("stadium_spotlight") != std::string::npos ||
          material.find("stadium_rays") != std::string::npos ||
          material.find("searchlight_beam") != std::string::npos)) {
       static std::unordered_set<std::string> logged_materials;
       const std::string key = m.name + "|" + material;
       if (logged_materials.insert(key).second) {
+        std::array<float, 4> vertex_min = {1.0f, 1.0f, 1.0f, 1.0f};
+        std::array<float, 4> vertex_max = {0.0f, 0.0f, 0.0f, 0.0f};
+        for (const auto& vertex : m.verts) {
+          const std::array<float, 4> color = {
+              vertex.r, vertex.g, vertex.b, vertex.a};
+          for (size_t channel = 0; channel < color.size(); ++channel) {
+            vertex_min[channel] =
+                std::min(vertex_min[channel], color[channel]);
+            vertex_max[channel] =
+                std::max(vertex_max[channel], color[channel]);
+          }
+        }
         std::fprintf(stderr,
                      "[milo_scene] venue material mesh=%s material=%s "
                      "tex=%s blend=%u color=(%.3f %.3f %.3f %.3f) "
-                     "prelit=%d use_environ=%d zmode=%u\n",
+                     "legacy_blends=%s%u/%u "
+                     "prelit=%d use_environ=%d zmode=%u "
+                     "vertex0=(%.3f %.3f %.3f %.3f) "
+                     "vertex_range=[%.3f..%.3f %.3f..%.3f "
+                     "%.3f..%.3f %.3f..%.3f]\n",
                      m.name.c_str(), material.c_str(), diffuse_tex.c_str(),
                      static_cast<unsigned>(material_blend), mr, mg, mb, ma,
+                     mat_obj && mat_obj->has_legacy_blends ? "" : "n/a:",
+                     mat_obj ? static_cast<unsigned>(
+                                   mat_obj->legacy_primary_blend) : 0u,
+                     mat_obj ? static_cast<unsigned>(
+                                   mat_obj->legacy_tail_blend) : 0u,
                      mat_obj && mat_obj->prelit ? 1 : 0,
                      mat_obj && mat_obj->use_environ ? 1 : 0,
-                     static_cast<unsigned>(material_z_mode));
+                     static_cast<unsigned>(material_z_mode),
+                     m.verts.empty() ? 1.0f : m.verts.front().r,
+                     m.verts.empty() ? 1.0f : m.verts.front().g,
+                     m.verts.empty() ? 1.0f : m.verts.front().b,
+                     m.verts.empty() ? 1.0f : m.verts.front().a,
+                     vertex_min[0], vertex_max[0], vertex_min[1],
+                     vertex_max[1], vertex_min[2], vertex_max[2],
+                     vertex_min[3], vertex_max[3]);
       }
     }
     if (const auto tex_name_it = material_textures_.find(material);
@@ -4126,7 +4352,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
     d3d_state.render(D3DRS_AMBIENT, mesh_ambient);
-    install_approx_scene_lights(dev_, approx_directional_lights);
+    install_approx_scene_lights(dev_, approx_directional_lights,
+                                mesh_env == nullptr);
     configure_authored_fog(mesh_env);
     configure_authored_lights(mesh_env);
     if (mesh_env && env_enabled("GHOGX_LOG_ENVIRON_LIGHTING")) {
@@ -4248,6 +4475,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
       material_blend = kBlendSrcAlpha;
       material_z_mode = kZModeForce;
+    }
+    if (mesh_matches_env_spec("GHOGX_DEBUG_ALPHA_VENUE_MESH", m.name)) {
+      ma *= env_float_or("GHOGX_DEBUG_ALPHA_VENUE_VALUE", 0.2f, 0.0f, 1.0f);
+      material_blend = kBlendSrcAlpha;
+      material_z_mode = kZModeTransparent;
     }
     const BlendState blend_state = blend_state_for(material_blend);
     const DWORD mesh_cull_mode =
@@ -4846,6 +5078,15 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
                      "groups=%zu grouped=%zu source_order=%zu\n",
                      draw_meshes.size(), scene_.groups.size(),
                      scene_.grouped_meshes.size(), scene_.draw_order.size());
+        for (const auto& group : scene_.groups) {
+          std::fprintf(stderr,
+                       "[milo_scene] draw_group=%s showing=%d legacy_view=%d "
+                       "children=%zu anim_children=%zu draw_only=%s parent=%s\n",
+                       group.name.c_str(), group.showing ? 1 : 0,
+                       group.legacy_view ? 1 : 0, group.children.size(),
+                       group.anim_children.size(), group.draw_only.c_str(),
+                       group.parent.c_str());
+        }
         for (size_t i = 0; i < draw_meshes.size(); ++i) {
           const auto* mesh = draw_meshes[i];
           const auto* mat = mesh ? scene_.find_mat(mesh->material) : nullptr;
@@ -4957,8 +5198,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     const DWORD pick_cull_mode =
         venue_mesh_cull_mode(scene_, m, pick_mat, authored_cull_mode, false);
     const bool cull_enabled = pick_cull_mode != D3DCULL_NONE;
+    const bool source_showing =
+        m.showing || legacy_environment_drawables_.find(m.name) !=
+                         legacy_environment_drawables_.end();
     const bool would_reach_draw =
-        m.decoded && m.showing && !hidden_by_runtime && !hidden_by_debug_skip &&
+        m.decoded && source_showing && !hidden_by_runtime && !hidden_by_debug_skip &&
         !spotlight_template_mesh && !material_invisible;
     const bool debug_source_highlighted =
         debug_venue && !debug_venue->highlight_mesh.empty() &&
@@ -5085,6 +5329,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       auto impl = [&](auto&& self, const std::string& node,
                       std::array<float, 16>& out, int guard) -> bool {
         if (guard >= 64) return false;
+        if (transform_parent_overrides_.find(node) !=
+                transform_parent_overrides_.end() &&
+            resolve_transform_parent_world(node, out)) {
+          return true;
+        }
         if (world_override_for(node, out)) return true;
         std::array<float, 16> local{};
         if (!local_for(node, local)) return false;
@@ -5870,6 +6119,208 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
   }
+
+    for (const auto& flare : scene_.flares) {
+      if (!flare.decoded || !flare.showing || flare.material.empty() ||
+          hidden_meshes_.find(flare.name) != hidden_meshes_.end()) {
+        continue;
+      }
+      std::array<float, 16> flare_source_world{};
+      const auto parent_override =
+          transform_parent_overrides_.find(flare.name);
+      const bool has_runtime_parent =
+          parent_override != transform_parent_overrides_.end() ||
+          (!flare.parent.empty() && flare.parent != flare.name);
+      if (has_runtime_parent) {
+        if (!resolve_transform_parent_world(flare.name, flare_source_world)) {
+          continue;
+        }
+      } else {
+        // RndDrawable submits its Transformable's cached WorldXfm. GH1
+        // revision-8 root transforms commonly serialize an identity local
+        // matrix, a self/null parent reference, and the authored placement in
+        // the stored world matrix. With no reconstructed/runtime parent, that
+        // stored matrix is the native drawable transform.
+        flare_source_world = xfm_to_mat4(flare.world_stored);
+      }
+      const auto flare_draw_world =
+          mul16(flare_source_world, world_transform_);
+      float forward[3] = {flare_draw_world[4], flare_draw_world[5],
+                          flare_draw_world[6]};
+      const float forward_len =
+          std::sqrt(forward[0] * forward[0] + forward[1] * forward[1] +
+                    forward[2] * forward[2]);
+      if (forward_len > 0.001f) {
+        for (float& component : forward) component /= forward_len;
+      }
+      const float center[3] = {
+          flare_draw_world[12] + forward[0] * flare.offset,
+          flare_draw_world[13] + forward[1] * flare.offset,
+          flare_draw_world[14] + forward[2] * flare.offset};
+      const float dx = center[0] - eye[0];
+      const float dy = center[1] - eye[1];
+      const float dz = center[2] - eye[2];
+      const float distance =
+          std::max(0.001f, std::sqrt(dx * dx + dy * dy + dz * dz));
+      auto& visibility = flare_visibility_[flare.name];
+      if (flare.point_test) {
+        if (!visibility.query) {
+          dev_->CreateQuery(D3DQUERYTYPE_OCCLUSION, &visibility.query);
+        }
+        if (visibility.query && visibility.query_issued) {
+          DWORD visible_pixels = 0;
+          if (visibility.query->GetData(&visible_pixels,
+                                        sizeof(visible_pixels), 0) == S_OK) {
+            visibility.target_visible = visible_pixels != 0;
+            visibility.query_issued = false;
+            if (env_enabled("GHOGX_DEBUG_VENUE_FILTERS")) {
+              static std::unordered_set<std::string> logged_flare_queries;
+              if (logged_flare_queries.insert(flare.name).second) {
+                std::fprintf(
+                    stderr,
+                    "[milo_scene] Flare point_test name=%s visible_pixels=%lu visible=%d center=(%.3f %.3f %.3f) distance=%.3f local=(%.3f %.3f %.3f) stored=(%.3f %.3f %.3f) parent=%s\n",
+                    flare.name.c_str(),
+                    static_cast<unsigned long>(visible_pixels),
+                    visibility.target_visible ? 1 : 0, center[0], center[1],
+                    center[2], distance, flare.local.pos[0],
+                    flare.local.pos[1], flare.local.pos[2],
+                    flare.world_stored.pos[0], flare.world_stored.pos[1],
+                    flare.world_stored.pos[2],
+                    flare.parent.c_str());
+              }
+            }
+          }
+        }
+        if (visibility.query && !visibility.query_issued) {
+          DWORD color_write = 0;
+          DWORD z_enable = 0;
+          DWORD z_write = 0;
+          DWORD alpha_blend = 0;
+          DWORD alpha_test = 0;
+          DWORD lighting = 0;
+          DWORD cull_mode = 0;
+          DWORD old_fvf = kFVF;
+          dev_->GetRenderState(D3DRS_COLORWRITEENABLE, &color_write);
+          dev_->GetRenderState(D3DRS_ZENABLE, &z_enable);
+          dev_->GetRenderState(D3DRS_ZWRITEENABLE, &z_write);
+          dev_->GetRenderState(D3DRS_ALPHABLENDENABLE, &alpha_blend);
+          dev_->GetRenderState(D3DRS_ALPHATESTENABLE, &alpha_test);
+          dev_->GetRenderState(D3DRS_LIGHTING, &lighting);
+          dev_->GetRenderState(D3DRS_CULLMODE, &cull_mode);
+          dev_->GetFVF(&old_fvf);
+          D3DMATRIX point_world;
+          const auto point_identity = identity16();
+          std::memcpy(&point_world, point_identity.data(), 64);
+          dev_->SetTransform(D3DTS_WORLD, &point_world);
+          dev_->SetRenderState(D3DRS_COLORWRITEENABLE, 0);
+          dev_->SetRenderState(D3DRS_ZENABLE, TRUE);
+          dev_->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+          dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+          dev_->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+          dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
+          dev_->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+          dev_->SetTexture(0, nullptr);
+          dev_->SetFVF(kFVF);
+          // Native RndFlare point-test visibility is a raster visibility test
+          // at the transformed flare origin. D3D9 point primitives are
+          // implementation-dependent and can produce no samples; submit a
+          // sub-pixel camera-facing quad so the occlusion query measures that
+          // same screen point without turning the test into flare geometry.
+          const float query_half_size =
+              std::max(0.02f, distance * std::tan(cam_.fov * 0.5f) * 0.002f);
+          const float right[3] = {view.m[0][0] * query_half_size,
+                                  view.m[1][0] * query_half_size,
+                                  view.m[2][0] * query_half_size};
+          const float camera_up[3] = {view.m[0][1] * query_half_size,
+                                      view.m[1][1] * query_half_size,
+                                      view.m[2][1] * query_half_size};
+          const auto query_vertex = [&](float right_sign, float up_sign) {
+            return SVtx{center[0] + right[0] * right_sign +
+                            camera_up[0] * up_sign,
+                        center[1] + right[1] * right_sign +
+                            camera_up[1] * up_sign,
+                        center[2] + right[2] * right_sign +
+                            camera_up[2] * up_sign,
+                        0.0f,
+                        0.0f,
+                        1.0f,
+                        0xffffffffu,
+                        0.0f,
+                        0.0f};
+          };
+          const SVtx query_quad[6] = {
+              query_vertex(-1.0f, -1.0f), query_vertex(-1.0f, 1.0f),
+              query_vertex(1.0f, 1.0f),   query_vertex(-1.0f, -1.0f),
+              query_vertex(1.0f, 1.0f),   query_vertex(1.0f, -1.0f)};
+          visibility.query->Issue(D3DISSUE_BEGIN);
+          dev_->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, query_quad,
+                                sizeof(SVtx));
+          visibility.query->Issue(D3DISSUE_END);
+          visibility.query_issued = true;
+          dev_->SetRenderState(D3DRS_COLORWRITEENABLE, color_write);
+          dev_->SetRenderState(D3DRS_ZENABLE, z_enable);
+          dev_->SetRenderState(D3DRS_ZWRITEENABLE, z_write);
+          dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, alpha_blend);
+          dev_->SetRenderState(D3DRS_ALPHATESTENABLE, alpha_test);
+          dev_->SetRenderState(D3DRS_LIGHTING, lighting);
+          dev_->SetRenderState(D3DRS_CULLMODE, cull_mode);
+          dev_->SetFVF(old_fvf);
+        }
+      } else {
+        visibility.target_visible = true;
+      }
+      const auto step_it = flare_steps_.find(flare.name);
+      const int steps =
+          step_it != flare_steps_.end() ? step_it->second : flare.steps;
+      if (steps <= 0) {
+        visibility.fade = visibility.target_visible ? 1.0f : 0.0f;
+      } else {
+        const float delta = 1.0f / static_cast<float>(steps);
+        visibility.fade = std::clamp(
+            visibility.fade +
+                (visibility.target_visible ? delta : -delta),
+            0.0f, 1.0f);
+      }
+      if (visibility.fade <= 0.0001f) continue;
+      float size = flare.sizes[0];
+      if (flare.range[1] > flare.range[0] + 0.001f) {
+        const float range_t = std::clamp(
+            (distance - flare.range[0]) /
+                (flare.range[1] - flare.range[0]),
+            0.0f, 1.0f);
+        size += (flare.sizes[1] - flare.sizes[0]) * range_t;
+      }
+      const float half_size =
+          std::max(0.0001f,
+                   size * distance * std::tan(cam_.fov * 0.5f));
+      auto billboard_world = identity16();
+      billboard_world[0] = view.m[0][0] * half_size;
+      billboard_world[1] = view.m[1][0] * half_size;
+      billboard_world[2] = view.m[2][0] * half_size;
+      billboard_world[8] = view.m[0][1] * half_size;
+      billboard_world[9] = view.m[1][1] * half_size;
+      billboard_world[10] = view.m[2][1] * half_size;
+      billboard_world[12] = center[0];
+      billboard_world[13] = center[1];
+      billboard_world[14] = center[2];
+      SpotlightState flare_state;
+      flare_state.intensity = visibility.fade;
+      draw_mesh_with_world(generated_spotlight_flare_, billboard_world,
+                           &flare.material, &flare_state);
+      if (env_enabled("GHOGX_DEBUG_VENUE_FILTERS")) {
+        static std::unordered_set<std::string> logged_flares;
+        if (logged_flares.insert(flare.name).second) {
+          std::fprintf(
+              stderr,
+              "[milo_scene] Flare draw name=%s source_order=1 material=%s sizes=(%.3f %.3f) range=(%.3f %.3f) steps=%d point_test=%d visible=%d fade=%.3f\n",
+              flare.name.c_str(), flare.material.c_str(), flare.sizes[0],
+              flare.sizes[1], flare.range[0], flare.range[1], steps,
+              flare.point_test ? 1 : 0,
+              visibility.target_visible ? 1 : 0, visibility.fade);
+        }
+      }
+    }
+
     disable_authored_fog();
     disable_authored_lights();
   }

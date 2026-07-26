@@ -377,12 +377,12 @@ int main() {
              "face output jaw y live-published");
   ok &= near(face_character.bones[1].local.pos[2], 4.5f,
              "face output jaw z live-published");
-  ok &= near(face_character.bones[2].local.pos[0], 0.0f,
-             "broad non-face output x remains fenced");
-  ok &= near(face_character.bones[2].local.pos[1], 0.0f,
-             "broad non-face output y remains fenced");
-  ok &= near(face_character.bones[2].local.pos[2], 0.0f,
-             "broad non-face output z remains fenced");
+  ok &= near(face_character.bones[2].local.pos[0], 9.0f,
+             "source output graph publishes non-face x");
+  ok &= near(face_character.bones[2].local.pos[1], 8.0f,
+             "source output graph publishes non-face y");
+  ok &= near(face_character.bones[2].local.pos[2], 7.0f,
+             "source output graph publishes non-face z");
 
   return ok ? 0 : 1;
 }

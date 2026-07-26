@@ -4,6 +4,7 @@
 
 #include "ark_v3.h"
 #include "milo.h"
+#include "milo_scene/milo_scene.h"
 
 #include <algorithm>
 #include <cmath>
@@ -25,7 +26,7 @@ constexpr int kMinRowHeight = 18;
 constexpr float kDefaultTrackingPx = 2.0f;
 
 uint8_t next_font_char(const std::string& text, size_t& index) {
-  const uint8_t c = static_cast<uint8_t>(text[index++]);
+  uint8_t c = static_cast<uint8_t>(text[index++]);
   switch (c) {
     case 0x91:
     case 0x92:
@@ -69,6 +70,10 @@ uint8_t next_font_char(const std::string& text, size_t& index) {
     }
   }
 
+  if (c >= 'a' && c <= 'z')
+    c = static_cast<uint8_t>(c - 0x20);
+  else if ((c >= 0xE0 && c <= 0xF6) || (c >= 0xF8 && c <= 0xFE))
+    c = static_cast<uint8_t>(c - 0x20);
   return c;
 }
 
@@ -114,7 +119,9 @@ struct Reader {
 }  // namespace
 
 bool MenuFont::load(const std::string& hdr_path, const std::string& ark_path,
-                    const std::string& milo_path) {
+                    const std::string& milo_path,
+                    const std::string& font_entry_name) {
+  std::string atlas_entry_name;
   try {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
     auto entry = ark.find(milo_path);
@@ -131,7 +138,11 @@ bool MenuFont::load(const std::string& hdr_path, const std::string& ark_path,
     // Find the Font entry body.
     const gh::milo::Entry* fe = nullptr;
     for (const auto& e : dir.entries)
-      if (e.type == "Font") { fe = &e; break; }
+      if (e.type == "Font" &&
+          (font_entry_name.empty() || e.name == font_entry_name)) {
+        fe = &e;
+        break;
+      }
     if (!fe || fe->offset + fe->size > payload.size()) {
       std::fprintf(stderr, "[font] no Font entry in %s\n", milo_path.c_str());
       return false;
@@ -139,13 +150,29 @@ bool MenuFont::load(const std::string& hdr_path, const std::string& ark_path,
     std::vector<uint8_t> body(payload.begin() + fe->offset,
                               payload.begin() + fe->offset + fe->size);
     if (!parse_font(body)) return false;
+    if (!font_entry_name.empty() && !material_name_.empty()) {
+      for (const auto& e : dir.entries) {
+        if (e.type != "Mat" || e.name != material_name_ ||
+            e.offset + e.size > payload.size())
+          continue;
+        std::vector<uint8_t> mat_body(payload.begin() + e.offset,
+                                      payload.begin() + e.offset + e.size);
+        const auto mat =
+            milo_scene::decode_mat(e.name, mat_body);
+        if (mat.decoded) atlas_entry_name = mat.diffuse_tex;
+        break;
+      }
+    }
   } catch (const std::exception& e) {
     std::fprintf(stderr, "[font] load failed: %s\n", e.what());
     return false;
   }
 
   // Decode the atlas (white glyphs in the alpha channel) and segment glyphs.
-  atlas_ = asset::load_milo_texture(hdr_path, ark_path, milo_path);
+  atlas_ = atlas_entry_name.empty()
+               ? asset::load_milo_texture(hdr_path, ark_path, milo_path)
+               : asset::load_milo_texture_named(
+                     hdr_path, ark_path, milo_path, atlas_entry_name);
   if (!atlas_.valid()) {
     std::fprintf(stderr, "[font] atlas decode failed for %s\n", milo_path.c_str());
     return false;
@@ -166,8 +193,11 @@ bool MenuFont::parse_font(const std::vector<uint8_t>& body) {
   tex_cell_u_ = 0.0f;
   tex_cell_v_ = 0.0f;
   char_info_.fill(SourceCharInfo{});
-  r.skip(9);                      // Hmx::Object metadata (all zero in practice)
+  // GH1 RndFont revision 7 predates the serialized Hmx::Object metadata
+  // inherited by later GH2-era revisions.
+  if (version > 7) r.skip(9);
   std::string material = r.str(); // "impact.mat"
+  material_name_ = material;
   cap_height_ = r.f32();          // 34
   line_height_ = r.f32();         // 50
   r.f32();                        // deprecatedSize

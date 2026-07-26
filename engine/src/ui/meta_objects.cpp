@@ -551,6 +551,86 @@ class TipsObject : public MetaObject {
   }
 };
 
+class SongProvider : public MetaObject {
+ public:
+  SongProvider(ScreenManager* mgr, ConfigDb* db)
+      : MetaObject(Symbol("song_provider"), mgr, db) {
+    set_property(Symbol("quickplay"), DataNode::Int(0));
+  }
+
+ protected:
+  bool handle_meta(Symbol msg, const DataArray& args, DataNode& out) override {
+    const char* m = msg.c_str();
+    if (std::strcmp(m, "set_quickplay") == 0) {
+      const bool enabled = args.size() && node_bool(args.at(0));
+      set_property(Symbol("quickplay"), DataNode::Int(enabled ? 1 : 0));
+      return true;
+    }
+    if (std::strcmp(m, "get_quickplay") == 0) {
+      out = DataNode::Int(
+          node_bool(get_property(Symbol("quickplay"))) ? 1 : 0);
+      return true;
+    }
+
+    const auto songs = current_songs();
+    const int requested = arg_int(args, 0, 0);
+    const std::size_t index =
+        songs.empty()
+            ? 0
+            : std::min<std::size_t>(
+                  static_cast<std::size_t>(std::max(0, requested)),
+                  songs.size() - 1);
+    const Symbol song = songs.empty() ? Symbol() : songs[index];
+
+    if (std::strcmp(m, "list_length") == 0) {
+      out = DataNode::Int(static_cast<int>(songs.size()));
+      return true;
+    }
+    if (std::strcmp(m, "num_headers") == 0) {
+      out = DataNode::Int(0);
+      return true;
+    }
+    if (std::strcmp(m, "get_symbol") == 0) {
+      out = song.valid() ? DataNode::Sym(song) : DataNode();
+      return true;
+    }
+    if (std::strcmp(m, "get_text") == 0) {
+      const int global_index = db_ ? db_->song_index(song) : -1;
+      const int column = arg_int(args, 1, 0);
+      const Symbol field = column == 1 ? Symbol("artist") : Symbol("name");
+      out = global_index >= 0
+                ? db_->song_field(static_cast<std::size_t>(global_index), field)
+                : DataNode();
+      if (out.empty() && song.valid()) out = DataNode::Sym(song);
+      return true;
+    }
+    if (std::strcmp(m, "refresh") == 0 ||
+        std::strcmp(m, "init_data") == 0)
+      return true;
+    return false;
+  }
+
+ private:
+  std::vector<Symbol> current_songs() const {
+    std::vector<Symbol> songs;
+    if (!db_) return songs;
+    if (node_bool(get_property(Symbol("quickplay")))) {
+      songs.reserve(db_->song_count());
+      for (std::size_t i = 0; i < db_->song_count(); ++i) {
+        Symbol song = db_->song_key(i);
+        if (song.valid()) songs.push_back(song);
+      }
+      return songs;
+    }
+    Symbol venue;
+    if (mgr_) {
+      if (Object* game = mgr_->resolve_object(Symbol("game")))
+        venue = node_symbol_or_string(game->get_property(Symbol("venue")));
+    }
+    return db_->campaign_songs(venue);
+  }
+};
+
 class StoreProvider : public MetaObject {
  public:
   StoreProvider(Symbol cls, ScreenManager* mgr, ConfigDb* db,
@@ -1024,6 +1104,13 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
   if (std::strcmp(m, "set_quickplay") == 0) {
     set_property(Symbol("mode"), DataNode::Sym(Symbol("quickplay")));
     set_property(Symbol("quickplay"), DataNode::Sym(Symbol("TRUE")));
+    if (mgr_) {
+      if (Object* provider = mgr_->resolve_object(Symbol("song_provider"))) {
+        DataArray enabled;
+        enabled.push(DataNode::Int(1));
+        provider->handle_property(Symbol("set_quickplay"), enabled);
+      }
+    }
     // The complete screen's SELECT SONG route returns to the Quickplay song
     // browser.  This value is normally populated by the retail game config
     // object, outside the UI scripts themselves.
@@ -1054,7 +1141,31 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     return true;
   }
   if (std::strcmp(m, "set_career_venue") == 0) {
-    Symbol venue = current_venue_or_default(*this, db_);
+    set_property(Symbol("mode"), DataNode::Sym(Symbol("career")));
+    set_property(Symbol("quickplay"), DataNode::Sym(Symbol("FALSE")));
+    if (mgr_) {
+      if (Object* provider = mgr_->resolve_object(Symbol("song_provider"))) {
+        DataArray disabled;
+        disabled.push(DataNode::Int(0));
+        provider->handle_property(Symbol("set_quickplay"), disabled);
+      }
+    }
+    const bool career_venue_screen =
+        mgr_ && mgr_->current_screen() &&
+        mgr_->current_screen()->name() == Symbol("sel_venue_screen");
+    int status = 0;
+    if (mgr_) {
+      if (Object* campaign = mgr_->resolve_object(Symbol("campaign")))
+        status =
+            std::max(0, campaign->get_property(Symbol("status"))
+                            .as_int()
+                            .value_or(0));
+    }
+    Symbol venue =
+        career_venue_screen && db_
+            ? db_->campaign_venue_at(static_cast<std::size_t>(status))
+            : Symbol();
+    if (!venue.valid()) venue = current_venue_or_default(*this, db_);
     set_property(Symbol("venue"), DataNode::Sym(venue));
     out = DataNode::Sym(venue);
     return true;
@@ -1509,6 +1620,18 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
   }
   if (std::strcmp(m, "is_unlocked") == 0) {
     const Symbol key = arg_symbol(args, 0);
+    // TEMPORARY REVIEW CHEAT (user-requested): expose every authored song,
+    // including the store's bonus tracks, so the complete setlist can be
+    // scrolled and visually audited.
+    // This is deliberately always on and has no command-line/environment
+    // switch. Remove it after the setlist review is accepted.
+    if (key.valid() && db_) {
+      for (std::size_t i = 0; i < db_->song_count(); ++i) {
+        if (db_->song_key(i) != key) continue;
+        out = DataNode::Int(1);
+        return true;
+      }
+    }
     if (key.valid() && db_ && db_->is_venue(key)) {
       out = DataNode::Int(1);
       return true;
@@ -1564,7 +1687,7 @@ void install_meta_singletons(ScreenManager& mgr, ConfigDb& db) {
   mgr.add_singleton(Symbol("section_provider"),
                     std::make_unique<PracticeSectionProvider>(&mgr, &db));
   mgr.add_singleton(Symbol("song_provider"),
-                    std::make_unique<MetaObject>(Symbol("song_provider"), &mgr, &db));
+                    std::make_unique<SongProvider>(&mgr, &db));
   mgr.add_singleton(Symbol("store_item_provider"),
                     std::make_unique<StoreProvider>(
                         Symbol("store_item_provider"), &mgr, &db));

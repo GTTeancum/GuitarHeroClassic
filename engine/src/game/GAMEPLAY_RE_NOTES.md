@@ -15279,3 +15279,23 @@ GH2 PS2 retail layout, and native theatre validation):
   live logs independently record the exact two decoded HUD animations plus
   successful `track_unfurl`, `nowbar_1..5`, and `meter_slide` submissions.
   This is now pending user visual review rather than additional proof capture.
+
+## 2026-07-25 archive-qualified performer composition
+
+- Performer model references now accept `source:model` for every authored band
+  role. Unqualified names keep retail ordering (selected/primary GH2 before
+  auxiliary archives); a qualifier filters archive candidates before the
+  native GH2 `char/...milo_ps2` and GH1 `charsys/...rnd_ps2` layouts are
+  attempted.
+- The selected guitarist still exclusively owns foreign highway selection.
+  Singer, bassist, drummer, and keyboard source changes do not replace GH2
+  gameplay, HUD, camera, title-card, or menu resources.
+- `--diagnostic-performer role=source:model` is a general proof route through
+  the same loader. It substitutes a role present in packed song band facts and
+  refuses to invent a fifth stage slot.
+- Final-binary proofs under
+  `.codex/current-evidence/gh1-character-complete/final-smoke-20260725/`
+  separately load untouched four-role GH2, a four-role GH1 band, and the GH1
+  keyboard in `Jessica`'s authored keyboard lineup. The post-deploy four-role
+  smoke is under
+  `.codex/current-evidence/gh1-character-complete/deployed-smoke-20260725/`.

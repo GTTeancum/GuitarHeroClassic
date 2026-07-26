@@ -10,7 +10,11 @@
 
 #pragma once
 
+#include <cstdint>
+#include <map>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace ghogx::ui {
 
@@ -24,6 +28,14 @@ struct MenuRunOptions {
   std::string preferred_song;
   int preferred_difficulty = 1;
   bool play_boot_presentation = true;
+  // Optional independent gameplay/content archive. The primary archive still
+  // owns the GH2 retail front end; this mount owns songs, venues, and band.
+  std::string content_hdr;
+  std::string content_ark;
+  // Read-only sidecar archives used for independently selected foreign
+  // characters. They never replace the primary GH2 presentation archive.
+  std::vector<std::pair<std::string, std::string>> auxiliary_asset_archives;
+  std::map<uint64_t, std::string> screenshot_sequence;
 };
 
 // hdr/ark = the PS2 ARK; screenshot_path (optional) captures one frame at

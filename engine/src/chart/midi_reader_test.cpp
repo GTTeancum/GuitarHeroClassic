@@ -226,6 +226,9 @@ static std::vector<uint8_t> build_test_smf() {
     t1.note_off(2560, 85);
     t1.note_on (2620, 85);
     t1.note_off(2680, 85);
+    // GH1 midi_parsers.dtb singer EventList source.
+    t1.note_on (2690, 108);
+    t1.note_off(2750, 108);
     t1.meta_eot();
 
     // Track 2: lighting trigger notes.
@@ -269,6 +272,49 @@ static std::vector<uint8_t> build_test_smf() {
     push_chunk(smf, "MTrk", t2.ev);
     push_chunk(smf, "MTrk", t3.ev);
     push_chunk(smf, "MTrk", t4.ev);
+    return smf;
+}
+
+static std::vector<uint8_t> build_gh1_anim_smf() {
+    TrackBuilder tempo;
+    tempo.meta_tempo(500000);
+    tempo.meta_eot();
+
+    TrackBuilder gems;
+    gems.meta_name("T1 GEMS");
+    gems.note_on(0, 96);
+    gems.note_off(120, 96);
+    gems.meta_eot();
+
+    TrackBuilder anim;
+    anim.meta_name("ANIM");
+    anim.meta_text(0, "HandMap_Default");
+    anim.note_on(0, 40);
+    anim.note_off(20, 40);
+    anim.meta_text(480, "HandMap_Solo");
+    anim.note_on(480, 59);
+    anim.note_off(500, 59);
+    anim.meta_text(960, "StrumMap_punk");
+    anim.note_on(960, 60);
+    anim.note_off(1020, 60);
+    anim.meta_eot();
+
+    TrackBuilder events;
+    events.meta_name("EVENTS");
+    events.meta_text(240, "StrumMap_softpick");
+    events.meta_text(480, "gtr_on");
+    events.meta_eot();
+
+    std::vector<uint8_t> smf;
+    smf.push_back('M'); smf.push_back('T'); smf.push_back('h'); smf.push_back('d');
+    push_u32be(smf, 6);
+    push_u16be(smf, 1);
+    push_u16be(smf, 4);
+    push_u16be(smf, 480);
+    push_chunk(smf, "MTrk", tempo.ev);
+    push_chunk(smf, "MTrk", gems.ev);
+    push_chunk(smf, "MTrk", anim.ev);
+    push_chunk(smf, "MTrk", events.ev);
     return smf;
 }
 
@@ -498,6 +544,16 @@ int main() {
               "FretPos[1]: pitch 59 -> spot 20");
     }
 
+    // --- GH1 singer DataEventList cue ---
+    CHECK(chart.singer_face_cues.size() == 1,
+          "GH1 singer face cues: 1");
+    if (chart.singer_face_cues.size() == 1) {
+        CHECK(chart.singer_face_cues[0].tick_on == 2690 &&
+              chart.singer_face_cues[0].tick_off == 2750 &&
+              chart.singer_face_cues[0].pitch == 108,
+              "SingerFace[0]: preserve pitch 108 authored span");
+    }
+
     // --- player*_fret hand-driver cues from selected guitar gems ---
     // This is separate from the player*_fret_pos MIDI notes above; it feeds
     // left_hand.drv clip scheduling through GUITARFRETMAPPINGS. The tick-244
@@ -518,6 +574,44 @@ int main() {
               chart.fret_hand_cues[3][3].mask == 0x10,
               "HandCue[3]: Expert Orange");
     }
+
+    const ghogx::chart::Chart gh1_anim_chart =
+        ghogx::chart::parse_midi(build_gh1_anim_smf());
+    CHECK(gh1_anim_chart.hand_map_cues.size() == 2,
+          "GH1 ANIM HandMap cues: 2");
+    if (gh1_anim_chart.hand_map_cues.size() == 2) {
+        CHECK(gh1_anim_chart.hand_map_cues[0].tick == 0 &&
+                  gh1_anim_chart.hand_map_cues[0].map == "HandMap_Default",
+              "GH1 HandMap default at tick 0");
+        CHECK(gh1_anim_chart.hand_map_cues[1].tick == 480 &&
+                  gh1_anim_chart.hand_map_cues[1].map == "HandMap_Solo",
+              "GH1 HandMap solo at tick 480");
+    }
+    CHECK(gh1_anim_chart.strum_map_cues.size() == 2,
+          "GH1 ANIM/EVENTS StrumMap cues: 2");
+    if (gh1_anim_chart.strum_map_cues.size() == 2) {
+        CHECK(gh1_anim_chart.strum_map_cues[0].tick == 240 &&
+                  gh1_anim_chart.strum_map_cues[0].map ==
+                      "StrumMap_softpick",
+              "GH1 EVENTS StrumMap cue");
+        CHECK(gh1_anim_chart.strum_map_cues[1].tick == 960 &&
+                  gh1_anim_chart.strum_map_cues[1].map == "StrumMap_punk",
+              "GH1 ANIM StrumMap cue");
+    }
+    CHECK(gh1_anim_chart.fret_positions.size() == 2,
+          "GH1 ANIM fret-position cues: 2");
+    if (gh1_anim_chart.fret_positions.size() == 2) {
+        CHECK(gh1_anim_chart.fret_positions[0].spot_index == 1 &&
+                  gh1_anim_chart.fret_positions[1].spot_index == 20,
+              "GH1 ANIM pitches 40/59 map to fret spots 1/20");
+    }
+    CHECK(gh1_anim_chart.hand_animation_cues.size() == 1 &&
+              gh1_anim_chart.hand_animation_cues[0].tick_on == 960 &&
+              gh1_anim_chart.hand_animation_cues[0].tick_off == 1020 &&
+              gh1_anim_chart.hand_animation_cues[0].pitch == 60,
+          "GH1 ANIM explicit pitch-60 hand span");
+    CHECK(gh1_anim_chart.performer_events.empty(),
+          "GH1 ANIM mapper text is not a performer-state stream");
 
     if (failures == 0)
         std::fprintf(stderr, "midi_reader_test: ALL PASS\n");

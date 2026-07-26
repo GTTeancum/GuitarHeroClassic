@@ -38,7 +38,16 @@ class Window {
   // High-level menu input actions, mapped from keyboard + an Xbox controller
   // (player 1). Edge-triggered: true only on the frame the action went from
   // released to pressed since the last pump().
-  enum class Action { Confirm, Back, Up, Down, Left, Right, Start };
+  enum class Action {
+    Confirm,
+    Back,
+    Up,
+    Down,
+    Left,
+    Right,
+    Start,
+    YellowFret
+  };
   bool action_pressed(Action a) const;
   // Number of currently connected XInput pads across the four retail-style
   // player slots, sampled by the latest pump().

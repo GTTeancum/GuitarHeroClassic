@@ -1381,6 +1381,48 @@ void test_mat() {
   CHECK(!v21_plan.reads_modern_render_state);
   CHECK(v21_plan.modern_order.empty());
 
+  std::vector<uint8_t> legacy;
+  put_u32(legacy, 21);           // GH1 RndMat revision
+  put_u32(legacy, 1);            // one legacy texture entry
+  put_u32(legacy, 2);            // texture slot
+  put_u32(legacy, 0);            // diffuse map type
+  put_f32(legacy, 1); put_f32(legacy, 0); put_f32(legacy, 0);
+  put_f32(legacy, 0); put_f32(legacy, 1); put_f32(legacy, 0);
+  put_f32(legacy, 0); put_f32(legacy, 0); put_f32(legacy, 1);
+  put_f32(legacy, 0); put_f32(legacy, 0); put_f32(legacy, 0);
+  put_u32(legacy, 1);            // repeat
+  put_str(legacy, "legacy.tex");
+  put_u32(legacy, 2);            // legacy default-texture selector
+  put_f32(legacy, 1); put_f32(legacy, 1);
+  put_f32(legacy, 1); put_f32(legacy, 1);
+  legacy.push_back(0);           // GH1 use-environ
+  put_u16(legacy, 0x0101);       // prelit=1, z-mode=normal
+  put_u32(legacy, 1);
+  put_u16(legacy, 0);
+  put_u32(legacy, 3);            // actual kBlendSrcAlpha
+  put_u16(legacy, 0);
+  const MatObj legacy_mat = decode_mat("legacy.mat", legacy);
+  CHECK(legacy_mat.decoded);
+  CHECK(legacy_mat.diffuse_tex == "legacy.tex");
+  CHECK(!legacy_mat.use_environ);
+  CHECK(legacy_mat.prelit);
+  CHECK(legacy_mat.z_mode == 1);
+  CHECK(legacy_mat.blend == 3);
+  CHECK(!legacy_mat.has_render_state);
+
+  auto legacy_selector1 = legacy;
+  legacy_selector1[12] = 1;
+  const MatObj legacy_selector1_mat =
+      decode_mat("legacy_selector1.mat", legacy_selector1);
+  CHECK(legacy_selector1_mat.diffuse_tex == "legacy.tex");
+
+  auto legacy_selector5 = legacy;
+  legacy_selector5[12] = 5;
+  const MatObj legacy_selector5_mat =
+      decode_mat("legacy_selector5.mat", legacy_selector5);
+  CHECK(legacy_selector5_mat.diffuse_tex.empty());
+  CHECK(legacy_selector5_mat.use_environ);
+
   std::vector<uint8_t> b;
   put_u32(b, 27);                // version 0x1b
   put_zeros(b, 9);               // base metadata

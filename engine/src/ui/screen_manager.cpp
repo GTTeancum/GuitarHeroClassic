@@ -456,12 +456,21 @@ void ScreenManager::goto_screen(Symbol name) {
   if (transition_.active) finish_transition();
   Object* exiting = current_;
   if (current_) {
-    history_.push_back(current_);
+    // Authored reverse routes mark the transition before calling goto_screen.
+    // They consume history instead of creating a new forward visit.
+    if (!back) history_.push_back(current_);
     exit_sequence(current_, back, /*defer_unload=*/true);
   }
   current_ = target;
-  history_.erase(std::remove(history_.begin(), history_.end(), current_),
-                 history_.end());
+  if (back) {
+    const auto target_it =
+        std::find(history_.rbegin(), history_.rend(), current_);
+    if (target_it != history_.rend())
+      history_.erase(std::next(target_it).base());
+  } else {
+    history_.erase(std::remove(history_.begin(), history_.end(), current_),
+                   history_.end());
+  }
   const float blocking_seconds = enter_sequence(current_, back);
   transition_.active = true;
   transition_.back = back;

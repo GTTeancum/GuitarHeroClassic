@@ -561,6 +561,13 @@ int character_direct_group_rank(const Character& character,
 int character_active_lod_group_rank(const Character& character,
                                     const std::string& mesh_name,
                                     int min_lod) {
+  if (character.dir_version == 10) {
+    if (const auto active =
+            source_character_active_lod_view(character, min_lod)) {
+      return character_direct_group_rank(character, *active, mesh_name);
+    }
+    return -1;
+  }
   return character_direct_group_rank(character,
                                      min_lod >= 1 ? "lod1.grp" : "lod0.grp",
                                      mesh_name);
@@ -575,8 +582,12 @@ bool character_group_contains_mesh(const Character& character,
   if (!group) return false;
   for (const auto& child : group->children) {
     if (child == mesh_name) return true;
-    if (child.size() >= 4 &&
-        child.compare(child.size() - 4, 4, ".grp") == 0 &&
+    const bool child_is_group =
+        (child.size() >= 4 &&
+         child.compare(child.size() - 4, 4, ".grp") == 0) ||
+        (child.size() >= 5 &&
+         child.compare(child.size() - 5, 5, ".view") == 0);
+    if (child_is_group &&
         character_group_contains_mesh(character, child, mesh_name, depth + 1)) {
       return true;
     }
@@ -596,6 +607,17 @@ bool is_hidden_by_character_lod_group(const Character& character,
 bool is_hidden_by_character_lod_selection(const Character& character,
                                           const SkinnedMesh& mesh,
                                           int min_lod) {
+  if (character.dir_version == 10 &&
+      find_character_group(character, "top.view")) {
+    const auto body_view =
+        source_character_active_lod_view(character, min_lod);
+    if (!body_view) return false;
+    const bool body_member =
+        character_group_contains_mesh(character, *body_view, mesh.name);
+    const bool top_detail =
+        character_direct_group_rank(character, "top.view", mesh.name) >= 0;
+    return !body_member && !top_detail;
+  }
   const bool has_lod1 = find_character_group(character, "lod1.grp") != nullptr;
   if (min_lod >= 1 && has_lod1) {
     return !character_group_contains_mesh(character, "lod1.grp", mesh.name);
@@ -799,11 +821,6 @@ bool is_mesh_local_root_hair_piece(const SkinnedMesh& m) {
          has_compact_authored_bounds_near_origin(m);
 }
 
-bool has_suffix(const std::string& n, const char* suffix) {
-  const size_t len = std::strlen(suffix);
-  return n.size() >= len && n.compare(n.size() - len, len, suffix) == 0;
-}
-
 bool contains_case_insensitive(const std::string& n, const char* needle) {
   std::string lower = n;
   std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -823,32 +840,12 @@ bool contains_arm_token(const std::string& n) {
   return lower.find("arm") != std::string::npos;
 }
 
-bool palette_contains(const SkinnedMesh& m, const char* fragment) {
-  for (const auto& bone : m.bone_palette) {
-    if (bone.find(fragment) != std::string::npos) return true;
-  }
-  return false;
-}
-
 bool is_mesh_local_arm_piece(const SkinnedMesh& m) {
   if (m.bone_palette.empty() || m.bind.empty()) return false;
   if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
   if (!has_compact_authored_bounds_near_origin(m)) return false;
   return contains_arm_token(m.material) &&
          (contains_arm_token(m.name) || contains_arm_token(m.parent));
-}
-
-bool is_compact_mesh_parented_head_detail_piece(const SkinnedMesh& m) {
-  if (m.bone_palette.size() != 3) return false;
-  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
-  if (!has_suffix(m.parent, ".mesh")) return false;
-  if (!has_compact_authored_bounds_near_origin(m, 8.0f)) return false;
-  return palette_contains(m, "bone_neck.mesh") &&
-         palette_contains(m, "bone_head.mesh");
-}
-
-bool is_raw_mesh_world_authored_piece(const SkinnedMesh& m) {
-  return is_compact_mesh_parented_head_detail_piece(m);
 }
 
 bool is_parent_local_ankle_attachment(const SkinnedMesh& m) {
@@ -866,18 +863,13 @@ bool is_parent_local_ankle_attachment(const SkinnedMesh& m) {
 
 bool is_eye_mesh(const std::string& n);
 
-bool is_head_attachment_mesh(const SkinnedMesh& m) {
-  return m.name == "lashes.mesh" && m.bone_palette.empty();
-}
-
 bool mesh_uses_raw_pose_output(const SkinnedMesh& m,
                                bool raw_mesh_requested) {
-  return is_eye_mesh(m.name) ||
-         (is_hair_mesh_name(m.name) && m.bone_palette.empty()) ||
-         raw_mesh_requested || is_head_attachment_mesh(m) ||
-         (is_root_parent_hair_piece(m) &&
-          !is_weighted_root_parent_hair_piece(m)) ||
-         is_raw_mesh_world_authored_piece(m);
+  // RndMesh has exactly one source split here: records with an active bone
+  // palette use decoded skinning; records without one submit their authored
+  // vertices through the mesh transform.  Names, materials, bounds, parents,
+  // and anatomical roles do not override a serialized palette.
+  return raw_mesh_requested || m.bone_palette.empty();
 }
 
 bool is_model_space_head_hair_attachment(const SkinnedMesh& m) {
@@ -1099,6 +1091,54 @@ void reconcile_instrument_fret_targets(
     reconcile_instrument_anchor(character, original_locals, prop_scene,
                                 attach_bone, anchor);
   }
+}
+
+size_t import_attached_prop_transform_proxies(
+    Character& character, const milo_scene::Scene& prop_scene) {
+  auto transform_exists = [&](const std::string& name) {
+    return std::any_of(character.bones.begin(), character.bones.end(),
+                       [&](const auto& bone) { return bone.name == name; }) ||
+           std::any_of(character.meshes.begin(), character.meshes.end(),
+                       [&](const auto& mesh) { return mesh.name == name; }) ||
+           character.attached_prop_transform_proxies.find(name) !=
+               character.attached_prop_transform_proxies.end();
+  };
+
+  size_t imported = 0;
+  for (const auto& source : prop_scene.transes) {
+    // Plain RndTransformable rows share the retail ObjectDir with meshes.
+    // GH2 guitars author fret spots and hand-target hierarchy as Trans rows,
+    // while GH1 guitars commonly expose equivalent rows as mesh transforms.
+    // Import both representations as transform-only proxies so character
+    // revision and instrument revision remain independently selectable.
+    if (transform_exists(source.name)) continue;
+    AttachedPropTransformProxy proxy;
+    proxy.name = source.name;
+    proxy.parent = source.parent;
+    proxy.local = source.local;
+    proxy.bind_local = source.local;
+    character.attached_prop_transform_proxies.emplace(source.name,
+                                                      std::move(proxy));
+    ++imported;
+  }
+  for (const auto& source : prop_scene.meshes) {
+    // Every RndMesh is also a transform. Retail drivers resolve prop transforms
+    // in the same world ObjectDir as the character, including visible fret
+    // markers used as positioning targets. Import only their transform rows
+    // (never duplicate prop geometry), preserving names and hierarchy.
+    if (transform_exists(source.name)) {
+      continue;
+    }
+    AttachedPropTransformProxy proxy;
+    proxy.name = source.name;
+    proxy.parent = source.parent;
+    proxy.local = source.local;
+    proxy.bind_local = source.local;
+    character.attached_prop_transform_proxies.emplace(source.name,
+                                                      std::move(proxy));
+    ++imported;
+  }
+  return imported;
 }
 
 std::array<float, 16> mul16(const std::array<float, 16>& a,
@@ -1553,6 +1593,7 @@ struct CharRenderer::Impl {
   std::vector<milo_scene::Xfm> original_bone_local;
   std::vector<milo_scene::Xfm> original_mesh_local;
   std::vector<const SkinnedMesh*> ordered_draw_meshes;
+  std::unordered_set<std::string> hidden_meshes;
   std::vector<SVtx> scratch_vertices;
   std::vector<std::array<float, 3>> scratch_pos;
   std::vector<std::array<float, 3>> scratch_nrm;
@@ -1580,6 +1621,35 @@ CharRenderer::~CharRenderer() {
 
 OrbitCamera& CharRenderer::camera() { return impl_->cam; }
 Character& CharRenderer::character() { return impl_->character; }
+
+bool CharRenderer::set_object_showing(std::string_view object_name,
+                                      bool showing) {
+  std::vector<std::string> pending{std::string(object_name)};
+  std::unordered_set<std::string> visited;
+  std::unordered_set<std::string> meshes;
+  while (!pending.empty()) {
+    std::string current = std::move(pending.back());
+    pending.pop_back();
+    if (!visited.insert(current).second) continue;
+    bool group_found = false;
+    for (const auto& group : impl_->character.groups) {
+      if (group.name != current) continue;
+      group_found = true;
+      for (const auto& child : group.children) pending.push_back(child);
+    }
+    if (group_found) continue;
+    for (const auto& mesh : impl_->character.meshes) {
+      if (mesh.name == current) meshes.insert(mesh.name);
+    }
+  }
+  for (const auto& mesh : meshes) {
+    if (showing)
+      impl_->hidden_meshes.erase(mesh);
+    else
+      impl_->hidden_meshes.insert(mesh);
+  }
+  return !meshes.empty();
+}
 
 void CharRenderer::set_world_offset(float x, float y, float z) {
   impl_->world_offset[0] = x;
@@ -1785,10 +1855,22 @@ void CharRenderer::set_character(
       if (debug_mesh_mode_enabled(m.name)) {
         std::fprintf(stderr,
                      "[mesh-xfm] %-32s local=(%.3f %.3f %.3f) "
-                     "worldStored=(%.3f %.3f %.3f)\n",
+                     "worldStored=(%.3f %.3f %.3f) "
+                     "localRows=[%.3f %.3f %.3f|%.3f %.3f %.3f|"
+                     "%.3f %.3f %.3f] "
+                     "storedRows=[%.3f %.3f %.3f|%.3f %.3f %.3f|"
+                     "%.3f %.3f %.3f]\n",
                      m.name.c_str(), m.local.pos[0], m.local.pos[1],
                      m.local.pos[2], m.world_stored.pos[0],
-                     m.world_stored.pos[1], m.world_stored.pos[2]);
+                     m.world_stored.pos[1], m.world_stored.pos[2],
+                     m.local.rot[0][0], m.local.rot[0][1], m.local.rot[0][2],
+                     m.local.rot[1][0], m.local.rot[1][1], m.local.rot[1][2],
+                     m.local.rot[2][0], m.local.rot[2][1], m.local.rot[2][2],
+                     m.world_stored.rot[0][0], m.world_stored.rot[0][1],
+                     m.world_stored.rot[0][2], m.world_stored.rot[1][0],
+                     m.world_stored.rot[1][1], m.world_stored.rot[1][2],
+                     m.world_stored.rot[2][0], m.world_stored.rot[2][1],
+                     m.world_stored.rot[2][2]);
       }
       if (!m.bone_palette.empty()) {
         float wsum[4] = {};
@@ -1833,6 +1915,9 @@ void CharRenderer::set_attached_prop(
   }
   impl_->prop_attach_bone = attach_bone;
   impl_->has_prop = true;
+  const size_t imported_transform_proxies =
+      import_attached_prop_transform_proxies(impl_->character,
+                                             impl_->prop_scene);
   reconcile_instrument_anchor(impl_->character, impl_->original_bone_local,
                               impl_->prop_scene, impl_->prop_attach_bone,
                               "bone_fret.mesh");
@@ -1850,17 +1935,33 @@ void CharRenderer::set_attached_prop(
   std::fprintf(stderr, "[char3d] prop '%s' attached to %s, textures %zu/%zu\n",
                impl_->prop_scene.dir_name.c_str(), attach_bone.c_str(),
                impl_->prop_tex.size(), textures.size());
+  if (imported_transform_proxies != 0) {
+    std::fprintf(stderr,
+                 "[char3d] prop transform proxies imported=%zu "
+                 "source=shared-objectdir-transform-only\n",
+                 imported_transform_proxies);
+  }
 }
 
 void CharRenderer::frame_camera() {
   impl_->have_bounds = false;
-  // Bind pose = stored model-space positions; bound the non-shadow body meshes.
+  // Frame the same bind-pose positions the renderer submits. Weighted RndMesh
+  // vertices become world-space through source offsets and bind-pose bones;
+  // unweighted rows retain their mesh transform. Bounding raw stored vertices
+  // instead works accidentally for many GH2 meshes but crops revision-10 GH1
+  // bodies whose component geometry is authored around local origins.
+  std::vector<std::array<float, 3>> posed;
+  std::vector<std::array<float, 3>> normals;
   for (const auto& m : impl_->character.meshes) {
     if (!m.decoded || !m.showing || m.verts.empty() || is_shadow(m.name) ||
         is_hidden_by_character_lod_selection(impl_->character, m,
                                              impl_->min_lod)) continue;
-    for (const auto& v : m.verts) {
-      const float p[3] = {v.px, v.py, v.pz};
+    skin_to_pose(m, impl_->character, posed, normals);
+    const std::array<float, 16> submission =
+        source_character_mesh_submission_world(m, impl_->character);
+    for (const auto& local : posed) {
+      const std::array<float, 3> world = xform_point(submission, local);
+      const float p[3] = {world[0], world[1], world[2]};
       if (!impl_->have_bounds) {
         for (int k = 0; k < 3; ++k) impl_->bb_min[k] = impl_->bb_max[k] = p[k];
         impl_->have_bounds = true;
@@ -1912,6 +2013,11 @@ void CharRenderer::update(float dt) {
   for (size_t i = 0; i < impl_->character.meshes.size() &&
                      i < impl_->original_mesh_local.size(); ++i)
     impl_->character.meshes[i].local = impl_->original_mesh_local[i];
+  for (auto& [name, proxy] :
+       impl_->character.attached_prop_transform_proxies) {
+    (void)name;
+    proxy.local = proxy.bind_local;
+  }
 }
 
 void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
@@ -2113,6 +2219,7 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
     const auto& m = *mp;
     if (!m.decoded || m.verts.empty() || m.indices.empty()) continue;
     if (!m.showing) continue;
+    if (impl.hidden_meshes.find(m.name) != impl.hidden_meshes.end()) continue;
     if (!only_mesh_spec.empty() && !comma_spec_matches(only_mesh_spec, m.name))
       continue;
     if (comma_spec_matches(skip_mesh_spec, m.name)) continue;
@@ -2246,7 +2353,9 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
                    "[mesh-mode] %-24s parent=%-18s mat=%-18s palette=%zu "
                    "world=%s constraint=%u target=%s hairAttach=%d "
                    "rootBypass=%d localAttach=%d headModel=%d raw=%d "
-                   "pos=(%.3f %.3f %.3f)\n",
+                   "pos=(%.3f %.3f %.3f) "
+                   "rows=[%.3f %.3f %.3f|%.3f %.3f %.3f|"
+                   "%.3f %.3f %.3f]\n",
                    m.name.c_str(), m.parent.c_str(), m.material.c_str(),
                    m.bone_palette.size(), world_mode,
                    m.constraint, m.target.empty() ? "<none>" : m.target.c_str(),
@@ -2257,7 +2366,9 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
                     is_local_space_head_hair_attachment(m))
                        ? 1
                        : 0,
-                   raw_mesh_requested ? 1 : 0, mw[12], mw[13], mw[14]);
+                   raw_mesh_requested ? 1 : 0, mw[12], mw[13], mw[14],
+                   mw[0], mw[1], mw[2], mw[4], mw[5], mw[6],
+                   mw[8], mw[9], mw[10]);
       if (!spos.empty()) {
         size_t min_z_i = 0;
         size_t max_z_i = 0;
@@ -2487,6 +2598,11 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
       return i < 0 ? 0 : (i > 255 ? 255 : i);
     };
     const bool highlight_mesh = comma_spec_matches(highlight_mesh_spec, m.name);
+    if (highlight_mesh) {
+      // Diagnostic highlight must remain visible even when the source normal
+      // transform or venue light state is the subject under test.
+      d3d_state.render(D3DRS_LIGHTING, FALSE);
+    }
     uint8_t material_blend =
         material ? material->blend : static_cast<uint8_t>(kBlendSrcAlpha);
     if (highlight_mesh) material_blend = kBlendSrc;
@@ -2603,10 +2719,17 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
     } else {
       append_skinned_pose_vertices(m, spos, snrm, mesh_color, vb);
     }
-    dev->DrawIndexedPrimitiveUP(
+    const HRESULT draw_result = dev->DrawIndexedPrimitiveUP(
         D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m.verts.size()),
         static_cast<UINT>(m.indices.size() / 3), m.indices.data(),
         D3DFMT_INDEX16, vb.data(), sizeof(SVtx));
+    if (debug_mesh_mode && FAILED(draw_result)) {
+      std::fprintf(stderr,
+                   "[mesh-draw-failed] mesh=%s hr=0x%08lx verts=%zu "
+                   "indices=%zu faces=%zu\n",
+                   m.name.c_str(), static_cast<unsigned long>(draw_result),
+                   m.verts.size(), m.indices.size(), m.indices.size() / 3);
+    }
   }
   d3d_state.render(D3DRS_ZWRITEENABLE, TRUE);
   d3d_state.render(D3DRS_BLENDOP, D3DBLENDOP_ADD);

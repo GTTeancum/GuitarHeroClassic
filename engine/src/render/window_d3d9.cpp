@@ -48,6 +48,8 @@ struct Window::Impl {
   // stick/Back/Y.
   uint32_t gh_now  = 0;  // current frame (raw held)
   uint32_t gh_prev = 0;  // previous frame (for edge detection)
+  uint32_t keyboard_frets_now = 0;
+  uint32_t gamepad_frets_now = 0;
   int gh_strum_now = 0;   // -1/+1 for stick strum direction, 2 for keyboard
   int gh_strum_prev = 0;
   unsigned char lt_now = 0;  // XInput left trigger (0-255)
@@ -70,6 +72,12 @@ constexpr DWORD kScreenFVF = D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1;
 namespace {
 
 constexpr const char* kClassName = "GhogxWindowClass";
+
+bool xinput_subtype_is_guitar(BYTE subtype) {
+  return subtype == XINPUT_DEVSUBTYPE_GUITAR ||
+         subtype == XINPUT_DEVSUBTYPE_GUITAR_ALTERNATE ||
+         subtype == XINPUT_DEVSUBTYPE_GUITAR_BASS;
+}
 
 void show_cursor_for_relative_mouse(Window::Impl& impl, bool visible) {
   if (visible) {
@@ -285,12 +293,17 @@ void Window::pump() {
   // bits so stick + d-pad both drive menu navigation.
   unsigned short pad = 0;
   impl_->gh_prev = impl_->gh_now;
+  const uint32_t keyboard_frets_prev = impl_->keyboard_frets_now;
+  const uint32_t gamepad_frets_prev = impl_->gamepad_frets_now;
   impl_->gh_strum_prev = impl_->gh_strum_now;
   uint32_t gh = 0;
+  uint32_t keyboard_frets = 0;
+  uint32_t gamepad_frets = 0;
   int gh_strum = 0;
   float gh_whammy_axis = 0.0f;
   XINPUT_STATE xs = {};
   bool player_one_connected = false;
+  bool player_one_is_guitar = false;
   impl_->gamepad_count = 0;
   for (DWORD player = 0; player < XUSER_MAX_COUNT; ++player) {
     XINPUT_STATE state = {};
@@ -299,6 +312,12 @@ void Window::pump() {
     if (player == 0) {
       xs = state;
       player_one_connected = true;
+      XINPUT_CAPABILITIES capabilities = {};
+      if (XInputGetCapabilities(player, XINPUT_FLAG_GAMEPAD, &capabilities) ==
+          ERROR_SUCCESS) {
+        player_one_is_guitar =
+            xinput_subtype_is_guitar(capabilities.SubType);
+      }
     }
   }
   if (player_one_connected) {
@@ -315,11 +334,17 @@ void Window::pump() {
     impl_->lt_now = xs.Gamepad.bLeftTrigger;
     impl_->rt_now = xs.Gamepad.bRightTrigger;
     constexpr BYTE kTrigDead = 76;  // ~30% of 255
-    if (xs.Gamepad.bLeftTrigger  > kTrigDead)    gh |= (1u << 0);  // Green
-    if (pad & XINPUT_GAMEPAD_LEFT_SHOULDER)       gh |= (1u << 1);  // Red
-    if (pad & XINPUT_GAMEPAD_RIGHT_SHOULDER)      gh |= (1u << 2);  // Yellow
-    if (xs.Gamepad.bRightTrigger > kTrigDead)     gh |= (1u << 3);  // Blue
-    if (pad & XINPUT_GAMEPAD_A)                   gh |= (1u << 4);  // Orange
+    if (xs.Gamepad.bLeftTrigger > kTrigDead)
+      gamepad_frets |= (1u << 0);  // Green
+    if (pad & XINPUT_GAMEPAD_LEFT_SHOULDER)
+      gamepad_frets |= (1u << 1);  // Red
+    if (pad & XINPUT_GAMEPAD_RIGHT_SHOULDER)
+      gamepad_frets |= (1u << 2);  // Yellow
+    if (xs.Gamepad.bRightTrigger > kTrigDead)
+      gamepad_frets |= (1u << 3);  // Blue
+    if (pad & XINPUT_GAMEPAD_A)
+      gamepad_frets |= (1u << 4);  // Orange
+    gh |= gamepad_frets;
     // Strum: left-stick vertical axis (either direction) past a generous dead zone.
     constexpr SHORT kStrumDead = 20000;
     if (xs.Gamepad.sThumbLY > kStrumDead) {
@@ -347,11 +372,12 @@ void Window::pump() {
   impl_->pad_now = pad;
 
   // Keyboard GH2 fret mapping (A=Green S=Red D=Yellow F=Blue G=Orange Space=Strum).
-  if (impl_->key_now['A'])       gh |= (1u << 0);
-  if (impl_->key_now['S'])       gh |= (1u << 1);
-  if (impl_->key_now['D'])       gh |= (1u << 2);
-  if (impl_->key_now['F'])       gh |= (1u << 3);
-  if (impl_->key_now['G'])       gh |= (1u << 4);
+  if (impl_->key_now['A']) keyboard_frets |= (1u << 0);
+  if (impl_->key_now['S']) keyboard_frets |= (1u << 1);
+  if (impl_->key_now['D']) keyboard_frets |= (1u << 2);
+  if (impl_->key_now['F']) keyboard_frets |= (1u << 3);
+  if (impl_->key_now['G']) keyboard_frets |= (1u << 4);
+  gh |= keyboard_frets;
   if (impl_->key_now[VK_SPACE]) {
     if (gh_strum == 0) gh_strum = 2;
     gh |= (1u << 5);
@@ -361,11 +387,26 @@ void Window::pump() {
     gh |= (1u << 7);
     gh_whammy_axis = -1.0f;
   }
+  // Keyboard and standard-controller modes are five-button rhythm controls:
+  // each newly pressed fret also produces a one-frame strum pulse. A device
+  // which identifies itself as an XInput guitar keeps retail separate
+  // fret/strum input.
+  const bool keyboard_fret_pressed =
+      (keyboard_frets & ~keyboard_frets_prev) != 0;
+  const bool gamepad_fret_pressed =
+      !player_one_is_guitar &&
+      (gamepad_frets & ~gamepad_frets_prev) != 0;
+  if (keyboard_fret_pressed || gamepad_fret_pressed) {
+    gh |= (1u << 5);
+    if (gh_strum == 0) gh_strum = 3;
+  }
   if ((gh & (1u << 5)) != 0 && gh_strum != 0 &&
       gh_strum != impl_->gh_strum_prev) {
     impl_->gh_prev &= ~(1u << 5);
   }
   impl_->gh_now = gh;
+  impl_->keyboard_frets_now = keyboard_frets;
+  impl_->gamepad_frets_now = gamepad_frets;
   impl_->gh_strum_now = gh_strum;
   impl_->gh_whammy_axis = gh_whammy_axis;
 }
@@ -388,11 +429,19 @@ bool Window::action_pressed(Action a) const {
   auto pad_edge = [p](unsigned short m) {
     return (p->pad_now & m) != 0 && (p->pad_prev & m) == 0;
   };
+  auto guitar_edge = [p](uint32_t mask) {
+    return (p->gh_now & mask) != 0 && (p->gh_prev & mask) == 0;
+  };
   switch (a) {
     case Action::Confirm:
-      return key_edge(VK_RETURN) || key_edge(VK_SPACE) || pad_edge(XINPUT_GAMEPAD_A);
+      // Retail guitar menus use Green for accept. This also makes the
+      // keyboard gameplay mapping (A=Green) authoritative in menus.
+      return guitar_edge(1u << 0) || key_edge(VK_RETURN) ||
+             key_edge(VK_SPACE) || pad_edge(XINPUT_GAMEPAD_A);
     case Action::Back:
-      return key_edge(VK_BACK) || pad_edge(XINPUT_GAMEPAD_B);
+      // Retail guitar menus use Red for cancel/back (S on keyboard).
+      return guitar_edge(1u << 1) || key_edge(VK_BACK) ||
+             pad_edge(XINPUT_GAMEPAD_B);
     case Action::Start:
       return key_edge(VK_RETURN) || pad_edge(XINPUT_GAMEPAD_START);
     case Action::Up:
@@ -403,6 +452,11 @@ bool Window::action_pressed(Action a) const {
       return key_edge(VK_LEFT) || pad_edge(XINPUT_GAMEPAD_DPAD_LEFT);
     case Action::Right:
       return key_edge(VK_RIGHT) || pad_edge(XINPUT_GAMEPAD_DPAD_RIGHT);
+    case Action::YellowFret:
+      // Use the guitar abstraction so keyboard D, an Xbox guitar, and the
+      // standard-controller RB fallback all produce exactly the same edge.
+      return (p->gh_now & (1u << 2)) != 0 &&
+             (p->gh_prev & (1u << 2)) == 0;
   }
   return false;
 }

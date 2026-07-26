@@ -19,6 +19,7 @@
 
 #include "ark_v3.h"
 
+#include <array>
 #include <cstdio>
 #include <filesystem>
 #include <memory>
@@ -230,6 +231,27 @@ static void check_backwards_anim_routes_goto_as_back_smoke() {
   CHECK(log_index(transition_log, "back_new_screen:ui_enter") >= 0);
   CHECK(log_index(transition_log, "back_old_screen:ui_exit_back") < 0);
   CHECK(log_index(transition_log, "back_new_screen:ui_enter_back") < 0);
+
+  // A script-authored reverse goto must consume the target from history and
+  // must not record the screen being exited as a new forward visit.
+  ui::ScreenManager history_mgr;
+  std::vector<std::string> history_log;
+  add_recording_ui_screen(history_mgr, &history_log, "history_root_screen",
+                          "history_root_panel");
+  add_recording_ui_screen(history_mgr, &history_log, "history_child_screen",
+                          "history_child_panel");
+  history_mgr.goto_screen(Symbol("history_root_screen"));
+  history_mgr.goto_screen(Symbol("history_child_screen"));
+  Object* history_child = history_mgr.current_screen();
+  CHECK(history_child != nullptr);
+  if (history_child)
+    history_child->handle_property(Symbol("backwards_anim"), DataArray());
+  history_mgr.goto_screen(Symbol("history_root_screen"));
+  CHECK(history_mgr.current_screen() != nullptr &&
+        history_mgr.current_screen()->name() == Symbol("history_root_screen"));
+  history_mgr.go_back();
+  CHECK(history_mgr.current_screen() != nullptr &&
+        history_mgr.current_screen()->name() == Symbol("history_root_screen"));
 }
 
 static void check_menu_audio_surface_smoke() {
@@ -1022,6 +1044,52 @@ int main(int argc, char** argv) {
   CHECK(db.venue_index(Symbol("battle")) == 0);
   CHECK(db.venue_index(Symbol("small2")) == 2);
   CHECK(db.default_venue() == Symbol("small2"));
+  const std::array<Symbol, 8> career_venues = {
+      Symbol("battle"), Symbol("small1"), Symbol("small2"), Symbol("big"),
+      Symbol("theatre"), Symbol("fest"), Symbol("arena"), Symbol("stone")};
+  for (std::size_t tier = 0; tier < career_venues.size(); ++tier) {
+    CHECK(db.campaign_venue_at(tier) == career_venues[tier]);
+    const auto tier_songs = db.campaign_songs(career_venues[tier]);
+    CHECK(!tier_songs.empty());
+    for (Symbol song : tier_songs)
+      CHECK(db.campaign_venue(song) == career_venues[tier]);
+  }
+  if (Object* game = mgr.resolve_object(Symbol("game"))) {
+    Object* song_provider = mgr.resolve_object(Symbol("song_provider"));
+    CHECK(song_provider != nullptr);
+    game->set_property(Symbol("venue"), DataNode::Sym(Symbol("battle")));
+    if (song_provider) {
+      DataArray first;
+      first.push(DataNode::Int(0));
+      CHECK(song_provider->handle_property(Symbol("get_symbol"), first)
+                .as_symbol()
+                .value_or(Symbol()) == Symbol("shoutatthedevil"));
+      DataArray quickplay;
+      quickplay.push(DataNode::Int(1));
+      song_provider->handle_property(Symbol("set_quickplay"), quickplay);
+      CHECK(song_provider->handle_property(Symbol("get_symbol"), first)
+                .as_symbol()
+                .value_or(Symbol()) == db.song_key(0));
+      DataArray career;
+      career.push(DataNode::Int(0));
+      song_provider->handle_property(Symbol("set_quickplay"), career);
+    }
+    game->handle_property(Symbol("set_quickplay"), DataArray());
+    CHECK(game->get_property(Symbol("mode"))
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("quickplay"));
+    CHECK(song_provider->handle_property(Symbol("get_quickplay"), DataArray())
+              .as_int()
+              .value_or(0) == 1);
+    game->handle_property(Symbol("set_career_venue"), DataArray());
+    CHECK(game->get_property(Symbol("mode"))
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("career"));
+    CHECK(song_provider->handle_property(Symbol("get_quickplay"), DataArray())
+              .as_int()
+              .value_or(1) == 0);
+    game->set_property(Symbol("venue"), DataNode::Sym(Symbol("small2")));
+  }
   const std::string mc_checking = mgr.localize(Symbol("mc_checking"));
   CHECK(mc_checking != "mc_checking");
   CHECK(mc_checking.find("memory card") != std::string::npos);

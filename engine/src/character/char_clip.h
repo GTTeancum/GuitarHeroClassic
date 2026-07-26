@@ -1124,6 +1124,7 @@ class CharClipPlayer {
   void set_source_driver_blend_width(float blend_width);
   void set_source_play_multiple_clips(bool play_multiple_clips);
   void set_speed(float speed);
+  void seek_current_time_seconds(float time_seconds);
   void advance(float dt_seconds);
   void apply(Character& character, float weight = 1.0f) const;
   std::vector<ClipChannel> sampled_pose() const;
@@ -1285,6 +1286,12 @@ CharClip load_clip(const std::string& hdr_path,
                    const std::string& ark_path,
                    const std::string& milo_path,
                    const std::string& clip_name);
+
+// GH1 stores AnimClipSamples as standalone .acp entries: class/name strings
+// followed by the same serialized sample body used inside later MILOs.
+CharClip load_acp_clip(const std::string& hdr_path,
+                       const std::string& ark_path,
+                       const std::string& acp_path);
 
 // Source-backed CharClipGroup::Load reader. Returns the group's serialized
 // ObjPtr clip names and source mWhich/mFlags state from the first matching
@@ -2731,6 +2738,8 @@ std::vector<std::string> source_char_utl_reset_hair_names(
 void source_char_utl_clip_predict(SourceCharUtlClipPredictState& state,
                                   const SourceCharUtlClipPredictFrame& first,
                                   const SourceCharUtlClipPredictFrame& second);
+std::optional<SourceCharUtlClipPredictFrame>
+source_char_walk_facing_sample(const std::vector<ClipChannel>& channels);
 SourceCharUtlInitPlan source_char_utl_init_plan();
 
 // Source-backed CharLookAt::SyncLimits helper. Angles are serialized in degrees.

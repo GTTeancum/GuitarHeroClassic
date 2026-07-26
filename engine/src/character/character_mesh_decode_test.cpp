@@ -4247,6 +4247,28 @@ int main() {
   CHECK(approx(preserved_len_strand.points[0].pos[1], 2.0f));
   CHECK(approx(preserved_len_strand.points[0].pos[2], 3.0f));
 
+  ghogx::character::Character authored_lod_views;
+  authored_lod_views.dir_version = 10;
+  ghogx::milo_scene::GroupObj top_view;
+  top_view.name = "top.view";
+  top_view.children = {"lod0_performer.view", "lod1_performer.view",
+                       "necklace.mesh"};
+  ghogx::milo_scene::GroupObj lod0_view;
+  lod0_view.name = "lod0_performer.view";
+  lod0_view.children = {"performer_body.mesh"};
+  ghogx::milo_scene::GroupObj lod1_view;
+  lod1_view.name = "lod1_performer.view";
+  lod1_view.children = {"performer_lod1_body.mesh"};
+  authored_lod_views.groups = {top_view, lod0_view, lod1_view};
+  const auto active_lod0 =
+      ghogx::character::source_character_active_lod_view(authored_lod_views,
+                                                         0);
+  const auto active_lod1 =
+      ghogx::character::source_character_active_lod_view(authored_lod_views,
+                                                         1);
+  CHECK(active_lod0 && *active_lod0 == "lod0_performer.view");
+  CHECK(active_lod1 && *active_lod1 == "lod1_performer.view");
+
   std::printf("  [ok] RndMesh rev28 groupSections=%zu palette=%zu raw=%zu\n",
               mesh.group_sections.size(), mesh.bone_palette.size(),
               mesh.raw_bone_palette.size());

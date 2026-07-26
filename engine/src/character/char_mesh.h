@@ -62,7 +62,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace ghogx::character {
@@ -2406,7 +2408,9 @@ struct RndMeshGroupSection {
 struct SkinnedMesh {
   std::string name;
   std::string parent;     // Trans parent (links into the skeleton/group tree)
+  std::vector<std::string> legacy_children;  // Trans rev<9 authored child list
   std::string material;   // Mat entry this mesh draws with
+  std::string geometry_owner;  // Mesh whose vertex/index buffers are shared
   milo_scene::Xfm local;  // the mesh's own Trans local matrix (usually identity)
   milo_scene::Xfm world_stored;
   uint32_t constraint = 0;   // RndTransformable::Constraint
@@ -2441,6 +2445,32 @@ struct SkinnedMesh {
   float bb_max[3] = {0, 0, 0};
   bool decoded = false;
   std::string error;      // non-empty if decode failed (mesh still listed)
+};
+
+struct RndMorphKey {
+  float weight = 0.0f;
+  float frame = 0.0f;
+};
+
+struct RndMorphPose {
+  std::string mesh;
+  std::vector<RndMorphKey> keys;
+};
+
+// GH1 RndMorph revision 3.  Each pose names a same-directory Mesh and carries
+// authored weight keys; SetFrame blends those source vertices into target.
+struct RndMorph {
+  std::string name;
+  int32_t revision = 0;
+  int32_t anim_revision = 0;
+  std::vector<std::string> anim_objects;
+  std::vector<RndMorphPose> poses;
+  std::string target;
+  bool normals = false;
+  bool spline = false;
+  float intensity = 1.0f;
+  bool decoded = false;
+  std::string error;
 };
 
 struct SourceCharMeshCacher {
@@ -2491,6 +2521,26 @@ struct CharForeTwist {
   float bias_degrees = 0.0f;
 };
 
+// GH1 creates these controllers from charsys/gen/charbase.dtb at runtime.
+// They are deliberately separate from the later MILO-serialized Char*Twist
+// objects: GH1's revision-10 character transforms are zero-geometry RndMesh
+// rows, while GH2's transforms live in Character::bones.
+struct Gh1AnimServoForeTwist {
+  std::string name;
+  std::string fore_arm;
+  std::string twist1;
+  std::string twist2;
+  std::string hand;
+  float offset_degrees = 0.0f;
+};
+
+struct Gh1AnimServoUpperTwist {
+  std::string name;
+  std::string twist1;
+  std::string twist2;
+  std::string upper_arm;
+};
+
 struct CharNeckTwist {
   std::string name;
   int32_t version = 0;
@@ -2536,6 +2586,12 @@ struct CharIKHand {
   float wrist_radians = 0.0f;
   std::string elbow_collide;
   bool clockwise = false;
+  // GH1 creates AnimServoIK objects from charsys/gen/charbase.dtb at runtime.
+  // These fields retain that older controller's explicit `(bones root count)`
+  // contract without pretending it is a serialized GH2 CharIKHand revision.
+  bool legacy_anim_servo_ik = false;
+  std::string legacy_chain_root;
+  int32_t legacy_chain_bones = 0;
   size_t unread_bytes = 0;
 };
 
@@ -6570,6 +6626,13 @@ struct CharWeightSetter {
   size_t unread_bytes = 0;
 };
 
+struct AttachedPropTransformProxy {
+  std::string name;
+  std::string parent;
+  milo_scene::Xfm local;
+  milo_scene::Xfm bind_local;
+};
+
 // A whole decoded band character.
 struct Character {
   std::string dir_name;
@@ -6588,8 +6651,11 @@ struct Character {
   std::vector<milo_scene::Xfm> bind_bone_local;
   std::vector<milo_scene::MatObj> mats;
   std::vector<milo_scene::GroupObj> groups;
+  std::vector<RndMorph> morphs;
   std::vector<CharUpperTwist> upper_twists;
   std::vector<CharForeTwist> fore_twists;
+  std::vector<Gh1AnimServoUpperTwist> gh1_upper_twists;
+  std::vector<Gh1AnimServoForeTwist> gh1_fore_twists;
   std::vector<CharNeckTwist> neck_twists;
   std::vector<CharIKRod> ik_rods;
   std::vector<CharIKHand> ik_hands;
@@ -6627,6 +6693,20 @@ struct Character {
   // writer without replacing the authored local rows that later controllers
   // still read. These are cleared per sampled frame.
   std::map<std::string, std::array<float, 16>> runtime_world_overrides;
+  // CharBones output graphs can contain runtime-only Trans names which are not
+  // resident Character meshes/bones. Keep their sampled worlds alive from the
+  // clip publisher through the controller pass. GH1 AnimServoIK consumes the
+  // bone_fret_hand/bone_strum_hand rows from this source-authored graph.
+  std::map<std::string, std::array<float, 16>> runtime_pose_output_worlds;
+  // Runtime ObjectDir assembly bridge. Instrument RndMesh objects also expose
+  // transform rows to character drivers in GH1, but their geometry remains in
+  // the attached prop renderer.
+  std::map<std::string, AttachedPropTransformProxy>
+      attached_prop_transform_proxies;
+  // Names actually published by the authored fret-hand overlay this frame.
+  // GH1 uses these to associate the MIDI fret-position stream with the
+  // AnimServoIK destination graph without character- or instrument-name rules.
+  std::vector<std::string> runtime_fret_driver_outputs;
 
   // Distinct diffuse-texture names referenced by the character's materials.
   std::vector<std::string> texture_names() const;
@@ -6683,6 +6763,20 @@ CharEyes decode_eyes(const std::string& entry_name,
                      const std::vector<uint8_t>& body);
 RndTex decode_rnd_tex(const std::string& entry_name,
                       const std::vector<uint8_t>& body);
+RndMorph decode_rnd_morph(const std::string& entry_name,
+                          const std::vector<uint8_t>& body);
+// Apply an authored RndMorph frame to its same-directory target mesh. GH1
+// setup supplies an empty serialized target and binds by morph stem
+// (face.mrf -> face.mesh, lashes.mrf -> lashes.mesh).
+bool apply_rnd_morph_frame(Character& character,
+                           std::string_view morph_name,
+                           float frame);
+// Resolve the authored animation frame at which a named pose reaches its
+// greatest weight. Pose names come from GH1 face_data; RndMorph stores the
+// corresponding same-directory mesh name.
+std::optional<float> rnd_morph_pose_peak_frame(
+    const Character& character, std::string_view morph_name,
+    std::string_view pose_name);
 
 // Load + decode a whole BandCharacter MILO from a PS2 ARK (runtime-native: read
 // the .milo_ps2 from the ARK, decode in memory — no intermediate extraction).

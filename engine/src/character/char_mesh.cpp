@@ -19,6 +19,43 @@
 
 namespace ghogx::character {
 
+std::optional<std::string> source_character_active_lod_view(
+    const Character& character, int min_lod) {
+  const milo_scene::GroupObj* top = nullptr;
+  for (const auto& group : character.groups) {
+    if (group.name == "top.view") {
+      top = &group;
+      break;
+    }
+  }
+  if (!top) return std::nullopt;
+
+  const std::string prefix = min_lod >= 1 ? "lod1" : "lod0";
+  for (const std::string& child : top->children) {
+    if (child.size() < 5 ||
+        child.compare(child.size() - 5, 5, ".view") != 0 ||
+        child.size() < prefix.size()) {
+      continue;
+    }
+    bool prefix_matches = true;
+    for (size_t i = 0; i < prefix.size(); ++i) {
+      const unsigned char value = static_cast<unsigned char>(child[i]);
+      if (static_cast<char>(std::tolower(value)) != prefix[i]) {
+        prefix_matches = false;
+        break;
+      }
+    }
+    if (!prefix_matches) continue;
+    const bool child_is_resident =
+        std::any_of(character.groups.begin(), character.groups.end(),
+                    [&](const milo_scene::GroupObj& group) {
+                      return group.name == child;
+                    });
+    if (child_is_resident) return child;
+  }
+  return std::nullopt;
+}
+
 namespace {
 
 using milo_scene::Xfm;
@@ -630,6 +667,69 @@ RndAnimatableFields read_rnd_animatable(Reader& r) {
   return out;
 }
 
+RndMorph decode_rnd_morph_body(const std::string& entry_name,
+                               const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  RndMorph morph;
+  morph.name = entry_name;
+  morph.revision = r.i32();
+  if (morph.revision != 3) {
+    throw std::runtime_error("char_mesh: unsupported RndMorph revision");
+  }
+
+  // GH1's RndAnimatable revision 0 stores legacy animation-entry and
+  // animation-object vectors instead of the later frame/rate pair.
+  morph.anim_revision = r.i32();
+  if (morph.anim_revision != 0) {
+    throw std::runtime_error("char_mesh: unsupported GH1 RndMorph anim revision");
+  }
+  const uint32_t legacy_entries = r.u32();
+  if (legacy_entries > 4096) {
+    throw std::runtime_error("char_mesh: implausible RndMorph legacy entry count");
+  }
+  for (uint32_t i = 0; i < legacy_entries; ++i) {
+    (void)r.str();
+    (void)r.f32();
+    (void)r.f32();
+  }
+  const uint32_t anim_objects = r.u32();
+  if (anim_objects > 4096) {
+    throw std::runtime_error("char_mesh: implausible RndMorph anim object count");
+  }
+  for (uint32_t i = 0; i < anim_objects; ++i) {
+    morph.anim_objects.push_back(r.str());
+  }
+
+  const uint32_t pose_count = r.u32();
+  if (pose_count > 4096) {
+    throw std::runtime_error("char_mesh: implausible RndMorph pose count");
+  }
+  morph.poses.reserve(pose_count);
+  for (uint32_t i = 0; i < pose_count; ++i) {
+    RndMorphPose pose;
+    pose.mesh = r.str();
+    const uint32_t key_count = r.u32();
+    if (key_count > 65536) {
+      throw std::runtime_error("char_mesh: implausible RndMorph key count");
+    }
+    pose.keys.reserve(key_count);
+    for (uint32_t k = 0; k < key_count; ++k) {
+      // GH1 Key<Weight> revision 0 stores the scalar weight followed by frame.
+      pose.keys.push_back({r.f32(), r.f32()});
+    }
+    morph.poses.push_back(std::move(pose));
+  }
+  morph.target = r.str();
+  morph.normals = r.u8() != 0;
+  morph.spline = r.u8() != 0;
+  morph.intensity = r.f32();
+  if (r.pos != r.n) {
+    throw std::runtime_error("char_mesh: trailing RndMorph bytes");
+  }
+  morph.decoded = true;
+  return morph;
+}
+
 struct TransFields {
   Xfm local;
   Xfm world;
@@ -637,6 +737,7 @@ struct TransFields {
   std::string target;
   bool preserve_scale = false;
   std::string parent;
+  std::vector<std::string> legacy_children;
 };
 
 TransFields read_rnd_trans(Reader& r,
@@ -657,9 +758,9 @@ TransFields read_rnd_trans(Reader& r,
     const uint32_t trans_count = r.u32();
     for (uint32_t i = 0; i < trans_count; ++i) {
       if (plan.old_child_list_is_null_terminated_strings) {
-        (void)r.utf8_z();
+        out.legacy_children.push_back(r.utf8_z());
       } else {
-        (void)r.str();
+        out.legacy_children.push_back(r.str());
       }
     }
   }
@@ -3684,10 +3785,12 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
   mesh.name = entry_name;
   try {
     Reader r(body.data(), body.size());
-    int32_t ver = r.i32();  // mesh version = 28 (0x1c)
-    if (ver != 28) mesh.error = "unexpected mesh version " + std::to_string(ver);
+    int32_t ver = r.i32();  // GH1=25, GH2=28.
+    if (ver != 25 && ver != 28)
+      mesh.error = "unexpected mesh version " + std::to_string(ver);
 
-    read_object_fields(r);   // Hmx::Object fields for the Mesh object.
+    // GH1 revision-10 directories predate the per-entry Hmx::Object block.
+    if (parent_dir_revision >= 24) read_object_fields(r);
     const TransFields trans = read_rnd_trans(r, false, parent_dir_revision);
     mesh.local = trans.local;
     mesh.world_stored = trans.world;
@@ -3695,17 +3798,36 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
     mesh.target = trans.target;
     mesh.preserve_scale = trans.preserve_scale;
     mesh.parent = trans.parent;
+    mesh.legacy_children = trans.legacy_children;
 
     // Draw base.
-    r.i32();                 // draw version (= 3)
+    const int32_t draw_ver = r.i32();  // GH1=1, GH2=3.
+    if (draw_ver < 1 || draw_ver > 3) {
+      mesh.error = "unexpected drawable version " +
+                   std::to_string(draw_ver);
+      return mesh;
+    }
     mesh.showing = r.u8() != 0;
-    r.skip(16);              // bounding sphere
-    mesh.draw_order = r.f32();
+    if (draw_ver < 2) {
+      const uint32_t drawable_count = r.u32();
+      if (drawable_count > 4096) {
+        mesh.error = "legacy drawable list count exceeds entry";
+        return mesh;
+      }
+      for (uint32_t i = 0; i < drawable_count; ++i) {
+        if (parent_dir_revision <= 6)
+          (void)r.utf8_z();
+        else
+          (void)r.str();
+      }
+    }
+    if (draw_ver > 0) r.skip(16);  // bounding sphere
+    if (draw_ver > 2) mesh.draw_order = r.f32();
 
     // Mesh fields.
     mesh.material = r.str();
     if (ver == 27) r.str();  // legacy secondary mat name.
-    r.str();                 // geometry-owner name (usually self)
+    mesh.geometry_owner = r.str();  // geometry-owner name (usually self)
     if (ver < 13) r.str();   // alt geom owner.
     if (ver < 15) r.str();   // trans parent reference.
     if (ver < 14) {
@@ -11284,6 +11406,17 @@ bool find_source_xfm(const Character& c, const std::string& name,
     out.parent = c.meshes[i].parent;
     return true;
   }
+  for (const auto& group : c.groups) {
+    if (group.name != name || !group.has_transform) continue;
+    out.current = &group.local;
+    out.bind = &group.local;
+    out.stored_world = &group.world_stored;
+    out.constraint = group.constraint;
+    out.target = group.target;
+    out.preserve_scale = group.preserve_scale;
+    out.parent = group.parent;
+    return true;
+  }
   return false;
 }
 
@@ -11853,6 +11986,159 @@ bool Character::has_transform(const std::string& name) const {
   return find_source_xfm(*this, name, xfm);
 }
 
+RndMorph decode_rnd_morph(const std::string& entry_name,
+                          const std::vector<uint8_t>& body) {
+  try {
+    return decode_rnd_morph_body(entry_name, body);
+  } catch (const std::exception& ex) {
+    RndMorph morph;
+    morph.name = entry_name;
+    morph.error = ex.what();
+    return morph;
+  }
+}
+
+bool apply_rnd_morph_frame(Character& character,
+                           std::string_view morph_name,
+                           float frame) {
+  const auto morph_it = std::find_if(
+      character.morphs.begin(), character.morphs.end(),
+      [&](const RndMorph& morph) {
+        return source_ascii_lower(morph.name) ==
+               source_ascii_lower(std::string(morph_name));
+      });
+  if (morph_it == character.morphs.end() || !morph_it->decoded ||
+      morph_it->poses.empty()) {
+    return false;
+  }
+  const RndMorph& morph = *morph_it;
+  std::string target_name = morph.target;
+  if (target_name.empty()) {
+    const size_t dot = morph.name.find_last_of('.');
+    target_name = morph.name.substr(0, dot) + ".mesh";
+  }
+  auto target = std::find_if(
+      character.meshes.begin(), character.meshes.end(),
+      [&](const SkinnedMesh& mesh) {
+        return source_ascii_lower(mesh.name) ==
+               source_ascii_lower(target_name);
+      });
+  if (target == character.meshes.end() || target->verts.empty()) return false;
+
+  auto weight_at = [&](const RndMorphPose& pose) {
+    if (pose.keys.empty()) return 0.0f;
+    if (frame <= pose.keys.front().frame) return pose.keys.front().weight;
+    for (size_t i = 1; i < pose.keys.size(); ++i) {
+      if (frame > pose.keys[i].frame) continue;
+      const RndMorphKey& a = pose.keys[i - 1];
+      const RndMorphKey& b = pose.keys[i];
+      const float span = b.frame - a.frame;
+      const float t = std::abs(span) > 1.0e-6f
+                          ? (frame - a.frame) / span
+                          : 0.0f;
+      return a.weight + (b.weight - a.weight) *
+                            std::clamp(t, 0.0f, 1.0f);
+    }
+    return pose.keys.back().weight;
+  };
+
+  std::vector<SkinVertex> blended(target->verts.size());
+  float total_weight = 0.0f;
+  bool initialized = false;
+  for (const RndMorphPose& pose : morph.poses) {
+    auto source = std::find_if(
+        character.meshes.begin(), character.meshes.end(),
+        [&](const SkinnedMesh& mesh) {
+          return source_ascii_lower(mesh.name) ==
+                 source_ascii_lower(pose.mesh);
+        });
+    if (source == character.meshes.end()) continue;
+    source->showing = false;
+    if (source->verts.size() != target->verts.size()) continue;
+    const float weight = weight_at(pose) * morph.intensity;
+    if (weight <= 0.0f) continue;
+    if (!initialized) {
+      blended = source->verts;
+      for (SkinVertex& vertex : blended) {
+        vertex.px *= weight;
+        vertex.py *= weight;
+        vertex.pz *= weight;
+        if (morph.normals) {
+          vertex.nx *= weight;
+          vertex.ny *= weight;
+          vertex.nz *= weight;
+        }
+      }
+      initialized = true;
+    } else {
+      for (size_t i = 0; i < blended.size(); ++i) {
+        blended[i].px += source->verts[i].px * weight;
+        blended[i].py += source->verts[i].py * weight;
+        blended[i].pz += source->verts[i].pz * weight;
+        if (morph.normals) {
+          blended[i].nx += source->verts[i].nx * weight;
+          blended[i].ny += source->verts[i].ny * weight;
+          blended[i].nz += source->verts[i].nz * weight;
+        }
+      }
+    }
+    total_weight += weight;
+  }
+  if (!initialized || total_weight <= 1.0e-6f) return false;
+  for (size_t i = 0; i < blended.size(); ++i) {
+    target->verts[i].px = blended[i].px / total_weight;
+    target->verts[i].py = blended[i].py / total_weight;
+    target->verts[i].pz = blended[i].pz / total_weight;
+    if (morph.normals) {
+      target->verts[i].nx = blended[i].nx / total_weight;
+      target->verts[i].ny = blended[i].ny / total_weight;
+      target->verts[i].nz = blended[i].nz / total_weight;
+    }
+  }
+  target->bb_min[0] = target->bb_max[0] = target->verts[0].px;
+  target->bb_min[1] = target->bb_max[1] = target->verts[0].py;
+  target->bb_min[2] = target->bb_max[2] = target->verts[0].pz;
+  for (const SkinVertex& vertex : target->verts) {
+    target->bb_min[0] = std::min(target->bb_min[0], vertex.px);
+    target->bb_min[1] = std::min(target->bb_min[1], vertex.py);
+    target->bb_min[2] = std::min(target->bb_min[2], vertex.pz);
+    target->bb_max[0] = std::max(target->bb_max[0], vertex.px);
+    target->bb_max[1] = std::max(target->bb_max[1], vertex.py);
+    target->bb_max[2] = std::max(target->bb_max[2], vertex.pz);
+  }
+  target->showing = true;
+  return true;
+}
+
+std::optional<float> rnd_morph_pose_peak_frame(
+    const Character& character, std::string_view morph_name,
+    std::string_view pose_name) {
+  const std::string wanted_morph = source_ascii_lower(std::string(morph_name));
+  const std::string wanted_pose = source_ascii_lower(std::string(pose_name));
+  const auto morph_it = std::find_if(
+      character.morphs.begin(), character.morphs.end(),
+      [&](const RndMorph& morph) {
+        return morph.decoded &&
+               source_ascii_lower(morph.name) == wanted_morph;
+      });
+  if (morph_it == character.morphs.end()) return std::nullopt;
+  for (const RndMorphPose& pose : morph_it->poses) {
+    std::string mesh_name = source_ascii_lower(pose.mesh);
+    const size_t slash = mesh_name.find_last_of("/\\");
+    if (slash != std::string::npos) mesh_name.erase(0, slash + 1);
+    const size_t dot = mesh_name.find_last_of('.');
+    if (dot != std::string::npos) mesh_name.erase(dot);
+    if (mesh_name != wanted_pose || pose.keys.empty()) continue;
+    const auto peak = std::max_element(
+        pose.keys.begin(), pose.keys.end(),
+        [](const RndMorphKey& a, const RndMorphKey& b) {
+          return a.weight < b.weight;
+        });
+    return peak->frame;
+  }
+  return std::nullopt;
+}
+
 bool load_character(const std::string& hdr_path, const std::string& ark_path,
                     const std::string& milo_path, Character& out) {
   try {
@@ -11900,7 +12186,8 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
         } else if (de.type == "Mat") {
           handled = true;
           out.mats.push_back(milo_scene::decode_mat(de.name, b));
-        } else if (de.type == "Group") {
+        } else if (de.type == "Group" ||
+                   (dir.dir_version == 10 && de.type == "View")) {
           handled = true;
           milo_scene::GroupObj group =
               milo_scene::decode_group(de.name, b, dir.dir_version);
@@ -11909,6 +12196,14 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                          de.name.c_str(), group.error.c_str());
           }
           out.groups.push_back(std::move(group));
+        } else if (de.type == "Morph") {
+          handled = true;
+          RndMorph morph = decode_rnd_morph(de.name, b);
+          if (!morph.decoded) {
+            std::fprintf(stderr, "[char]   Morph '%s' decode: %s\n",
+                         de.name.c_str(), morph.error.c_str());
+          }
+          out.morphs.push_back(std::move(morph));
         } else if (de.type == "CharUpperTwist") {
           handled = true;
           out.upper_twists.push_back(decode_upper_twist(de.name, b));
@@ -11994,18 +12289,83 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                      de.name.c_str(), ex.what());
       }
     }
+    if (dir.dir_version == 10) {
+      // Trans rev8 serializes the old child list before a trailing parent
+      // pointer. GH1 character bodies normally store `this` in that trailing
+      // slot; SetTransParent ignores it. Rebuild the actual hierarchy from the
+      // child lists exactly as the legacy loader does.
+      std::map<std::string, size_t> mesh_indices;
+      for (size_t i = 0; i < out.meshes.size(); ++i)
+        mesh_indices[out.meshes[i].name] = i;
+      for (auto& mesh : out.meshes) {
+        if (mesh.parent == mesh.name) mesh.parent.clear();
+      }
+      for (const auto& parent : out.meshes) {
+        for (const auto& child_name : parent.legacy_children) {
+          const auto child = mesh_indices.find(child_name);
+          if (child == mesh_indices.end() || child->second >= out.meshes.size())
+            continue;
+          out.meshes[child->second].parent = parent.name;
+        }
+      }
+    }
+
+    // RndMesh::Verts/Faces forward exactly one level to mGeomOwner's backing
+    // members (they do not recursively call the owner's accessors). Preserve
+    // each alias's own Trans, Mat, and bone rows while materializing that
+    // direct geometry view for this value-based renderer.
+    if (dir.dir_version == 10) {
+      std::map<std::string, const SkinnedMesh*> owners;
+      for (const auto& mesh : out.meshes) owners[mesh.name] = &mesh;
+      struct SharedGeometry {
+        size_t index = 0;
+        std::vector<SkinVertex> verts;
+        std::vector<uint16_t> indices;
+        float bb_min[3] = {};
+        float bb_max[3] = {};
+      };
+      std::vector<SharedGeometry> shared;
+      for (size_t i = 0; i < out.meshes.size(); ++i) {
+        const auto owner = owners.find(out.meshes[i].geometry_owner);
+        if (owner == owners.end() || owner->second == &out.meshes[i]) continue;
+        SharedGeometry row;
+        row.index = i;
+        row.verts = owner->second->verts;
+        row.indices = owner->second->indices;
+        for (int axis = 0; axis < 3; ++axis) {
+          row.bb_min[axis] = owner->second->bb_min[axis];
+          row.bb_max[axis] = owner->second->bb_max[axis];
+        }
+        shared.push_back(std::move(row));
+      }
+      for (auto& row : shared) {
+        auto& mesh = out.meshes[row.index];
+        mesh.verts = std::move(row.verts);
+        mesh.indices = std::move(row.indices);
+        for (int axis = 0; axis < 3; ++axis) {
+          mesh.bb_min[axis] = row.bb_min[axis];
+          mesh.bb_max[axis] = row.bb_max[axis];
+        }
+      }
+    }
+
     for (SkinnedMesh& mesh : out.meshes) {
       apply_source_rndmesh_active_bones(mesh, &out);
     }
+    const size_t showing_meshes = static_cast<size_t>(std::count_if(
+        out.meshes.begin(), out.meshes.end(),
+        [](const SkinnedMesh& mesh) { return mesh.decoded && mesh.showing; }));
     std::fprintf(stderr,
-                 "[char] %s: %zu meshes (%d ok / %d fail), %zu bones, %zu mat, "
-                 "%zu group, %zu upperTwist, %zu foreTwist, %zu neckTwist, %zu ikRod, %zu ikHand, %zu ikMidi, "
+                 "[char] %s: %zu meshes (%d ok / %d fail, %zu showing), %zu bones, %zu mat, "
+                 "%zu group, %zu morph, %zu upperTwist, %zu foreTwist, %zu neckTwist, %zu ikRod, %zu ikHand, %zu ikMidi, "
                  "%zu servoBone, %zu lookAt, %zu eyes, %zu hair, %zu collide, "
                  "%zu posConstraint, %zu boneOffset, %zu boneTwist, %zu lipServo, %zu animFilter, "
                  "%zu eventTrigger, %zu object, %zu tex, %zu driver, "
                  "%zu weightSetter, %zu opaque\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
+                 showing_meshes,
                  out.bones.size(), out.mats.size(), out.groups.size(),
+                 out.morphs.size(),
                  out.upper_twists.size(), out.fore_twists.size(),
                  out.neck_twists.size(), out.ik_rods.size(),
                  out.ik_hands.size(), out.ik_midis.size(),

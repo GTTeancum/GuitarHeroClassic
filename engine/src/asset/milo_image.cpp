@@ -107,6 +107,9 @@ std::vector<std::string> track_surface_candidates_for_ref(
   const std::string key = normalize_outfit_surface_key(surface_ref);
   if (!key.empty()) {
     out.push_back("track/surfaces/gen/" + key + "_keep.bmp_ps2");
+    // GH1 uses the same selected-character key but stores the loose bitmap
+    // without GH2's `_keep` suffix.
+    out.push_back("track/surfaces/gen/" + key + ".bmp_ps2");
   }
   return out;
 }
@@ -115,6 +118,32 @@ std::string first_existing_track_surface(const gh::ark::ArkV3Reader& ark,
                                          const std::vector<std::string>& paths) {
   for (const auto& path : paths) {
     if (!path.empty() && find_entry(ark, path)) return path;
+  }
+  // Some GH1 model symbols carry a more specific suffix than their authored
+  // surface key (for example a model-family qualifier). Resolve only a unique
+  // prefix boundary from the packed surface inventory.
+  for (const auto& requested : paths) {
+    constexpr std::string_view prefix = "track/surfaces/gen/";
+    constexpr std::string_view suffix = "_keep.bmp_ps2";
+    if (!starts_with(requested, prefix) || !ends_with(requested, suffix))
+      continue;
+    const std::string key = requested.substr(
+        prefix.size(), requested.size() - prefix.size() - suffix.size());
+    std::vector<std::string> matches;
+    for (const auto& entry : ark.entries()) {
+      const std::string candidate = normalize_pathish(entry.full_path);
+      if (!starts_with(candidate, prefix) ||
+          !ends_with(candidate, ".bmp_ps2"))
+        continue;
+      const std::string stem = candidate.substr(
+          prefix.size(),
+          candidate.size() - prefix.size() - std::string(".bmp_ps2").size());
+      if (key.size() > stem.size() && starts_with(key, stem) &&
+          key[stem.size()] == '_') {
+        matches.push_back(candidate);
+      }
+    }
+    if (matches.size() == 1) return matches.front();
   }
   return {};
 }

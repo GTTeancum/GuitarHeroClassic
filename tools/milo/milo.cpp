@@ -9,6 +9,7 @@
 #define MINIZ_NO_STDIO
 #include "../../third_party/miniz/miniz_tinfl.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -40,6 +41,45 @@ bool mesh_body_fits_before(const std::vector<uint8_t>& p, size_t start,
     size_t pos = start;
     uint32_t tmp = 0;
     if (!read_u32_at(p, pos, tmp)) return false;       // Mesh version.
+    const uint32_t mesh_version = tmp;
+    if (mesh_version == 25) {
+        if (!read_u32_at(p, pos, tmp) || tmp != 8) return false; // Trans version.
+        if (pos + 96 + 4 > end) return false;
+        pos += 96;
+        uint32_t child_count = 0;
+        if (!read_u32_at(p, pos, child_count) || child_count > 4096) return false;
+        for (uint32_t i = 0; i < child_count; ++i)
+            if (!skip_string_at(p, pos, end)) return false;
+        if (!read_u32_at(p, pos, tmp)) return false;    // constraint
+        if (!skip_string_at(p, pos, end)) return false; // target
+        if (pos + 1 > end) return false;
+        ++pos;                                          // preserve scale
+        if (!skip_string_at(p, pos, end)) return false; // parent
+        if (!read_u32_at(p, pos, tmp) || tmp != 1) return false; // Draw version.
+        if (pos + 1 + 4 > end) return false;
+        ++pos;                                          // showing
+        uint32_t draw_count = 0;
+        if (!read_u32_at(p, pos, draw_count) || draw_count > 4096) return false;
+        for (uint32_t i = 0; i < draw_count; ++i)
+            if (!skip_string_at(p, pos, end)) return false;
+        if (pos + 16 > end) return false;               // sphere
+        pos += 16;
+        if (!skip_string_at(p, pos, end)) return false; // material
+        if (!skip_string_at(p, pos, end)) return false; // geometry owner
+        if (pos + 4 + 4 + 1 + 4 > end) return false;   // mutable, volume, bsp, count
+        pos += 8;
+        if (p[pos++] != 0) return false;
+        uint32_t vcount = 0;
+        if (!read_u32_at(p, pos, vcount)) return false;
+        const uint64_t vertex_bytes = static_cast<uint64_t>(vcount) * 48u;
+        if (vertex_bytes > end - pos || pos + static_cast<size_t>(vertex_bytes) + 4 > end)
+            return false;
+        pos += static_cast<size_t>(vertex_bytes);
+        uint32_t fcount = 0;
+        if (!read_u32_at(p, pos, fcount)) return false;
+        return static_cast<uint64_t>(fcount) * 6u <= end - pos;
+    }
+    if (mesh_version != 28) return false;
     if (!read_u32_at(p, pos, tmp)) return false;       // Trans version.
     if (pos + 9 + 96 + 9 > end) return false;
     pos += 9 + 96 + 9;
@@ -264,6 +304,20 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
         d.entries.push_back(std::move(e));
     }
 
+    // GH1 revision-10 directories carry an external-resource vector here and
+    // have no serialized root-directory object. Child body 0 therefore starts
+    // immediately after this vector. Treating the first child's terminator as
+    // a root-object terminator shifts every table name onto the next body.
+    if (d.dir_version == 10) {
+        if (pos + 4 > p.size())
+            throw std::runtime_error("milo dir: missing GH1 external resource count");
+        const uint32_t external_count = rd_u32(p.data() + pos); pos += 4;
+        if (external_count > d.entries.size() + 1024u)
+            throw std::runtime_error("milo dir: implausible GH1 external resource count");
+        for (uint32_t i = 0; i < external_count; ++i)
+            (void)read_string(p.data(), p.size(), pos);
+    }
+
     // After the entry list, GH1 (version 10) has an external resource list,
     // GH2+ (version 24+) has a directory-entry blob (or a recursive subdir for
     // version 25 ObjectDir). Both terminate with the 0xADDEADDE marker before
@@ -280,28 +334,52 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
                                    size_t body_start = 0) -> size_t {
         for (size_t k = from; k + 4 <= p.size(); ++k) {
             if (rd_u32(p.data() + k) != kAddePadding) continue;
+            // GH1 directory revision 10 remaps legacy View objects to Group.
+            // A View body starts with Group revision 7.  This transition is a
+            // stronger boundary than the conservative Mesh-tail validator,
+            // which cannot fully model every small rigid-bone Mesh variant.
+            if (type && *type == "Mesh" && d.dir_version == 10 &&
+                k + 8 <= p.size() &&
+                (rd_u32(p.data() + k + 4) & 0xffffu) == 7u) {
+                return k;
+            }
             if (type && *type == "Mesh" && !mesh_body_fits_before(p, body_start, k)) {
                 continue;
             }
             if (!type || *type != "Mesh") return k;
             if (k + 4 >= p.size()) return k;
             if (k + 8 <= p.size()) {
-                const int32_t magic = rd_i32(p.data() + k + 4);
-                if (magic >= 0 && magic <= 0xff) return k;
+                const uint32_t revision = rd_u32(p.data() + k + 4);
+                const uint16_t main_revision =
+                    static_cast<uint16_t>(revision & 0xffffu);
+                const uint16_t alt_revision =
+                    static_cast<uint16_t>(revision >> 16);
+                // Old object bodies use packed main/alternate revisions
+                // (for example 0x00010001), not only a small scalar.  GH1's
+                // final Mesh is followed by legacy View-as-Group objects, so
+                // rejecting that packed value discarded the entire tail.
+                if (main_revision <= 0xff && alt_revision <= 0xff) return k;
             }
         }
         return p.size();
     };
 
-    size_t cursor = scan(pos);
-    d.dir_entry_offset = pos;                 // root dir's own object body
-    d.dir_entry_size = cursor - pos;
-    if (cursor == p.size()) return d;  // no markers; nothing to size
-    cursor += 4;                       // skip directory-entry terminator
+    size_t cursor = pos;
+    if (d.dir_version == 10) {
+        d.dir_entry_offset = pos;
+        d.dir_entry_size = 0;
+    } else {
+        cursor = scan(pos);
+        d.dir_entry_offset = pos;              // root dir's own object body
+        d.dir_entry_size = cursor - pos;
+        if (cursor == p.size()) return d;       // no markers; nothing to size
+        cursor += 4;                            // root-object terminator
+    }
 
     for (auto& e : d.entries) {
+        const int32_t expected_mesh_version = d.dir_version == 10 ? 25 : 28;
         while (e.type == "Mesh" && cursor + 4 <= p.size() &&
-               rd_i32(p.data() + cursor) != 28) {
+               rd_i32(p.data() + cursor) != expected_mesh_version) {
             const size_t skipped = scan(cursor);
             if (skipped == p.size()) break;
             cursor = skipped + 4;

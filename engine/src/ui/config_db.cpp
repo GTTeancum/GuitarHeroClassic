@@ -56,6 +56,24 @@ void ConfigDb::load(const gh::ark::ArkV3Reader& ark, const std::vector<std::stri
   load_practice_sections(ark, ark_paths);
 }
 
+void ConfigDb::load_songs(
+    const gh::ark::ArkV3Reader& ark,
+    const std::vector<std::string>& ark_paths) {
+  constexpr const char* path = "config/gen/songs.dtb";
+  try {
+    const auto entry = ark.find(path);
+    if (!entry) {
+      std::fprintf(stderr, "[configdb] content archive lacks %s\n", path);
+      return;
+    }
+    const auto bytes = ark.read_entry(*entry, ark_paths);
+    tables_[Symbol("songs").id()] =
+        dtb_bridge::from_tree(gh::dtb::parse(bytes));
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[configdb] content %s: %s\n", path, ex.what());
+  }
+}
+
 const DataArray* ConfigDb::table(Symbol name) const {
   auto it = tables_.find(name.id());
   return it == tables_.end() ? nullptr : it->second.get();
@@ -78,6 +96,13 @@ Symbol ConfigDb::song_key(std::size_t index) const {
   const DataArray* rec = song(index);
   if (!rec || rec->size() == 0) return Symbol();
   return rec->at(0).as_symbol().value_or(Symbol());
+}
+
+int ConfigDb::song_index(Symbol song_name) const {
+  if (!song_name.valid()) return -1;
+  for (std::size_t i = 0; i < song_count(); ++i)
+    if (song_key(i) == song_name) return static_cast<int>(i);
+  return -1;
 }
 
 DataNode ConfigDb::song_field(std::size_t index, Symbol field_name) const {
@@ -152,6 +177,54 @@ Symbol ConfigDb::default_venue() const {
   if (is_venue(stock_main_default)) return stock_main_default;
   const auto list = venues();
   return list.empty() ? Symbol() : list.front();
+}
+
+std::vector<Symbol> ConfigDb::campaign_songs(Symbol venue) const {
+  std::vector<Symbol> out;
+  const DataArray* campaign = table(Symbol("campaign"));
+  if (!campaign || !venue.valid()) return out;
+  auto order = campaign->find_keyed(Symbol("order"));
+  if (!order) return out;
+  for (std::size_t i = 1; i < order->size(); ++i) {
+    auto tier = order->at(i).as_array();
+    if (!tier || tier->empty() ||
+        tier->at(0).as_symbol().value_or(Symbol()) != venue)
+      continue;
+    for (std::size_t j = 1; j < tier->size(); ++j) {
+      Symbol song = tier->at(j).as_symbol().value_or(Symbol());
+      if (song.valid()) out.push_back(song);
+    }
+    break;
+  }
+  return out;
+}
+
+Symbol ConfigDb::campaign_venue(Symbol song_name) const {
+  if (!song_name.valid()) return Symbol();
+  const DataArray* campaign = table(Symbol("campaign"));
+  if (!campaign) return Symbol();
+  auto order = campaign->find_keyed(Symbol("order"));
+  if (!order) return Symbol();
+  for (std::size_t i = 1; i < order->size(); ++i) {
+    auto tier = order->at(i).as_array();
+    if (!tier || tier->size() < 2) continue;
+    for (std::size_t j = 1; j < tier->size(); ++j) {
+      if (tier->at(j).as_symbol().value_or(Symbol()) == song_name)
+        return tier->at(0).as_symbol().value_or(Symbol());
+    }
+  }
+  return Symbol();
+}
+
+Symbol ConfigDb::campaign_venue_at(std::size_t tier_index) const {
+  const DataArray* campaign = table(Symbol("campaign"));
+  if (!campaign) return Symbol();
+  auto order = campaign->find_keyed(Symbol("order"));
+  if (!order || tier_index + 1 >= order->size()) return Symbol();
+  auto tier = order->at(tier_index + 1).as_array();
+  return tier && !tier->empty()
+             ? tier->at(0).as_symbol().value_or(Symbol())
+             : Symbol();
 }
 
 const DataArray* ConfigDb::guitar(Symbol guitar_name) const {

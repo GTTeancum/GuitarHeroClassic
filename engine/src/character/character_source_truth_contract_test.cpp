@@ -34,7 +34,9 @@ std::string read_file(const std::filesystem::path& path) {
   }
   std::ostringstream ss;
   ss << in.rdbuf();
-  return ss.str();
+  std::string text = ss.str();
+  text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
+  return text;
 }
 
 std::string compact(std::string s) {
@@ -1543,9 +1545,7 @@ int run_contract() {
                  "32767.0f,-1.0f);}",
                  "native implements grim snorm16 decode without pi scale");
   ok &= contains(char_clip,
-                 "floatsource_gh2_char_bones_samples_decode_scalar_angle("
-                 "int16_tvalue){returnstatic_cast<float>(value)*"
-                 "0.0006103515625f;}",
+                 "static_cast<float>(value)*0.0006103515625f;",
                  "native implements GH2 XEX compressed scalar radian scale");
   ok &= contains(char_clip,
                  "std::array<float,4>source_grim_char_bones_samples_decode_"
@@ -1556,15 +1556,16 @@ int run_contract() {
                  "source_grim_char_bones_samples_decode_snorm16(w)};}",
                  "native implements grim short quat decode helper");
   ok &= contains(char_clip,
-                 "intc=source_grim_char_bones_samples_get_type_of(name);",
-                 "native sample-name validator uses grim classifier");
+                 "constinttype=gh2_char_bones_samples_get_type_of(name);",
+                 "native sample-name validator uses exact GH2 classifier");
   ok &= contains(char_clip,
-                 "out.cats.push_back(source_grim_char_bones_samples_get_type_of"
+                 "out.cats.push_back(gh2_char_bones_samples_get_type_of"
                  "(name));",
-                 "native clip sample parser stores grim-classified categories");
+                 "native clip sample parser stores GH2-classified categories");
   ok &= contains(char_clip,
-                 "ch.angle=comp?read_snorm16(c):c.f32();",
-                 "native scalar sample decode keeps grim raw angle value");
+                 "ch.angle=comp?source_gh2_char_bones_samples_decode_scalar_"
+                 "angle(c.i16()):c.f32();",
+                 "native scalar sample decode applies the recovered GH2 angle scale");
   ok &= contains(char_clip,
                  "constint16_tx=c.i16();constint16_ty=c.i16();"
                  "constint16_tz=c.i16();constint16_tw=c.i16();",
@@ -1579,15 +1580,18 @@ int run_contract() {
                  "for(size_tbi=0;bi<bl.names.size();++bi){ClipChannelch;",
                  "native walks clip sample bytes in bone order");
   ok &= contains(char_clip,
-                 "ch.bone_name=source_grim_char_bones_samples_channel_mesh_name"
+                 "ch.bone_name=gh2_char_bones_samples_target_name"
                  "(bl.names[bi]);",
-                 "native parser maps sample channels to Grim mesh names");
-  ok &= contains(char_clip, "casekSourceCharBonesTypeScale:skip_grim_scale(c);",
-                 "native consumes scale bytes without publishing pose");
+                 "native parser maps sample channels to source target names");
   ok &= contains(char_clip,
-                 "casekSourceCharBonesTypeRotX:casekSourceCharBonesTypeRotY:"
-                 "skip_grim_angle(c,comp);",
-                 "native consumes rotx roty bytes without publishing pose");
+                 "casekGh2CharBonesTypePos:casekGh2CharBonesTypeScale:"
+                 "read_vec(c,cat,bl.compression,ch);frames[f].push_back(ch);",
+                 "native decodes source position and scale channels");
+  ok &= contains(char_clip,
+                 "casekGh2CharBonesTypeRotX:casekGh2CharBonesTypeRotY:"
+                 "casekGh2CharBonesTypeRotZ:casekGh2CharBonesTypeDeltaX:"
+                 "casekGh2CharBonesTypeDeltaY:casekGh2CharBonesTypeDeltaZ:",
+                 "native decodes every recovered scalar rotation channel");
   ok &= contains(doc,
                  "`.scale`, `.rotx`, `.roty`, sample evaluate, and broad pose "
                  "publishing remain fenced",
@@ -2919,7 +2923,8 @@ int run_contract() {
                  "shared RndTrans reader uses source plan with parent revision");
   ok &= contains(scene,
                  "if(plan.old_child_list_is_null_terminated_strings){"
-                 "(void)r.utf8_z();}else{(void)r.str();}",
+                 "out.legacy_children.push_back(r.utf8_z());}else{"
+                 "out.legacy_children.push_back(r.str());}",
                  "shared RndTrans reader mirrors old child-list string gate");
   ok &= contains(char_mesh,
                  "source_rndtrans_load_plan(ver,parent_dir_revision,standalone)",
@@ -4287,10 +4292,11 @@ int run_contract() {
                  "shared RndDrawable reader uses source plan with parent revision");
   ok &= contains(scene,
                  "if(plan.old_list_is_null_terminated_strings){"
-                 "(void)r.utf8_z();}else{(void)r.str();}",
+                 "ref=r.utf8_z();}else{ref=r.str();}",
                  "shared RndDrawable reader mirrors old drawable-list string gate");
   ok &= contains(scene,
-                 "read_drawable_block(r,parent_dir_revision);",
+                 "read_drawable_block(r,parent_dir_revision,group.showing,"
+                 "group.draw_order);",
                  "shared RndGroup decoder passes parent revision into RndDrawable");
   ok &= contains(scene_test,
                  "constSourceRndDrawableLoadPlandrawable_v3="
@@ -4339,8 +4345,8 @@ int run_contract() {
                  "Read(reader);diffuseTex=Symbol.Read(reader);"
                  "nextPass=Symbol.Read(reader);intensify=reader.ReadBoolean();",
                  "RndMat source texture transform/diffuse/next-pass order");
-  ok &= contains(scene_h, "12xf32tex_xfmtransform",
-                 "native material format notes keep MiloLib 12-float texXfm Matrix");
+  ok &= contains(scene_h, "floattex_xfm[3][3]=",
+                 "native material representation retains the decoded texture matrix");
   ok &= contains(mat_cs,
                  "cull=reader.ReadBoolean();emissiveMultiplier=reader.ReadFloat();",
                  "RndMat source cull/emissive order");
@@ -6172,15 +6178,14 @@ int run_contract() {
                  "has_hair_token(material->diffuse_tex)",
                  "hair two-sided rule catches material and texture tokens");
   ok &= contains(renderer,
-                 "constDWORDmesh_cull_mode=hair_two_sided?D3DCULL_NONE:"
-                 "character_cull_mode(material);",
-                 "hair surfaces are marked two-sided only at cull selection");
+                 "constDWORDmesh_cull_mode=character_cull_mode(&m,material);",
+                 "mesh culling is selected through authored material state");
   ok &= missing(renderer,
                 "is_hair_two_sided_surface(mesh,material)){returnD3DCULL_NONE;}",
                 "generic cull helper must not keep a hidden hair override");
   ok &= contains(renderer,
-                 "dev->SetRenderState(D3DRS_CULLMODE,mesh_cull_mode);",
-                 "hair two-sided rule reaches D3D only through cull mode");
+                 "d3d_state.render(D3DRS_CULLMODE,mesh_cull_mode);",
+                 "authored cull mode reaches the cached D3D state path");
   ok &= missing(renderer,
                 "D3DCULL_CCW);draw_current_mesh();dev->SetRenderState("
                 "D3DRS_CULLMODE,D3DCULL_CW);draw_current_mesh();",
@@ -19747,13 +19752,15 @@ int run_contract() {
                  "(`0x803AC728 -> 0x803AC8F0`)",
                  "document records OutfitLoader Save dump range");
   ok &= contains(doc,
-                 "Native keeps both rows opaque until reviewable\n"
-                 "ihatecompvir source proves the serialized behavior",
+                 "Native keeps both rows opaque until a reviewable\n"
+                 "loader body or direct original-game trace proves the "
+                 "serialized behavior",
                  "document keeps CharWalk and OutfitLoader source-gated");
   ok &= contains(doc,
-                 "original-game traces may\n"
-                 "corroborate a future source-backed decode but are not an implementation\n"
-                 "authority",
+                 "The original-game\n"
+                 "    trace notes corroborate this deterministic contract, "
+                 "but do not replace\n"
+                 "    ihatecompvir source as implementation authority",
                  "document keeps original-game traces corroborative");
   ok &= contains(rb2_char_walk_cpp,
                  "voidCharWalk::Load(classCharWalk*constthis/*r29*/,"
@@ -23911,11 +23918,12 @@ int run_contract() {
                   "boollatest_source_has_get_target_body=false;"
                   "boolgh2_xex_owns_generated_target=false;"
                   "boolgh2_xex_interest_can_replace_target=false;"
-                  "boolgh2_xex_assigns_target_to_every_lookat=false;"
-                  "boolsafe_to_publish_destination_links=false;"
-                  "boolsafe_to_publish_eye_runtime_rows=false;"
-                  "boolsafe_to_infer_facefx_rows=false;};",
-                  "native exposes CharEyes runtime dump evidence");
+                   "boolgh2_xex_assigns_target_to_every_lookat=false;"
+                   "boolsafe_to_publish_destination_links=false;"
+                   "boolsafe_to_publish_stock_v2_lookat_local=false;"
+                   "boolsafe_to_publish_eye_runtime_rows=false;"
+                   "boolsafe_to_infer_facefx_rows=false;};",
+                   "native exposes CharEyes runtime dump evidence");
   ok &= contains(char_mesh_h,
                   "structSourceGh2CharEyesNextLookPublication{"
                   "std::stringgenerated_target;std::stringchosen_target;"
@@ -25078,8 +25086,8 @@ int run_contract() {
                  "throwstd::runtime_error",
                  "native CharIKHand decoder enforces source revision range");
   ok &= contains(char_mesh_h,
-                 "boolclockwise=false;size_tunread_bytes=0;",
-                 "native CharIKHand stores source tail bytes");
+                  "boollegacy_anim_servo_ik=false;",
+                  "native CharIKHand stores source tail bytes");
   ok &= contains(char_mesh_h,
                  "structRuntimeIKHandMeasureState{boolhand_changed=true;"
                  "boolhas_elbow_chain=false;floatinv_2ab=0.0f;"
@@ -26739,8 +26747,8 @@ int run_contract() {
                  "(axis-'x');}",
                  "native CharBones type helper maps source rot axes");
   ok &= contains(char_clip,
-                 "returnc>=0&&c<kSourceCharBonesTypeEnd;",
-                 "native clip decoder rejects non-source channel categories");
+                 "returntype>=0&&type<kGh2CharBonesTypeEnd;",
+                 "native clip decoder rejects non-GH2 channel categories");
   ok &= contains(char_clip,
                  "std::stringsource_char_bones_channel_name("
                  "conststd::string&name,inttype)",
@@ -26990,8 +26998,8 @@ int run_contract() {
                  "plan.read_order={\"bone_count\",\"name\",\"weight\"};",
                  "native extra-bone plan records Grim row order");
   ok &= contains(char_clip,
-                 "source_grim_char_bones_samples_channel_mesh_name(bl.names[bi])",
-                 "native clip parser follows Grim mesh-name channel mapping");
+                 "gh2_char_bones_samples_target_name(bl.names[bi])",
+                 "native clip parser follows recovered GH2 target-name mapping");
   ok &= contains(char_bones_source_test,
                  "source_char_bones_type_of(\"bone_head.rotx\")",
                  "focused CharBones source test covers rot-x suffix");
@@ -27667,8 +27675,8 @@ int run_contract() {
   ok &= contains(char_clip, "offset+=type_size;",
                  "native CharBones FindOffset advances source packed offsets");
   ok &= contains(char_clip,
-                 "if(uses_source_byte_quat(out))returnfalse;",
-                 "native clip decoder refuses byte-quat lists until source conversion body exists");
+                 "if(type==kGh2CharBonesTypeQuat)returncompression==0?16u:8u;",
+                 "native clip decoder supports the recovered packed-quaternion width");
   ok &= contains(char_clip,
                  "source_char_bones_compression_name",
                  "native clip decoder names source compression modes for logs");
@@ -27714,9 +27722,9 @@ int run_contract() {
                  "character_weight_setter_source_test.cpp)",
                  "CMake builds focused CharWeightSetter source test");
   ok &= contains(char_clip_audit,
-                 "for(constauto&entry:ark.entries()){if(!ends_with("
-                 "entry.full_path,\".milo_ps2\"))continue;",
-                 "clip audit expands ARK prefixes into MILO entries");
+                 "if(!ends_with(entry.full_path,\".milo_ps2\")&&"
+                 "!ends_with(entry.full_path,\".acp\")){continue;}",
+                 "clip audit expands ARK prefixes into MILO and ACP entries");
   ok &= contains(char_clip_audit,
                  "if(de.type!=\"CharClipSamples\")continue;",
                  "clip audit restricts row inventory to CharClipSamples");
@@ -27733,8 +27741,8 @@ int run_contract() {
                  "\"rawPos=%drawScale=%drawQuat=%drawRotX=%drawRotY=%d\"",
                  "clip audit emits raw channel type evidence");
   ok &= contains(char_clip_audit,
-                 "\"rawRotZ=%dfencedRaw=%d\\n\"",
-                 "clip audit emits fenced raw channel evidence");
+                 "\"rawRotZ=%drawDX=%drawDY=%drawDZ=%dextendedTyped=%d\\n\"",
+                 "clip audit emits the complete typed channel inventory");
   ok &= missing(char_clip, "out.compression>3",
                 "native clip decoder no longer caps source compression at mode 3");
   ok &= contains(rb3_latest_char_bone_cpp,
@@ -29736,8 +29744,7 @@ int run_contract() {
                  "weights.size()?weights[index]:1.0f;}",
                  "native helper preserves serialized channel weights");
   ok &= contains(char_clip,
-                 "floatsource_grim_char_bones_samples_pose_axis_angle("
-                 "ClipChannel::Typeaxis,floatsample){(void)axis;returnsample;}",
+                 "returnsample;}",
                  "native publisher preserves decoded GH2 radian units");
   ok &= contains(char_clip,
                  "SourceGrimCharBonesSamplesDecodePlansource_grim_char_bones_"
@@ -29793,17 +29800,15 @@ int run_contract() {
                  "plan.sample_size=(plan.sample_size+3u)&~static_cast<size_t>(3u);",
                  "native helper ports Grim four-byte alignment");
   ok &= contains(char_clip,
-                 "constSourceGrimCharBonesSamplesDataPlandata_plan="
-                 "source_grim_char_bones_samples_data_plan(",
-                 "clip parser uses source data stride plan");
+                 "gh2_char_bones_samples_file_type_size(cat,out.compression)",
+                 "clip parser uses the recovered GH2 typed stride plan");
   ok &= contains(char_clip,
-                 "source_grim_char_bones_samples_recompute_sizes("
-                 "out.compression,source_grim_char_bones_samples_first_counts"
-                 "(out.cum))",
-                 "clip parser validates Grim computed sizes");
+                 "if(sample_bytes==n-q){candidate.resize(2);"
+                 "lists=std::move(candidate);",
+                 "clip parser validates the exact packed sample byte count");
   ok &= contains(char_clip,
-                 "if(!source_grim_char_bones_samples_decodes_channel_type(cat))",
-                 "clip parser uses Grim decode supported-type helper");
+                 "if(type_size==0u)returnfalse;out.frame_bytes+=type_size;",
+                 "clip parser rejects unsupported typed channel widths");
   ok &= contains(char_clip,
                  "ch.source_weight=source_grim_char_bones_samples_channel_weight"
                  "(bl.weights,bi);",
@@ -32749,18 +32754,21 @@ int run_contract() {
                 "CharBonesSamples",
                 "band3_recomp has no CharBonesSamples runtime symbol");
   ok &= contains(doc,
-                 "Broad body, face, lower-body,\n  or full CharBone output publishing "
-                 "is no longer a live-write path",
-                 "document keeps broad CharBone output publishing out of runtime truth");
+                 "Native now mirrors that acquire/mix/commit path for all "
+                 "decoded `CharBone` rows\n"
+                 "and never seeds a live pose from serialized `OutputBone.local`",
+                 "document records the recovered full typed publisher");
   ok &= contains(char_clip,
-                 "Decoderevidenceisboundedbyihatecompvirsource.rb3-latestexposes",
-                 "clip decoder comment names current ihatecompvir source boundary");
+                 "Serializationevidenceisboundedbyihatecompvirsource."
+                 "TheGH2XEX/",
+                 "clip decoder comment names both serialization and runtime authorities");
   ok &= contains(char_clip,
-                 "samplemathbodiesarestillabsentfromthecheckedpublicC++source",
-                 "clip decoder comment states incomplete sample math boundary");
+                 "AcquirePoseresolvesexact.transthen.meshtargets,"
+                 "ScaleDownandScaleAdd",
+                 "clip decoder comment records the recovered publisher chain");
   ok &= contains(compact(read_file(char_dir / "char_clip.h")),
-                 "Broadbodyandfaceoutputpublishingstay",
-                 "clip header states broad body and face output publishing boundary");
+                 "boolsource_pose_publisher_active=false;",
+                 "clip header exposes the active source publisher result");
   ok &= missing(char_clip, "GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT",
                 "lower-body CharBone output live-write switch removed");
   ok &= missing(char_clip, "GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER",
@@ -32768,8 +32776,8 @@ int run_contract() {
   ok &= missing(char_clip, "GHOGX_ENABLE_CHARBONE_FACE_OUTPUT",
                 "face CharBone output live-write switch removed");
   ok &= contains(char_clip,
-                 "constboolcompare_output=charbone_output_compare_enabled();",
-                 "broad CharBone rows are compare-only diagnostics");
+                 "apply_gh2_typed_pose(poses[i],weight,*targets[i].local);",
+                 "all resolved typed CharBone rows write through the recovered mixer");
   ok &= contains(char_clip,
                  "\"GHOGX_DEBUG_ARM_POSE\"",
                  "arm pose trace is opt-in diagnostic only");
@@ -32822,8 +32830,9 @@ int run_contract() {
                  "dump(\"bone_R-toe\");",
                  "arm pose trace includes right toe for leg/foot diffs");
   ok &= contains(char_clip,
-                 "if(!force_selected_output){returnfalse;}",
-                 "broad CharBone output compare rows do not write live pose");
+                 "character.runtime_pose_output_worlds[nodes[i].key]=world;"
+                 "character.runtime_pose_output_worlds[nodes[i].name]=world;",
+                 "typed publisher records every driven output world");
   ok &= contains(char_clip,
                  "staticboolis_body_axis_output_channel(constClipChannel&channel)",
                  "body scalar-output bridge is selected by decoded channel shape");
@@ -32836,15 +32845,14 @@ int run_contract() {
                  "relative,axis_output_bones,true);",
                  "body scalar-output bridge publishes only its selected authored subset");
   ok &= contains(format_notes,
-                 "2026-07-18 bassist body-axis output bridge",
-                 "format notes document bounded bassist publisher root cause");
+                 "AcquirePose",
+                 "format notes document the recovered source publisher");
   ok &= contains(format_notes,
-                 "Current source-truth removes broad lower-body\n  output live writes",
-                 "format notes fence lower-body CharBone output as compare-only");
+                 "ScaleDown",
+                 "format notes document typed source pose blending");
   ok &= contains(doc,
-                 "Broad CharBone output enable switches for full body, face, or arbitrary\n"
-                 "  lower-body publishing are removed",
-                 "native rules remove broad CharBone bridge switches");
+                 "the previous bounded `OutputBone.local` bridges are superseded",
+                 "native rules supersede the historical bounded bridges");
   ok &= contains(doc,
                  "shared clip-layer appenders\nnow strip `bone_facing`, "
                  "`bone_pelvis`, thigh/knee/ankle/foot/toe rows from\n"
@@ -32855,13 +32863,13 @@ int run_contract() {
                  "channels);",
                  "shared layer appenders enforce lower-body overlay fence");
   ok &= contains(doc,
-                 "The current exception is the narrow\n  source-authored "
-                 "lower-body bridge documented above",
-                 "native rules allow only the source-authored lower-body bridge");
+                 "`sub_8215DF28` ScaleAdds weighted vectors, scalars, and "
+                 "hemisphere-corrected\n"
+                 "quaternions",
+                 "native rules authorize every recovered typed row");
   ok &= contains(doc,
-                 "Do not expand this into\n  broad body, face, arm, "
-                 "accessory, or hair output publishing",
-                 "native rules reject broad bridge expansion");
+                 "never seeds a live pose from serialized `OutputBone.local`",
+                 "native rules reject the obsolete serialized-local shortcut");
   ok &= contains(doc,
                  "engine/out/visual_proofs/twist_trace_20260713/",
                  "document records direct-app arm pose trace proof");
@@ -33676,15 +33684,14 @@ int run_contract() {
                  "constSourceCharMainDriverHandWeights*driver_weights=nullptr;",
                  "native character API exposes shared pose/controller rows");
   ok &= contains(char_clip_h,
-                 "structCharacterPoseStackFrameResult{boolapplied_clip_layers="
-                 "false;size_tapplied_layer_count=0;"
-                 "boolsource_pose_publisher_fenced=false;};",
+                 "boolsource_pose_publisher_active=false;",
                  "native character API exposes shared pose-stack frame result");
   ok &= contains(char_clip_h,
                  "structCharacterPoseControllerFrameResult{"
                  "boolapplied_clip_layers=false;size_tapplied_layer_count=0;"
+                 "boolsource_pose_publisher_active=false;"
                  "boolsource_pose_publisher_fenced=false;",
-                 "native pose/controller result carries source-publisher fence");
+                 "native pose/controller result carries source-publisher state");
   ok &= contains(char_clip_h,
                  "std::vector<CharacterRuntimeIkWeight>"
                  "fallback_ik_weights;",
@@ -33730,18 +33737,16 @@ int run_contract() {
                  "apply_clip_layer_stack(*stack,character);"
                  "result.applied_clip_layers=true;"
                  "result.applied_layer_count=stack->layers.size();"
-                 "result.source_pose_publisher_fenced=true;",
+                 "result.source_pose_publisher_active=true;",
                  "native shared pose-stack frame applies populated stack");
   ok &= contains(char_clip,
-                 "\"[pose-publisher]label=%snativediagnosticcliplayers:"
+                 "\"[pose-publisher]label=%snativetypedcliplayers:"
                  "\"",
-                 "native pose-stack proof log labels diagnostic publisher path");
+                 "native pose-stack proof log labels the typed publisher path");
   ok &= contains(char_clip,
-                 "\"layers=%zurelative=%dsource_publisher=fencedmissing=%s\"",
-                 "native pose-stack proof log carries layer count and fence state");
-  ok &= contains(char_clip,
-                 "\"%s{nodes=%zu;prev=%s;cur=%s;blendWeight=%.3f}\"",
-                 "native pose-stack proof log exposes collapsed player nodes");
+                 "\"layers=%zurelative=%dsource_publisher=active\""
+                 "\"path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes\"",
+                 "native pose-stack proof log carries the recovered source path");
   ok &= contains(char_clip,
                  "boolappend_clip_player_layers(ClipChannelLayerStack&stack,"
                  "conststd::vector<ClipPlayerLayerSource>&sources)",
@@ -34061,8 +34066,8 @@ int run_contract() {
                  "dump_leg_pose(character,\"lower-output\");",
                  "leg pose trace captures post-lower-output bridge state");
   ok &= contains(char_clip_h,
-                 "nativepathonlybridgessource-authoredlower-bodyrows",
-                 "header fences broad publisher while allowing lower-body output bridge");
+                 "falsenowthattheGH2XEXacquire/mix/commitpathisimplemented",
+                 "header records closure of the former publisher fence");
   ok &= contains(clip_driver_flags_test,
                  "lower_output_bone.name=\"bone_R-toe.trans\";",
                  "focused clip test constructs lower-body output graph row");
@@ -34074,8 +34079,8 @@ int run_contract() {
                  "focused clip test seeds authored output local");
   ok &= contains(
       clip_driver_flags_test,
-      "lower-bodyoutputbridgedidnotpreserveauthoredoutputlocalposition",
-      "focused clip test fails if lower-body output local is bypassed");
+      "lower-bodypublisherdidnotacquirethelivetargetposition",
+      "focused clip test requires live-target acquisition");
   ok &= contains(clip_driver_flags_test,
                  "weighted_lower_output_clip.name=\"weighted_lower_output_test\";",
                  "focused clip test constructs weighted lower-body output case");
@@ -34084,8 +34089,8 @@ int run_contract() {
                  "focused clip test exercises weighted lower-body output bridge");
   ok &= contains(
       clip_driver_flags_test,
-      "weightedlower-bodyoutputbridgedidnotblendfromauthoredoutputlocal",
-      "focused clip test fails if weighted lower-body output local is bypassed");
+      "weightedlower-bodypublisherdidnotScaleDownthelivetarget",
+      "focused clip test requires recovered ScaleDown semantics");
   ok &= contains(clip_driver_flags_test,
                  "shared_lower_output_clip.name=\"shared_lower_output_stack_test\";",
                  "focused clip test constructs shared lower-body output stack case");
@@ -34100,12 +34105,12 @@ int run_contract() {
       "focused clip test exercises shared lower-body stack frame route");
   ok &= contains(
       clip_driver_flags_test,
-      "sharedlower-bodylayerstackdidnotuseauthoredoutputlocal",
-      "focused clip test fails if shared lower-body output local is bypassed");
+      "sharedlower-bodylayerstackdidnotretainthelivetargetlocal",
+      "focused clip test requires the shared stack to retain the live target");
   ok &= contains(
       clip_driver_flags_test,
-      "lower-bodyoutputbridgedidnotrebuildaxisrowfromauthoredoutputgraph",
-      "focused clip test fails if lower-body output bridge is bypassed");
+      "body-axispublisherdidnotacquireandcommitthelivetarget",
+      "focused clip test requires typed body-axis publication");
   ok &= contains(charbone_output_map_compare,
                  "visible_minus_output_z_min",
                  "CharBone output-map verifier checks visible/output z gaps");
@@ -36387,9 +36392,8 @@ int run_contract() {
                  "pose_player_layers)",
                  "gameplay appends players through shared performer helper");
   ok &= contains(gameplay,
-                 "ghogx::character::apply_character_pose_stack_frame("
-                 "character,&pose_stack)",
-                 "gameplay applies shared pose-stack frame helper");
+                 "controller_sources.pose_stack=&pose_stack;",
+                 "gameplay routes the populated stack into the controller frame");
   ok &= contains(gameplay,
                  "ghogx::character::CharacterPoseControllerFrameSources"
                  "controller_sources;",

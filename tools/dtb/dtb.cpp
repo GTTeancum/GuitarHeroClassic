@@ -156,6 +156,16 @@ Tree parse(const std::vector<uint8_t>& src) {
         return work;
     };
 
+    // Venue .seq files use the standalone container shape but may carry a
+    // zero seed/header in front of an already-plaintext DTB payload.  A zero
+    // seed is not an instruction to run the PS2 stream cipher: the 0x01 at
+    // byte four is the same plaintext marker used by ordinary DTBs.
+    if (src.size() > 4 && src[0] == 0x00 && src[1] == 0x00 &&
+        src[2] == 0x00 && src[3] == 0x00 && src[4] == 0x01) {
+        return parse_payload(
+            std::vector<uint8_t>(src.begin() + 4, src.end()));
+    }
+
     if (src[0] == 0x01) {
         try {
             return parse_payload(src);

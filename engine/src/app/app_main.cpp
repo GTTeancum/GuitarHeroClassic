@@ -9,6 +9,7 @@
 // the windowed loop end to end.
 //
 //   ghogx_app                         interactive window (Esc or close to quit)
+//                                     ARK defaults to <current directory>/gen
 //   ghogx_app --frames N              run N frames headlessly-ish then exit
 //   ghogx_app --ark-dir <dir>         load splash + gameplay from PS2 ARK
 //   ghogx_app --hdr <main.hdr> --ark <main_0.ark>
@@ -36,7 +37,12 @@
 //   ghogx_app --aspect <4:3|16:9>      render aspect preset (default: 4:3)
 //   ghogx_app --diagnostic-character <c>
 //                                      route guitarist/highway art through character c
+//   ghogx_app --diagnostic-performer <role>=<source:model>
+//                                      route any performer through an archive-qualified
+//                                      character reference without changing gameplay/UI
 //   ghogx_app --diagnostic-venue <v>   route capture through another GH2 venue
+//   ghogx_app --venue-only             render venue/camera only; suppress HUD,
+//                                      highway, props, and performers
 //   ghogx_app --diagnostic-character <c>
 //   ghogx_app --diagnostic-venue-event <event>
 //                                      force one persistent venue event after load
@@ -72,6 +78,8 @@
 //                                      draw/present only requested screenshots
 
 #include "asset/milo_image.h"
+#include "ark_v3.h"
+#include "catalog.h"
 #include "character/char_clip.h"
 #include "character/char_facefx.h"
 #include "character/char_mesh.h"
@@ -83,6 +91,10 @@
 #include "render/window_d3d9.h"
 #include "render/scene_d3d9.h"
 #include "render/milo_scene_renderer.h"
+#include "dtb.h"
+#include "ui/menu_font.h"
+#include "ui/menu_labels.h"
+#include "ui/song_intro_overlay.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -105,12 +117,14 @@
 #include <cstdlib>
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <system_error>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -342,7 +356,10 @@ bool diagnostic_hide_hud_enabled() {
 class AppEngine : public ghogx::Engine {
  public:
   explicit AppEngine(ghogx::render::Window* win)
-      : win_(win), scene_(*win), pixels_(static_cast<std::size_t>(kTexW) * kTexH * 4) {
+      : win_(win),
+        scene_(*win),
+        pixels_(static_cast<std::size_t>(kTexW) * kTexH * 4),
+        song_intro_overlay_(*win) {
     profile_frame_times_ = env_flag("GHOGX_PROFILE_FRAME_TIMES");
   }
   ~AppEngine() override {
@@ -378,6 +395,10 @@ class AppEngine : public ghogx::Engine {
     hdr_path_ = hdr;
     ark_path_ = ark;
   }
+  void set_auxiliary_asset_archives(
+      std::vector<std::pair<std::string, std::string>> archives) {
+    gameplay_.set_auxiliary_asset_paths(std::move(archives));
+  }
   // Which song/difficulty to load on Start press.
   void set_song(const std::string& name, int diff) {
     song_name_ = name;
@@ -407,6 +428,7 @@ class AppEngine : public ghogx::Engine {
         std::fprintf(stderr, "[ghogx] START pressed -> loading song '%s' diff=%d\n",
                      song_name_.c_str(), song_diff_);
         if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
+          song_intro_overlay_.reset(hdr_path_, ark_path_, song_name_);
           reset_hud_load();
           rebuild_diagnostic_chart_guitar_script();
           if (diagnostic_song_start_ > 0.0) {
@@ -516,6 +538,7 @@ class AppEngine : public ghogx::Engine {
                 .count();
       }
       const auto hud_start = std::chrono::steady_clock::now();
+      song_intro_overlay_.draw(gameplay_.song_time());
       if (!diagnostic_hide_hud_enabled()) {
         draw_gameplay_hud();
         if (state_ == AppState::Failed) {
@@ -730,6 +753,7 @@ class AppEngine : public ghogx::Engine {
 
   // Song gameplay.
   ghogx::game::Gameplay gameplay_;
+  ghogx::ui::SongIntroOverlay song_intro_overlay_;
   ghogx::hud::HudRenderer hud_;
   bool hud_load_attempted_ = false;
   bool hud_ready_ = false;
@@ -867,6 +891,11 @@ class AppEngine : public ghogx::Engine {
     gameplay_.set_diagnostic_character_override(character);
   }
 
+  void set_diagnostic_performer_override(
+      const std::string& role, const std::string& character_reference) {
+    gameplay_.set_diagnostic_performer_override(role, character_reference);
+  }
+
   void set_diagnostic_venue_override(const std::string& venue) {
     gameplay_.set_diagnostic_venue_override(venue);
   }
@@ -930,6 +959,7 @@ class AppEngine : public ghogx::Engine {
   // Force-load the song and skip directly to Playing state (for --auto-start).
   void force_start_song() {
     if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
+      song_intro_overlay_.reset(hdr_path_, ark_path_, song_name_);
       reset_hud_load();
       rebuild_diagnostic_chart_guitar_script();
       if (diagnostic_song_start_ > 0.0) {
@@ -972,7 +1002,8 @@ class AppEngine : public ghogx::Engine {
     state.sp_active = gameplay_.star_power_active();
     state.rock_fill = gameplay_.rock_fill();
     if (diagnostic_hud_override_) state = *diagnostic_hud_override_;
-    state.anim_seconds = static_cast<float>(gameplay_.song_time());
+    state.anim_seconds =
+        static_cast<float>(gameplay_.track_intro_elapsed());
     state.track_intro_active = gameplay_.track_intro_active();
     static int hud_state_debug_budget = 0;
     if (env_flag("GHOGX_DEBUG_GAMEPLAY_HUD_STATE") &&
@@ -2111,6 +2142,9 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   double pose_time = 0.0;
   auto load_clip_spec = [&](const std::string& spec) {
     ghogx::character::CharClip clip;
+    if (spec.size() >= 4 && spec.substr(spec.size() - 4) == ".acp") {
+      return ghogx::character::load_acp_clip(hdr, ark, spec);
+    }
     auto colon = spec.find(':');
     if (colon != std::string::npos) {
       std::string clip_milo = spec.substr(0, colon);
@@ -2658,16 +2692,94 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   return 0;
 }
 
+std::optional<std::pair<std::string, std::string>>
+archive_pair_in_directory(const std::filesystem::path& directory) {
+  namespace fs = std::filesystem;
+  if (!fs::is_directory(directory)) return std::nullopt;
+  fs::path hdr;
+  fs::path ark;
+  for (const char* name : {"main.hdr", "MAIN.HDR"}) {
+    const fs::path candidate = directory / name;
+    if (fs::is_regular_file(candidate)) {
+      hdr = candidate;
+      break;
+    }
+  }
+  for (const char* name : {"main_0.ark", "MAIN_0.ARK"}) {
+    const fs::path candidate = directory / name;
+    if (fs::is_regular_file(candidate)) {
+      ark = candidate;
+      break;
+    }
+  }
+  if (hdr.empty() || ark.empty()) return std::nullopt;
+  return std::pair<std::string, std::string>{
+      fs::absolute(hdr).lexically_normal().string(),
+      fs::absolute(ark).lexically_normal().string()};
+}
+
+std::vector<std::pair<std::string, std::string>>
+discover_auxiliary_asset_archives(const std::string& primary_hdr,
+                                  const std::string& primary_ark,
+                                  const std::string& content_hdr,
+                                  const std::string& content_ark) {
+  namespace fs = std::filesystem;
+  std::vector<std::pair<std::string, std::string>> archives;
+  if (primary_hdr.empty()) return archives;
+
+  std::unordered_set<std::string> seen;
+  auto mark_seen = [&](const std::string& hdr, const std::string& ark) {
+    seen.insert(lower_ascii(
+        fs::absolute(fs::path(hdr)).lexically_normal().string() + "|" +
+        fs::absolute(fs::path(ark)).lexically_normal().string()));
+  };
+  mark_seen(primary_hdr, primary_ark);
+  if (!content_hdr.empty() && !content_ark.empty())
+    mark_seen(content_hdr, content_ark);
+
+  const fs::path primary_gen =
+      fs::absolute(fs::path(primary_hdr)).lexically_normal().parent_path();
+  std::vector<fs::path> roots = {
+      primary_gen / "content",
+      primary_gen.parent_path() / "content"};
+  std::sort(roots.begin(), roots.end());
+  roots.erase(std::unique(roots.begin(), roots.end()), roots.end());
+
+  for (const auto& root : roots) {
+    if (!fs::is_directory(root)) continue;
+    std::vector<fs::path> candidates;
+    for (const auto& entry : fs::directory_iterator(root)) {
+      if (!entry.is_directory()) continue;
+      candidates.push_back(entry.path());
+      candidates.push_back(entry.path() / "gen");
+    }
+    std::sort(candidates.begin(), candidates.end());
+    for (const auto& candidate : candidates) {
+      const auto pair = archive_pair_in_directory(candidate);
+      if (!pair) continue;
+      const std::string key = lower_ascii(pair->first + "|" + pair->second);
+      if (!seen.insert(key).second) continue;
+      archives.push_back(*pair);
+      std::fprintf(stderr, "[ghogx] auxiliary content archive: %s\n",
+                   candidate.string().c_str());
+    }
+  }
+  return archives;
+}
+
 }  // namespace
 
 #include "ui/menu_app.h"  // ghogx::ui::run_menu_mode (windowed menu system)
 
 int main(int argc, char** argv) {
   ScopedTimerResolution timer_resolution;
+  const bool argument_free_launch = argc == 1;
   int max_frames = 0;
   std::string ark_dir;
   std::string explicit_hdr;
   std::string explicit_ark;
+  std::string content_hdr;
+  std::string content_ark;
   std::string milo;
   std::string scene_milo;  // --scene: render a MILO's 3-D geometry directly
   std::string char_milo;   // --char: render a BandCharacter MILO in bind pose
@@ -2706,7 +2818,10 @@ int main(int argc, char** argv) {
   std::optional<DiagnosticChartScriptWindow> diagnostic_chart_script_window;
   bool debug_note_counter = false;
   std::string diagnostic_character;
+  std::vector<std::pair<std::string, std::string>>
+      diagnostic_performer_overrides;
   std::string diagnostic_venue;
+  bool venue_only = false;
   std::string diagnostic_guitar;
   std::string diagnostic_venue_event;
   std::string diagnostic_camera_shot;
@@ -2731,6 +2846,12 @@ int main(int argc, char** argv) {
       explicit_hdr = argv[++i];
     } else if (std::strcmp(argv[i], "--ark") == 0 && i + 1 < argc) {
       explicit_ark = argv[++i];
+    } else if (std::strcmp(argv[i], "--content-hdr") == 0 &&
+               i + 1 < argc) {
+      content_hdr = argv[++i];
+    } else if (std::strcmp(argv[i], "--content-ark") == 0 &&
+               i + 1 < argc) {
+      content_ark = argv[++i];
     } else if (std::strcmp(argv[i], "--milo") == 0 && i + 1 < argc) {
       milo = argv[++i];
     } else if (std::strcmp(argv[i], "--scene") == 0 && i + 1 < argc) {
@@ -2841,8 +2962,23 @@ int main(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--diagnostic-character") == 0 &&
                i + 1 < argc) {
       diagnostic_character = argv[++i];
+    } else if (std::strcmp(argv[i], "--diagnostic-performer") == 0 &&
+               i + 1 < argc) {
+      std::string value = argv[++i];
+      const size_t equals = value.find('=');
+      if (equals == std::string::npos || equals == 0 ||
+          equals + 1 >= value.size()) {
+        std::fprintf(
+            stderr,
+            "[ghogx] --diagnostic-performer expects role=source:model\n");
+        return 2;
+      }
+      diagnostic_performer_overrides.emplace_back(
+          value.substr(0, equals), value.substr(equals + 1));
     } else if (std::strcmp(argv[i], "--diagnostic-venue") == 0 && i + 1 < argc) {
       diagnostic_venue = argv[++i];
+    } else if (std::strcmp(argv[i], "--venue-only") == 0) {
+      venue_only = true;
     } else if (std::strcmp(argv[i], "--diagnostic-character") == 0 &&
                i + 1 < argc) {
       diagnostic_character = argv[++i];
@@ -3011,9 +3147,10 @@ int main(int argc, char** argv) {
     return 2;
   }
   if (!screenshot_sequence.empty() &&
-      (menu_mode || !scene_milo.empty() || !char_milo.empty() || hud_test)) {
+      (!scene_milo.empty() || !char_milo.empty() || hud_test)) {
     std::fprintf(stderr,
-                 "[ghogx] --screenshot-dir/--screenshot-frames are currently gameplay-mode only\n");
+                 "[ghogx] --screenshot-dir/--screenshot-frames are not "
+                 "available in scene, character, or HUD modes\n");
     return 2;
   }
   const bool capture_enabled = !screenshot_path.empty() || !screenshot_sequence.empty();
@@ -3039,6 +3176,18 @@ int main(int argc, char** argv) {
   std::string hdr;
   std::string ark;
   namespace fs = std::filesystem;
+  const bool use_default_ark_dir =
+      ark_dir.empty() && explicit_hdr.empty() && explicit_ark.empty();
+  if (use_default_ark_dir) {
+    ark_dir = (fs::current_path() / "gen").string();
+    std::fprintf(stderr, "[ghogx] default ARK directory: %s\n",
+                 ark_dir.c_str());
+  }
+  if (argument_free_launch) {
+    menu_mode = true;
+    std::fprintf(stderr,
+                 "[ghogx] argument-free launch: normal menu boot\n");
+  }
   if (!explicit_hdr.empty() || !explicit_ark.empty()) {
     if (explicit_hdr.empty() || explicit_ark.empty()) {
       std::fprintf(stderr, "[ghogx] --hdr and --ark must be supplied together\n");
@@ -3062,10 +3211,16 @@ int main(int argc, char** argv) {
       if (fs::exists(fs::path(ark_dir) / n)) { ark = (fs::path(ark_dir) / n).string(); break; }
     }
     if (hdr.empty() || ark.empty()) {
-      std::fprintf(stderr, "[ghogx] --ark-dir lacks main.hdr/main_0.ark: %s\n", ark_dir.c_str());
+      std::fprintf(stderr,
+                   use_default_ark_dir
+                       ? "[ghogx] default ./gen lacks main.hdr/main_0.ark: %s\n"
+                       : "[ghogx] --ark-dir lacks main.hdr/main_0.ark: %s\n",
+                   ark_dir.c_str());
       return 2;
     }
   }
+  const auto auxiliary_asset_archives = discover_auxiliary_asset_archives(
+      hdr, ark, content_hdr, content_ark);
 
   if (debug_note_counter) {
     _putenv_s("GHOGX_DEBUG_HIGHWAY_NOTE_COUNTER", "1");
@@ -3079,13 +3234,39 @@ int main(int argc, char** argv) {
       return 2;
     }
     ghogx::ui::MenuRunOptions menu_options;
+    if (content_hdr.empty() != content_ark.empty()) {
+      std::fprintf(
+          stderr,
+          "[ghogx] --content-hdr and --content-ark must be supplied together\n");
+      return 2;
+    }
+    if ((!content_hdr.empty() && !fs::exists(content_hdr)) ||
+        (!content_ark.empty() && !fs::exists(content_ark))) {
+      std::fprintf(stderr, "[ghogx] content archive path not found\n");
+      return 2;
+    }
     menu_options.gameplay_autoplay = diagnostic_autoplay;
     menu_options.automate_full_loop = env_flag("GHOGX_MENU_AUTO_LOOP");
     menu_options.preferred_song = song_name;
     menu_options.preferred_difficulty = difficulty;
+    menu_options.content_hdr = content_hdr;
+    menu_options.content_ark = content_ark;
+    menu_options.auxiliary_asset_archives = auxiliary_asset_archives;
+    menu_options.screenshot_sequence = screenshot_sequence;
     return ghogx::ui::run_menu_mode(
         hdr, ark, screenshot_path, screenshot_frame, max_frames,
         render_size.width, render_size.height, fixed_dt, menu_options);
+  }
+
+  if (venue_only) {
+    // This is deliberately a presentation switch, not an asset conversion
+    // path. The original GH1 files remain the source for native venue tests.
+    _putenv_s("GHOGX_DEBUG_VENUE_ONLY_CAPTURE", "1");
+    _putenv_s("GHOGX_HIDE_GAMEPLAY_HUD", "1");
+    _putenv_s("GHOGX_ONLY_PERFORMER", "__venue_only__");
+    _putenv_s("GHOGX_DISABLE_PERFORMER_PROPS", "1");
+    std::fprintf(stderr,
+                 "[ghogx] venue-only mode: highway/HUD/performers suppressed\n");
   }
 
   // --scene: dedicated 3-D MILO scene viewer (venue/stage/track geometry).
@@ -3157,11 +3338,19 @@ int main(int argc, char** argv) {
 
   AppEngine engine(win.get());
   engine.set_ark(hdr, ark);
+  engine.set_auxiliary_asset_archives(auxiliary_asset_archives);
   engine.set_song(song_name, difficulty);
   if (!diagnostic_character.empty()) {
     engine.set_diagnostic_character_override(diagnostic_character);
     std::fprintf(stderr, "[ghogx] diagnostic character override: %s\n",
                  diagnostic_character.c_str());
+  }
+  for (const auto& [role, character_reference] :
+       diagnostic_performer_overrides) {
+    engine.set_diagnostic_performer_override(role, character_reference);
+    std::fprintf(stderr,
+                 "[ghogx] diagnostic performer override: role=%s ref=%s\n",
+                 role.c_str(), character_reference.c_str());
   }
   if (!diagnostic_venue.empty()) {
     engine.set_diagnostic_venue_override(diagnostic_venue);

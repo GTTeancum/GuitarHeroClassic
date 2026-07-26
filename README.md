@@ -64,6 +64,21 @@ The legacy rexglue reference target still needs its own installed `rexglue-sdk`.
 That path is reference material only and must not become an engine runtime
 dependency.
 
+### Play the native runtime
+
+`ghogx_app.exe` looks for `main.hdr` and `main_0.ark` under `.\gen` when no
+ARK arguments are supplied. Run it with the working directory set to the
+folder which contains `gen`:
+
+```powershell
+& "C:\path\to\ghogx_app.exe"
+```
+
+Normal launch is player-controlled; diagnostic autoplay is enabled only by
+the explicit `--diagnostic-autoplay` option. An argument-free launch follows
+the normal menu/boot path rather than entering the default song. `--ark-dir`
+and paired `--hdr`/`--ark` arguments still override the default lookup.
+
 ```powershell
 # Configure
 & "$PWD\build_env.bat" cmake --preset win-amd64-release

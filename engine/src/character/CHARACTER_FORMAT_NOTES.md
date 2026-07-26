@@ -3225,6 +3225,11 @@ Useful environment flags:
   and the final leg-row widths are unchanged (`Glam1 toe2D=25.061`,
   `Rockabill1 foot2D=24.603 / toe2D=16.209`), which confirms the root-row
   ownership fix did not regress the current lower-body route.
+- 2026-07-25 supersession note: the following lower-body/output-bridge entries
+  record the historical boundary before direct GH2 XEX/ReXGlue recovery. They
+  are not the current implementation contract. The current publisher is the
+  universal typed `AcquirePose -> ScaleDown -> ScaleAdd -> PoseMeshes` path
+  documented in the 2026-07-25 closure section below.
 - Historical lower-body CharBone output trial: the old default-on experiment
   routed `bone_facing`, pelvis, thigh/knee/ankle/foot/toe rows through decoded
   output records for A/B review. Current source-truth removes broad lower-body
@@ -5443,3 +5448,97 @@ Viewer hand-overlay validation:
   The post-fix log records `zwrite=1` on all 13 Metal1 hair pieces, and the
   live video keeps the complete attached silhouette readable across front,
   rear, and wide Small2 views over the venue's radial high-contrast panels.
+
+## 2026-07-25 GH2 typed pose-publisher closure
+
+- GH2 XEX/ReXGlue recovery closes the former broad `CharBone` publisher gap.
+  `AcquirePose` resolves the current live target in exact `.trans`, then
+  `.mesh`, order. It does not seed a pose from serialized
+  `OutputBone.local`.
+- `ScaleDown` attenuates the acquired typed rows; `ScaleAdd` applies weighted
+  position, scale, scalar-axis, delta-axis, and hemisphere-corrected
+  quaternion samples. The final typed commit publishes every driven output
+  row and records its world transform for downstream controllers.
+- This shared contract applies to GH1 and GH2 character assets while retaining
+  their decoded revision semantics. There are no character-, mesh-, clip-,
+  song-, venue-, or pose-specific offsets in the publisher.
+
+## 2026-07-26 GH1 revision-10 pose and weighted-mesh closure
+
+- Packed GH1 selectable bodies are anonymous revision-10 `RndDir` graphs, not
+  early typed `BandCharacter` directories. Their skeleton nodes are
+  zero-geometry `RndMesh` transform records, so the decoded character has an
+  empty directory type, `dir_version=10`, and no separate `Trans` bone vector.
+  Standalone `AnimClipSamples` ACP scalar-axis rows publish absolute local-axis
+  values in this exact layout. Native therefore selects absolute scalar
+  application only when all three serialized facts match:
+  `dir_type.empty() && dir_version == 10 && bones.empty()`. Explicit relative
+  layers continue to compose, and typed GH2 `BandCharacter` bodies retain the
+  traced GH2 publisher path.
+- `RndMesh` has one format-owned submission split. A nonempty serialized bone
+  palette always uses decoded skinning,
+  `vertex * storedOffset * currentBoneWorld`, and submits the result through an
+  identity mesh row. A mesh with no palette submits its authored vertices
+  through its decoded transform hierarchy. Mesh name, material, bounds,
+  parent type, anatomy, and character identity are not valid overrides for
+  that split.
+- The missing upper half of `metal_singer` was the visible consequence of
+  violating that rule. Its upper-head shell is a compact, mesh-parented
+  weighted `RndMesh` with head/neck/spine palette entries. The removed
+  compact-head heuristic submitted its raw vertices at the character origin;
+  honoring the palette restores the full textured face in bind and active
+  singer ACP poses. Weighted eye rows follow the same palette rule.
+- Bind-view camera framing now measures the same submitted positions as draw:
+  decoded skinning for weighted meshes and the decoded submission transform
+  for unweighted meshes. This is diagnostic framing only and contains no
+  character- or mesh-specific camera values.
+- Regression coverage pins the anonymous revision-10 absolute-axis gate,
+  explicit-relative composition, typed GH2 exclusion, compact weighted-head
+  skinning, weighted-eye skinning, and unweighted transform submission.
+  `ghogx_character_no_named_fix_test` additionally guards against introducing
+  character, mesh, bone, material, clip, song, venue, pose, or offset fixes.
+- Current visual evidence is under
+  `.codex/current-evidence/gh1-character-reopen/`. It includes source-framed
+  bind renders for all eight selectable GH1 guitarist bodies plus singer,
+  female singer, bassist, drummer, and keyboardist; time-separated active
+  frames for all eight guitarists; separate close animated role videos; a
+  mixed GH1-band/GH1-venue/GH2-song proof; and a GH2 Metal1 comparison whose
+  three deterministic gameplay frames are byte-identical to the previously
+  deployed executable.
+
+## 2026-07-26 GH1 runtime-created arm-twist servos
+
+- GH1 body ACPs publish clavicle, upper-arm, forearm, and hand rows but no
+  `upperTwist1/2` or `foreTwist1/2` channels. Those four transforms are still
+  referenced by weighted arm and sleeve palettes. Leaving them in bind pose
+  while the neighboring chain animates produces the rejected ribbon/noodle
+  deformation.
+- Packed `charsys/gen/charbase.dtb` creates
+  `foreTwist_L.servo`/`foreTwist_R.servo` as `AnimServoForeTwist` objects and
+  `upperTwist_L.servo`/`upperTwist_R.servo` as
+  `AnimServoUpperTwist` objects at servo priority 1000. The fore rows serialize
+  ordered forearm, twist1, twist2, and hand refs plus offsets `90`/`-90`; the
+  upper rows serialize ordered twist1, twist2, and upper-arm refs.
+- Runtime parses the object type, ordered refs, and offset directly from the
+  packed graph. It does not infer character, side, mesh, bone, pose, or offset
+  from names. The graph is installed only when the already-decoded character
+  facts are `dir_type.empty() && dir_version == 10 && bones.empty()`.
+- GH1 writes the zero-geometry `RndMesh` transform rows in
+  `Character::meshes`. GH2's later decoded `CharForeTwist` and
+  `CharUpperTwist` objects continue to write `Character::bones`; controller
+  records and revision semantics are not shared.
+- Fore twist runs after hand IK and distributes recovered hand-relative roll
+  through the two packed twist refs while retaining the authored second-twist
+  arm-position ratio. Upper twist distributes animated upper-arm orientation
+  through the two packed sibling refs while retaining authored positions.
+  Controller cadence remains hand/fore, hair, upper, then remaining
+  constraints.
+- Read-only retail PCSX2 memory contains the same four live `.servo` objects
+  and ordered bone strings. Static GH1 ELF xrefs identify fore initialization
+  at `0x001838EC`/`0x00183900`, its poll body at
+  `0x00183A20..0x00183CF4`, upper initialization at
+  `0x001877B4`/`0x001877C8`, and the upper poll body at `0x001878A8`.
+- The complete packed, runtime, evidence, test, isolation, video, and
+  deployment contract is recorded in
+  `.codex/analysis/gh1-character-runtime-format-contract.md` and
+  `.codex/current-evidence/gh1-arm-twist-reopen/FINAL_PROOF_MANIFEST.md`.

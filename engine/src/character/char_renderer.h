@@ -19,6 +19,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 struct IDirect3DDevice9;
@@ -59,6 +60,7 @@ class CharRenderer {
   void set_use_scene_lighting(bool enabled);
   void set_reference_base(bool enabled);
   void set_color_modulation(float r, float g, float b, float a = 1.0f);
+  bool set_object_showing(std::string_view object_name, bool showing);
   std::optional<std::array<float, 16>> attached_prop_world(
       std::string_view object_name) const;
   // Direct access to the character for pose modification (e.g. apply_clip_pose).
@@ -121,6 +123,13 @@ std::array<float, 16> source_character_mesh_submission_world(
 // raw authored vertices. This keeps the renderer's pose-selection decision
 // covered alongside the skin equation itself.
 bool source_character_mesh_renders_decoded_skinning(const SkinnedMesh& mesh);
+
+// GH1 BandCharacter revision 10 stores the selected body branch as a child
+// View of top.view. The child name is authored per character
+// (for example lod0_body.view or lod0_<model>.view), so resolve it from the
+// source graph instead of assuming one literal object name.
+std::optional<std::string> source_character_active_lod_view(
+    const Character& character, int min_lod);
 
 // Character meshes repurpose the serialized vertex-color bytes as skin
 // weights, so RndMat.prelit cannot be treated as a generic lighting bypass on
