@@ -24,12 +24,12 @@ int main(int argc, char** argv) {
             }
         }
         std::printf("class=%s name=%s revision=%u start=%g end=%g bps=%g "
-                    "flags=0x%08x play=0x%08x blend=%g field_28=0x%08x "
+                    "flags=0x%08x play=0x%08x blend=%g sample_set_rev=%u "
                     "set0=%zu/%u/%u set1=%zu/%u/%u trailing=%zu\n",
                     file.class_name.c_str(), file.object_name.c_str(),
                     file.revision, file.start_beat, file.end_beat,
                     file.beats_per_second, file.flags, file.play_flags,
-                    file.blend_width, file.field_28,
+                    file.blend_width, file.sample_set_revision,
                     file.channel_sets[0].channels.size(),
                     file.channel_sets[0].sample_count,
                     file.channel_sets[0].compression,

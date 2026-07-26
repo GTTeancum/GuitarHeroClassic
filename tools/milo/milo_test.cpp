@@ -128,9 +128,55 @@ int main() {
         gh1_dir.dir_entry_size != 0 ||
         gh1_dir.entries[0].offset != first_body ||
         gh1_dir.entries[0].size != 8 ||
+        gh1_dir.entries[0].terminator_offset != first_body + 8 ||
         gh1_dir.entries[1].offset != second_body ||
-        gh1_dir.entries[1].size != 8) {
+        gh1_dir.entries[1].size != 8 ||
+        gh1_dir.entries[1].terminator_offset != second_body + 8 ||
+        gh1_dir.entries[0].body_bytes !=
+            std::vector<uint8_t>(gh1.begin() + first_body,
+                                 gh1.begin() + first_body + 8) ||
+        !gh1_dir.boundaries_exact ||
+        gh1_dir.payload_end_offset != gh1.size() ||
+        gh::milo::serialize_directory(gh1_dir) != gh1) {
         std::fprintf(stderr, "milo_test: GH1 child-body alignment failed\n");
+        return 1;
+    }
+    auto gh1_edited = gh1_dir;
+    gh1_edited.entries[0].name = "renamed.tex";
+    gh1_edited.entries[0].body_bytes[4] ^= 0x5a;
+    const auto gh1_edited_bytes =
+        gh::milo::serialize_directory(gh1_edited);
+    const auto gh1_edited_dir =
+        gh::milo::parse_directory(gh1_edited_bytes);
+    if (gh1_edited_dir.entries[0].name != "renamed.tex" ||
+        gh1_edited_dir.entries[0].body_bytes !=
+            gh1_edited.entries[0].body_bytes ||
+        gh::milo::serialize_directory(gh1_edited_dir) !=
+            gh1_edited_bytes) {
+        std::fprintf(stderr, "milo_test: GH1 directory edit failed\n");
+        return 1;
+    }
+
+    // Revision 10 is also used by generated/custom directories containing
+    // classes outside the retail GH1 inventory. Read those structurally using
+    // plausible packed revisions, but do not claim exact writable boundaries.
+    std::vector<uint8_t> custom10;
+    append_u32(custom10, 10);
+    append_u32(custom10, 1);
+    append_string(custom10, "LabelEx");
+    append_string(custom10, "line1.lbl");
+    append_u32(custom10, 0);  // external resources
+    const size_t custom_body = custom10.size();
+    append_u32(custom10, 15);
+    append_u32(custom10, 0x12345678);
+    append_u32(custom10, 0xDEADDEAD);
+    const auto custom10_dir = gh::milo::parse_directory(custom10);
+    if (custom10_dir.entries.size() != 1 ||
+        custom10_dir.entries[0].offset != custom_body ||
+        custom10_dir.entries[0].size != 8 ||
+        custom10_dir.boundaries_exact) {
+        std::fprintf(stderr,
+                     "milo_test: custom revision-10 fallback failed\n");
         return 1;
     }
 

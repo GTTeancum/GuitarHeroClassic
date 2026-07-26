@@ -110,7 +110,10 @@ File parse(const std::vector<uint8_t>& bytes) {
     file.flags = cursor.u32();
     file.play_flags = cursor.u32();
     file.blend_width = cursor.f32();
-    file.field_28 = cursor.u32();
+    file.sample_set_revision = cursor.u32();
+    if (file.sample_set_revision != 5)
+        throw std::runtime_error(
+            "ACP: unsupported SampleSet serialization revision");
 
     for (auto& set : file.channel_sets) {
         const uint32_t count = cursor.u32();
@@ -142,6 +145,9 @@ File parse(const std::vector<uint8_t>& bytes) {
 }
 
 std::vector<uint8_t> serialize(const File& file) {
+    if (file.sample_set_revision != 5)
+        throw std::runtime_error(
+            "ACP: unsupported SampleSet serialization revision");
     std::vector<uint8_t> out;
     append_string(out, file.class_name);
     append_string(out, file.object_name);
@@ -152,7 +158,7 @@ std::vector<uint8_t> serialize(const File& file) {
     append_u32(out, file.flags);
     append_u32(out, file.play_flags);
     append_f32(out, file.blend_width);
-    append_u32(out, file.field_28);
+    append_u32(out, file.sample_set_revision);
     for (const auto& set : file.channel_sets) {
         if (set.channels.size() >
             std::numeric_limits<uint32_t>::max())

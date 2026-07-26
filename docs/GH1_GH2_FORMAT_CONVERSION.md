@@ -78,18 +78,24 @@ Copyrighted packed assets and decompressed bodies must never be committed.
 ledger plus a type/revision ledger. The first complete sweep proves:
 
 - all 105 GH1 revision-10 object directories retain byte-exact outer
-  containers and structural directory prefixes;
+  containers and structural directory prefixes, and have one unique complete
+  type/revision-constrained object-terminator chain to payload EOF;
 - all 156 GH1 DTBs retain byte-exact storage;
 - all 926 GH1 ACP files parse and save byte-exactly with no trailing bytes;
 - all 25 GH1 ACG files parse and save byte-exactly with no trailing bytes;
-- both GH1 ACS files are plaintext DTA include manifests;
+- both GH1 ACS files parse and save byte-exactly, and both compiled include
+  references resolve to packed `gen/*.dtb` entries;
 - all 926 ACP bodies are revision 18, use compression mode 1 in both channel
-  sets, and carry value 5 at body offset 28;
+  sets, and carry SampleSet serialization revision 5 at body offset 28;
 - all 488 current hybrid revision-24 MILOs retain byte-exact outer containers
   and structural directory prefixes;
 - all 179 current hybrid DTBs retain byte-exact storage;
 - all 1,214 audited GH1 files in the five format families (`dtb`, `rnd_ps2`,
-  `acp`, `acg`, and `acs`) pass their current outer-format contracts.
+  `acp`, `acg`, and `acs`) pass their current outer-format contracts;
+- all 12,189 object bodies in the 105 GH1 revision-10 directories parse and
+  reserialize byte-exactly through semantic, revision-aware readers and
+  writers: 21 of 21 observed type/revision rows, zero failures, zero residual
+  bytes, and no asset-name or offset exceptions.
 
 The full sweep corrected a sample-based assumption: three Grim wing ACPs have
 an empty channel set with a nonzero sample count. Because its frame width is
@@ -138,13 +144,13 @@ object.
 |---|---|---|---|---|
 | ARK v3 HDR/ARK | Lossless header, string tables, entries, split-ARK offsets | Deterministic header/index builder for a planned layout | Byte-exact GH1 and current hybrid headers | Partially closed |
 | MILO outer container | NONE/GZIP/A/B/C/D read; exact block retention | Deterministic changed A/B blocks; unchanged structures retain source bytes | Byte-exact real GH1/GH2 character and venue samples | Partially closed |
-| MILO object directory | Revision-aware prefix, type/name table, allocation hints, revision 7-16 external resources | Deterministic structural-prefix serialization | All GH1 revision-10 and hybrid revision-24 prefixes byte-exact | Partially closed |
-| MILO object bodies | One-way runtime decoders for selected classes/revisions | None | Character and venue runtime proofs | Open |
+| MILO object directory | Revision-aware prefix, type/name table, allocation hints, revision 7-16 external resources; exact GH1 body boundaries and semantic bodies | Complete deterministic GH1 directory rebuild; structural-prefix serialization for later revisions | All 105 GH1 directories rebuild byte-exactly; all hybrid revision-24 prefixes byte-exact | GH1 rev10 closed; GH2 rev24 open |
+| MILO object bodies | Semantic readers for all 21 observed GH1 type/revision rows | Lossless semantic GH1 writers for all 21 observed rows | 12,189/12,189 packed GH1 bodies byte-exact, zero residuals | GH1 observed revisions closed; GH2 targets open |
 | Object/reference graph | String references interpreted ad hoc by runtime loaders | None | Partial transform/material/group resolution | Open |
 | Classic DTB | All currently recognized classic node tags, storage form, seed, line metadata, trailing bytes | Plain, zero-prefixed, and encrypted serialization | Byte-exact real GH1/GH2 samples | Closed for recognized tags |
-| GH1 ACP | Standalone wrapper and revision-18 sample decoding | Lossless deterministic serialization | All 926 packed ACPs byte-exact | Partially closed: field at offset 28 unnamed |
+| GH1 ACP | Standalone wrapper, revision-18 body, and revision-5 SampleSet decoding | Lossless deterministic serialization | All 926 packed ACPs byte-exact plus GH1 load/save code | Closed for observed revisions |
 | GH1 ACG | Version-1 clip-indexed transition graph | Lossless deterministic serialization | All 25 packed ACGs byte-exact plus later engine declarations | Closed for observed version 1 |
-| GH1 ACS | Plaintext DTA include manifest identification | Raw bytes retained by archive tooling | Both packed manifests classified | Open: include/reference grammar not modeled |
+| GH1 ACS | Lossless line grammar for includes, comments, blanks, and macro invocations | Lossless deterministic serialization | Both packed manifests byte-exact; 2/2 includes resolve | Closed for observed manifests |
 | PS2 HMX bitmap | Header/payload read and RGBA decode for supported encodings | Only diagnostic BMP output | Runtime texture proofs | Open |
 | GH2-native converter | None | None | No native converted asset yet | Open |
 
@@ -192,11 +198,101 @@ The directory prefix is now modeled independently from child bodies:
 
 The parser retains every field above and the writer deterministically
 reproduces the prefix. Full sweeps are byte-exact for every GH1 revision-10 and
-current hybrid revision-24 directory prefix. Root/child body ends are not
-claimed by this layer. Retail `DirLoader` calls each class loader first and
-only then scans to the `AD DE AD DE` separator; consequently a raw marker scan
-cannot prove body boundaries. Gap G3 remains open until each observed class
-revision reports an exact consumed length.
+current hybrid revision-24 directory prefix.
+
+GH1 child framing no longer uses a nearest-marker or Mesh-specific heuristic.
+For every declared table entry, the solver requires the body to begin with the
+retail revision assigned to that declared type, requires its terminator to
+lead to the exact revision of the next declared type, requires the last
+terminator to end at payload EOF, and rejects zero or multiple complete
+solutions. All 105 packed directories have exactly one solution across all
+21 types and 12,189 objects. This establishes the observed GH1 body slices
+without confusing marker-shaped texture/sample bytes for terminators.
+
+Each proven slice and terminator is retained independently. The complete
+revision-10 writer rebuilds the table, external-resource vector, raw class
+bodies, and separators; all 105 decompressed payloads reproduce byte-exactly.
+Synthetic edit coverage renames a table object and changes its body, reparses
+the result, and reproduces the edited payload. Every observed GH1 child body
+also has a semantic reader and writer; the structural layer remains independent
+so directory framing is not inferred from class contents.
+
+Directory revision 10 is not treated as proof of GH1 provenance by itself.
+Generated/custom UI directories can use the same revision with later classes
+such as `LabelEx`. Unknown rows use a packed-revision structural fallback for
+read-only consumers and are explicitly marked non-exact/non-writable; only the
+complete known 21-row retail contract may enter the revision-10 writer.
+
+Retail `DirLoader` still calls each class loader before checking the
+`AD DE AD DE` separator. The unique chain first proved structural framing
+independently; the complete semantic sweep below now proves exact consumption
+inside every GH1 slice as a second check. Revision-24 GH2 root/child framing
+remains in G3 until the root and class readers replace its current scan.
+
+## GH1 object-body consumption ledger
+
+The format audit feeds each proven GH1 slice to a source-order class reader and
+requires cursor equality with the body end, then serializes the typed value and
+requires byte equality with the original slice. The packed-archive result is:
+
+| Type/revision | Exact bodies | Residual/fail | Proven GH1 body contract |
+|---|---:|---:|---|
+| Cam 9 | 20 | 0 | Trans8, Drawable1, near/far/FOV, screen rectangle, Z range, target texture |
+| CamAnim 0 | 6 | 0 | Animatable0, camera ref, FOV keys, keys owner |
+| EnvAnim 3 | 82 | 0 | Animatable0, environment ref, ambient/fog colors and fog-range keys |
+| Environ 1 | 161 | 0 | Obsolete Drawable block, drawable refs, light refs, ambient/fog state |
+| Flare 3 | 35 | 0 | Trans8, Drawable1, material, two-axis size, range, steps |
+| Font 7 | 20 | 0 | Material, cell metrics, character string, optional kerning table |
+| Light 3 | 127 | 0 | Trans8, RGBA color, range, serialized light type |
+| LightAnim 1 | 88 | 0 | Animatable0, light ref, color keys, keys owner |
+| Mat 21 | 1,693 | 0 | Texture stages, transforms/wrap, blends, color, compact render state |
+| MatAnim 5 | 156 | 0 | Animatable0, material ref, stage transform/texture keys, color/alpha keys |
+| Mesh 25 | 7,087 | 0 | Trans8, Drawable1, geometry refs/state, vertices, faces, patches, bones, PS2 strip caches |
+| MeshAnim 0 | 18 | 0 | Animatable0, mesh ref, point/UV/color vector keys, keys owner |
+| Morph 3 | 14 | 0 | Animatable0, pose Mesh refs and keys, target, flags/intensity |
+| Movie 6 | 2 | 0 | Animatable0, file and texture refs, stream/loop state |
+| MultiMesh 0 | 41 | 0 | Drawable block, source Mesh ref, instance transforms |
+| ParticleSys 22 | 76 | 0 | Animatable0, Trans8, Drawable1, emission/state, emitter Mesh, preserved rows |
+| ParticleSysAnim 2 | 60 | 0 | Animatable0, particle ref and color/rate/speed/life/size keys |
+| Tex 8 | 1,067 | 0 | Dimensions/type/external state plus optional 32-byte HMX bitmap header and payload |
+| Text 15 | 72 | 0 | Drawable, Trans8, font/text/layout/color/markup state |
+| TransAnim 4 | 686 | 0 | Animatable0, Drawable, target and rotation/translation/scale key tracks |
+| View 7 | 678 | 0 | Animatable0, Trans8, Drawable1, children owner, showing range |
+| **Total** | **12,189** | **0** | **21/21 observed type/revision rows** |
+
+The Environ sweep corrected an earlier renderer assumption: its obsolete
+drawable list is typed to `RndDrawable`, not Mesh. Retail Big Club data
+legitimately references `light_big.view`; directory fixup must enforce the
+target class instead of a filename-suffix allowlist.
+
+Morph revision 3 also corrects an incomplete third-party layout: every pose
+starts with its Mesh reference, each key stores value then frame, and the pose
+vector is followed by the target Mesh before normals, spline, and intensity.
+The later engine `RndMorph::Pose`/`RndMorph::Load` declarations corroborate
+that ownership and order; all 14 GH1 bodies independently prove it and
+round-trip exactly.
+
+The higher-risk tail contracts are also classified rather than retained as
+opaque residuals:
+
+- Tex8 embeds a 32-byte HMX bitmap header followed by its exact platform
+  payload when the body is not external-only.
+- View7 is exactly Animatable0, Trans8, Drawable1, children owner, and showing
+  range. The former apparent four-byte flag prefix was the Drawable revision
+  word; no transform-marker scan is needed.
+- ParticleSys22 stores `bounceEnabled` plus a four-float plane after its four
+  endpoint colors, then force direction and material. It stores emitter Mesh
+  after relative motion, and each preserved particle is a 32-byte
+  position/color/size row.
+- Mesh25 stores 48-byte vertices (position, normal, serialized
+  `Hmx::Color32` channels, UV), 16-bit triangle indices, byte patch sizes, up
+  to four fixed bone slots with 3x4 matrices, and one last-generation PS2 strip
+  cache per populated patch. No packed GH1 Mesh has a non-null BSP tree.
+
+This closes the byte layout and lossless GH1 read/write contract for every
+observed class revision. It does not yet close the meaning of every compact
+Mat21 legacy state, GH2 target revisions, reference fixups, or GH1-to-GH2
+conversion; those remain explicit gaps below.
 
 ## Proven ARK v3 header contract
 
@@ -228,7 +324,7 @@ and GH2 character/arena DTBs. Any newly encountered tag is still a hard parse
 failure and must be classified before the DTB layer is declared complete for
 the full archives.
 
-## GH1 ACP facts and unresolved fields
+## GH1 ACP contract
 
 Standalone ACP files begin with length-prefixed class and object names. All
 currently audited character clips use class `AnimClipSamples` and body revision
@@ -247,11 +343,22 @@ count and compression fields. Three retail Grim wing clips prove that an empty
 set may retain a nonzero timeline sample count while consuming zero sample
 bytes.
 
-The fixed prefix round-trips losslessly but is not yet sufficiently named for
-semantic conversion. Observed words are revision, start beat, end beat, beats
-per second, flags, play flags, blend width, and one consistently observed value
-at offset 28. The last field's semantic name and legal domain require source or
-retail load/save evidence.
+The fixed-prefix words are body revision, start beat, end beat, beats per
+second, flags, play flags, blend width, and SampleSet serialization revision.
+Static analysis of the GH1 retail executable closes the last field:
+
+- `AnimClipSamples::Load` at `0x0017cdb8` first invokes its base loader, reads
+  one 32-bit value into the revision gate at `0x00363b94`, then loads both
+  SampleSets through the same revision-aware helper;
+- that helper at `0x0017c210` branches on the gate when decoding the SampleSet
+  header;
+- `AnimClipSamples::Save` at `0x0017ced0` first invokes its base saver, writes
+  the constant `5` as a 32-bit value, then saves both SampleSet headers and
+  both sample blocks.
+
+The tool consequently names this field `sample_set_revision` and rejects
+unproven values rather than applying the revision-5 layout to another format.
+All 926 packed ACPs use the proven value and round-trip byte-exactly.
 
 ## GH1 ACG transition-graph contract
 
@@ -272,6 +379,26 @@ the later `CharGraphNode`/`CharClip::Transitions` implementation supplies the
 source/target and beat semantics. `tools/acg` supports exact no-edit round
 trips, deterministic edits, target-index validation, and truncation rejection.
 
+## GH1 ACS manifest contract
+
+The packed `charsys/anims.acs` and `arena/anims.acs` files are ASCII
+precache manifests, not opaque binary clip data. Their complete observed
+grammar is:
+
+1. blank lines;
+2. semicolon comment lines;
+3. `#include <relative .dta path>` lines;
+4. bare macro-invocation symbols, one per line.
+
+Line endings, whitespace, comments, and suffixes are retained independently
+from editable include/invocation values, so `tools/acs` round-trips both files
+byte-exactly. Compiled include lookup inserts `gen` below the ACS directory
+and changes `.dta` to `.dtb`: `charsys/anims.acs` therefore resolves
+`anims_macros.dta` to `charsys/gen/anims_macros.dtb`, and the arena manifest
+resolves to `arena/gen/anims_macros.dtb`. Both targets exist in the packed
+GH1 archive. The manifests contain 30 character/band invocations and one
+arena crowd invocation respectively.
+
 ## Conversion-blocking gap register
 
 1. **G1 — Clean GH2 provenance.** Inventory a hash-identified unmodified GH2
@@ -279,15 +406,19 @@ trips, deterministic edits, target-index validation, and truncation rejection.
 2. **G2 — ARK writer.** Header/string/path-table serialization is implemented.
    Close physical entry ordering, part placement, alignment, and
    compressed-entry rules, then prove a deterministic complete rebuild.
-3. **G3 — Directory framing.** Replace `0xADDEADDE` scanning with exact
-   revision-aware root and child serialization. Decode hash sizing, external
-   resources, recursive directories, object terminators, and all residual
-   bytes.
-4. **G4 — Type/revision inventory.** Sweep every GH1 character/venue/animation
-   directory and every corresponding GH2 target directory. Every object must
-   have a known inheritance stack and exact byte-consumption result.
-5. **G5 — Object writers.** Add revision-aware GH1 readers and GH2 writers for
-   the complete character and venue type inventories, not just drawable types.
+3. **G3 — Directory framing.** GH1 revision-10 child framing is now unique,
+   complete, and revision-constrained across the packed archive. Replace the
+   revision-24 root/child scan with exact readers/serialization; decode
+   recursive directories and account for every residual byte.
+4. **G4 — Type/revision inventory.** The complete packed GH1 inventory is
+   closed at 12,189/12,189 bodies across 21/21 observed rows, with exact
+   inheritance order, byte consumption, and semantic round trips. Inventory
+   every corresponding clean-retail GH2 target directory and close every GH2
+   row to the same standard.
+5. **G5 — Object writers.** Revision-aware lossless GH1 readers/writers are
+   complete for all observed rows. Implement the complete GH2 target readers
+   and writers, including inherited bases and fields absent from GH1, then add
+   field-level edit/reparse coverage.
 6. **G6 — Reference graph.** Model directory/object references explicitly,
    including nulls, externals, proxies, owners, parents, targets, and recursive
    subdirectories. Saving must use deterministic fixups with no string-search
@@ -299,9 +430,10 @@ trips, deterministic edits, target-index validation, and truncation rejection.
    camera animation, lighting/environments, material animation, particles,
    crowds, props, scripts, events, and draw-state serialization.
 9. **G9 — ACP/ACG/ACS.** ACP and ACG now have lossless readers/writers, and
-   ACG version-1 framing and transition semantics are closed. Name ACP offset
-   28, recover the ACS include/reference grammar, and implement deterministic
-   GH1 ACP/ACG/ACS to GH2 clip-object conversion.
+   revision-18 ACP framing, its nested revision-5 SampleSet contract, and ACG
+   version-1 framing/transition semantics, and the observed ACS
+   include/invocation grammar are closed. Implement deterministic GH1
+   ACP/ACG/ACS to GH2 clip-object conversion.
 10. **G10 — Texture/material packing.** Implement PS2-native texture encoding,
     palette/swizzle rules, alpha semantics, Mat revision conversion, and
     deterministic texture reference output.

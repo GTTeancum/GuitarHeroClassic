@@ -1,8 +1,11 @@
 #include "acg.h"
 #include "acp.h"
+#include "acs.h"
 #include "ark_v3.h"
 #include "dtb.h"
 #include "milo.h"
+#include "milo_object.h"
+#include "milo_scene/milo_scene.h"
 
 #include <algorithm>
 #include <cctype>
@@ -12,6 +15,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -25,6 +29,11 @@ namespace {
 struct Counts {
     size_t seen = 0;
     size_t passed = 0;
+    size_t failed = 0;
+};
+
+struct BodyCounts {
+    size_t exact = 0;
     size_t failed = 0;
 };
 
@@ -117,7 +126,12 @@ int main(int argc, char** argv) {
         std::map<std::string, size_t> short_object_bodies;
         std::map<int32_t, size_t> directory_revisions;
         std::map<uint32_t, size_t> acp_revisions;
+        std::map<std::string, BodyCounts> body_counts;
+        std::vector<std::string> body_failures;
         std::vector<std::string> failures;
+        std::set<std::string> archive_paths;
+        for (const auto& entry : archive.entries())
+            archive_paths.insert(lower(entry.full_path));
 
         auto row = [&](const std::string& kind, const gh::ark::Entry& entry,
                        bool passed, const std::string& detail) {
@@ -164,8 +178,12 @@ int main(int argc, char** argv) {
                         std::equal(
                             directory_prefix.begin(),
                             directory_prefix.end(), payload.begin());
+                    const bool directory_exact =
+                        directory.boundaries_exact &&
+                        gh::milo::serialize_directory(directory) == payload;
                     ++directory_revisions[directory.dir_version];
                     std::map<std::string, size_t> local_types;
+                    bool audited_bodies_exact = true;
                     for (const auto& object : directory.entries) {
                         ++local_types[object.type];
                         ++object_types[object.type];
@@ -181,6 +199,235 @@ int main(int argc, char** argv) {
                                     packed_revision & 0xffffu),
                                 static_cast<uint16_t>(
                                     packed_revision >> 16))];
+                            if (directory.dir_version == 10 &&
+                                (object.type == "Cam" ||
+                                 object.type == "Flare" ||
+                                 object.type == "Light" ||
+                                 object.type == "Environ" ||
+                                 object.type == "Morph" ||
+                                 object.type == "TransAnim" ||
+                                 object.type == "MultiMesh" ||
+                                 object.type == "MeshAnim" ||
+                                 object.type == "CamAnim" ||
+                                 object.type == "EnvAnim" ||
+                                 object.type == "LightAnim" ||
+                                 object.type == "ParticleSysAnim" ||
+                                 object.type == "MatAnim" ||
+                                 object.type == "Text" ||
+                                 object.type == "Movie" ||
+                                 object.type == "Font" ||
+                                 object.type == "Tex" ||
+                                 object.type == "View" ||
+                                 object.type == "Mat" ||
+                                 object.type == "ParticleSys" ||
+                                 object.type == "Mesh")) {
+                                const auto first =
+                                    payload.begin() + object.offset;
+                                const std::vector<uint8_t> body(
+                                    first, first + object.size);
+                                bool exact = false;
+                                std::string body_error;
+                                try {
+                                    if (object.type == "Cam") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_cam(body);
+                                        exact =
+                                            gh::milo_object::serialize_cam(
+                                                decoded) == body;
+                                    } else if (object.type == "Flare") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_flare(
+                                                body);
+                                        exact =
+                                            gh::milo_object::serialize_flare(
+                                                decoded) == body;
+                                    } else if (object.type == "Light") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_light(
+                                                body);
+                                        exact =
+                                            gh::milo_object::serialize_light(
+                                                decoded) == body;
+                                    } else if (
+                                        object.type == "Environ") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_environ(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_environ(decoded) ==
+                                            body;
+                                    } else if (object.type == "Morph") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_morph(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_morph(decoded) ==
+                                            body;
+                                    } else if (
+                                        object.type == "TransAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_trans_anim(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_trans_anim(
+                                                    decoded) == body;
+                                    } else if (
+                                        object.type == "MultiMesh") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_multi_mesh(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_multi_mesh(
+                                                    decoded) == body;
+                                    } else if (
+                                        object.type == "MeshAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_mesh_anim(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_mesh_anim(
+                                                    decoded) == body;
+                                    } else if (
+                                        object.type == "CamAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_cam_anim(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_cam_anim(
+                                                    decoded) == body;
+                                    } else if (
+                                        object.type == "EnvAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_env_anim(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_env_anim(
+                                                    decoded) == body;
+                                    } else if (
+                                        object.type == "LightAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_light_anim(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_light_anim(
+                                                    decoded) == body;
+                                    } else if (
+                                        object.type ==
+                                        "ParticleSysAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_particle_sys_anim(
+                                                    body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_particle_sys_anim(
+                                                    decoded) == body;
+                                    } else if (
+                                        object.type == "MatAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_mat_anim(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_mat_anim(
+                                                    decoded) == body;
+                                    } else if (object.type == "Text") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_text(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_text(decoded) ==
+                                            body;
+                                    } else if (
+                                        object.type == "Movie") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_movie(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_movie(decoded) ==
+                                            body;
+                                    } else if (
+                                        object.type == "Font") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_font(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_font(decoded) ==
+                                            body;
+                                    } else if (
+                                        object.type == "Tex") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_tex(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_tex(decoded) ==
+                                            body;
+                                    } else if (
+                                        object.type == "View") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_view(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_view(decoded) ==
+                                            body;
+                                    } else if (
+                                        object.type == "Mat") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_mat(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_mat(decoded) ==
+                                            body;
+                                    } else if (
+                                        object.type == "ParticleSys") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_particle_sys(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_particle_sys(
+                                                    decoded) == body;
+                                    } else {
+                                        const auto decoded =
+                                            gh::milo_object::parse_mesh(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_mesh(decoded) ==
+                                            body;
+                                    }
+                                } catch (const std::exception& ex) {
+                                    body_error = ex.what();
+                                }
+                                BodyCounts& audited =
+                                    body_counts[object.type];
+                                if (exact) {
+                                    ++audited.exact;
+                                } else {
+                                    ++audited.failed;
+                                    audited_bodies_exact = false;
+                                    if (body_failures.size() < 25) {
+                                        body_failures.push_back(
+                                            entry.full_path + "::" +
+                                            object.type + "::" + object.name +
+                                            ": " + body_error);
+                                    }
+                                }
+                            }
                         } else {
                             ++short_object_bodies[object.type];
                         }
@@ -197,6 +444,12 @@ int main(int argc, char** argv) {
                            << " objects=" << directory.entries.size()
                            << " prefix_exact="
                            << (prefix_exact ? "yes" : "no")
+                           << " boundaries_exact="
+                           << (directory.boundaries_exact ? "yes" : "no")
+                           << " directory_exact="
+                           << (directory_exact ? "yes" : "no")
+                           << " audited_bodies_exact="
+                           << (audited_bodies_exact ? "yes" : "no")
                            << " externals="
                            << directory.external_resources.size()
                            << " trailing=" << container.trailing_bytes.size()
@@ -207,7 +460,12 @@ int main(int argc, char** argv) {
                         first = false;
                         detail << pair.first << ':' << pair.second;
                     }
-                    row("milo", entry, outer_exact && prefix_exact,
+                    row("milo", entry,
+                        outer_exact && prefix_exact &&
+                            (directory.dir_version != 10 ||
+                             (directory.boundaries_exact &&
+                              directory_exact &&
+                              audited_bodies_exact)),
                         detail.str());
                 } else if (ext == ".acp") {
                     const auto file = gh::acp::parse(bytes);
@@ -217,7 +475,8 @@ int main(int argc, char** argv) {
                     detail << "class=" << file.class_name
                            << " name=" << file.object_name
                            << " body_rev=" << file.revision
-                           << " field_28=" << file.field_28
+                           << " sample_set_revision="
+                           << file.sample_set_revision
                            << " set0_channels="
                            << file.channel_sets[0].channels.size()
                            << " set0_samples="
@@ -249,33 +508,33 @@ int main(int argc, char** argv) {
                             graph.trailing_bytes.empty(),
                         detail.str());
                 } else if (ext == ".acs") {
-                    size_t lines = 0;
+                    const auto file = gh::acs::parse(bytes);
                     size_t includes = 0;
-                    bool text = true;
-                    for (size_t i = 0; i < bytes.size(); ++i) {
-                        const uint8_t ch = bytes[i];
-                        if (ch == '\n') ++lines;
-                        if (ch == 0 ||
-                            (ch < 0x20 && ch != '\r' && ch != '\n' &&
-                             ch != '\t')) {
-                            text = false;
-                            break;
+                    size_t invocations = 0;
+                    size_t resolved_includes = 0;
+                    for (const auto& line : file.lines) {
+                        if (line.kind == gh::acs::LineKind::Include) {
+                            ++includes;
+                            const std::string target =
+                                gh::acs::compiled_include_path(
+                                    entry.full_path, line.value);
+                            if (archive_paths.count(lower(target)))
+                                ++resolved_includes;
+                        } else if (
+                            line.kind == gh::acs::LineKind::Invocation) {
+                            ++invocations;
                         }
                     }
-                    if (!bytes.empty() && bytes.back() != '\n') ++lines;
-                    const std::string contents(bytes.begin(), bytes.end());
-                    size_t pos = 0;
-                    while ((pos = contents.find("#include", pos)) !=
-                           std::string::npos) {
-                        ++includes;
-                        pos += 8;
-                    }
+                    const bool exact = gh::acs::serialize(file) == bytes;
                     std::ostringstream detail;
-                    detail << "text=" << (text ? "yes" : "no")
-                           << " bytes=" << bytes.size()
-                           << " lines=" << lines
+                    detail << "bytes=" << bytes.size()
+                           << " lines=" << file.lines.size()
                            << " includes=" << includes;
-                    row("acs", entry, text, detail.str());
+                    detail << " resolved_includes=" << resolved_includes
+                           << " invocations=" << invocations;
+                    row("acs", entry,
+                        exact && resolved_includes == includes,
+                        detail.str());
                 }
             } catch (const std::exception& ex) {
                 const std::string kind =
@@ -302,6 +561,13 @@ int main(int argc, char** argv) {
         std::printf("\nobject types: %zu\n", object_types.size());
         std::printf("object type/revision rows: %zu\n",
                     object_revisions.size());
+        for (const auto& pair : body_counts) {
+            std::printf("body %-12s exact=%zu fail=%zu\n",
+                        pair.first.c_str(), pair.second.exact,
+                        pair.second.failed);
+        }
+        for (const auto& failure : body_failures)
+            std::printf("BODY_FAIL %s\n", failure.c_str());
         for (const auto& failure : failures)
             std::printf("FAIL %s\n", failure.c_str());
         std::printf("report: %s\n", report_path.c_str());

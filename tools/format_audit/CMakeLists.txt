@@ -16,9 +16,14 @@ add_subdirectory(../milo ${CMAKE_CURRENT_BINARY_DIR}/milo)
 add_subdirectory(../dtb ${CMAKE_CURRENT_BINARY_DIR}/dtb)
 add_subdirectory(../acp ${CMAKE_CURRENT_BINARY_DIR}/acp)
 add_subdirectory(../acg ${CMAKE_CURRENT_BINARY_DIR}/acg)
+add_subdirectory(../acs ${CMAKE_CURRENT_BINARY_DIR}/acs)
+add_subdirectory(../milo_object ${CMAKE_CURRENT_BINARY_DIR}/milo_object)
+add_subdirectory(../../engine/src/milo_scene
+                 ${CMAKE_CURRENT_BINARY_DIR}/milo_scene)
 
 add_executable(format_audit format_audit.cpp)
-target_link_libraries(format_audit PRIVATE ark_v3 milo dtb acp acg)
+target_link_libraries(format_audit PRIVATE ark_v3 milo dtb acp acg acs
+                                           milo_object ghogx_milo_scene)
 if(COMMAND ghogx_add_windows_import_guard)
     ghogx_add_windows_import_guard(format_audit)
 endif()

@@ -1426,6 +1426,8 @@ struct GroupObj {
   // embedded Trans/Drawable payload and are distinct from drawable children.
   std::vector<std::string> anim_children;
   std::vector<std::string> children;
+  std::string children_owner;
+  std::array<float, 2> showing_range{};
   std::string environment_ref;
   std::string draw_only;
   std::string lod;
@@ -2302,6 +2304,8 @@ struct ParticleSysObj {
   std::array<float, 4> end_color_low = {1.0f, 1.0f, 1.0f, 1.0f};
   std::array<float, 4> end_color_high = {1.0f, 1.0f, 1.0f, 1.0f};
   std::string bounce;
+  bool legacy_bounce_enabled = false;
+  std::array<float, 4> legacy_bounce_plane{};
   float force_dir[3] = {0.0f, 0.0f, 0.0f};
   uint32_t particle_flags = 0;
   float grow_ratio = 0.0f;

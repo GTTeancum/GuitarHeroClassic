@@ -27,10 +27,10 @@ struct File {
     uint32_t flags = 0;
     uint32_t play_flags = 0;
     float blend_width = 0.0f;
-    // Present at body offset 28 in every audited revision-18 ACP. Its retail
-    // semantic name is intentionally unresolved; preserving it is not a claim
-    // that the format gap is closed.
-    uint32_t field_28 = 0;
+    // Nested SampleSet serialization revision. GH1 AnimClipSamples::Save
+    // writes 5 here; Load stores it in the revision gate consulted by both
+    // channel-set loaders.
+    uint32_t sample_set_revision = 0;
     std::array<ChannelSet, 2> channel_sets;
     std::vector<uint8_t> trailing_bytes;
 };

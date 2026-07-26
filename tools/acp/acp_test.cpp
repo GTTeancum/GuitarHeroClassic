@@ -14,7 +14,7 @@ int main() {
     file.flags = 0x80000000u;
     file.play_flags = 2;
     file.blend_width = 0.25f;
-    file.field_28 = 5;
+    file.sample_set_revision = 5;
     file.channel_sets[0].channels = {"bone_test.pos", "bone_test.quat"};
     file.channel_sets[0].sample_count = 2;
     file.channel_sets[0].compression = 1;
@@ -27,7 +27,7 @@ int main() {
         const auto bytes = gh::acp::serialize(file);
         const auto parsed = gh::acp::parse(bytes);
         const auto round_trip = gh::acp::serialize(parsed);
-        if (round_trip != bytes || parsed.field_28 != 5 ||
+        if (round_trip != bytes || parsed.sample_set_revision != 5 ||
             parsed.channel_sets[0].frame_size != 20 ||
             !parsed.trailing_bytes.empty()) {
             std::fprintf(stderr, "acp_test: round trip mismatch\n");

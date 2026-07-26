@@ -2785,6 +2785,10 @@ CamObj decode_cam(const std::string& entry_name,
         c.far_plane <= c.near_plane || c.fov <= 0.0f) {
       throw std::runtime_error("milo_scene: invalid Cam projection fields");
     }
+    if (r.pos != r.n) {
+      throw std::runtime_error(
+          "milo_scene: Cam source reader did not consume EOF");
+    }
     c.source_order_decoded = true;
     c.decoded = true;
   } catch (const std::exception&) {
@@ -2963,6 +2967,10 @@ LightObj decode_light(const std::string& entry_name,
       light.animate_position_from_preset = r.u8() != 0;
       light.animate_range_from_preset = light.animate_color_from_preset;
     }
+    if (r.pos != r.n) {
+      throw std::runtime_error(
+          "milo_scene: Light source reader did not consume EOF");
+    }
     light.source_order_decoded = true;
     light.decoded = true;
   } catch (const std::exception& ex) {
@@ -3001,12 +3009,10 @@ EnvironObj decode_environ(const std::string& entry_name,
         }
         env.legacy_drawable_refs.reserve(drawable_count);
         for (uint32_t i = 0; i < drawable_count; ++i) {
-          std::string ref = r.str();
-          if (!name_has_suffix(ref, ".mesh")) {
-            throw std::runtime_error(
-                "milo_scene: invalid GH1 Environ drawable ref");
-          }
-          env.legacy_drawable_refs.push_back(std::move(ref));
+          // This is an ObjPtr<RndDrawable>, not a Mesh-only list. Retail GH1
+          // uses View/Group drawables here as well; directory fixup, not a
+          // filename suffix, enforces the target type.
+          env.legacy_drawable_refs.push_back(r.str());
         }
       }
       if (drawable_revision > 0) r.skip(16);  // RndDrawable bounding sphere.
@@ -3061,6 +3067,10 @@ EnvironObj decode_environ(const std::string& entry_name,
         env.fade_start < 0.0f || env.fade_end < 0.0f) {
       throw std::runtime_error("milo_scene: invalid Environ range");
     }
+    if (r.pos != r.n) {
+      throw std::runtime_error(
+          "milo_scene: Environ source reader did not consume EOF");
+    }
     env.source_order_decoded = true;
     env.decoded = true;
   } catch (const std::exception& ex) {
@@ -3080,68 +3090,34 @@ GroupObj decode_group(const std::string& entry_name,
     const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
     if (parent_dir_revision == 10 && ver == 7) {
       group.legacy_view = true;
-      // GH1 `View` is remapped to RndGroup by ObjectDir::DirLoader.  Its old
-      // serialized layout carries a revision-0 RndAnimatable payload whose
-      // animation-reference vector propagates SetFrame to nested
-      // Views/animations. The drawable member vector follows embedded Trans8.
-      auto decode_view_tail = [&](Reader& view_reader) {
-        const TransFields trans = read_trans_block(
-            view_reader, false, parent_dir_revision);
-        group.local = trans.local;
-        group.world_stored = trans.world;
-        group.constraint = trans.constraint;
-        group.target = trans.target;
-        group.preserve_scale = trans.preserve_scale;
-        group.parent = trans.parent;
-        if (group.parent == group.name) group.parent.clear();
-        group.has_transform = true;
-        group.showing = view_reader.u8() != 0;
-        view_reader.skip(4);  // legacy view flags
-        const uint32_t object_count = view_reader.u32();
-        if (object_count > 4096) {
-          throw std::runtime_error(
-              "milo_scene: implausible GH1 View member count");
-        }
-        group.children.clear();
-        group.children.reserve(object_count);
-        for (uint32_t i = 0; i < object_count; ++i) {
-          std::string ref = view_reader.str();
-          if (name_has_suffix(ref, ".env")) group.environment_ref = ref;
-          group.children.push_back(std::move(ref));
-        }
-      };
-      try {
-        group.anim_children.clear();
-        read_animatable_block(r, &group.anim_children);
-        for (const auto& ref : group.anim_children)
-          if (name_has_suffix(ref, ".env")) group.environment_ref = ref;
-        decode_view_tail(r);
-      } catch (const std::exception&) {
-        // Animated GH1 Views serialize a legacy animatable payload between
-        // View7 and embedded Trans8. Locate that strongly typed Trans block
-        // rather than assuming the empty-animatable layout used by most
-        // character Views.
-        bool decoded_tail = false;
-        for (size_t offset = 4; offset + 4 + 96 <= body.size(); ++offset) {
-          uint32_t revision = 0;
-          std::memcpy(&revision, body.data() + offset, sizeof(revision));
-          if ((revision & 0xffffu) != 8 ||
-              !is_plausible_matrix_at(body, offset + 4) ||
-              !is_plausible_matrix_at(body, offset + 52)) {
-            continue;
-          }
-          try {
-            Reader candidate(body.data() + offset, body.size() - offset);
-            decode_view_tail(candidate);
-            decoded_tail = true;
-            break;
-          } catch (const std::exception&) {
-          }
-        }
-        if (!decoded_tail) {
-          throw std::runtime_error(
-              "milo_scene: no valid GH1 View embedded Trans8");
-        }
+      // GH1 `View` is remapped to RndGroup by ObjectDir::DirLoader. Its
+      // complete revision-7 contract is Animatable0, Trans8, Drawable1,
+      // childrenOwner, showingRange. This applies unchanged to animated venue
+      // Views and character Views; no Trans signature scan is needed.
+      group.anim_children.clear();
+      read_animatable_block(r, &group.anim_children);
+      for (const auto& ref : group.anim_children)
+        if (name_has_suffix(ref, ".env")) group.environment_ref = ref;
+      const TransFields trans =
+          read_trans_block(r, false, parent_dir_revision);
+      group.local = trans.local;
+      group.world_stored = trans.world;
+      group.constraint = trans.constraint;
+      group.target = trans.target;
+      group.preserve_scale = trans.preserve_scale;
+      group.parent = trans.parent;
+      if (group.parent == group.name) group.parent.clear();
+      group.has_transform = true;
+      read_drawable_block(r, parent_dir_revision, group.showing,
+                          group.draw_order, &group.children);
+      for (const auto& ref : group.children)
+        if (name_has_suffix(ref, ".env")) group.environment_ref = ref;
+      group.children_owner = r.str();
+      group.showing_range[0] = r.f32();
+      group.showing_range[1] = r.f32();
+      if (r.pos != r.n) {
+        throw std::runtime_error(
+            "milo_scene: GH1 View reader did not consume EOF");
       }
       group.source_order_decoded = true;
       group.decoded = true;
@@ -4402,36 +4378,18 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     part.end_color_low = read_color();
     part.end_color_high = read_color();
 
-    decode_stage = "bounce";
-    part.bounce = r.str();
-    read_vec3_to(part.force_dir);
     if (gh1_revision) {
-      // GH1 rev 22 has two observed legacy pre-material encodings. Most
-      // objects carry one additional byte before the three floats; fest's
-      // nuke_toxic omits it. Select the source shape by validating the
-      // following length-prefixed material reference, never by object name.
-      const auto plausible_ref_at = [&](size_t offset) {
-        if (offset + 4 > body.size()) return false;
-        const uint32_t len =
-            static_cast<uint32_t>(body[offset]) |
-            (static_cast<uint32_t>(body[offset + 1]) << 8) |
-            (static_cast<uint32_t>(body[offset + 2]) << 16) |
-            (static_cast<uint32_t>(body[offset + 3]) << 24);
-        if (len == 0 || len > 127 || offset + 4 + len > body.size())
-          return false;
-        for (uint32_t i = 0; i < len; ++i) {
-          const uint8_t c = body[offset + 4 + i];
-          if (c < 0x20 || c > 0x7e) return false;
-        }
-        return true;
-      };
-      const bool has_legacy_prefix_byte =
-          plausible_ref_at(r.pos + 13) && !plausible_ref_at(r.pos + 12);
-      if (has_legacy_prefix_byte) (void)r.u8();
-      (void)read_f();
-      (void)read_f();
-      (void)read_f();
+      // Retail RndParticleSys::Load for revision 22 reads a legacy bounce
+      // enable byte and Plane before force direction. It does not read the
+      // later bounce ObjPtr used by revision 27.
+      decode_stage = "legacy-bounce";
+      part.legacy_bounce_enabled = r.u8() != 0;
+      for (float& value : part.legacy_bounce_plane) value = read_f();
+    } else {
+      decode_stage = "bounce";
+      part.bounce = r.str();
     }
+    read_vec3_to(part.force_dir);
     decode_stage = "material";
     part.material = r.str();
     decode_stage = "post-material";
@@ -4454,9 +4412,16 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     part.bubble_size_max = bubble_size[1];
     part.bubble = r.u8() != 0;
     part.relative_motion = read_f();
-    decode_stage = "relative-parent";
-    part.relative_parent = r.str();
-    if (!gh1_revision) part.emitter_mesh = r.str();
+    if (gh1_revision) {
+      decode_stage = "emitter-mesh";
+      // Revision 22 predates mRelativeParent (revision >26) but already
+      // serializes mMesh (revision >18).
+      part.emitter_mesh = r.str();
+    } else {
+      decode_stage = "relative-parent";
+      part.relative_parent = r.str();
+      part.emitter_mesh = r.str();
+    }
     part.preserve_particles = r.u8() != 0;
     if (part.preserve_particles) {
       part.preserved_particle_count = r.u32();
@@ -4491,6 +4456,10 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     }
     if (part.material.empty()) {
       throw std::runtime_error("milo_scene: ParticleSys has no material ref");
+    }
+    if (r.pos != r.n) {
+      throw std::runtime_error(
+          "milo_scene: ParticleSys source reader did not consume EOF");
     }
     part.source_order_decoded = true;
     part.decoded = true;

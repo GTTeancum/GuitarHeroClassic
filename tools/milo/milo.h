@@ -65,7 +65,10 @@ struct Entry {
     std::string type;       // e.g. "Mesh", "Tex", "Mat", "Trans"
     std::string name;       // e.g. "head.tex"
     uint64_t    offset = 0; // start in the decompressed payload (after directory header)
-    uint64_t    size = 0;   // bytes (computed by scanning forward to next 0xADDEADDE)
+    uint64_t    size = 0;   // serialized class body bytes, excluding terminator
+    uint64_t    terminator_offset = 0;
+    uint32_t    terminator_value = 0;
+    std::vector<uint8_t> body_bytes;
 };
 
 struct Directory {
@@ -86,6 +89,12 @@ struct Directory {
     // holds the dir's instance properties (y_per_second, slots, top/bottom_y).
     uint64_t    dir_entry_offset = 0;
     uint64_t    dir_entry_size = 0;
+    // True only when the complete object-table sequence has one unique
+    // terminator chain, every next body begins with the revision required by
+    // its declared type, and the final terminator reaches payload EOF.
+    bool        boundaries_exact = false;
+    uint64_t    payload_end_offset = 0;
+    std::vector<uint8_t> trailing_bytes;
 };
 
 // Parse the container header only (no decompression).
@@ -116,15 +125,22 @@ Container make_container(const std::vector<uint8_t>& payload,
 std::vector<uint8_t> inflate_payload(const std::vector<uint8_t>& bytes,
                                      const Header& header);
 
-// Parse the post-decompression object directory. Reads dir version, type,
-// name, entry list, and computes each entry's byte size by scanning for
-// the 0xADDEADDE marker that terminates every object.
+// Parse the post-decompression object directory. Retail revision-10 GH1
+// boundaries are solved and proven as one complete type/revision-constrained
+// terminator chain. Generated/custom revision-10 types retain a non-writable
+// packed-revision fallback. Later directory revisions retain structural
+// scanning until their root and class readers are complete.
 Directory parse_directory(const std::vector<uint8_t>& payload);
 
 // Serialize the exact structural prefix through the object table and, for
 // revisions 7-16, the external-resource vector. Root/child bodies are not
 // emitted by this function.
 std::vector<uint8_t> serialize_directory_prefix(const Directory& directory);
+
+// Serialize a complete directory whose framing has been proven exact. This
+// currently covers GH1 revision 10, preserving/editing every raw class body
+// independently while rebuilding the table and object terminators.
+std::vector<uint8_t> serialize_directory(const Directory& directory);
 
 // File helper.
 std::vector<uint8_t> read_file(const std::string& path);

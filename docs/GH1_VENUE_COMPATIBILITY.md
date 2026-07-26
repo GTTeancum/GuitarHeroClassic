@@ -624,22 +624,29 @@ narrow rule reconnects big-club's hall sections while preserving theatre.
 
 ## ParticleSys revision 22
 
-All 32 ParticleSys objects in the audited GH1 venue files use revision 22.
-Its source order is Animatable0 legacy range/reference lists, Trans8 legacy
+All 76 ParticleSys objects in the packed GH1 archive use revision 22. Its
+source order is Animatable0 legacy range/reference lists, Trans8 legacy
 children, Drawable1, and the particle payload. Arena's `stage_flame` objects
 prove the Animatable lists are variable-length rather than fixed padding.
 
-After force direction, revision 22 has three legacy floats before material.
-Most retail objects have one additional prefix byte; festival `nuke_toxic`
-omits it. The decoder selects the shape by validating the following
-length-prefixed material reference, never by venue or object name. Its tail
-has relative motion, relative parent, and preserve-particles state, but no
-later emitter-mesh reference. Range endpoints are normalized because retail
-GH1 may serialize the larger endpoint first.
+The exact sequence after the four start/end colors is a one-byte
+`bounceEnabled`, a four-float plane, a three-float force direction, and the
+material reference. The earlier apparent optional prefix and three-float
+variant were a misaligned interpretation of that plane. There are no
+asset-specific body shapes.
 
-The audit decodes 32/32 objects across basement, festival, theatre, and arena.
-Logs are in `.codex/current-evidence/gh1-particle-rev22-runtime/`; proof frames
-are in `.codex/current-evidence/gh1-particle-rev22-proofs/`.
+After type, grow/shrink/mid-color state, particle limit, and bubble state, the
+revision-22 tail stores relative motion, an emitter Mesh reference, and
+preserve-particles state. Preserved particles use a 32-byte row: position
+Vector3, color as four floats, and size. Five packed objects carry non-empty
+preserved vectors and independently prove the stride.
+
+The semantic reader/writer round-trips all 76/76 packed bodies byte-exactly,
+including empty-material Big Club fog systems and the festival
+`nuke_toxic` system, with zero residual bytes. The runtime proof logs for the
+original four-venue subset remain in
+`.codex/current-evidence/gh1-particle-rev22-runtime/`; proof frames are in
+`.codex/current-evidence/gh1-particle-rev22-proofs/`.
 
 GH1 VenueCam intro records use the same offset convention as regular camera
 records: `offset_in/out` is an interpolated world-space correction to the
@@ -666,8 +673,11 @@ shadow texture proves that PS2 texture output is straight-alpha RGBA. Blend 2
 therefore uses `SRCALPHA/ONE` instead of premultiplied-only `ONE/ONE`, removing
 the transparent white floor rectangle generically for additive GH1 materials.
 
-Full byte layout, cross-archive measurements, negative experiment, palette
-statistics, and remaining unknown compact fields are documented in
+The complete Mat21 body layout now round-trips all 1,693 packed materials
+byte-exactly. The three trailing compact legacy state values still need
+source-backed semantic names and GH2 revision-27 mappings; their widths,
+positions, and values are no longer byte-layout gaps. Cross-archive
+measurements, negative experiments, and palette statistics are documented in
 `.codex/analysis/gh1-revision10-material-body-association.md`.
 ## Open proof observations
 

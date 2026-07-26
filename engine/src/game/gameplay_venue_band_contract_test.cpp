@@ -7012,11 +7012,17 @@ int main() {
                  "part.delta_size_min=delta_size[0];",
                  "ParticleSys decoder reads source delta size in source order");
   ok &= contains(milo_scene_cpp_c,
-                 "part.bounce=r.str();",
-                 "ParticleSys decoder reads source bounce ref after end colors");
+                 "part.legacy_bounce_enabled=r.u8()!=0;",
+                 "GH1 ParticleSys decoder reads bounce-enable after end colors");
+  ok &= contains(milo_scene_cpp_c,
+                 "for(float&value:part.legacy_bounce_plane)value=read_f();",
+                 "GH1 ParticleSys decoder reads the source bounce plane");
   ok &= contains(milo_scene_cpp_c,
                  "read_vec3_to(part.force_dir);",
                  "ParticleSys decoder reads source force vector after bounce");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.emitter_mesh=r.str();",
+                 "GH1 ParticleSys decoder reads its authored emitter Mesh ref");
   ok &= contains(milo_scene_cpp_c,
                  "part.mid_color_low=read_color();",
                  "ParticleSys decoder reads source mid color range");

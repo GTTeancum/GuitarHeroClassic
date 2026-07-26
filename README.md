@@ -139,6 +139,13 @@ Reads compiled DTA (`.dtb`) files used across all Harmonix titles for song metad
 .\tools\dtb\build\dtb_tool.exe dump  some.dtb [--lines]
 ```
 
+### `tools/acp/`, `tools/acg/`, and `tools/acs/` — GH1 animation data
+
+Lossless readers/writers for GH1 sampled animation clips, transition graphs,
+and animation precache manifests. The full packed GH1 sweep is byte-exact for
+all 926 ACPs, 25 ACGs, and both ACS manifests. ACS include references are also
+validated against their packed compiled `gen/*.dtb` targets.
+
 ### `tools/texture_ps2/` — `.bmp_ps2` / `.png_ps2` reader (C++17)
 
 Both extensions wrap the same HMXBitmap container. Reads 4bpp and 8bpp indexed PS2 textures (encoding=3), applies the 8bpp palette bit-swap, rescales PS2 0..128 alpha to 0..255, and writes a 32-bit BGRA BMP with alpha preserved.
@@ -165,7 +172,11 @@ Format reference (for VGS container only — PS-ADPCM decoder is an original imp
 
 ### `tools/milo/` — `.milo_ps2` container reader (C++17, structural)
 
-Reads Harmonix's milo scene container. Supports the four common compression structures (MILO_A uncompressed, MILO_B ZLIB blocks, MILO_C GZIP blocks, MILO_D ZLIB+prefix), inflates payload, and walks the post-decompression object directory to enumerate child objects by (type, name, size). Deep per-class parsing (Mesh, Tex, BandCharacter…) is its own follow-up work; this is the structural pass that tells you what's in any milo.
+Reads Harmonix's milo scene container. Supports the four common compression
+structures (MILO_A uncompressed, MILO_B ZLIB blocks, MILO_C GZIP blocks,
+MILO_D ZLIB+prefix), inflates payload, and parses object-directory structure.
+The revision-10 GH1 reader proves one unique revision-constrained child chain,
+and its writer rebuilds all 105 packed directories byte-exactly.
 
 Depends on [miniz](https://github.com/richgel999/miniz) (MIT) — vendored as a submodule under `third_party/miniz/`.
 
@@ -177,7 +188,16 @@ Depends on [miniz](https://github.com/richgel999/miniz) (MIT) — vendored as a 
 .\tools\milo\build\milo_tool.exe extract scene.milo_ps2 --out out_dir\
 ```
 
-Validated on a GH80s venue (`small2_geom.milo_ps2`, 1.1 MB → 2.5 MB inflated, 337 entries: Meshes/Mats/Texes/Anims/Triggers/etc).
+Validated on the full GH1 packed archive and on later target-format samples.
+
+### `tools/milo_object/` — GH1 semantic MILO object bodies
+
+Revision-aware semantic readers and writers for all 21 type/revision rows
+observed in packed GH1: cameras, environments, lights, materials, meshes,
+textures, views, particles, text/fonts/movies, and every observed animation
+class. `tools/format_audit` proves byte-exact read/write equality for all 12,189
+object bodies with zero residuals or asset-specific exceptions. GH2 target
+revisions and source-to-target conversion remain active work.
 
 ### Format reference: `third_party/Mackiloha/`
 

@@ -1,0 +1,23 @@
+cmake_minimum_required(VERSION 3.20)
+if(POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW)
+endif()
+project(milo_object LANGUAGES CXX)
+enable_testing()
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/windows_toolchain_guard.cmake")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/windows_toolchain_guard.cmake")
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
+add_library(milo_object STATIC milo_object.cpp milo_object.h)
+target_include_directories(milo_object PUBLIC .)
+
+add_executable(milo_object_test milo_object_test.cpp)
+target_link_libraries(milo_object_test PRIVATE milo_object)
+add_test(NAME milo_object_test COMMAND milo_object_test)
+if(COMMAND ghogx_add_windows_import_guard)
+    ghogx_add_windows_import_guard(milo_object_test)
+endif()

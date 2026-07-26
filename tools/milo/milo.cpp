@@ -9,7 +9,10 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <fstream>
+#include <map>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
@@ -129,6 +132,27 @@ void wr_u32(std::vector<uint8_t>& bytes, size_t pos, uint32_t value) {
     bytes[pos + 1] = static_cast<uint8_t>(value >> 8);
     bytes[pos + 2] = static_cast<uint8_t>(value >> 16);
     bytes[pos + 3] = static_cast<uint8_t>(value >> 24);
+}
+
+std::optional<uint32_t> gh1_body_revision(const std::string& type) {
+    static const std::map<std::string, uint32_t> revisions = {
+        {"Cam", 9},          {"CamAnim", 0},      {"EnvAnim", 3},
+        {"Environ", 1},      {"Flare", 3},        {"Font", 7},
+        {"Light", 3},        {"LightAnim", 1},    {"Mat", 21},
+        {"MatAnim", 5},      {"Mesh", 25},        {"MeshAnim", 0},
+        {"Morph", 3},        {"Movie", 6},        {"MultiMesh", 0},
+        {"ParticleSys", 22}, {"ParticleSysAnim", 2},
+        {"Tex", 8},          {"Text", 15},        {"TransAnim", 4},
+        // GH1 directory revision 10 remaps legacy View bodies to Group.
+        {"View", 7},
+    };
+    const auto found = revisions.find(type);
+    if (found == revisions.end()) return std::nullopt;
+    return found->second;
+}
+
+bool plausible_packed_revision(uint32_t value) {
+    return (value & 0xffffu) <= 0xffu && (value >> 16) <= 0xffu;
 }
 
 void append_u32_le(std::vector<uint8_t>& bytes, uint32_t value) {
@@ -546,12 +570,134 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
     }
     d.object_data_offset = pos;
 
-    // After the entry list, GH1 (version 10) has an external resource list,
+    if (d.dir_version == 10) {
+        d.dir_entry_offset = pos;
+        d.dir_entry_size = 0;
+        if (d.entries.empty()) {
+            if (pos != p.size())
+                throw std::runtime_error(
+                    "milo dir: empty GH1 directory has residual payload");
+            d.boundaries_exact = true;
+            d.payload_end_offset = pos;
+            return d;
+        }
+
+        std::vector<std::optional<uint32_t>> expected;
+        expected.reserve(d.entries.size());
+        bool all_revisions_known = true;
+        for (const auto& entry : d.entries)
+            {
+                const auto revision = gh1_body_revision(entry.type);
+                all_revisions_known &= revision.has_value();
+                expected.push_back(revision);
+            }
+
+        std::vector<size_t> markers;
+        for (size_t at = pos; at + 4 <= p.size(); ++at) {
+            if (rd_u32(p.data() + at) == kAddePadding)
+                markers.push_back(at);
+        }
+
+        struct BoundaryResult {
+            int solutions = 0;  // capped at two: unique versus ambiguous
+            std::vector<size_t> terminators;
+        };
+        std::map<std::pair<size_t, size_t>, BoundaryResult> memo;
+        std::function<BoundaryResult(size_t, size_t)> solve =
+            [&](size_t index, size_t start) -> BoundaryResult {
+                const auto key = std::make_pair(index, start);
+                const auto cached = memo.find(key);
+                if (cached != memo.end()) return cached->second;
+                BoundaryResult result;
+                if (index >= expected.size() || start + 4 > p.size()) {
+                    memo.emplace(key, result);
+                    return result;
+                }
+                const uint32_t body_revision = rd_u32(p.data() + start);
+                if ((expected[index].has_value() &&
+                     body_revision != *expected[index]) ||
+                    (!expected[index].has_value() &&
+                     !plausible_packed_revision(body_revision))) {
+                    memo.emplace(key, result);
+                    return result;
+                }
+
+                const auto first_marker =
+                    std::lower_bound(markers.begin(), markers.end(),
+                                     start + 4);
+                for (auto it = first_marker; it != markers.end(); ++it) {
+                    const size_t terminator = *it;
+                    BoundaryResult tail;
+                    if (index + 1 == expected.size()) {
+                        if (terminator + 4 != p.size()) continue;
+                        tail.solutions = 1;
+                    } else {
+                        if (terminator + 8 > p.size())
+                            continue;
+                        const uint32_t next_revision =
+                            rd_u32(p.data() + terminator + 4);
+                        if ((expected[index + 1].has_value() &&
+                             next_revision != *expected[index + 1]) ||
+                            (!expected[index + 1].has_value() &&
+                             !plausible_packed_revision(next_revision)))
+                            continue;
+                        tail = solve(index + 1, terminator + 4);
+                    }
+                    if (tail.solutions == 0) continue;
+                    if (result.solutions == 0) {
+                        result.terminators.push_back(terminator);
+                        result.terminators.insert(
+                            result.terminators.end(),
+                            tail.terminators.begin(),
+                            tail.terminators.end());
+                    }
+                    result.solutions =
+                        std::min(2, result.solutions + tail.solutions);
+                    if (result.solutions == 2) break;
+                }
+                memo.emplace(key, result);
+                return result;
+            };
+
+        const BoundaryResult result = solve(0, pos);
+        if (result.solutions == 0)
+            throw std::runtime_error(
+                "milo dir: revision-10 object terminator chain is incomplete");
+        if (all_revisions_known &&
+            (result.solutions != 1 ||
+             result.terminators.size() != d.entries.size()))
+            throw std::runtime_error(
+                "milo dir: GH1 object terminator chain is ambiguous");
+        if (result.terminators.size() != d.entries.size())
+            throw std::runtime_error(
+                "milo dir: revision-10 object terminator chain is incomplete");
+
+        size_t start = pos;
+        for (size_t i = 0; i < d.entries.size(); ++i) {
+            Entry& entry = d.entries[i];
+            const size_t terminator = result.terminators[i];
+            entry.offset = start;
+            entry.size = terminator - start;
+            entry.terminator_offset = terminator;
+            entry.terminator_value = kAddePadding;
+            entry.body_bytes.assign(p.begin() + start,
+                                    p.begin() + terminator);
+            start = terminator + 4;
+        }
+        // Exactness is proven only when every declared type has a known GH1
+        // body revision and the constrained chain is unique. Generated/custom
+        // revision-10 directories may still be read structurally, but cannot
+        // be passed to the complete writer until their type contracts close.
+        d.boundaries_exact = all_revisions_known && result.solutions == 1;
+        d.payload_end_offset = start;
+        d.trailing_bytes.assign(p.begin() + start, p.end());
+        return d;
+    }
+
     // GH2+ (version 24+) has a directory-entry blob (or a recursive subdir for
-    // version 25 ObjectDir). Both terminate with the 0xADDEADDE marker before
-    // the per-entry bodies begin. To keep this structural pass robust without
-    // class-specific knowledge, skip ahead to the FIRST 0xADDEADDE then start
-    // measuring entry bodies from there.
+    // version 25 ObjectDir). It terminates with the 0xADDEADDE marker before
+    // the per-entry bodies begin. Retain the later-revision scanning fallback
+    // until its root and class readers are complete.
     auto scan = [&](size_t from) -> size_t {
         for (size_t k = from; k + 4 <= p.size(); ++k) {
             if (rd_u32(p.data() + k) == kAddePadding) return k;
@@ -593,16 +739,11 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
     };
 
     size_t cursor = pos;
-    if (d.dir_version == 10) {
-        d.dir_entry_offset = pos;
-        d.dir_entry_size = 0;
-    } else {
-        cursor = scan(pos);
-        d.dir_entry_offset = pos;              // root dir's own object body
-        d.dir_entry_size = cursor - pos;
-        if (cursor == p.size()) return d;       // no markers; nothing to size
-        cursor += 4;                            // root-object terminator
-    }
+    cursor = scan(pos);
+    d.dir_entry_offset = pos;              // root dir's own object body
+    d.dir_entry_size = cursor - pos;
+    if (cursor == p.size()) return d;       // no markers; nothing to size
+    cursor += 4;                            // root-object terminator
 
     for (auto& e : d.entries) {
         const int32_t expected_mesh_version = d.dir_version == 10 ? 25 : 28;
@@ -615,9 +756,16 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
         e.offset = cursor;
         size_t end = scan_object_padding(cursor, &e.type, cursor);
         e.size = end - cursor;
+        e.terminator_offset = end;
+        if (end + 4 <= p.size()) {
+            e.terminator_value = rd_u32(p.data() + end);
+            e.body_bytes.assign(p.begin() + cursor, p.begin() + end);
+        }
         cursor = (end == p.size()) ? p.size() : (end + 4);
         if (cursor >= p.size()) break;
     }
+    d.payload_end_offset = cursor;
+    d.trailing_bytes.assign(p.begin() + cursor, p.end());
     return d;
 }
 
@@ -655,6 +803,28 @@ std::vector<uint8_t> serialize_directory_prefix(const Directory& d) {
         throw std::runtime_error(
             "milo dir: external resources are invalid after revision 16");
     }
+    return bytes;
+}
+
+std::vector<uint8_t> serialize_directory(const Directory& d) {
+    if (!d.boundaries_exact)
+        throw std::runtime_error(
+            "milo dir: complete serialization requires exact boundaries");
+    if (d.dir_version != 10)
+        throw std::runtime_error(
+            "milo dir: complete serialization is proven only for revision 10");
+
+    std::vector<uint8_t> bytes = serialize_directory_prefix(d);
+    for (const auto& entry : d.entries) {
+        if (entry.terminator_value != kAddePadding)
+            throw std::runtime_error(
+                "milo dir: invalid object terminator value");
+        bytes.insert(bytes.end(), entry.body_bytes.begin(),
+                     entry.body_bytes.end());
+        append_u32_le(bytes, entry.terminator_value);
+    }
+    bytes.insert(bytes.end(), d.trailing_bytes.begin(),
+                 d.trailing_bytes.end());
     return bytes;
 }
 
