@@ -24,9 +24,19 @@ target_compile_definitions(miniz_tinfl PUBLIC
     MINIZ_NO_TIME
     MINIZ_NO_STDIO)
 
+add_library(miniz_tdef STATIC
+    ${MINIZ_DIR}/miniz.c
+    ${MINIZ_DIR}/miniz_tdef.c)
+target_include_directories(miniz_tdef PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${MINIZ_DIR})
+target_compile_definitions(miniz_tdef PUBLIC
+    MINIZ_NO_ARCHIVE_APIS
+    MINIZ_NO_ARCHIVE_WRITING_APIS
+    MINIZ_NO_TIME
+    MINIZ_NO_STDIO)
+
 add_library(milo STATIC milo.cpp milo.h)
 target_include_directories(milo PUBLIC .)
-target_link_libraries(milo PRIVATE miniz_tinfl)
+target_link_libraries(milo PRIVATE miniz_tinfl miniz_tdef)
 
 add_executable(milo_tool milo_tool.cpp)
 target_link_libraries(milo_tool PRIVATE milo)

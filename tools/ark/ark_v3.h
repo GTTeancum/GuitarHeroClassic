@@ -31,12 +31,48 @@ struct Entry {
     std::string full_path;   // folder + "/" + name (or just name)
 };
 
+struct IndexEntry {
+    uint32_t raw_offset = 0;  // absolute across concatenated ARK parts
+    uint32_t name_idx = 0;
+    uint32_t folder_idx = 0xffffffffu;
+    uint32_t size = 0;
+    uint32_t inflated_size = 0;
+};
+
+// Lossless main.hdr representation.
+struct Index {
+    uint32_t version = 3;
+    uint32_t flag = 0;
+    std::vector<uint32_t> ark_part_sizes;
+    std::vector<uint8_t> string_blob;
+    std::vector<uint32_t> string_offsets;
+    std::vector<IndexEntry> entries;
+    std::vector<uint8_t> trailing_bytes;
+};
+
+struct LayoutEntry {
+    std::string full_path;
+    uint32_t raw_offset = 0;
+    uint32_t size = 0;
+    uint32_t inflated_size = 0;
+};
+
+Index parse_index(const std::vector<uint8_t>& bytes);
+std::vector<uint8_t> serialize_index(const Index& index);
+
+// Build a deterministic v3 index for an already planned ARK byte layout.
+// Strings are deduplicated and sorted; entries retain caller order.
+Index make_index(const std::vector<uint32_t>& ark_part_sizes,
+                 const std::vector<LayoutEntry>& entries,
+                 uint32_t flag = 0);
+
 class ArkV3Reader {
 public:
     // Parse the given main.hdr. Throws std::runtime_error on any format mismatch.
     static ArkV3Reader load(const std::string& hdr_path);
 
     uint32_t version() const { return version_; }
+    uint32_t flag() const { return flag_; }
     const std::vector<uint64_t>& ark_part_sizes() const { return ark_part_sizes_; }
     const std::vector<Entry>& entries() const { return entries_; }
 

@@ -2,6 +2,7 @@
 //
 // Subcommands:
 //   list      <hdr> [--ext-summary] [--limit N]
+//   verify    <hdr>
 //   extract   <hdr> <ark>... --path <full_path> --out <file>
 //   extract-all <hdr> <ark>... --out <dir>
 
@@ -27,9 +28,42 @@ static void usage() {
     std::fprintf(stderr,
         "Usage:\n"
         "  ark_tool list <hdr> [--ext-summary] [--limit N]\n"
+        "  ark_tool verify <hdr>\n"
         "  ark_tool extract <hdr> <ark>... --path <full_path> --out <file>\n"
         "  ark_tool extract-all <hdr> <ark>... --out <dir>\n");
     std::exit(2);
+}
+
+static std::vector<uint8_t> read_all(const std::string& path) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) die("cannot open: " + path);
+    input.seekg(0, std::ios::end);
+    const std::streamoff size = input.tellg();
+    if (size < 0) die("cannot determine size: " + path);
+    input.seekg(0, std::ios::beg);
+    std::vector<uint8_t> bytes(static_cast<size_t>(size));
+    if (!bytes.empty()) {
+        input.read(reinterpret_cast<char*>(bytes.data()), size);
+        if (!input) die("cannot read: " + path);
+    }
+    return bytes;
+}
+
+static int cmd_verify(int argc, char** argv) {
+    if (argc != 1) usage();
+    const std::string hdr_path = argv[0];
+    const auto source = read_all(hdr_path);
+    const auto index = gh::ark::parse_index(source);
+    const auto serialized = gh::ark::serialize_index(index);
+    const bool exact = source == serialized;
+    std::printf(
+        "%s: version=%u flag=%u parts=%zu strings=%zu entries=%zu "
+        "trailing=%zu exact=%s\n",
+        hdr_path.c_str(), index.version, index.flag, index.ark_part_sizes.size(),
+        index.string_offsets.size(), index.entries.size(),
+        index.trailing_bytes.size(),
+        exact ? "yes" : "no");
+    return exact ? 0 : 1;
 }
 
 static int cmd_list(int argc, char** argv) {
@@ -137,11 +171,19 @@ static int cmd_extract(int argc, char** argv, bool all) {
 }
 
 int main(int argc, char** argv) {
-    if (argc < 2) usage();
-    std::string sub = argv[1];
-    if (sub == "list")        return cmd_list(argc - 2, argv + 2);
-    if (sub == "extract")     return cmd_extract(argc - 2, argv + 2, /*all=*/false);
-    if (sub == "extract-all") return cmd_extract(argc - 2, argv + 2, /*all=*/true);
-    usage();
-    return 2;
+    try {
+        if (argc < 2) usage();
+        std::string sub = argv[1];
+        if (sub == "list")        return cmd_list(argc - 2, argv + 2);
+        if (sub == "verify")      return cmd_verify(argc - 2, argv + 2);
+        if (sub == "extract")
+            return cmd_extract(argc - 2, argv + 2, /*all=*/false);
+        if (sub == "extract-all")
+            return cmd_extract(argc - 2, argv + 2, /*all=*/true);
+        usage();
+        return 2;
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "ark_tool: %s\n", ex.what());
+        return 1;
+    }
 }

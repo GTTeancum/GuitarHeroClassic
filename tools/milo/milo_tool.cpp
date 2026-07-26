@@ -4,6 +4,7 @@
 //   milo_tool info    <file>             header only
 //   milo_tool list    <file>             header + decompress + list (type,name,size)
 //   milo_tool extract <file> --out <dir> decompress + dump each entry's raw bytes
+//   milo_tool verify  <file>             byte-exact outer-container round trip
 
 #include "milo.h"
 
@@ -22,7 +23,8 @@ static void usage() {
         "Usage:\n"
         "  milo_tool info    <file>\n"
         "  milo_tool list    <file>\n"
-        "  milo_tool extract <file> --out <dir>\n");
+        "  milo_tool extract <file> --out <dir>\n"
+        "  milo_tool verify  <file>\n");
     std::exit(2);
 }
 
@@ -47,6 +49,22 @@ int main(int argc, char** argv) {
             for (uint32_t i = 0; i < h.block_count; ++i) {
                 std::printf("  block[%u] size = %u\n", i, h.block_sizes[i]);
             }
+            return 0;
+        }
+
+        if (sub == "verify") {
+            const auto container = gh::milo::parse_container(bytes);
+            const auto serialized = gh::milo::serialize_container(container);
+            if (serialized != bytes) {
+                std::fprintf(stderr,
+                             "outer round trip differs: source=%zu output=%zu\n",
+                             bytes.size(), serialized.size());
+                return 1;
+            }
+            const auto payload = gh::milo::container_payload(container);
+            std::printf("byte-exact outer round trip: %zu source bytes, "
+                        "%zu payload bytes, %zu blocks\n",
+                        bytes.size(), payload.size(), container.blocks.size());
             return 0;
         }
 

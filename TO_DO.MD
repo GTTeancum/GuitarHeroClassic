@@ -23,6 +23,8 @@
   fidelity, mixed-content support, maintenance cost, archive integration, and
   traceability to packed source facts. Conversion must be systemic and
   deterministic; do not substitute hand-edited assets or per-object patches.
+  The numbered format-gap register and completion gates are maintained in
+  `docs/GH1_GH2_FORMAT_CONVERSION.md`.
 
 ## Open Gameplay / Runtime TODO
 

@@ -48,10 +48,23 @@ struct Node {
     uint32_t line = 0;
 };
 
+enum class Storage {
+    Plain,
+    ZeroPrefixedPlain,
+    Encrypted,
+};
+
 struct Tree {
     bool embedded = false;       // version 0 = embedded (e.g. inside .milo), 1 = standalone
+    uint32_t version = 1;
     uint32_t root_line = 0;
     std::vector<std::shared_ptr<Node>> root;
+    Storage storage = Storage::Plain;
+    uint32_t cipher_seed = 0;
+    // Bytes after the declared root node count. Retail files normally have
+    // none, but retaining them makes parse/serialize lossless and exposes any
+    // unexplained residual data to audits.
+    std::vector<uint8_t> trailing_bytes;
 };
 
 // Parse a DTB blob. Auto-detects encryption: if first byte is 0x01 the bytes
@@ -61,6 +74,10 @@ struct Tree {
 //
 // Throws std::runtime_error on malformed input.
 Tree parse(const std::vector<uint8_t>& bytes);
+
+// Serialize a tree back to its original plaintext/zero-prefix/encrypted
+// storage form. Parsed trees round-trip byte-for-byte.
+std::vector<uint8_t> serialize(const Tree& tree);
 
 // Render a parsed tree back to human-readable DTA-style text. Useful for
 // inspection / diffing.

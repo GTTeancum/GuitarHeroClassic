@@ -37,7 +37,28 @@ struct Header {
     uint32_t       first_block_offset = 0;
     uint32_t       block_count = 0;
     uint32_t       max_block_uncompressed_size = 0;
-    std::vector<uint32_t> block_sizes;  // size on disk (high byte flags stripped for MILO_D)
+    // Exact table values. MILO_D stores flags in the high byte and disk size
+    // in the low 24 bits; the lossless container model retains both.
+    std::vector<uint32_t> block_sizes;
+};
+
+// Lossless outer-container representation.  `prefix_bytes` retains the complete
+// fixed-size 0x210 GH1/GH2 header region, including the unused block-table
+// slots whose retail bytes are not reliably zero.  A block can therefore be
+// decoded, inspected, and emitted byte-for-byte when it is not changed.
+struct ContainerBlock {
+    uint32_t table_value = 0;
+    bool stored = false;
+    std::vector<uint8_t> disk_bytes;
+    std::vector<uint8_t> payload_bytes;
+    std::vector<uint8_t> original_payload_bytes;
+};
+
+struct Container {
+    Header header;
+    std::vector<uint8_t> prefix_bytes;
+    std::vector<ContainerBlock> blocks;
+    std::vector<uint8_t> trailing_bytes;
 };
 
 struct Entry {
@@ -51,7 +72,15 @@ struct Directory {
     int32_t     dir_version = 0;     // milo "magic" version: 10 (GH1), 24 (GH2), 25 (RB1), ...
     std::string dir_type;            // e.g. "ObjectDir"
     std::string dir_name;            // e.g. "chartest"
+    uint32_t    hash_table_hint = 0;
+    uint32_t    string_table_hint = 0;
     std::vector<Entry> entries;
+    // Revisions 7-16 store external resource paths after the object table.
+    // Revision 10 is the packed GH1 form observed by this project.
+    std::vector<std::string> external_resources;
+    // Exact end of the directory header/table region. For old directories this
+    // is the first child body; for revision 17+ it is the root object body.
+    uint64_t    object_data_offset = 0;
     // The directory's OWN object body (GH2 version 24+): the bytes between the
     // entry-name list and the first 0xADDEADDE. For a TrackDir/PanelDir this
     // holds the dir's instance properties (y_per_second, slots, top/bottom_y).
@@ -61,6 +90,24 @@ struct Directory {
 
 // Parse the container header only (no decompression).
 Header parse_header(const std::vector<uint8_t>& bytes);
+
+// Parse every compressed block while retaining the exact source bytes.
+Container parse_container(const std::vector<uint8_t>& bytes);
+
+// Concatenate a parsed container's uncompressed blocks.
+std::vector<uint8_t> container_payload(const Container& container);
+
+// Serialize a container. Unchanged blocks retain their original compressed
+// bytes; changed MILO_A/MILO_B blocks are encoded deterministically.
+std::vector<uint8_t> serialize_container(const Container& container);
+
+// Construct a deterministic GH-style container from an uncompressed payload.
+// The default 0x210 prefix is the fixed 128-slot block table used by retail
+// GH1/GH2 PS2 files.
+Container make_container(const std::vector<uint8_t>& payload,
+                         BlockStructure structure = BlockStructure::MILO_B,
+                         uint32_t block_uncompressed_limit = 0x20000,
+                         uint32_t first_block_offset = 0x210);
 
 // Inflate all blocks and concatenate. For BlockStructure::MILO_B this uses
 // raw DEFLATE (no zlib wrapper). For MILO_C it uses GZIP. For MILO_D the
@@ -73,6 +120,11 @@ std::vector<uint8_t> inflate_payload(const std::vector<uint8_t>& bytes,
 // name, entry list, and computes each entry's byte size by scanning for
 // the 0xADDEADDE marker that terminates every object.
 Directory parse_directory(const std::vector<uint8_t>& payload);
+
+// Serialize the exact structural prefix through the object table and, for
+// revisions 7-16, the external-resource vector. Root/child bodies are not
+// emitted by this function.
+std::vector<uint8_t> serialize_directory_prefix(const Directory& directory);
 
 // File helper.
 std::vector<uint8_t> read_file(const std::string& path);

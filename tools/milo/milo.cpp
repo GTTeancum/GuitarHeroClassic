@@ -3,11 +3,8 @@
 #include "milo.h"
 
 // Pull tinfl from vendored miniz (MIT) for raw-DEFLATE and zlib/gzip wrappers.
-#define MINIZ_NO_ARCHIVE_APIS
-#define MINIZ_NO_ARCHIVE_WRITING_APIS
-#define MINIZ_NO_TIME
-#define MINIZ_NO_STDIO
 #include "../../third_party/miniz/miniz_tinfl.h"
+#include "../../third_party/miniz/miniz_tdef.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -126,6 +123,28 @@ constexpr uint32_t kAddePadding = 0xDEADDEADu;
 uint32_t rd_u32(const uint8_t* p) { uint32_t v; std::memcpy(&v, p, 4); return v; }
 int32_t  rd_i32(const uint8_t* p) { int32_t  v; std::memcpy(&v, p, 4); return v; }
 
+void wr_u32(std::vector<uint8_t>& bytes, size_t pos, uint32_t value) {
+    if (pos + 4 > bytes.size()) throw std::runtime_error("milo: header write exceeds prefix");
+    bytes[pos + 0] = static_cast<uint8_t>(value);
+    bytes[pos + 1] = static_cast<uint8_t>(value >> 8);
+    bytes[pos + 2] = static_cast<uint8_t>(value >> 16);
+    bytes[pos + 3] = static_cast<uint8_t>(value >> 24);
+}
+
+void append_u32_le(std::vector<uint8_t>& bytes, uint32_t value) {
+    bytes.push_back(static_cast<uint8_t>(value));
+    bytes.push_back(static_cast<uint8_t>(value >> 8));
+    bytes.push_back(static_cast<uint8_t>(value >> 16));
+    bytes.push_back(static_cast<uint8_t>(value >> 24));
+}
+
+void append_string(std::vector<uint8_t>& bytes, const std::string& value) {
+    if (value.size() > std::numeric_limits<uint32_t>::max())
+        throw std::runtime_error("milo dir: string exceeds u32");
+    append_u32_le(bytes, static_cast<uint32_t>(value.size()));
+    bytes.insert(bytes.end(), value.begin(), value.end());
+}
+
 // AwesomeReader-style length-prefixed UTF-8 string.
 std::string read_string(const uint8_t* base, size_t end, size_t& pos) {
     if (pos + 4 > end) throw std::runtime_error("milo dir: truncated string length");
@@ -162,6 +181,19 @@ std::vector<uint8_t> inflate_raw(const uint8_t* src, size_t src_len,
                              static_cast<uint8_t*>(p) + out_len);
     // tinfl_decompress_mem_to_heap allocates with MZ_MALLOC (== malloc by default).
     std::free(p);
+    return out;
+}
+
+std::vector<uint8_t> deflate_raw(const std::vector<uint8_t>& src) {
+    size_t out_len = 0;
+    const int flags = static_cast<int>(
+        tdefl_create_comp_flags_from_zip_params(6, -15, 0));
+    void* compressed =
+        tdefl_compress_mem_to_heap(src.data(), src.size(), &out_len, flags);
+    if (!compressed) throw std::runtime_error("milo: raw deflate encode failed");
+    const auto* begin = static_cast<const uint8_t*>(compressed);
+    std::vector<uint8_t> out(begin, begin + out_len);
+    std::free(compressed);
     return out;
 }
 
@@ -277,6 +309,196 @@ std::vector<uint8_t> inflate_payload(const std::vector<uint8_t>& src,
     return out;
 }
 
+Container parse_container(const std::vector<uint8_t>& src) {
+    Container container;
+    container.header = parse_header(src);
+    const Header& h = container.header;
+    if (h.first_block_offset > src.size())
+        throw std::runtime_error("milo: first block offset past EOF");
+    container.prefix_bytes.assign(src.begin(), src.begin() + h.first_block_offset);
+
+    if (h.structure == BlockStructure::NONE) {
+        ContainerBlock block;
+        block.stored = true;
+        block.disk_bytes.assign(src.begin() + h.first_block_offset, src.end());
+        block.payload_bytes = block.disk_bytes;
+        block.original_payload_bytes = block.payload_bytes;
+        container.blocks.push_back(std::move(block));
+        return container;
+    }
+    if (h.structure == BlockStructure::GZIP) {
+        ContainerBlock block;
+        block.disk_bytes.assign(src.begin() + h.first_block_offset, src.end());
+        block.payload_bytes =
+            inflate_gzip(block.disk_bytes.data(), block.disk_bytes.size(),
+                         h.max_block_uncompressed_size);
+        block.original_payload_bytes = block.payload_bytes;
+        container.blocks.push_back(std::move(block));
+        return container;
+    }
+
+    size_t pos = h.first_block_offset;
+    container.blocks.reserve(h.block_count);
+    for (uint32_t i = 0; i < h.block_count; ++i) {
+        ContainerBlock block;
+        block.table_value = h.block_sizes[i];
+        block.stored =
+            h.structure == BlockStructure::MILO_A ||
+            (h.structure == BlockStructure::MILO_D &&
+             (block.table_value & 0xff000000u) != 0);
+        const uint32_t disk_size =
+            h.structure == BlockStructure::MILO_D
+                ? (block.table_value & 0x00ffffffu)
+                : block.table_value;
+        if (pos + disk_size > src.size())
+            throw std::runtime_error("milo: block extends past EOF");
+        block.disk_bytes.assign(src.begin() + pos, src.begin() + pos + disk_size);
+        if (block.stored) {
+            block.payload_bytes = block.disk_bytes;
+        } else if (h.structure == BlockStructure::MILO_B) {
+            block.payload_bytes =
+                inflate_raw(block.disk_bytes.data(), block.disk_bytes.size(),
+                            h.max_block_uncompressed_size);
+        } else if (h.structure == BlockStructure::MILO_C) {
+            block.payload_bytes =
+                inflate_gzip(block.disk_bytes.data(), block.disk_bytes.size(),
+                             h.max_block_uncompressed_size);
+        } else if (h.structure == BlockStructure::MILO_D) {
+            if (block.disk_bytes.size() < 4)
+                throw std::runtime_error("milo_d: block too small for size prefix");
+            block.payload_bytes =
+                inflate_raw(block.disk_bytes.data() + 4,
+                            block.disk_bytes.size() - 4,
+                            h.max_block_uncompressed_size);
+        }
+        block.original_payload_bytes = block.payload_bytes;
+        container.blocks.push_back(std::move(block));
+        pos += disk_size;
+    }
+    container.trailing_bytes.assign(src.begin() + pos, src.end());
+    return container;
+}
+
+std::vector<uint8_t> container_payload(const Container& container) {
+    size_t total = 0;
+    for (const auto& block : container.blocks) total += block.payload_bytes.size();
+    std::vector<uint8_t> payload;
+    payload.reserve(total);
+    for (const auto& block : container.blocks)
+        payload.insert(payload.end(), block.payload_bytes.begin(),
+                       block.payload_bytes.end());
+    return payload;
+}
+
+std::vector<uint8_t> serialize_container(const Container& container) {
+    if (container.header.structure == BlockStructure::NONE) {
+        if (container.blocks.size() != 1)
+            throw std::runtime_error("milo: NONE container requires one block");
+        std::vector<uint8_t> out = container.prefix_bytes;
+        out.insert(out.end(), container.blocks[0].payload_bytes.begin(),
+                   container.blocks[0].payload_bytes.end());
+        return out;
+    }
+    if (container.header.structure == BlockStructure::GZIP) {
+        if (container.blocks.size() != 1 ||
+            container.blocks[0].payload_bytes !=
+                container.blocks[0].original_payload_bytes)
+            throw std::runtime_error(
+                "milo: modified standalone GZIP writing is not supported");
+        std::vector<uint8_t> out = container.prefix_bytes;
+        out.insert(out.end(), container.blocks[0].disk_bytes.begin(),
+                   container.blocks[0].disk_bytes.end());
+        return out;
+    }
+    if (container.blocks.size() > 128u)
+        throw std::runtime_error("milo: GH1/GH2 fixed block table holds at most 128 blocks");
+
+    struct EncodedBlock {
+        uint32_t table_value = 0;
+        std::vector<uint8_t> bytes;
+    };
+    std::vector<EncodedBlock> encoded;
+    encoded.reserve(container.blocks.size());
+    uint32_t max_uncompressed = 0;
+    for (const auto& block : container.blocks) {
+        EncodedBlock out_block;
+        const bool unchanged =
+            block.payload_bytes == block.original_payload_bytes &&
+            !block.disk_bytes.empty();
+        if (unchanged) {
+            out_block.table_value = block.table_value;
+            out_block.bytes = block.disk_bytes;
+        } else if (container.header.structure == BlockStructure::MILO_A) {
+            out_block.bytes = block.payload_bytes;
+            out_block.table_value = static_cast<uint32_t>(out_block.bytes.size());
+        } else if (container.header.structure == BlockStructure::MILO_B) {
+            out_block.bytes = deflate_raw(block.payload_bytes);
+            out_block.table_value = static_cast<uint32_t>(out_block.bytes.size());
+        } else {
+            throw std::runtime_error(
+                "milo: changed MILO_C/MILO_D block writing is not yet supported");
+        }
+        max_uncompressed =
+            std::max(max_uncompressed,
+                     static_cast<uint32_t>(block.payload_bytes.size()));
+        encoded.push_back(std::move(out_block));
+    }
+
+    uint32_t first_block_offset = container.header.first_block_offset;
+    const uint32_t table_end =
+        16u + static_cast<uint32_t>(encoded.size()) * 4u;
+    if (first_block_offset < table_end)
+        first_block_offset = (table_end + 15u) & ~15u;
+    std::vector<uint8_t> prefix = container.prefix_bytes;
+    prefix.resize(first_block_offset, 0);
+    wr_u32(prefix, 0, static_cast<uint32_t>(container.header.structure));
+    wr_u32(prefix, 4, first_block_offset);
+    wr_u32(prefix, 8, static_cast<uint32_t>(encoded.size()));
+    wr_u32(prefix, 12,
+           std::max(container.header.max_block_uncompressed_size,
+                    max_uncompressed));
+    for (size_t i = 0; i < encoded.size(); ++i)
+        wr_u32(prefix, 16 + i * 4, encoded[i].table_value);
+
+    std::vector<uint8_t> out = std::move(prefix);
+    for (const auto& block : encoded)
+        out.insert(out.end(), block.bytes.begin(), block.bytes.end());
+    out.insert(out.end(), container.trailing_bytes.begin(),
+               container.trailing_bytes.end());
+    return out;
+}
+
+Container make_container(const std::vector<uint8_t>& payload,
+                         BlockStructure structure,
+                         uint32_t block_uncompressed_limit,
+                         uint32_t first_block_offset) {
+    if (structure != BlockStructure::MILO_A &&
+        structure != BlockStructure::MILO_B)
+        throw std::runtime_error("milo: new containers support MILO_A/MILO_B");
+    if (block_uncompressed_limit == 0)
+        throw std::runtime_error("milo: block size limit must be nonzero");
+    Container container;
+    container.header.structure = structure;
+    container.header.first_block_offset = first_block_offset;
+    container.prefix_bytes.resize(first_block_offset, 0);
+    for (size_t pos = 0; pos < payload.size();) {
+        const size_t count =
+            std::min<size_t>(block_uncompressed_limit, payload.size() - pos);
+        ContainerBlock block;
+        block.payload_bytes.assign(payload.begin() + pos,
+                                   payload.begin() + pos + count);
+        container.blocks.push_back(std::move(block));
+        pos += count;
+    }
+    if (payload.empty()) container.blocks.emplace_back();
+    container.header.block_count =
+        static_cast<uint32_t>(container.blocks.size());
+    container.header.max_block_uncompressed_size =
+        static_cast<uint32_t>(
+            std::min<size_t>(payload.size(), block_uncompressed_limit));
+    return container;
+}
+
 Directory parse_directory(const std::vector<uint8_t>& p) {
     Directory d{};
     if (p.size() < 4) throw std::runtime_error("milo dir: too short");
@@ -284,11 +506,12 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
     size_t pos = 0;
     d.dir_version = rd_i32(p.data()); pos += 4;
 
-    if (d.dir_version >= 24) {
+    if (d.dir_version >= 14) {
         d.dir_type = read_string(p.data(), p.size(), pos);
         d.dir_name = read_string(p.data(), p.size(), pos);
         if (pos + 8 > p.size()) throw std::runtime_error("milo dir: truncated hash sizing");
-        pos += 8;  // hash table size hints, irrelevant for read
+        d.hash_table_hint = rd_u32(p.data() + pos); pos += 4;
+        d.string_table_hint = rd_u32(p.data() + pos); pos += 4;
     }
 
     if (pos + 4 > p.size()) throw std::runtime_error("milo dir: missing entry count");
@@ -308,15 +531,20 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
     // have no serialized root-directory object. Child body 0 therefore starts
     // immediately after this vector. Treating the first child's terminator as
     // a root-object terminator shifts every table name onto the next body.
-    if (d.dir_version == 10) {
+    if (d.dir_version >= 7 && d.dir_version <= 16) {
         if (pos + 4 > p.size())
-            throw std::runtime_error("milo dir: missing GH1 external resource count");
+            throw std::runtime_error(
+                "milo dir: missing external resource count");
         const uint32_t external_count = rd_u32(p.data() + pos); pos += 4;
         if (external_count > d.entries.size() + 1024u)
-            throw std::runtime_error("milo dir: implausible GH1 external resource count");
+            throw std::runtime_error(
+                "milo dir: implausible external resource count");
+        d.external_resources.reserve(external_count);
         for (uint32_t i = 0; i < external_count; ++i)
-            (void)read_string(p.data(), p.size(), pos);
+            d.external_resources.push_back(
+                read_string(p.data(), p.size(), pos));
     }
+    d.object_data_offset = pos;
 
     // After the entry list, GH1 (version 10) has an external resource list,
     // GH2+ (version 24+) has a directory-entry blob (or a recursive subdir for
@@ -391,6 +619,43 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
         if (cursor >= p.size()) break;
     }
     return d;
+}
+
+std::vector<uint8_t> serialize_directory_prefix(const Directory& d) {
+    if (d.dir_version < 7)
+        throw std::runtime_error(
+            "milo dir: revisions below 7 are not supported");
+    if (d.entries.size() >
+        static_cast<size_t>(std::numeric_limits<int32_t>::max()))
+        throw std::runtime_error("milo dir: entry count exceeds i32");
+    if (d.external_resources.size() >
+        std::numeric_limits<uint32_t>::max())
+        throw std::runtime_error(
+            "milo dir: external resource count exceeds u32");
+
+    std::vector<uint8_t> bytes;
+    append_u32_le(bytes, static_cast<uint32_t>(d.dir_version));
+    if (d.dir_version >= 14) {
+        append_string(bytes, d.dir_type);
+        append_string(bytes, d.dir_name);
+        append_u32_le(bytes, d.hash_table_hint);
+        append_u32_le(bytes, d.string_table_hint);
+    }
+    append_u32_le(bytes, static_cast<uint32_t>(d.entries.size()));
+    for (const auto& entry : d.entries) {
+        append_string(bytes, entry.type);
+        append_string(bytes, entry.name);
+    }
+    if (d.dir_version <= 16) {
+        append_u32_le(
+            bytes, static_cast<uint32_t>(d.external_resources.size()));
+        for (const auto& path : d.external_resources)
+            append_string(bytes, path);
+    } else if (!d.external_resources.empty()) {
+        throw std::runtime_error(
+            "milo dir: external resources are invalid after revision 16");
+    }
+    return bytes;
 }
 
 std::vector<uint8_t> read_file(const std::string& path) {

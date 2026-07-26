@@ -16,6 +16,7 @@
 # Logs and screenshots produced by smoke tests
 /*.log
 /*.log.*
+/tools/*/*.log
 /*.png
 /smoke_shots/
 /analysis/

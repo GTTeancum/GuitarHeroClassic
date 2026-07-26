@@ -5,6 +5,7 @@
 //   dtb_tool info    <file.dtb>             Print metadata.
 //   dtb_tool surface <file.dtb>             Print the (target :: message) call
 //                                           surface (for 1:1 class-behavior RE).
+//   dtb_tool verify  <file.dtb>             Byte-exact parse/serialize check.
 
 #include "dtb.h"
 
@@ -75,7 +76,8 @@ void usage() {
                "Usage:\n"
                "  dtb_tool dump    <file.dtb> [--lines]\n"
                "  dtb_tool info    <file.dtb>\n"
-               "  dtb_tool surface <file.dtb>\n");
+               "  dtb_tool surface <file.dtb>\n"
+               "  dtb_tool verify  <file.dtb>\n");
   std::exit(2);
 }
 
@@ -88,15 +90,34 @@ int main(int argc, char** argv) {
 
   try {
     auto bytes = gh::dtb::read_file(path);
-    bool encrypted_guess = !bytes.empty() && bytes[0] != 0x01;
     auto tree = gh::dtb::parse(bytes);
 
     if (sub == "info") {
+      const char* storage =
+          tree.storage == gh::dtb::Storage::Plain
+              ? "plain"
+              : (tree.storage == gh::dtb::Storage::ZeroPrefixedPlain
+                     ? "zero-prefixed plain"
+                     : "encrypted (PS2 cipher)");
       std::printf("file        : %s\n", path.c_str());
       std::printf("size        : %zu bytes\n", bytes.size());
-      std::printf("encrypted   : %s\n", encrypted_guess ? "yes (PS2 cipher)" : "no");
-      std::printf("embedded    : %s\n", tree.embedded ? "yes (version=0)" : "no  (version=1)");
+      std::printf("storage     : %s\n", storage);
+      std::printf("version     : %u\n", tree.version);
+      std::printf("embedded    : %s\n", tree.embedded ? "yes" : "no");
       std::printf("root_count  : %zu\n", tree.root.size());
+      std::printf("trailing    : %zu bytes\n", tree.trailing_bytes.size());
+      return 0;
+    }
+    if (sub == "verify") {
+      const auto serialized = gh::dtb::serialize(tree);
+      if (serialized != bytes) {
+        std::fprintf(stderr,
+                     "DTB round trip differs: source=%zu output=%zu\n",
+                     bytes.size(), serialized.size());
+        return 1;
+      }
+      std::printf("byte-exact DTB round trip: %zu bytes, %zu roots\n",
+                  bytes.size(), tree.root.size());
       return 0;
     }
     if (sub == "dump") {

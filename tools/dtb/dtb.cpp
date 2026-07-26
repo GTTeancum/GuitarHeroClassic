@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <fstream>
+#include <limits>
 #include <sstream>
 
 namespace gh::dtb {
@@ -125,7 +126,8 @@ std::shared_ptr<Node> read_node(Cursor& c) {
 Tree parse(const std::vector<uint8_t>& src) {
     if (src.empty()) throw std::runtime_error("DTB: empty input");
 
-    auto parse_payload = [](const std::vector<uint8_t>& work) {
+    auto parse_payload = [](const std::vector<uint8_t>& work,
+                            Storage storage, uint32_t cipher_seed) {
         if (work.empty() || work[0] != 0x01) {
             std::ostringstream oss;
             oss << "DTB: first plaintext byte = 0x"
@@ -139,8 +141,12 @@ Tree parse(const std::vector<uint8_t>& src) {
 
         Tree tree;
         tree.embedded = (version == 0);
+        tree.version = version;
+        tree.storage = storage;
+        tree.cipher_seed = cipher_seed;
         tree.root_line = 0;
         tree.root = read_children(c, root_count);
+        tree.trailing_bytes.assign(work.begin() + c.pos(), work.end());
         return tree;
     };
 
@@ -163,15 +169,19 @@ Tree parse(const std::vector<uint8_t>& src) {
     if (src.size() > 4 && src[0] == 0x00 && src[1] == 0x00 &&
         src[2] == 0x00 && src[3] == 0x00 && src[4] == 0x01) {
         return parse_payload(
-            std::vector<uint8_t>(src.begin() + 4, src.end()));
+            std::vector<uint8_t>(src.begin() + 4, src.end()),
+            Storage::ZeroPrefixedPlain, 0);
     }
 
     if (src[0] == 0x01) {
         try {
-            return parse_payload(src);
+            return parse_payload(src, Storage::Plain, 0);
         } catch (const std::exception& plain_ex) {
             try {
-                return parse_payload(decrypt_payload());
+                uint32_t seed = 0;
+                std::memcpy(&seed, src.data(), 4);
+                return parse_payload(decrypt_payload(), Storage::Encrypted,
+                                     seed);
             } catch (const std::exception& decrypt_ex) {
                 std::ostringstream oss;
                 oss << plain_ex.what() << "; encrypted fallback: "
@@ -180,7 +190,89 @@ Tree parse(const std::vector<uint8_t>& src) {
             }
         }
     }
-    return parse_payload(decrypt_payload());
+    uint32_t seed = 0;
+    std::memcpy(&seed, src.data(), 4);
+    return parse_payload(decrypt_payload(), Storage::Encrypted, seed);
+}
+
+namespace {
+
+void append_u16(std::vector<uint8_t>& out, uint16_t value) {
+    out.push_back(static_cast<uint8_t>(value));
+    out.push_back(static_cast<uint8_t>(value >> 8));
+}
+
+void append_u32(std::vector<uint8_t>& out, uint32_t value) {
+    out.push_back(static_cast<uint8_t>(value));
+    out.push_back(static_cast<uint8_t>(value >> 8));
+    out.push_back(static_cast<uint8_t>(value >> 16));
+    out.push_back(static_cast<uint8_t>(value >> 24));
+}
+
+void write_node(std::vector<uint8_t>& out, const Node& node) {
+    append_u32(out, node.tag);
+    if (node.tag == 0x00) {
+        append_u32(out, static_cast<uint32_t>(std::get<int32_t>(node.value)));
+    } else if (node.tag == 0x01) {
+        const float value = std::get<float>(node.value);
+        uint32_t bits = 0;
+        std::memcpy(&bits, &value, sizeof(bits));
+        append_u32(out, bits);
+    } else if (is_string_tag(node.tag)) {
+        const auto& value = std::get<std::string>(node.value);
+        if (value.size() > std::numeric_limits<uint32_t>::max())
+            throw std::runtime_error("DTB: string too large to serialize");
+        append_u32(out, static_cast<uint32_t>(value.size()));
+        out.insert(out.end(), value.begin(), value.end());
+    } else if (is_array_tag(node.tag)) {
+        const auto& children =
+            std::get<std::vector<std::shared_ptr<Node>>>(node.value);
+        if (children.size() > std::numeric_limits<uint16_t>::max())
+            throw std::runtime_error("DTB: array has more than 65535 children");
+        append_u16(out, static_cast<uint16_t>(children.size()));
+        append_u32(out, node.line);
+        for (const auto& child : children) {
+            if (!child) throw std::runtime_error("DTB: null child node");
+            write_node(out, *child);
+        }
+    } else {
+        std::ostringstream oss;
+        oss << "DTB: cannot serialize unknown node tag 0x" << std::hex
+            << node.tag;
+        throw std::runtime_error(oss.str());
+    }
+}
+
+}  // anonymous namespace
+
+std::vector<uint8_t> serialize(const Tree& tree) {
+    if (tree.root.size() > std::numeric_limits<uint16_t>::max())
+        throw std::runtime_error("DTB: root has more than 65535 nodes");
+    std::vector<uint8_t> payload;
+    payload.push_back(0x01);
+    append_u16(payload, static_cast<uint16_t>(tree.root.size()));
+    append_u32(payload, tree.version);
+    for (const auto& node : tree.root) {
+        if (!node) throw std::runtime_error("DTB: null root node");
+        write_node(payload, *node);
+    }
+    payload.insert(payload.end(), tree.trailing_bytes.begin(),
+                   tree.trailing_bytes.end());
+
+    if (tree.storage == Storage::Plain) return payload;
+    if (tree.storage == Storage::ZeroPrefixedPlain) {
+        std::vector<uint8_t> out(4, 0);
+        out.insert(out.end(), payload.begin(), payload.end());
+        return out;
+    }
+    std::vector<uint8_t> encrypted = payload;
+    Ps2Crypt cipher(tree.cipher_seed);
+    cipher.apply(encrypted.data(), encrypted.size());
+    std::vector<uint8_t> out;
+    out.reserve(4 + encrypted.size());
+    append_u32(out, tree.cipher_seed);
+    out.insert(out.end(), encrypted.begin(), encrypted.end());
+    return out;
 }
 
 // ---------------------------------------------------------------------------
