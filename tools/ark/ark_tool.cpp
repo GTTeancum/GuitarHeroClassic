@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -30,7 +31,8 @@ static void usage() {
         "  ark_tool list <hdr> [--ext-summary] [--limit N]\n"
         "  ark_tool verify <hdr>\n"
         "  ark_tool extract <hdr> <ark>... --path <full_path> --out <file>\n"
-        "  ark_tool extract-all <hdr> <ark>... --out <dir>\n");
+        "  ark_tool extract-all <hdr> <ark>... --out <dir>\n"
+        "  ark_tool overlay <hdr> <ark> --root <dir> --manifest <tsv>\n");
     std::exit(2);
 }
 
@@ -170,6 +172,172 @@ static int cmd_extract(int argc, char** argv, bool all) {
     return fail == 0 ? 0 : 1;
 }
 
+static std::vector<std::string> read_overlay_manifest(
+    const fs::path& manifest_path) {
+    std::ifstream input(manifest_path, std::ios::binary);
+    if (!input) die("cannot open manifest: " + manifest_path.string());
+    std::vector<std::string> paths;
+    std::set<std::string> unique;
+    std::string line;
+    bool first = true;
+    while (std::getline(input, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (first) {
+            first = false;
+            if (line.rfind("relative_path\t", 0) == 0) continue;
+        }
+        const size_t tab = line.find('\t');
+        const std::string path = line.substr(0, tab);
+        if (path.empty()) continue;
+        if (!unique.insert(path).second)
+            die("duplicate manifest path: " + path);
+        paths.push_back(path);
+    }
+    if (paths.empty()) die("overlay manifest is empty");
+    std::sort(paths.begin(), paths.end());
+    return paths;
+}
+
+static int cmd_overlay(int argc, char** argv) {
+    if (argc < 2) usage();
+    const fs::path hdr_path = argv[0];
+    const fs::path ark_path = argv[1];
+    fs::path root_path;
+    fs::path manifest_path;
+    for (int i = 2; i < argc; ++i) {
+        const std::string argument = argv[i];
+        if (argument == "--root" && i + 1 < argc) {
+            root_path = argv[++i];
+        } else if (argument == "--manifest" && i + 1 < argc) {
+            manifest_path = argv[++i];
+        } else {
+            die("unknown overlay argument: " + argument);
+        }
+    }
+    if (root_path.empty() || manifest_path.empty())
+        die("overlay requires --root and --manifest");
+
+    const auto reader = gh::ark::ArkV3Reader::load(hdr_path.string());
+    if (reader.ark_part_sizes().size() != 1)
+        die("overlay currently requires a single-part ARK");
+    const uintmax_t source_size = fs::file_size(ark_path);
+    if (source_size > UINT32_MAX)
+        die("overlay ARK exceeds v3 32-bit layout capacity");
+
+    std::map<std::string, std::vector<uint8_t>> overlay;
+    const fs::path canonical_root = fs::weakly_canonical(root_path);
+    for (const auto& relative_text :
+         read_overlay_manifest(manifest_path)) {
+        const fs::path relative =
+            fs::path(relative_text).lexically_normal();
+        if (relative.empty() || relative.is_absolute() ||
+            *relative.begin() == "..")
+            die("manifest path escapes overlay root: " + relative_text);
+        const fs::path source =
+            fs::weakly_canonical(canonical_root / relative);
+        auto root_it = canonical_root.begin();
+        auto source_it = source.begin();
+        for (; root_it != canonical_root.end() &&
+               source_it != source.end() && *root_it == *source_it;
+             ++root_it, ++source_it) {
+        }
+        if (root_it != canonical_root.end())
+            die("manifest path escapes overlay root: " + relative_text);
+        overlay.emplace(relative_text, read_all(source.string()));
+    }
+
+    std::vector<gh::ark::LayoutEntry> layout;
+    layout.reserve(reader.entries().size() + overlay.size());
+    std::vector<std::vector<uint8_t>> appended;
+    uint64_t cursor = source_size;
+    size_t reused = 0;
+    size_t replaced = 0;
+    for (const auto& entry : reader.entries()) {
+        const auto found = overlay.find(entry.full_path);
+        if (found == overlay.end()) {
+            layout.push_back(
+                {entry.full_path, static_cast<uint32_t>(entry.offset),
+                 entry.size, entry.inflated_size});
+            continue;
+        }
+        const auto current =
+            reader.read_entry(entry, {ark_path.string()});
+        if (current == found->second) {
+            layout.push_back(
+                {entry.full_path, static_cast<uint32_t>(entry.offset),
+                 entry.size, entry.inflated_size});
+            ++reused;
+        } else {
+            if (cursor + found->second.size() > UINT32_MAX)
+                die("overlay exceeds v3 32-bit layout capacity");
+            layout.push_back(
+                {entry.full_path, static_cast<uint32_t>(cursor),
+                 static_cast<uint32_t>(found->second.size()), 0});
+            cursor += found->second.size();
+            appended.push_back(found->second);
+            ++replaced;
+        }
+        overlay.erase(found);
+    }
+    const size_t added = overlay.size();
+    for (const auto& [path, bytes] : overlay) {
+        if (cursor + bytes.size() > UINT32_MAX)
+            die("overlay exceeds v3 32-bit layout capacity");
+        layout.push_back(
+            {path, static_cast<uint32_t>(cursor),
+             static_cast<uint32_t>(bytes.size()), 0});
+        cursor += bytes.size();
+        appended.push_back(bytes);
+    }
+
+    if (!appended.empty()) {
+        std::ofstream ark_output(
+            ark_path, std::ios::binary | std::ios::app);
+        if (!ark_output) die("cannot append ARK: " + ark_path.string());
+        for (const auto& bytes : appended)
+            ark_output.write(
+                reinterpret_cast<const char*>(bytes.data()),
+                static_cast<std::streamsize>(bytes.size()));
+        if (!ark_output) die("cannot append overlay bytes");
+    }
+
+    const auto index = gh::ark::make_index(
+        {static_cast<uint32_t>(cursor)}, layout, reader.flag());
+    const auto header_bytes = gh::ark::serialize_index(index);
+    const fs::path backup_path =
+        hdr_path.string() + ".pre-overlay.bak";
+    if (!fs::exists(backup_path))
+        fs::copy_file(hdr_path, backup_path);
+    const fs::path temporary_path =
+        hdr_path.string() + ".overlay.tmp";
+    {
+        std::ofstream output(temporary_path, std::ios::binary);
+        if (!output)
+            die("cannot create overlay header: " +
+                temporary_path.string());
+        output.write(
+            reinterpret_cast<const char*>(header_bytes.data()),
+            static_cast<std::streamsize>(header_bytes.size()));
+        if (!output) die("cannot write overlay header");
+    }
+    fs::copy_file(
+        temporary_path, hdr_path,
+        fs::copy_options::overwrite_existing);
+    fs::remove(temporary_path);
+
+    const auto verify = gh::ark::ArkV3Reader::load(hdr_path.string());
+    if (verify.ark_part_sizes().size() != 1 ||
+        verify.ark_part_sizes().front() != cursor)
+        die("overlay header verification failed");
+    std::printf(
+        "overlay reused=%zu replaced=%zu added=%zu appended=%llu "
+        "entries=%zu\n",
+        reused, replaced, added,
+        static_cast<unsigned long long>(cursor - source_size),
+        verify.entries().size());
+    return 0;
+}
+
 int main(int argc, char** argv) {
     try {
         if (argc < 2) usage();
@@ -180,6 +348,8 @@ int main(int argc, char** argv) {
             return cmd_extract(argc - 2, argv + 2, /*all=*/false);
         if (sub == "extract-all")
             return cmd_extract(argc - 2, argv + 2, /*all=*/true);
+        if (sub == "overlay")
+            return cmd_overlay(argc - 2, argv + 2);
         usage();
         return 2;
     } catch (const std::exception& ex) {

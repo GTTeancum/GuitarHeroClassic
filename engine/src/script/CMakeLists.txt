@@ -6,7 +6,7 @@
 
 add_library(ghogx_script STATIC
     interp.cpp     interp.h
-    preprocess.cpp preprocess.h
+    preprocess.h
 )
 # Headers included as "core/..." / "script/..." -> root is engine/src.
 target_include_directories(ghogx_script PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)

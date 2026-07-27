@@ -196,6 +196,8 @@ int main() {
     append_u32(gh2, 0x11111111);
     append_u32(gh2, 0xDEADDEAD);
     append_u32(gh2, 21);
+    append_u32(gh2, 0xDEADDEAD);  // legal body data, not its terminator
+    append_u32(gh2, 7);           // plausible revision after false marker
     append_u32(gh2, 0x22222222);
     append_u32(gh2, 0xDEADDEAD);
     const auto gh2_dir = gh::milo::parse_directory(gh2);
@@ -205,7 +207,14 @@ int main() {
         gh2_dir.string_table_hint != 33 ||
         gh2_dir.object_data_offset != gh2_root ||
         gh::milo::serialize_directory_prefix(gh2_dir) !=
-            std::vector<uint8_t>(gh2.begin(), gh2.begin() + gh2_root)) {
+            std::vector<uint8_t>(gh2.begin(), gh2.begin() + gh2_root) ||
+        gh2_dir.dir_body_bytes !=
+            std::vector<uint8_t>(gh2.begin() + gh2_root,
+                                 gh2.begin() + gh2_root + 8) ||
+        gh2_dir.dir_terminator_value != 0xDEADDEAD ||
+        gh2_dir.entries[0].body_bytes.size() != 16 ||
+        !gh2_dir.boundaries_exact ||
+        gh::milo::serialize_directory(gh2_dir) != gh2) {
         std::fprintf(stderr, "milo_test: GH2 directory prefix failed\n");
         return 1;
     }

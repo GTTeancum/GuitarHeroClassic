@@ -1957,16 +1957,23 @@ SourceRndWindRuntimeBoundary source_rndwind_runtime_boundary();
 SourceRndWindHandlerPlan source_rndwind_handler_plan();
 SourceRndWindPropSyncPlan source_rndwind_prop_sync_plan();
 
+struct LegacyMatTextureStage {
+  uint32_t blend = 0;
+  uint32_t tex_gen = 0;
+  float tex_xfm[12] = {};
+  uint32_t tex_wrap = 0;
+  std::string texture;
+};
+
 struct MatObj {
   std::string name;          // entry name (e.g. "gem.mat")
   std::string diffuse_tex;   // diffuse .tex reference ("" if none)
   float color[4] = {1, 1, 1, 1};  // diffuse RGBA
   uint8_t blend = 0;         // BLEND_ENUM from macros.dta: Src/Add/SrcAlpha/...
-  // Mat21 carries two authored blend values. Preserve both so the legacy
-  // platform state can be audited without material-name special cases.
-  uint8_t legacy_primary_blend = 0;
-  uint8_t legacy_tail_blend = 0;
-  bool has_legacy_blends = false;
+  // GH1 Mat21 stores a vector of complete texture stages before its overall
+  // framebuffer blend. Preserve every stage rather than collapsing its
+  // per-stage blend/TexGen state into inferred fields.
+  std::vector<LegacyMatTextureStage> legacy_texture_stages;
   // Diffuse texcoord transform, mapped from the Mat's 12-float source texture
   // matrix and applied as [u v 1] * tex_xfm by 2-D UV renderers.
   // Row 2 carries offset; off-diagonal and negative scale are used by mirrored
@@ -1977,9 +1984,14 @@ struct MatObj {
   // Compatibility fields for older render paths and diagnostics.
   float tex_scale[2] = {1.0f, 1.0f};
   float tex_offset[2] = {0.0f, 0.0f};
-  // RndMat constructor default. GH1 Mat21 overrides this in the first byte of
-  // its compact post-colour render-state tail.
+  // RndMat constructor default. GH1 Mat21 overrides this after color.
   bool use_environ = true;
+  // Exact GH1 Mat21 names from retail RndMat::Load. GH2's prelit field tracks
+  // Mat21 vertex_ambient in shared retail assets; retain both source fields.
+  bool legacy_vertex_ambient = false;
+  bool legacy_vertex_dynamic = false;
+  int32_t legacy_multipass = 0;
+  bool legacy_normalize = false;
   bool prelit = false;
   // Source schema render state immediately after color. GH2 PS2 v27 does not
   // serialize alpha_threshold; later revisions do. The default threshold is 0,

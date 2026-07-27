@@ -1,11 +1,13 @@
 # Guitar Hero 1 venue compatibility
 
-## Scope and output choices
+## Scope and delivered output
 
-The immediate fidelity target is correct rendering of original Guitar Hero 1
-venues in GuitarHeroOGX. Highway, HUD, scoring, and animated character fidelity
-are not part of the venue validation image. Characters may remain in bind pose
-when they are useful as placement references.
+The delivered path is deterministic offline conversion of the seven retail
+Guitar Hero 1 venues into persistent GH2 revision-24 assets. GH2 remains the
+authoritative gameplay, highway, HUD, scoring, camera-manager, and UI corpus;
+the selected GH1 venue supplies only its authored world, cameras, lighting,
+crowd, particles, props, scripts, and event data. Runtime GH1 decoding remains
+an evidence route, not a deployment dependency.
 
 Authored venue animation is required throughout the performance, not only
 during the introduction. Retail GH2 venues have continuous movement and life,
@@ -23,24 +25,17 @@ performer placement/A-pose target or the eventual GH2-character hybrid graph.
 Do not compensate for a missing subject by rescaling the authored camera path.
 
 GH1 song quickplay records may omit both the selected guitarist and band.
-Fallbacks are read from `config/gen/characters.dtb`,
-`charsys/gen/charsys.dtb`, and the role directory definitions in
-`charsys/gen/band_chars.dtb`. Native GH1 character RndDirs can therefore load
-in bind/default pose. The current `characterLimits.mesh` quarter-grid is a
-diagnostic placement approximation only; it is not accepted native CharSys
-behavior until the spot-selection routine is recovered.
+Source placement and role facts are read from `config/gen/characters.dtb`,
+`charsys/gen/charsys.dtb`, and `charsys/gen/band_chars.dtb`; they are compiled
+into the persistent target packages. No `characterLimits.mesh` grid, venue
+identity, or screenshot-derived placement correction participates in final
+conversion.
 
-There are exactly two acceptable final asset paths:
-
-1. Read the original GH1 Milo files natively at runtime.
-2. Convert the original GH1 files offline into complete, persistent GH2-format
-   Milo files and load those files normally.
-
-Runtime conversion and generated asset caches are explicitly out of scope.
-The current native reader is the proving path because it exposes each legacy
-semantic directly. The decoded representation must preserve enough information
-for a later offline GH2 writer; it must not silently replace authored data with
-runtime-only approximations.
+Converted venues live at `world/gh1_<venue>/gen`. This prevents GH1 names such
+as `arena` from replacing the GH2 venue of the same name and permits arbitrary
+GH1/GH2 song, venue, and character combinations. The same manifest bytes can
+run loose or be applied to the base ARK. Runtime conversion and generated
+asset caches are not used.
 
 ## Evidence policy
 
@@ -94,6 +89,52 @@ role-owned stems (`singer_*`, `bassist_*`, and `drummer_*`). These retail clips
 now resolve in gameplay. No controller, IK, viseme graph, or absent intro clip
 is synthesized where retail data lacks it. The exact layout and validation are
 recorded in `.codex/analysis/gh1-role-acp-resolution.md`.
+
+## Offline GH2-native venue closure
+
+The converter emits a 55-row venue bundle:
+
+- 26 revision-24 MILO directories;
+- 21 campath, sequence, event, sound, and other support files;
+- seven compiled native venue scripts; and
+- one shared crowd-animation package.
+
+All output paths are namespaced below `world/gh1_<venue>/gen`. The seven venue
+scripts total 886,557 bytes and have zero blocked operations. The packed venue
+object sweep accounts for 12,979 schema-typed references and rejects a package
+if an internal material, texture, geometry owner, parent, animation target,
+Group member, or camera dependency is dangling.
+
+Each of the 201 GH1 VenueCam records is emitted as a native GH2 revision-20
+CamShot, for a total of 181,864 native keyframes and zero blocked records.
+Converted `campaths.milo_ps2` lives beside the target world; source
+`camera.dtb` is not shipped as a runtime dependency. Native CamShots are
+authoritative, and the compatibility reader is considered only when the
+native camera pool is empty. The final Small Club proof starts on native
+`Intro01` and transitions to regular native `flr_near_lft01` through the
+ordinary camera manager.
+
+Revision-12 Group members are resolved by target directory type after the
+complete directory is loaded. Animatable members form a recursive event graph;
+drawable members retain draw order. A source-present empty Group is a resolved
+no-op. Channel-empty MatAnim objects are likewise resolved no-ops. Direct
+EnvAnim and LightAnim objects share the same dispatch route. The venue
+`finish_loading` section is a barrier: intro, music, and excitement messages
+latched during initial assembly replay after the lighting directory is ready.
+
+The target renderer submits a Mesh only when it has a material, matching the
+platform draw boundary. Material-less transform/editor helpers remain in the
+hierarchy but do not become white rectangles. Mat21 texture stages lower to
+deterministic Mat27 `nextPass` chains, and Tex8 bitmap payloads remain
+byte-identical PS2 data inside Tex10 wrappers. No mesh, texture, material, or
+venue name controls those decisions.
+
+The final runtime matrix covers Arena, Basement, Big Club, Festival, Small
+Club, Small Club Multi, and Theatre. Each run loads native world, native
+script, and native lighting paths and exits successfully, with zero raw GH1
+script loads, unsupported operations, or unresolved animation targets. The
+matrix, intro and regular-camera screenshots, and mixed native video are under
+`proofs/gh1-native-conversion-final/`.
 
 ## Verified GH1 venue revisions
 
@@ -330,28 +371,47 @@ existing source-backed CamShot arctangent evaluator. Static and runtime proof
 is in `.codex/analysis/gh1-venuecam-ease-static.md` and
 `.codex/current-evidence/gh1-venuecam-ease-proof/`.
 
-`shaky 1` has a partially recovered native contract. GH1 looks up and advances
-the shared revision-4 `shaky_cam1.tnm` from
-`../../system/run/arena/gen/fx.rnd_ps2`. It contains 12 spline translation
-keys over frames 0–3200, but serializes a null transform target. The native
-target-binding/composition step is not yet identified, so the runtime does not
-guess whether those values are world-space or camera-local offsets. Exact
-addresses, asset fields, and the acceptance boundary are in
+`shaky 1` selects the shared revision-4 `shaky_cam1.tnm` from
+`../../system/run/arena/gen/fx.rnd_ps2`. Its 12 spline translation keys span
+source frames 0–3200. Native `VenueCam` advances that animation from raw
+elapsed task time and applies its translation additively to the active camera
+path in the camera's local basis. The converter evaluates the same spline and
+bakes the additive displacement into the native CamShot keys; a zero-duration
+record still receives the complete shake interval through frame 3200. Static,
+asset, and runtime evidence is in
 `.codex/analysis/gh1-venuecam-shaky-static.md`.
 
-`crowd_region` is an integer Crowd placement-region selector. Nonnegative
-values select the zero-based authored region; `-1` asks native Crowd code to
-choose a region from the camera/projection state. Selection clears and
-repopulates every crowd-archetype instance list from that region. It is not a
-hide/show index. Retail crowd sections provide numbered
-`crowd_limits%02d.mesh` placement helpers and five `Crowd*.mm` archetypes.
-The remaining format/implementation boundary is documented in
+`crowd_region` is an integer Crowd culling-region selector. Nonnegative values
+select the zero-based authored region; `-1` asks native Crowd code to choose a
+region from the camera/projection state. At venue construction, each original
+`Crowd*.mm` instance is transformed into every
+`crowd_limits%02d.mesh` local space and classified with an XY
+point-in-triangle test plus the limit mesh's local-depth range. Switching
+regions clears the active lists and copies the accepted original instances;
+it never creates or modifies their transforms, materials, or animation.
+Retaining the complete serialized MultiMesh instance lists is therefore
+content-complete in the target renderer: target frustum/depth culling replaces
+the source's camera-dependent draw-list reduction. Exact static evidence is in
 `.codex/analysis/gh1-venuecam-crowd-region-static.md`.
 
-Do not infer the remaining field behavior. `force_cam_facing`, `eyes`, and
-`guard` still need native evidence. `shaky` needs its missing
-target-binding/composition evidence; `crowd_region` needs the native region
-record/placement rebuild path before implementation.
+The remaining low-frequency fields also have bounded native contracts:
+
+- All 46 explicit `force_cam_facing` values and the default are zero, so the
+  retail corpus contains no alternate behavior to translate.
+- `eyes` is a four-mode performer eye-target controller: 0 disables targeting,
+  1 targets the active camera, 2 targets forward from the character, and 3
+  targets a periodically selected crowd member. VenueCam applies it only in
+  the exactly-two-performer path, choosing player 0 or 1 from `Left`/`Right`
+  camera-path prefixes. All ten explicit retail values are zero; the missing
+  default is 3. It cannot affect the single-player converted venue path.
+- `guard` appears only as `(0 9)` or `(0 0)` and feeds the PS2 raster
+  guard-band globals. It does not alter the camera transform or projection
+  geometry and has no target-platform render equivalent.
+
+The converter preserves these source values in native flat CamShot TypeProps
+for inspection and future two-player execution. They do not justify a
+venue-, shot-, or asset-specific rendering rule. Eye-controller evidence is
+in `.codex/analysis/gh1-venuecam-eyes-static.md`.
 
 ## Performer placement evidence boundary
 
@@ -663,10 +723,19 @@ The apparent Mat-to-Mesh misalignment was stale-tool output. A rebuilt
 ObjectDirs and the sampled Metal character ObjectDir. Theatre’s declared
 `19 - Default.mat` correctly contains `band_shadow.tex`.
 
-Mat21’s first three compact post-colour bytes are now decoded in native
-`RndMat::Load` order as `use_environ`, `prelit`, and `z_mode`. This removes the
-old blanket lighting defaults and visibly restores authored material contrast
-without venue-specific logic.
+Mat21 is now decoded in the exact native retail `RndMat::Load` order recovered
+from `SLUS_212.24` at `0x001BE900`. Each legacy texture stage is
+`blend`, `tex_gen`, a 12-float transform, `tex_wrap`, and a texture reference.
+The stage vector is followed by overall framebuffer `blend`, RGBA color,
+`useEnviron`, `vertexAmbient`, `vertexDynamic`, `cull`, `multipass`,
+`normalize`, `zMode`, `alphaCutout`, and `alphaWrite`. The retail debug routine
+at `0x001BE458` independently names those fields and the stage `blend` and
+`genMode` values.
+
+The compatibility renderer maps GH1 `vertexAmbient` to GH2 `prelit`, supported
+by the shared GH1/GH2 material corpus, while retaining `vertexDynamic`
+separately. An environment-map stage does not override the authored
+`useEnviron` flag. No material-name or venue-name rule is involved.
 
 Extracted Milo `.tex` files can now be decoded by `tex_tool`. The theatre
 shadow texture proves that PS2 texture output is straight-alpha RGBA. Blend 2
@@ -674,19 +743,22 @@ therefore uses `SRCALPHA/ONE` instead of premultiplied-only `ONE/ONE`, removing
 the transparent white floor rectangle generically for additive GH1 materials.
 
 The complete Mat21 body layout now round-trips all 1,693 packed materials
-byte-exactly. The three trailing compact legacy state values still need
-source-backed semantic names and GH2 revision-27 mappings; their widths,
-positions, and values are no longer byte-layout gaps. Cross-archive
-measurements, negative experiments, and palette statistics are documented in
-`.codex/analysis/gh1-revision10-material-body-association.md`.
-## Open proof observations
+byte-exactly, and every serialized field has a source-backed semantic name.
+GH1 multi-stage/multipass materials become deterministic GH2 revision-27
+`nextPass` chains while retaining stage blend, TexGen, texture transform,
+wrap, Z, alpha, color, environment, and cull state. Cross-archive
+measurements, native disassembly, negative experiments, and palette
+statistics are retained under `.codex/analysis/`.
+
+## Resolved proof observations
 
 - The GH1 singer's microphone stand was upside down in earlier integrated venue
   proofs. This venue/performer-prop observation is now resolved by loading the
   retail role-owned singer ACP, not by changing the stand or venue transform.
-- The singer's upper face is missing or backface-inverted, and Metal's wrist is
-  incorrectly placed. These character defects are documented but may wait
-  under the goal's default-pose character allowance.
+- The earlier missing/backface-inverted singer face and displaced Metal wrist
+  are closed by the complete face topology, skin palette, and authored
+  twist-controller conversion. They are covered by the all-GH1 character
+  proofs rather than venue-specific corrections.
 - No object-name hide, per-character vertex edit, or venue coordinate override
   is authorized by these observations. Corrections require native hierarchy,
   winding, or transform evidence.

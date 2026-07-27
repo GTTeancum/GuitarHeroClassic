@@ -172,6 +172,8 @@ int main() {
       compact(function_body(gameplay, "read_camshot_frame_like_miloeditor"));
   const std::string camshot_reader_c =
       compact(function_body(gameplay, "read_camshot_like_miloeditor"));
+  const std::string object_fields_reader_c = compact(
+      function_body(gameplay, "read_object_fields_like_miloeditor"));
   const std::string intro_camera_selector_c =
       compact(function_body(gameplay, "select_intro_camera_anim"));
   const std::string regular_camera_loader_c =
@@ -257,6 +259,17 @@ int main() {
 
   bool ok = true;
 
+  ok &= contains(object_fields_reader_c,
+                 "for(size_ti=0;i+1<children.size();i+=2)",
+                 "native TypeProps consume flat alternating key/value roots");
+  ok &= contains(object_fields_reader_c,
+                 "props[children[i].s]=children[i+1];",
+                 "native TypeProps map each symbol root to its following value");
+  ok &= contains(gameplay_c,
+                 "constautogh1_intro=camera_keys_.empty()?"
+                 "load_gh1_intro_camera_record(hdr_path_,ark_path_,"
+                 "quickplay_rig_->venue):std::nullopt;",
+                 "native CamShot keys are authoritative over the legacy GH1 camera DTB fallback");
   ok &= contains(camshot_entity_c,
                  "if(name.find(\"key\")!=std::string_view::npos)"
                  "return\"keyboard\";",

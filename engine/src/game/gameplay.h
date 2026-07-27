@@ -92,6 +92,8 @@ struct VenueScriptStep {
   float anim_end_frame = 0.0f;
   bool anim_has_range = false;
   bool anim_realtime = false;
+  bool anim_units_explicit = false;
+  bool anim_beat_units = false;
   float anim_scale = 1.0f;
   float anim_blend_seconds = 0.0f;
   std::string assign_state;
@@ -1107,7 +1109,7 @@ class Gameplay {
                                                  std::vector<std::string>>*
                                       variables = nullptr);
   std::string evaluate_venue_script_expression(
-      const VenueScriptExpression& expression) const;
+      const VenueScriptExpression& expression);
   bool set_namespaced_performer_object_showing(
       const std::string& role, const std::string& object_name, bool showing);
   bool apply_venue_script_env_anim(const std::string& anim_name,
@@ -1117,7 +1119,7 @@ class Gameplay {
   bool apply_venue_script_animate_to(const VenueScriptStep& step);
   bool apply_venue_script_light_anim(const std::string& anim_name,
                                      const VenueScriptStep& switch_step);
-  bool apply_legacy_venue_switch_anim(const VenueScriptStep& step);
+  bool apply_venue_script_animation(const VenueScriptStep& step);
   bool set_legacy_venue_object_showing(const std::string& object_name,
                                        bool showing);
   bool execute_venue_proxy_object_message(
@@ -1508,7 +1510,7 @@ class Gameplay {
   std::string venue_script_context_type_;
   std::string venue_script_namespace_role_;
   bool executing_venue_script_ = false;
-  bool legacy_gh1_venue_script_ = false;
+  bool venue_script_sections_ready_ = true;
   std::string legacy_gh1_lighting_message_;
   std::unordered_set<std::string> venue_light_names_;
   std::unordered_set<std::string> venue_environ_names_;

@@ -264,9 +264,31 @@ void read_animatable_block(Reader& r,
   if (ver < 1) {
     const uint32_t anim_entry_count = r.u32();
     for (uint32_t i = 0; i < anim_entry_count; ++i) {
-      (void)r.str();
-      (void)r.f32();
-      (void)r.f32();
+      const uint32_t operation = r.u32();
+      switch (operation) {
+        case 0:
+          (void)r.f32();
+          (void)r.f32();
+          break;
+        case 1:
+          (void)r.f32();
+          (void)r.f32();
+          (void)r.u8();
+          break;
+        case 2:
+        case 3:
+          (void)r.u32();
+          (void)r.u32();
+          break;
+        case 4:
+          (void)r.u32();
+          (void)r.u32();
+          (void)r.u32();
+          break;
+        default:
+          throw std::runtime_error(
+              "milo_scene: unsupported GH1 Animatable operation");
+      }
     }
     const uint32_t anim_count = r.u32();
     for (uint32_t i = 0; i < anim_count; ++i) {
@@ -1085,6 +1107,32 @@ PanelDirConfig decode_panel_dir_config(const std::vector<uint8_t>& body) {
     }
   }
   return out;
+}
+
+bool directory_entry_type_is_rnd_animatable(std::string_view type) {
+  return type == "AnimFilter" || type == "CamAnim" ||
+         type == "EnvAnim" || type == "Group" ||
+         type == "LightAnim" || type == "MatAnim" ||
+         type == "MeshAnim" || type == "Morph" ||
+         type == "ParticleSysAnim" || type == "PollAnim" ||
+         type == "PropAnim" || type == "TransAnim";
+}
+
+void rebuild_group_anim_children(Scene& scene,
+                                 const gh::milo::Directory& directory) {
+  std::unordered_set<std::string> animatable_names;
+  for (const auto& entry : directory.entries) {
+    if (directory_entry_type_is_rnd_animatable(entry.type))
+      animatable_names.insert(entry.name);
+  }
+  for (auto& group : scene.groups) {
+    if (group.legacy_view) continue;
+    group.anim_children.clear();
+    for (const auto& child : group.children) {
+      if (animatable_names.count(child) != 0)
+        group.anim_children.push_back(child);
+    }
+  }
 }
 
 std::string legacy_directory_root_view_name(const std::string& milo_path) {
@@ -3846,73 +3894,63 @@ MatObj decode_mat(const std::string& entry_name,
     // entry bodies. RndMat revision 21 begins immediately with a texture-map
     // array, followed by blend, RGB, and alpha. This is the source order used
     // by MiloLib/Grim's explicit GH1 reader.
-    bool has_legacy_environment_texture = false;
     const uint32_t tex_count = r.u32();
     if (tex_count > 64) {
       throw std::runtime_error("milo_scene: implausible GH1 Mat texture count");
     }
     for (uint32_t i = 0; i < tex_count; ++i) {
-      const uint32_t map_slot = r.u32();
-      const uint32_t map_type = r.u32();
-      float tex_xfm[12] = {};
-      for (float& value : tex_xfm) value = r.f32();
-      const uint32_t tex_wrap = r.u32();
-      const std::string texture = r.str();
-      (void)map_slot;
-      // GH1 Mat21 uses both selector 0 and selector 1 for the material's
+      LegacyMatTextureStage stage;
+      stage.blend = r.u32();
+      stage.tex_gen = r.u32();
+      for (float& value : stage.tex_xfm) value = r.f32();
+      stage.tex_wrap = r.u32();
+      stage.texture = r.str();
+      m.legacy_texture_stages.push_back(stage);
+      // GH1 Mat21 uses both TexGen 0 and TexGen 1 for the material's
       // sampled 2-D texture. Real small_club selector-1 entries include
       // smokemat, color_plane, and spot_beam_mat; dropping them produces
-      // untextured additive polygons. Selector 5 is the sphere/environment
+      // untextured additive polygons. TexGen 5 is the sphere/environment
       // map family. Mackiloha likewise exposes the first non-empty legacy
-      // TextureEntry as the material texture rather than requiring selector 0.
-      if ((map_type == 0 || map_type == 1) && m.diffuse_tex.empty()) {
-        m.diffuse_tex = texture;
+      // TextureEntry as the material texture rather than requiring TexGen 0.
+      if ((stage.tex_gen == 0 || stage.tex_gen == 1) &&
+          m.diffuse_tex.empty()) {
+        m.diffuse_tex = stage.texture;
         m.tex_wrap = static_cast<uint8_t>(
-            tex_wrap <= 4 ? tex_wrap : 1);
-        m.tex_xfm[0][0] = tex_xfm[0];
-        m.tex_xfm[0][1] = tex_xfm[1];
+            stage.tex_wrap <= 4 ? stage.tex_wrap : 1);
+        m.tex_xfm[0][0] = stage.tex_xfm[0];
+        m.tex_xfm[0][1] = stage.tex_xfm[1];
         m.tex_xfm[0][2] = 0.0f;
-        m.tex_xfm[1][0] = tex_xfm[3];
-        m.tex_xfm[1][1] = tex_xfm[4];
+        m.tex_xfm[1][0] = stage.tex_xfm[3];
+        m.tex_xfm[1][1] = stage.tex_xfm[4];
         m.tex_xfm[1][2] = 0.0f;
-        m.tex_xfm[2][0] = tex_xfm[9];
-        m.tex_xfm[2][1] = tex_xfm[10];
+        m.tex_xfm[2][0] = stage.tex_xfm[9];
+        m.tex_xfm[2][1] = stage.tex_xfm[10];
         m.tex_xfm[2][2] = 1.0f;
         m.tex_scale[0] = m.tex_xfm[0][0];
         m.tex_scale[1] = m.tex_xfm[1][1];
         m.tex_offset[0] = m.tex_xfm[2][0];
         m.tex_offset[1] = m.tex_xfm[2][1];
-      } else if (map_type == 5) {
-        has_legacy_environment_texture =
-            has_legacy_environment_texture || !texture.empty();
       }
     }
-    const uint32_t primary_blend = r.u32();
-    if (primary_blend <= 6) m.legacy_primary_blend =
-        static_cast<uint8_t>(primary_blend);
+    const uint32_t blend = r.u32();
+    if (blend <= 6) m.blend = static_cast<uint8_t>(blend);
     m.color[0] = r.f32();
     m.color[1] = r.f32();
     m.color[2] = r.f32();
     m.color[3] = r.f32();
-    // Mat21 legacy tail (gh1_mat.bt / Mackiloha MatSerializer): the first
-    // three bytes retain the old compact RndMat state ordering documented by
-    // RndMat::Load after colour: use-environ, prelit, then ZMode.  Reading the
-    // latter pair as one little-endian short explains the retail 0x0000,
-    // 0x0001, 0x0100, and 0x0101 values without inventing material-name rules.
-    m.use_environ = (r.u8() != 0) || has_legacy_environment_texture;
-    const uint16_t prelit_zmode = r.u16();
-    m.prelit = (prelit_zmode & 0xffu) != 0;
-    const uint8_t z_mode = static_cast<uint8_t>(prelit_zmode >> 8);
-    if (z_mode <= 4) m.z_mode = z_mode;
-    (void)r.i32();
-    (void)r.u16();
-    const uint32_t blend = r.u32();
-    if (blend <= 6) {
-      m.blend = static_cast<uint8_t>(blend);
-      m.legacy_tail_blend = static_cast<uint8_t>(blend);
-    }
-    m.has_legacy_blends = primary_blend <= 6 && blend <= 6;
-    (void)r.u16();
+    // Exact retail GH1 RndMat::Load order at SLUS_212.24:0x001BE900.
+    m.use_environ = r.u8() != 0;
+    m.legacy_vertex_ambient = r.u8() != 0;
+    m.legacy_vertex_dynamic = r.u8() != 0;
+    m.prelit = m.legacy_vertex_ambient;
+    m.cull = r.u8() != 0;
+    m.has_cull = true;
+    m.legacy_multipass = r.i32();
+    m.legacy_normalize = r.u8() != 0;
+    const uint32_t z_mode = r.u32();
+    if (z_mode <= 4) m.z_mode = static_cast<uint8_t>(z_mode);
+    m.alpha_cut = r.u8() != 0;
+    m.alpha_write = r.u8() != 0;
     m.decoded = true;
     return m;
   }
@@ -5202,6 +5240,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
       mesh.decoded = true;
       mesh.error.clear();
     }
+    rebuild_group_anim_children(out, dir);
     rebuild_group_authored_draw_order(out);
     if (dir.dir_version == 10) {
       // A legacy ObjectDir draws through its authored root View.  Subdirs such

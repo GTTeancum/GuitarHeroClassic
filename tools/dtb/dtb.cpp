@@ -2,6 +2,9 @@
 
 #include "dtb.h"
 
+#include <cerrno>
+#include <cctype>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <limits>
@@ -193,6 +196,198 @@ Tree parse(const std::vector<uint8_t>& src) {
     uint32_t seed = 0;
     std::memcpy(&seed, src.data(), 4);
     return parse_payload(decrypt_payload(), Storage::Encrypted, seed);
+}
+
+Tree parse_dta(std::string_view text) {
+    class Parser {
+      public:
+        explicit Parser(std::string_view source) : source_(source) {}
+
+        Tree tree() {
+            Tree result;
+            result.storage = Storage::Plain;
+            result.version = 1;
+            result.embedded = false;
+            skip();
+            while (!done()) {
+                result.root.push_back(node());
+                skip();
+            }
+            return result;
+        }
+
+      private:
+        bool done() const { return offset_ >= source_.size(); }
+
+        char peek() const {
+            return done() ? '\0' : source_[offset_];
+        }
+
+        char take() {
+            if (done()) fail("unexpected end of input");
+            const char value = source_[offset_++];
+            if (value == '\n') ++line_;
+            return value;
+        }
+
+        [[noreturn]] void fail(const std::string& message) const {
+            throw std::runtime_error(
+                "DTA: line " + std::to_string(line_) + ": " +
+                message);
+        }
+
+        void skip() {
+            while (!done()) {
+                if (std::isspace(
+                        static_cast<unsigned char>(peek()))) {
+                    take();
+                    continue;
+                }
+                if (peek() == ';') {
+                    while (!done() && take() != '\n') {}
+                    continue;
+                }
+                break;
+            }
+        }
+
+        static bool delimiter(char value) {
+            return value == '\0' || value == '(' ||
+                   value == ')' || value == '{' ||
+                   value == '}' || value == '[' ||
+                   value == ']' || value == '"' ||
+                   value == ';' ||
+                   std::isspace(
+                       static_cast<unsigned char>(value));
+        }
+
+        std::shared_ptr<Node> atom(
+            uint32_t tag, Atom value) const {
+            auto result = std::make_shared<Node>();
+            result->tag = tag;
+            result->value = std::move(value);
+            return result;
+        }
+
+        std::shared_ptr<Node> string() {
+            if (take() != '"') fail("internal string parse error");
+            std::string value;
+            while (!done()) {
+                const char current = take();
+                if (current == '"')
+                    return atom(0x12, std::move(value));
+                if (current != '\\') {
+                    value.push_back(current);
+                    continue;
+                }
+                if (done()) fail("unterminated string escape");
+                switch (const char escaped = take()) {
+                case 'n':
+                    value.push_back('\n');
+                    break;
+                case 'r':
+                    value.push_back('\r');
+                    break;
+                case 't':
+                    value.push_back('\t');
+                    break;
+                case '\\':
+                case '"':
+                    value.push_back(escaped);
+                    break;
+                default:
+                    value.push_back(escaped);
+                    break;
+                }
+            }
+            fail("unterminated quoted string");
+        }
+
+        std::string token() {
+            const size_t begin = offset_;
+            while (!done() && !delimiter(peek()))
+                take();
+            if (offset_ == begin) fail("expected atom");
+            return std::string(
+                source_.substr(begin, offset_ - begin));
+        }
+
+        std::shared_ptr<Node> scalar() {
+            std::string value = token();
+            if (value.front() == '$') {
+                if (value.size() == 1)
+                    fail("empty variable name");
+                return atom(0x02, value.substr(1));
+            }
+
+            char* end = nullptr;
+            errno = 0;
+            const long integer =
+                std::strtol(value.c_str(), &end, 0);
+            if (errno == 0 && end == value.c_str() + value.size() &&
+                integer >= std::numeric_limits<int32_t>::min() &&
+                integer <= std::numeric_limits<int32_t>::max())
+                return atom(
+                    0x00, static_cast<int32_t>(integer));
+
+            end = nullptr;
+            errno = 0;
+            const float floating =
+                std::strtof(value.c_str(), &end);
+            if (errno == 0 && end == value.c_str() + value.size() &&
+                value.find_first_of(".eE") != std::string::npos)
+                return atom(0x01, floating);
+            return atom(0x05, std::move(value));
+        }
+
+        std::shared_ptr<Node> collection(
+            char open, char close, uint32_t tag) {
+            const uint32_t start_line = line_;
+            if (take() != open)
+                fail("internal collection parse error");
+            NodeList children;
+            skip();
+            while (peek() != close) {
+                if (done())
+                    fail(
+                        std::string("unterminated ") + open +
+                        " collection");
+                children.push_back(node());
+                skip();
+            }
+            take();
+            auto result = atom(tag, std::move(children));
+            result->line = start_line;
+            return result;
+        }
+
+        std::shared_ptr<Node> node() {
+            skip();
+            switch (peek()) {
+            case '(':
+                return collection('(', ')', 0x10);
+            case '{':
+                return collection('{', '}', 0x11);
+            case '[':
+                return collection('[', ']', 0x13);
+            case '"':
+                return string();
+            case ')':
+            case '}':
+            case ']':
+                fail("unexpected collection terminator");
+            case '\0':
+                fail("expected node");
+            default:
+                return scalar();
+            }
+        }
+
+        std::string_view source_;
+        size_t offset_ = 0;
+        uint32_t line_ = 1;
+    };
+    return Parser(text).tree();
 }
 
 namespace {

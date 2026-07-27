@@ -169,6 +169,19 @@ bool set_render_aspect_preset(const char* text, RenderSize& out) {
   return false;
 }
 
+bool set_render_size(const char* text, RenderSize& out) {
+  if (!text) return false;
+  int width = 0;
+  int height = 0;
+  char trailing = '\0';
+  if (std::sscanf(text, "%dx%d%c", &width, &height, &trailing) != 2)
+    return false;
+  if (width < 160 || height < 120 || width > 3840 || height > 2160)
+    return false;
+  out = RenderSize{width, height};
+  return true;
+}
+
 // A timed fade-through-black sequence of splash images (boot logos -> title).
 // Each non-final slide fades in, holds, fades out; the final slide fades in and
 // holds. Which slide and its brightness are a pure function of the engine clock.
@@ -2957,6 +2970,14 @@ int main(int argc, char** argv) {
       if (!set_render_aspect_preset(argv[++i], render_size)) {
         std::fprintf(stderr,
                      "[ghogx] --aspect expects 4:3 or 16:9\n");
+        return 2;
+      }
+    } else if (std::strcmp(argv[i], "--render-size") == 0 &&
+               i + 1 < argc) {
+      if (!set_render_size(argv[++i], render_size)) {
+        std::fprintf(
+            stderr,
+            "[ghogx] --render-size expects WIDTHxHEIGHT in 160x120..3840x2160\n");
         return 2;
       }
     } else if (std::strcmp(argv[i], "--diagnostic-character") == 0 &&

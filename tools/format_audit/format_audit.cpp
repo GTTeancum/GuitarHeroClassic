@@ -123,13 +123,33 @@ int main(int argc, char** argv) {
         std::map<std::string, size_t> object_types;
         std::map<std::tuple<std::string, uint16_t, uint16_t>, size_t>
             object_revisions;
+        std::map<std::tuple<std::string, uint16_t, uint16_t>, size_t>
+            root_revisions;
         std::map<std::string, size_t> short_object_bodies;
         std::map<int32_t, size_t> directory_revisions;
         std::map<uint32_t, size_t> acp_revisions;
         std::map<std::string, BodyCounts> body_counts;
+        std::map<std::string, BodyCounts> root_body_counts;
         std::vector<std::string> body_failures;
+        std::vector<std::string> mat_records;
+        std::vector<std::string> view_records;
+        std::vector<std::string> object_records;
         std::vector<std::string> failures;
         std::set<std::string> archive_paths;
+        std::map<uint32_t, size_t> legacy_anim_operation_types;
+        size_t legacy_anim_objects_with_operations = 0;
+        size_t legacy_anim_objects_with_references = 0;
+        size_t legacy_anim_reference_count = 0;
+        auto note_legacy_animatable =
+            [&](const gh::milo_object::LegacyAnimatable& animatable) {
+                if (!animatable.operations.empty())
+                    ++legacy_anim_objects_with_operations;
+                if (!animatable.objects.empty())
+                    ++legacy_anim_objects_with_references;
+                legacy_anim_reference_count += animatable.objects.size();
+                for (const auto& operation : animatable.operations)
+                    ++legacy_anim_operation_types[operation.type];
+            };
         for (const auto& entry : archive.entries())
             archive_paths.insert(lower(entry.full_path));
 
@@ -182,8 +202,129 @@ int main(int argc, char** argv) {
                         directory.boundaries_exact &&
                         gh::milo::serialize_directory(directory) == payload;
                     ++directory_revisions[directory.dir_version];
+                    uint32_t packed_root_revision = 0;
+                    bool has_root_revision =
+                        directory.dir_version >= 24 &&
+                        directory.object_data_offset <= payload.size() &&
+                        payload.size() - directory.object_data_offset >= 4;
+                    if (has_root_revision) {
+                        packed_root_revision = read_u32(
+                            payload,
+                            static_cast<size_t>(
+                                directory.object_data_offset));
+                        ++root_revisions[std::make_tuple(
+                            directory.dir_type,
+                            static_cast<uint16_t>(
+                                packed_root_revision & 0xffffu),
+                            static_cast<uint16_t>(
+                                packed_root_revision >> 16))];
+                    }
+                    if (directory.dir_version == 24 &&
+                        (directory.dir_type == "ObjectDir" ||
+                         directory.dir_type == "RndDir" ||
+                         directory.dir_type == "PanelDir" ||
+                         directory.dir_type == "WorldDir" ||
+                         directory.dir_type == "Character" ||
+                         directory.dir_type == "BandCharacter" ||
+                         directory.dir_type == "CharClipSet")) {
+                        bool exact = false;
+                        std::string root_error;
+                        try {
+                            if (directory.dir_type == "ObjectDir") {
+                                const auto decoded =
+                                    gh::milo_object::
+                                        parse_object_dir16(
+                                            directory.dir_body_bytes);
+                                exact =
+                                    gh::milo_object::
+                                        serialize_object_dir16(decoded) ==
+                                    directory.dir_body_bytes;
+                            } else if (directory.dir_type == "RndDir") {
+                                const auto decoded =
+                                    gh::milo_object::parse_rnd_dir8(
+                                        directory.dir_body_bytes);
+                                exact =
+                                    gh::milo_object::serialize_rnd_dir8(
+                                        decoded) ==
+                                    directory.dir_body_bytes;
+                            } else if (
+                                directory.dir_type == "PanelDir") {
+                                const auto decoded =
+                                    gh::milo_object::parse_panel_dir2(
+                                        directory.dir_body_bytes);
+                                exact =
+                                    gh::milo_object::
+                                        serialize_panel_dir2(decoded) ==
+                                    directory.dir_body_bytes;
+                            } else if (
+                                directory.dir_type == "WorldDir") {
+                                const auto decoded =
+                                    gh::milo_object::parse_world_dir11(
+                                        directory.dir_body_bytes);
+                                exact =
+                                    gh::milo_object::
+                                        serialize_world_dir11(decoded) ==
+                                    directory.dir_body_bytes;
+                            } else if (
+                                directory.dir_type == "Character") {
+                                const auto decoded =
+                                    gh::milo_object::parse_character9(
+                                        directory.dir_body_bytes);
+                                exact =
+                                    gh::milo_object::
+                                        serialize_character9(decoded) ==
+                                    directory.dir_body_bytes;
+                            } else if (
+                                directory.dir_type ==
+                                "BandCharacter") {
+                                const auto decoded =
+                                    gh::milo_object::
+                                        parse_band_character1(
+                                            directory.dir_body_bytes);
+                                exact =
+                                    gh::milo_object::
+                                        serialize_band_character1(
+                                            decoded) ==
+                                    directory.dir_body_bytes;
+                            } else {
+                                uint32_t clip_count = 0;
+                                for (const auto& child :
+                                     directory.entries) {
+                                    if (child.type == "CharClip" ||
+                                        child.type ==
+                                            "CharClipSamples")
+                                        ++clip_count;
+                                }
+                                const auto decoded =
+                                    gh::milo_object::
+                                        parse_char_clip_set14(
+                                            directory.dir_body_bytes,
+                                            clip_count);
+                                exact =
+                                    gh::milo_object::
+                                        serialize_char_clip_set14(
+                                            decoded) ==
+                                    directory.dir_body_bytes;
+                            }
+                        } catch (const std::exception& ex) {
+                            root_error = ex.what();
+                        }
+                        BodyCounts& audited =
+                            root_body_counts[directory.dir_type];
+                        if (exact) {
+                            ++audited.exact;
+                        } else {
+                            ++audited.failed;
+                            if (body_failures.size() < 25)
+                                body_failures.push_back(
+                                    entry.full_path + "::root::" +
+                                    directory.dir_type + ": " +
+                                    root_error);
+                        }
+                    }
                     std::map<std::string, size_t> local_types;
-                    bool audited_bodies_exact = true;
+                    bool audited_bodies_exact =
+                        directory.dir_version == 10;
                     for (const auto& object : directory.entries) {
                         ++local_types[object.type];
                         ++object_types[object.type];
@@ -199,7 +340,60 @@ int main(int argc, char** argv) {
                                     packed_revision & 0xffffu),
                                 static_cast<uint16_t>(
                                     packed_revision >> 16))];
-                            if (directory.dir_version == 10 &&
+                            {
+                                std::ostringstream rec;
+                                rec << clean_tsv(entry.full_path) << '\t'
+                                    << clean_tsv(directory.dir_type) << '\t'
+                                    << clean_tsv(object.type) << '\t'
+                                    << clean_tsv(object.name) << '\t'
+                                    << (packed_revision & 0xffffu) << '\t'
+                                    << (packed_revision >> 16) << '\t'
+                                    << object.size << '\n';
+                                object_records.push_back(rec.str());
+                            }
+                            const bool audit_semantic_body =
+                                (directory.dir_version == 24 &&
+                                 (object.type == "Mesh" ||
+                                  object.type == "Tex" ||
+                                  object.type == "Mat" ||
+                                  object.type == "Cam" ||
+                                  object.type == "Light" ||
+                                  object.type == "Environ" ||
+                                  object.type == "CamAnim" ||
+                                  object.type == "EnvAnim" ||
+                                  object.type == "LightAnim" ||
+                                  object.type == "ParticleSysAnim" ||
+                                  object.type == "MeshAnim" ||
+                                  object.type == "MatAnim" ||
+                                  object.type == "TransAnim" ||
+                                  object.type == "Text" ||
+                                  object.type == "ParticleSys" ||
+                                  object.type == "Font" ||
+                                  object.type == "AnimFilter" ||
+                                  object.type == "CharBone" ||
+                                  object.type == "CharClipFilter" ||
+                                  object.type == "CharClipGroup" ||
+                                  object.type == "CharClipSamples" ||
+                                  object.type == "CharDriver" ||
+                                  object.type == "CharDriverMidi" ||
+                                  object.type == "CharEyes" ||
+                                  object.type == "CharForeTwist" ||
+                                  object.type == "CharHair" ||
+                                  object.type == "CharIKHand" ||
+                                  object.type == "CharIKMidi" ||
+                                  object.type == "CharIKRod" ||
+                                  object.type == "CharLookAt" ||
+                                  object.type == "CharPosConstraint" ||
+                                  object.type == "CharServoBone" ||
+                                  object.type == "CharUpperTwist" ||
+                                  object.type == "CharWalk" ||
+                                  object.type == "CharWeightSetter" ||
+                                  object.type == "EventTrigger" ||
+                                  object.type == "FaceFxLipSyncServo" ||
+                                  object.type == "OutfitLoader" ||
+                                  object.type == "WorldFx" ||
+                                  object.type == "Group")) ||
+                                (directory.dir_version == 10 &&
                                 (object.type == "Cam" ||
                                  object.type == "Flare" ||
                                  object.type == "Light" ||
@@ -220,7 +414,8 @@ int main(int argc, char** argv) {
                                  object.type == "View" ||
                                  object.type == "Mat" ||
                                  object.type == "ParticleSys" ||
-                                 object.type == "Mesh")) {
+                                 object.type == "Mesh"));
+                            if (audit_semantic_body) {
                                 const auto first =
                                     payload.begin() + object.offset;
                                 const std::vector<uint8_t> body(
@@ -228,7 +423,123 @@ int main(int argc, char** argv) {
                                 bool exact = false;
                                 std::string body_error;
                                 try {
-                                    if (object.type == "Cam") {
+                                    if (directory.dir_version == 24 &&
+                                        object.type == "Mesh") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_mesh28(
+                                                body,
+                                                static_cast<uint32_t>(
+                                                    directory.dir_version));
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_mesh28(
+                                                    decoded,
+                                                    static_cast<uint32_t>(
+                                                        directory.dir_version)) ==
+                                            body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "Tex") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_tex10(body);
+                                        exact =
+                                            gh::milo_object::serialize_tex10(
+                                                decoded) == body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        (object.type == "CharBone" ||
+                                         object.type ==
+                                             "CharClipFilter" ||
+                                         object.type ==
+                                             "CharClipGroup" ||
+                                         object.type == "CharDriver" ||
+                                         object.type ==
+                                             "CharDriverMidi" ||
+                                         object.type == "CharEyes" ||
+                                         object.type ==
+                                             "CharForeTwist" ||
+                                         object.type == "CharHair" ||
+                                         object.type == "CharIKHand" ||
+                                         object.type == "CharIKMidi" ||
+                                         object.type == "CharIKRod" ||
+                                         object.type == "CharLookAt" ||
+                                         object.type ==
+                                             "CharPosConstraint" ||
+                                         object.type ==
+                                             "CharServoBone" ||
+                                         object.type ==
+                                             "CharUpperTwist" ||
+                                         object.type == "CharWalk" ||
+                                         object.type ==
+                                             "CharWeightSetter" ||
+                                         object.type == "EventTrigger" ||
+                                         object.type ==
+                                             "FaceFxLipSyncServo" ||
+                                         object.type == "OutfitLoader" ||
+                                         object.type == "WorldFx")) {
+                                        exact =
+                                            gh::milo_object::
+                                                round_trip_gh2_object_body(
+                                                    object.type, body,
+                                                    24) == body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type ==
+                                            "CharClipSamples") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_char_clip_samples10(
+                                                    body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_char_clip_samples10(
+                                                    decoded) == body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "Mat") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_mat27(body);
+                                        exact =
+                                            gh::milo_object::serialize_mat27(
+                                                decoded) == body;
+                                        std::ostringstream rec;
+                                        rec << "gh2\t"
+                                            << clean_tsv(entry.full_path) << '\t'
+                                            << clean_tsv(object.name)
+                                            << "\t27\t" << decoded.blend
+                                            << '\t' << decoded.color[0]
+                                            << '\t' << decoded.color[1]
+                                            << '\t' << decoded.color[2]
+                                            << '\t' << decoded.color[3]
+                                            << '\t'
+                                            << decoded.use_environment
+                                            << "\tn/a\tn/a\t"
+                                            << decoded.prelit << '\t'
+                                            << decoded.cull
+                                            << "\tn/a\tn/a\t"
+                                            << decoded.z_mode << '\t'
+                                            << decoded.alpha_cut << '\t'
+                                            << decoded.alpha_write << '\t'
+                                            << decoded.tex_gen << '\t'
+                                            << decoded.tex_wrap << '\t'
+                                            << clean_tsv(
+                                                   decoded.diffuse_texture)
+                                            << '\t'
+                                            << clean_tsv(
+                                                   decoded.environment_map)
+                                            << '\t'
+                                            << clean_tsv(decoded.next_pass)
+                                            << "\t\n";
+                                        mat_records.push_back(rec.str());
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "Cam") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_cam12(body);
+                                        exact =
+                                            gh::milo_object::serialize_cam12(
+                                                decoded) == body;
+                                    } else if (object.type == "Cam") {
                                         const auto decoded =
                                             gh::milo_object::parse_cam(body);
                                         exact =
@@ -241,6 +552,15 @@ int main(int argc, char** argv) {
                                         exact =
                                             gh::milo_object::serialize_flare(
                                                 decoded) == body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "Light") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_light6(
+                                                body);
+                                        exact =
+                                            gh::milo_object::serialize_light6(
+                                                decoded) == body;
                                     } else if (object.type == "Light") {
                                         const auto decoded =
                                             gh::milo_object::parse_light(
@@ -248,6 +568,16 @@ int main(int argc, char** argv) {
                                         exact =
                                             gh::milo_object::serialize_light(
                                                 decoded) == body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "Environ") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_environ5(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_environ5(decoded) ==
+                                            body;
                                     } else if (
                                         object.type == "Environ") {
                                         const auto decoded =
@@ -261,15 +591,29 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::parse_morph(
                                                 body);
+                                        note_legacy_animatable(
+                                            decoded.animatable);
                                         exact =
                                             gh::milo_object::
                                                 serialize_morph(decoded) ==
                                             body;
                                     } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "TransAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_trans_anim6(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_trans_anim6(
+                                                    decoded) == body;
+                                    } else if (
                                         object.type == "TransAnim") {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_trans_anim(body);
+                                        note_legacy_animatable(
+                                            decoded.animatable);
                                         exact =
                                             gh::milo_object::
                                                 serialize_trans_anim(
@@ -284,19 +628,53 @@ int main(int argc, char** argv) {
                                                 serialize_multi_mesh(
                                                     decoded) == body;
                                     } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "MeshAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_mesh_anim1(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_mesh_anim1(
+                                                    decoded) == body;
+                                    } else if (
                                         object.type == "MeshAnim") {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_mesh_anim(body);
+                                        note_legacy_animatable(
+                                            decoded.animatable);
                                         exact =
                                             gh::milo_object::
                                                 serialize_mesh_anim(
                                                     decoded) == body;
                                     } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "CamAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_cam_anim2(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_cam_anim2(decoded) ==
+                                            body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "EnvAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::parse_env_anim4(
+                                                body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_env_anim4(decoded) ==
+                                            body;
+                                    } else if (
                                         object.type == "CamAnim") {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_cam_anim(body);
+                                        note_legacy_animatable(
+                                            decoded.animatable);
                                         exact =
                                             gh::milo_object::
                                                 serialize_cam_anim(
@@ -306,18 +684,44 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_env_anim(body);
+                                        note_legacy_animatable(
+                                            decoded.animatable);
                                         exact =
                                             gh::milo_object::
                                                 serialize_env_anim(
+                                                    decoded) == body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "LightAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_light_anim2(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_light_anim2(
                                                     decoded) == body;
                                     } else if (
                                         object.type == "LightAnim") {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_light_anim(body);
+                                        note_legacy_animatable(
+                                            decoded.animatable);
                                         exact =
                                             gh::milo_object::
                                                 serialize_light_anim(
+                                                    decoded) == body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type ==
+                                            "ParticleSysAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_particle_sys_anim3(
+                                                    body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_particle_sys_anim3(
                                                     decoded) == body;
                                     } else if (
                                         object.type ==
@@ -326,18 +730,42 @@ int main(int argc, char** argv) {
                                             gh::milo_object::
                                                 parse_particle_sys_anim(
                                                     body);
+                                        note_legacy_animatable(
+                                            decoded.animatable);
                                         exact =
                                             gh::milo_object::
                                                 serialize_particle_sys_anim(
+                                                    decoded) == body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "MatAnim") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_mat_anim7(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_mat_anim7(
                                                     decoded) == body;
                                     } else if (
                                         object.type == "MatAnim") {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_mat_anim(body);
+                                        note_legacy_animatable(
+                                            decoded.animatable);
                                         exact =
                                             gh::milo_object::
                                                 serialize_mat_anim(
+                                                    decoded) == body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "Text") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_text17(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_text17(
                                                     decoded) == body;
                                     } else if (object.type == "Text") {
                                         const auto decoded =
@@ -352,10 +780,42 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::parse_movie(
                                                 body);
+                                        note_legacy_animatable(
+                                            decoded.animatable);
                                         exact =
                                             gh::milo_object::
                                                 serialize_movie(decoded) ==
                                             body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "Font") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_font15(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_font15(
+                                                    decoded) == body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "AnimFilter") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_anim_filter1(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_anim_filter1(
+                                                    decoded) == body;
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "Group") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_group12(body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_group12(
+                                                    decoded) == body;
                                     } else if (
                                         object.type == "Font") {
                                         const auto decoded =
@@ -379,6 +839,43 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::parse_view(
                                                 body);
+                                        note_legacy_animatable(
+                                            decoded.animatable);
+                                        std::ostringstream rec;
+                                        rec << clean_tsv(entry.full_path)
+                                            << '\t'
+                                            << clean_tsv(object.name)
+                                            << '\t'
+                                            << clean_tsv(
+                                                   decoded.children_owner)
+                                            << '\t'
+                                            << decoded.showing_range[0]
+                                            << '\t'
+                                            << decoded.showing_range[1]
+                                            << '\t'
+                                            << decoded.animatable.objects.size()
+                                            << '\t'
+                                            << decoded.drawable.objects.size()
+                                            << '\t';
+                                        for (size_t i = 0;
+                                             i <
+                                             decoded.animatable.objects.size();
+                                             ++i) {
+                                            if (i) rec << ';';
+                                            rec << clean_tsv(
+                                                decoded.animatable.objects[i]);
+                                        }
+                                        rec << '\t';
+                                        for (size_t i = 0;
+                                             i <
+                                             decoded.drawable.objects.size();
+                                             ++i) {
+                                            if (i) rec << ';';
+                                            rec << clean_tsv(
+                                                decoded.drawable.objects[i]);
+                                        }
+                                        rec << '\n';
+                                        view_records.push_back(rec.str());
                                         exact =
                                             gh::milo_object::
                                                 serialize_view(decoded) ==
@@ -392,11 +889,61 @@ int main(int argc, char** argv) {
                                             gh::milo_object::
                                                 serialize_mat(decoded) ==
                                             body;
+                                        std::ostringstream textures;
+                                        for (size_t i = 0;
+                                             i < decoded.textures.size();
+                                             ++i) {
+                                            if (i) textures << ';';
+                                            const auto& texture =
+                                                decoded.textures[i];
+                                            textures
+                                                << texture.stage_blend << ','
+                                                << texture.tex_gen << ','
+                                                << texture.wrap << ','
+                                                << clean_tsv(texture.texture);
+                                        }
+                                        std::ostringstream rec;
+                                        rec << "gh1\t"
+                                            << clean_tsv(entry.full_path) << '\t'
+                                            << clean_tsv(object.name)
+                                            << "\t21\t" << decoded.blend
+                                            << '\t' << decoded.color[0]
+                                            << '\t' << decoded.color[1]
+                                            << '\t' << decoded.color[2]
+                                            << '\t' << decoded.color[3]
+                                            << '\t'
+                                            << decoded.use_environment
+                                            << '\t'
+                                            << decoded.vertex_ambient
+                                            << '\t'
+                                            << decoded.vertex_dynamic
+                                            << "\tn/a\t" << decoded.cull
+                                            << '\t' << decoded.multipass
+                                            << '\t' << decoded.normalize
+                                            << '\t' << decoded.z_mode
+                                            << '\t' << decoded.alpha_cut
+                                            << '\t' << decoded.alpha_write
+                                            << "\tn/a\tn/a\t\t\t\t"
+                                            << textures.str() << '\n';
+                                        mat_records.push_back(rec.str());
+                                    } else if (
+                                        directory.dir_version == 24 &&
+                                        object.type == "ParticleSys") {
+                                        const auto decoded =
+                                            gh::milo_object::
+                                                parse_particle_sys27(
+                                                    body);
+                                        exact =
+                                            gh::milo_object::
+                                                serialize_particle_sys27(
+                                                    decoded) == body;
                                     } else if (
                                         object.type == "ParticleSys") {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_particle_sys(body);
+                                        note_legacy_animatable(
+                                            decoded.animatable);
                                         exact =
                                             gh::milo_object::
                                                 serialize_particle_sys(
@@ -441,6 +988,14 @@ int main(int argc, char** argv) {
                            << " dir_rev=" << directory.dir_version
                            << " dir_type=" << directory.dir_type
                            << " dir_name=" << directory.dir_name
+                           << " root_rev=";
+                    if (has_root_revision) {
+                        detail << (packed_root_revision & 0xffffu)
+                               << ':' << (packed_root_revision >> 16);
+                    } else {
+                        detail << "n/a";
+                    }
+                    detail
                            << " objects=" << directory.entries.size()
                            << " prefix_exact="
                            << (prefix_exact ? "yes" : "no")
@@ -449,7 +1004,9 @@ int main(int argc, char** argv) {
                            << " directory_exact="
                            << (directory_exact ? "yes" : "no")
                            << " audited_bodies_exact="
-                           << (audited_bodies_exact ? "yes" : "no")
+                           << (directory.dir_version == 10
+                                   ? (audited_bodies_exact ? "yes" : "no")
+                                   : "n/a")
                            << " externals="
                            << directory.external_resources.size()
                            << " trailing=" << container.trailing_bytes.size()
@@ -561,8 +1118,30 @@ int main(int argc, char** argv) {
         std::printf("\nobject types: %zu\n", object_types.size());
         std::printf("object type/revision rows: %zu\n",
                     object_revisions.size());
+        std::printf("root type/revision rows: %zu\n",
+                    root_revisions.size());
+        if (!legacy_anim_operation_types.empty() ||
+            legacy_anim_objects_with_references != 0) {
+            std::printf(
+                "legacy Animatable0: operation_objects=%zu "
+                "reference_objects=%zu references=%zu operation_types=",
+                legacy_anim_objects_with_operations,
+                legacy_anim_objects_with_references,
+                legacy_anim_reference_count);
+            for (const auto& pair : legacy_anim_operation_types)
+                std::printf("%s%u:%zu",
+                            pair == *legacy_anim_operation_types.begin()
+                                ? "" : ",",
+                            pair.first, pair.second);
+            std::printf("\n");
+        }
         for (const auto& pair : body_counts) {
             std::printf("body %-12s exact=%zu fail=%zu\n",
+                        pair.first.c_str(), pair.second.exact,
+                        pair.second.failed);
+        }
+        for (const auto& pair : root_body_counts) {
+            std::printf("root %-12s exact=%zu fail=%zu\n",
                         pair.first.c_str(), pair.second.exact,
                         pair.second.failed);
         }
@@ -591,6 +1170,63 @@ int main(int argc, char** argv) {
                             << pair.second << '\n';
         std::printf("revision report: %s\n",
                     revision_report_path.c_str());
+
+        const std::string root_report_path =
+            report_path + ".roots.tsv";
+        std::ofstream root_report(root_report_path, std::ios::binary);
+        if (!root_report)
+            throw std::runtime_error("cannot create " +
+                                     root_report_path);
+        root_report << "type\tmain_revision\talt_revision\tcount\n";
+        for (const auto& pair : root_revisions) {
+            root_report << std::get<0>(pair.first) << '\t'
+                        << std::get<1>(pair.first) << '\t'
+                        << std::get<2>(pair.first) << '\t'
+                        << pair.second << '\n';
+        }
+        std::printf("root report: %s\n", root_report_path.c_str());
+
+        const std::string mat_report_path =
+            report_path + ".materials.tsv";
+        std::ofstream mat_report(mat_report_path, std::ios::binary);
+        if (!mat_report)
+            throw std::runtime_error("cannot create " + mat_report_path);
+        mat_report
+            << "generation\tarchive_path\tobject_name\trevision\tblend"
+               "\tcolor_r\tcolor_g\tcolor_b\tcolor_a\tuse_environment"
+               "\tvertex_ambient\tvertex_dynamic\tprelit\tcull"
+               "\tmultipass\tnormalize\tz_mode\talpha_cut\talpha_write"
+               "\ttex_gen\ttex_wrap\tdiffuse_texture\tenvironment_map"
+               "\tnext_pass\tlegacy_textures\n";
+        for (const auto& record : mat_records)
+            mat_report << record;
+        std::printf("material report: %s\n", mat_report_path.c_str());
+
+        const std::string view_report_path =
+            report_path + ".views.tsv";
+        std::ofstream view_report(view_report_path, std::ios::binary);
+        if (!view_report)
+            throw std::runtime_error("cannot create " + view_report_path);
+        view_report
+            << "archive_path\tobject_name\tchildren_owner\tshowing_min"
+               "\tshowing_max\tanimation_references\tdraw_references"
+               "\tanimation_objects\tdraw_objects\n";
+        for (const auto& record : view_records)
+            view_report << record;
+        std::printf("view report: %s\n", view_report_path.c_str());
+
+        const std::string object_report_path =
+            report_path + ".objects.tsv";
+        std::ofstream object_report(object_report_path, std::ios::binary);
+        if (!object_report)
+            throw std::runtime_error(
+                "cannot create " + object_report_path);
+        object_report
+            << "archive_path\tdirectory_type\tobject_type\tobject_name"
+               "\tmain_revision\talt_revision\tbody_size\n";
+        for (const auto& record : object_records)
+            object_report << record;
+        std::printf("object report: %s\n", object_report_path.c_str());
 
         size_t failures_total = 0;
         for (const auto& pair : counts) failures_total += pair.second.failed;

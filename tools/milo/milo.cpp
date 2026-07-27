@@ -28,6 +28,7 @@ bool read_u32_at(const std::vector<uint8_t>& p, size_t& pos, uint32_t& out) {
 }
 
 bool skip_string_at(const std::vector<uint8_t>& p, size_t& pos, size_t limit) {
+    if (pos + 4 > limit) return false;
     uint32_t len = 0;
     if (!read_u32_at(p, pos, len)) return false;
     if (len > limit - pos || len > (1u << 20)) return false;
@@ -80,27 +81,95 @@ bool mesh_body_fits_before(const std::vector<uint8_t>& p, size_t start,
         return static_cast<uint64_t>(fcount) * 6u <= end - pos;
     }
     if (mesh_version != 28) return false;
-    if (!read_u32_at(p, pos, tmp)) return false;       // Trans version.
-    if (pos + 9 + 96 + 9 > end) return false;
-    pos += 9 + 96 + 9;
-    if (!skip_string_at(p, pos, end)) return false;    // parent
-    if (!read_u32_at(p, pos, tmp)) return false;       // Draw version.
+
+    // Fully validate the GH2 Mesh28 body before accepting an ADDEADDE
+    // candidate. Cached strip data can contain the marker byte sequence, so
+    // the earlier faces-only check could split a valid mesh in the middle.
+    const auto read_limited_u32 = [&](uint32_t& value) {
+        if (pos + 4 > end) return false;
+        std::memcpy(&value, p.data() + pos, 4);
+        pos += 4;
+        return true;
+    };
+    if (!read_limited_u32(tmp) || tmp != 0) return false;    // Object rev.
+    if (!skip_string_at(p, pos, end) || pos + 1 > end) return false;
+    if (p[pos++] != 0) return false;                         // TypeProps tree.
+
+    if (!read_limited_u32(tmp) || tmp != 9) return false;    // Trans rev.
+    if (pos + 96 + 4 > end) return false;
+    pos += 96;
+    if (!read_limited_u32(tmp)) return false;                // constraint
+    if (!skip_string_at(p, pos, end) || pos + 1 > end) return false;
+    ++pos;                                                   // preserve scale
+    if (!skip_string_at(p, pos, end)) return false;          // parent
+
+    if (!read_limited_u32(tmp) || tmp != 3) return false;    // Draw rev.
     if (pos + 1 + 20 > end) return false;
-    pos += 1 + 20;
-    if (!skip_string_at(p, pos, end)) return false;    // material
-    if (!skip_string_at(p, pos, end)) return false;    // geometry owner
-    if (pos + 9 + 4 > end) return false;
-    pos += 9;
+    pos += 1 + 20;                                           // visible/sphere/order
+    if (!skip_string_at(p, pos, end) ||                      // material
+        !skip_string_at(p, pos, end)) return false;          // geometry owner
+    if (pos + 8 > end) return false;                         // mutable/volume
+    pos += 8;
+
+    std::function<bool(uint32_t)> skip_bsp = [&](uint32_t depth) {
+        if (depth > 4096 || pos + 1 > end) return false;
+        const uint8_t present = p[pos++];
+        if (present > 1) return false;
+        if (!present) return true;
+        if (pos + 16 > end) return false;
+        pos += 16;
+        return skip_bsp(depth + 1) && skip_bsp(depth + 1);
+    };
+    if (!skip_bsp(0)) return false;
+
     uint32_t vcount = 0;
-    if (!read_u32_at(p, pos, vcount)) return false;
+    if (!read_limited_u32(vcount)) return false;
     const uint64_t vertex_bytes = static_cast<uint64_t>(vcount) * 48u;
-    if (vertex_bytes > end - pos || pos + static_cast<size_t>(vertex_bytes) + 4 > end)
-        return false;
+    if (vertex_bytes > end - pos) return false;
     pos += static_cast<size_t>(vertex_bytes);
+
     uint32_t fcount = 0;
-    if (!read_u32_at(p, pos, fcount)) return false;
-    const uint64_t index_bytes = static_cast<uint64_t>(fcount) * 6u;
-    return index_bytes <= end - pos;
+    if (!read_limited_u32(fcount)) return false;
+    const uint64_t face_bytes = static_cast<uint64_t>(fcount) * 6u;
+    if (face_bytes > end - pos) return false;
+    pos += static_cast<size_t>(face_bytes);
+
+    uint32_t group_count = 0;
+    if (!read_limited_u32(group_count) ||
+        group_count > end - pos) return false;
+    const uint8_t first_group = group_count ? p[pos] : 0;
+    pos += group_count;
+
+    uint32_t first_bone_length = 0;
+    if (!read_limited_u32(first_bone_length) ||
+        first_bone_length > end - pos ||
+        first_bone_length > (1u << 20)) return false;
+    pos += first_bone_length;
+    if (first_bone_length != 0) {
+        for (int i = 0; i < 3; ++i)
+            if (!skip_string_at(p, pos, end)) return false;
+        if (pos + 4u * 48u > end) return false;
+        pos += 4u * 48u;
+    }
+
+    // Transform-only/geometry-owner meshes may copy non-zero group sizes but
+    // omit local cached sections. Otherwise each group has two counts followed
+    // by cumulative u32 strip lengths and u16 vertex runs.
+    if (pos == end) return true;
+    if (group_count == 0 || first_group == 0) return false;
+    for (uint32_t i = 0; i < group_count; ++i) {
+        uint32_t strip_count = 0;
+        uint32_t run_count = 0;
+        if (!read_limited_u32(strip_count) ||
+            !read_limited_u32(run_count)) return false;
+        const uint64_t strip_bytes =
+            static_cast<uint64_t>(strip_count) * 4u;
+        const uint64_t run_bytes =
+            static_cast<uint64_t>(run_count) * 2u;
+        if (strip_bytes + run_bytes > end - pos) return false;
+        pos += static_cast<size_t>(strip_bytes + run_bytes);
+    }
+    return pos == end;
 }
 
 }  // namespace
@@ -743,8 +812,94 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
     d.dir_entry_offset = pos;              // root dir's own object body
     d.dir_entry_size = cursor - pos;
     if (cursor == p.size()) return d;       // no markers; nothing to size
+    d.dir_body_bytes.assign(p.begin() + pos, p.begin() + cursor);
+    d.dir_terminator_value = rd_u32(p.data() + cursor);
     cursor += 4;                            // root-object terminator
 
+    // Later object bodies may legitimately contain the terminator word in
+    // data (large CamShot key arrays make this observable). Recover the whole
+    // declared object chain before falling back to first-marker scanning.
+    // Every HMX child body starts with a packed revision, and the final
+    // terminator must end the payload, which gives a format-level boundary
+    // constraint without depending on object names or body contents.
+    if (!d.entries.empty()) {
+        std::vector<size_t> markers;
+        for (size_t at = cursor; at + 4 <= p.size(); ++at) {
+            if (rd_u32(p.data() + at) == kAddePadding)
+                markers.push_back(at);
+        }
+        struct BoundaryResult {
+            int solutions = 0;
+            std::vector<size_t> terminators;
+        };
+        std::map<std::pair<size_t, size_t>, BoundaryResult> memo;
+        std::function<BoundaryResult(size_t, size_t)> solve =
+            [&](size_t index, size_t start) -> BoundaryResult {
+                const auto key = std::make_pair(index, start);
+                const auto cached = memo.find(key);
+                if (cached != memo.end()) return cached->second;
+                BoundaryResult result;
+                if (index >= d.entries.size() || start + 4 > p.size() ||
+                    !plausible_packed_revision(
+                        rd_u32(p.data() + start))) {
+                    memo.emplace(key, result);
+                    return result;
+                }
+                const auto first_marker =
+                    std::lower_bound(markers.begin(), markers.end(),
+                                     start + 4);
+                for (auto it = first_marker; it != markers.end(); ++it) {
+                    const size_t terminator = *it;
+                    BoundaryResult tail;
+                    if (index + 1 == d.entries.size()) {
+                        if (terminator + 4 != p.size()) continue;
+                        tail.solutions = 1;
+                    } else {
+                        if (terminator + 8 > p.size() ||
+                            !plausible_packed_revision(
+                                rd_u32(p.data() + terminator + 4)))
+                            continue;
+                        tail = solve(index + 1, terminator + 4);
+                    }
+                    if (tail.solutions == 0) continue;
+                    if (result.solutions == 0) {
+                        result.terminators.push_back(terminator);
+                        result.terminators.insert(
+                            result.terminators.end(),
+                            tail.terminators.begin(),
+                            tail.terminators.end());
+                    }
+                    result.solutions =
+                        std::min(2, result.solutions + tail.solutions);
+                    if (result.solutions == 2) break;
+                }
+                memo.emplace(key, result);
+                return result;
+            };
+
+        const BoundaryResult result = solve(0, cursor);
+        if (result.solutions > 0 &&
+            result.terminators.size() == d.entries.size()) {
+            size_t start = cursor;
+            for (size_t i = 0; i < d.entries.size(); ++i) {
+                Entry& entry = d.entries[i];
+                const size_t terminator = result.terminators[i];
+                entry.offset = start;
+                entry.size = terminator - start;
+                entry.terminator_offset = terminator;
+                entry.terminator_value = kAddePadding;
+                entry.body_bytes.assign(p.begin() + start,
+                                        p.begin() + terminator);
+                start = terminator + 4;
+            }
+            d.boundaries_exact = result.solutions == 1;
+            d.payload_end_offset = start;
+            d.trailing_bytes.assign(p.begin() + start, p.end());
+            return d;
+        }
+    }
+
+    bool complete_chain = true;
     for (auto& e : d.entries) {
         const int32_t expected_mesh_version = d.dir_version == 10 ? 25 : 28;
         while (e.type == "Mesh" && cursor + 4 <= p.size() &&
@@ -760,12 +915,25 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
         if (end + 4 <= p.size()) {
             e.terminator_value = rd_u32(p.data() + end);
             e.body_bytes.assign(p.begin() + cursor, p.begin() + end);
+        } else {
+            complete_chain = false;
         }
         cursor = (end == p.size()) ? p.size() : (end + 4);
-        if (cursor >= p.size()) break;
+        if (cursor >= p.size() && &e != &d.entries.back()) {
+            complete_chain = false;
+            break;
+        }
     }
     d.payload_end_offset = cursor;
     d.trailing_bytes.assign(p.begin() + cursor, p.end());
+    d.boundaries_exact =
+        complete_chain && d.dir_terminator_value == kAddePadding &&
+        std::all_of(
+            d.entries.begin(), d.entries.end(),
+            [](const Entry& entry) {
+                return entry.terminator_value == kAddePadding;
+            }) &&
+        cursor == p.size();
     return d;
 }
 
@@ -810,11 +978,23 @@ std::vector<uint8_t> serialize_directory(const Directory& d) {
     if (!d.boundaries_exact)
         throw std::runtime_error(
             "milo dir: complete serialization requires exact boundaries");
-    if (d.dir_version != 10)
+    if (d.dir_version != 10 && d.dir_version != 24)
         throw std::runtime_error(
-            "milo dir: complete serialization is proven only for revision 10");
+            "milo dir: complete serialization supports revisions 10 and 24");
 
     std::vector<uint8_t> bytes = serialize_directory_prefix(d);
+    if (d.dir_version == 24) {
+        if (d.dir_terminator_value != kAddePadding)
+            throw std::runtime_error(
+                "milo dir: invalid root object terminator value");
+        bytes.insert(bytes.end(), d.dir_body_bytes.begin(),
+                     d.dir_body_bytes.end());
+        append_u32_le(bytes, d.dir_terminator_value);
+    } else if (!d.dir_body_bytes.empty() ||
+               d.dir_terminator_value != 0) {
+        throw std::runtime_error(
+            "milo dir: GH1 revision 10 cannot store a root body");
+    }
     for (const auto& entry : d.entries) {
         if (entry.terminator_value != kAddePadding)
             throw std::runtime_error(

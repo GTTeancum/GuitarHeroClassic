@@ -1,0 +1,8 @@
+source_path	target_path	functions	handlers	function_calls	foreach_loops	switch_anim	switch_anim_rt	anim_task	animate_to	delay_task	random_ranges	target_bytes	status	stateful_ranges	detail
+venues/theatre/gen/theatre.dtb	world/gh1_theatre/gen/gh1_theatre.dtb	12	22	21	9	95	6	2	6	2	30	159430	converted	0	GH1 Arena wrappers lowered to native GH2 WorldDir script
+venues/big_club/gen/big_club.dtb	world/gh1_big_club/gen/gh1_big_club.dtb	16	22	26	7	130	0	1	0	0	45	189800	converted	12	GH1 Arena wrappers lowered to native GH2 WorldDir script
+venues/small_club/gen/small_club.dtb	world/gh1_small_club/gen/gh1_small_club.dtb	10	23	15	9	147	0	1	0	1	36	160521	converted	0	GH1 Arena wrappers lowered to native GH2 WorldDir script
+venues/fest/gen/fest.dtb	world/gh1_fest/gen/gh1_fest.dtb	13	24	22	7	107	2	1	7	7	24	132128	converted	0	GH1 Arena wrappers lowered to native GH2 WorldDir script
+venues/arena/gen/arena.dtb	world/gh1_arena/gen/gh1_arena.dtb	12	23	16	4	142	25	2	0	2	4	51416	converted	0	GH1 Arena wrappers lowered to native GH2 WorldDir script
+venues/small_club_multi/gen/small_club_multi.dtb	world/gh1_small_club_multi/gen/gh1_small_club_multi.dtb	10	22	15	9	124	0	1	0	1	36	155748	converted	0	GH1 Arena wrappers lowered to native GH2 WorldDir script
+venues/basement/gen/basement.dtb	world/gh1_basement/gen/gh1_basement.dtb	10	21	15	0	73	103	1	0	0	1	37514	converted	0	GH1 Arena wrappers lowered to native GH2 WorldDir script

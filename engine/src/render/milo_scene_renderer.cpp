@@ -4204,6 +4204,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     const std::string& material =
         (material_override && !material_override->empty()) ? *material_override
                                                            : m.material;
+    // RndMesh submission requires an assigned RndMat. Null-material meshes
+    // remain valid transform/editor helpers, but the platform renderer has no
+    // draw state to submit for them.
+    if (material.empty() && !force_debug_draw) return;
     if (is_authored_invisible_material(material) && !force_debug_draw) return;
     const bool debug_spotlight_solid =
         spotlight_state && env_enabled("GHOGX_DEBUG_SPOTLIGHT_SOLID");
@@ -4252,18 +4256,19 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         std::fprintf(stderr,
                      "[milo_scene] venue material mesh=%s material=%s "
                      "tex=%s blend=%u color=(%.3f %.3f %.3f %.3f) "
-                     "legacy_blends=%s%u/%u "
+                     "legacy_stages=%zu multipass=%d normalize=%d "
+                     "vertex_ambient=%d vertex_dynamic=%d "
                      "prelit=%d use_environ=%d zmode=%u "
                      "vertex0=(%.3f %.3f %.3f %.3f) "
                      "vertex_range=[%.3f..%.3f %.3f..%.3f "
                      "%.3f..%.3f %.3f..%.3f]\n",
                      m.name.c_str(), material.c_str(), diffuse_tex.c_str(),
                      static_cast<unsigned>(material_blend), mr, mg, mb, ma,
-                     mat_obj && mat_obj->has_legacy_blends ? "" : "n/a:",
-                     mat_obj ? static_cast<unsigned>(
-                                   mat_obj->legacy_primary_blend) : 0u,
-                     mat_obj ? static_cast<unsigned>(
-                                   mat_obj->legacy_tail_blend) : 0u,
+                     mat_obj ? mat_obj->legacy_texture_stages.size() : 0u,
+                     mat_obj ? mat_obj->legacy_multipass : 0,
+                     mat_obj && mat_obj->legacy_normalize ? 1 : 0,
+                     mat_obj && mat_obj->legacy_vertex_ambient ? 1 : 0,
+                     mat_obj && mat_obj->legacy_vertex_dynamic ? 1 : 0,
                      mat_obj && mat_obj->prelit ? 1 : 0,
                      mat_obj && mat_obj->use_environ ? 1 : 0,
                      static_cast<unsigned>(material_z_mode),

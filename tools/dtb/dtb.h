@@ -75,6 +75,13 @@ struct Tree {
 // Throws std::runtime_error on malformed input.
 Tree parse(const std::vector<uint8_t>& bytes);
 
+// Compile ordinary DTA text into the same semantic tree used by the DTB
+// reader. Supports integer/float/symbol/string/variable atoms, the three
+// Harmonix collection forms (), {}, and [], quoted escapes, and semicolon
+// line comments. Preprocessor directives remain AST-level input to
+// dtb_preprocess and are intentionally not expanded here.
+Tree parse_dta(std::string_view text);
+
 // Serialize a tree back to its original plaintext/zero-prefix/encrypted
 // storage form. Parsed trees round-trip byte-for-byte.
 std::vector<uint8_t> serialize(const Tree& tree);

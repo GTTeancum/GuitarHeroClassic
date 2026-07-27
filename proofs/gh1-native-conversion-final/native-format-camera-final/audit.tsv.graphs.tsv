@@ -1,0 +1,26 @@
+archive_path	clips	nodes	manifest_owner	first_target	first_current_beat	first_next_beat	dtb_references
+charsys/hiphop/anims/editor/hiphop_ui.acg	1	1	main::hiphop_ui.cset	0	7.55	0.95	config/gen/arkorder.dtb::charsys/hiphop/anims/editor/hiphop_ui.acg
+charsys/female_singer/anims/singer.acg	5	82	main::singer.cset	3	1.95	-1.65	config/gen/arkorder.dtb::charsys/female_singer/anims/singer.acg
+charsys/classic/anims/classic.acg	78	3669	main::classic.cset	57	-1.85	0.15	config/gen/arkorder.dtb::charsys/classic/anims/classic.acg
+charsys/metal_drummer/anims/drummer.acg	11	227	main::drummer.cset	9	0.35	0.95	config/gen/arkorder.dtb::charsys/metal_drummer/anims/drummer.acg
+charsys/metal_drummer/anims/drummer_metal.acg	1	1		0	7.25868	1.25868	
+charsys/alterna/anims/editor/alterna_ui.acg	1	1	main::alterna_ui.cset	0	8.65	0.35	config/gen/arkorder.dtb::charsys/alterna/anims/editor/alterna_ui.acg
+charsys/hiphop/anims/hiphop.acg	77	3361	main::hiphop.cset	56	-1.65	0.35	config/gen/arkorder.dtb::charsys/hiphop/anims/hiphop.acg
+charsys/nu_metal/anims/editor/nu_metal_ui.acg	1	1	main::nu_metal_ui.cset	0	2.65	-2.85	config/gen/arkorder.dtb::charsys/nu_metal/anims/editor/nu_metal_ui.acg
+charsys/alterna/anims/alterna.acg	81	4439	main::alterna.cset	58	-1.85	-3.85	config/gen/arkorder.dtb::charsys/alterna/anims/alterna.acg
+charsys/metal_bass/anims/bass.acg	5	66	main::bass.cset	4	-0.35	-1.45	config/gen/arkorder.dtb::charsys/metal_bass/anims/bass.acg
+charsys/metal_bass/anims/bass_metal.acg	1	1		0	8.4924	0.492406	
+charsys/grim/anims/editor/grim_ui.acg	1	1	main::grim_ui.cset	0	7.05	1.25	config/gen/arkorder.dtb::charsys/grim/anims/editor/grim_ui.acg
+charsys/punk/anims/punk.acg	78	3430	main::punk.cset	55	-2.35	-0.35	config/gen/arkorder.dtb::charsys/punk/anims/punk.acg
+charsys/hair_metal/anims/editor/hair_ui.acg	1	1	main::hair_ui.cset	0	5.45	-0.85	config/gen/arkorder.dtb::charsys/hair_metal/anims/editor/hair_ui.acg
+charsys/metal/anims/metal.acg	78	3458	main::metal.cset	11	-3.75	-2.45	config/gen/arkorder.dtb::charsys/metal/anims/metal.acg
+charsys/crowd/anims/crowd.acg	29	281	main::crowd.cset	4	6.75	0.75	config/gen/arkorder.dtb::charsys/crowd/anims/crowd.acg
+charsys/metal/anims/editor/metal_ui.acg	1	1	main::metal_ui.cset	0	9.85	0.35	config/gen/arkorder.dtb::charsys/metal/anims/editor/metal_ui.acg
+charsys/punk/anims/editor/punk_ui.acg	1	1	main::punk_ui.cset	0	19.75	0.75	config/gen/arkorder.dtb::charsys/punk/anims/editor/punk_ui.acg
+charsys/grim/anims/grim.acg	76	3227	main::grim.cset	53	-1.65	0.35	config/gen/arkorder.dtb::charsys/grim/anims/grim.acg
+charsys/hair_metal/anims/hair.acg	76	3226	main::hair.cset	59	-1.55	-3.55	config/gen/arkorder.dtb::charsys/hair_metal/anims/hair.acg
+charsys/classic/anims/editor/classic_ui.acg	1	1	main::classic_ui.cset	0	5.55	0.05	config/gen/arkorder.dtb::charsys/classic/anims/editor/classic_ui.acg
+charsys/metal_keyboard/anims/keyboard.acg	5	67	main::keyboard.cset	3	-1.15	-1.85	config/gen/arkorder.dtb::charsys/metal_keyboard/anims/keyboard.acg
+charsys/nu_metal/anims/nu_metal.acg	79	4180	main::nu_metal.cset	61	-4.15	-2.15	config/gen/arkorder.dtb::charsys/nu_metal/anims/nu_metal.acg
+charsys/metal_singer/anims/singer.acg	5	84	main::singer.cset	4	-0.65	0.0500001	config/gen/arkorder.dtb::charsys/metal_singer/anims/singer.acg
+charsys/metal_singer/anims/singer_metal.acg	1	1		0	16.4011	0.401099	

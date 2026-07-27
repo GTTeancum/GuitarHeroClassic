@@ -1384,30 +1384,44 @@ void test_mat() {
   std::vector<uint8_t> legacy;
   put_u32(legacy, 21);           // GH1 RndMat revision
   put_u32(legacy, 1);            // one legacy texture entry
-  put_u32(legacy, 2);            // texture slot
-  put_u32(legacy, 0);            // diffuse map type
+  put_u32(legacy, 2);            // per-stage blend
+  put_u32(legacy, 0);            // TexGenNone
   put_f32(legacy, 1); put_f32(legacy, 0); put_f32(legacy, 0);
   put_f32(legacy, 0); put_f32(legacy, 1); put_f32(legacy, 0);
   put_f32(legacy, 0); put_f32(legacy, 0); put_f32(legacy, 1);
   put_f32(legacy, 0); put_f32(legacy, 0); put_f32(legacy, 0);
   put_u32(legacy, 1);            // repeat
   put_str(legacy, "legacy.tex");
-  put_u32(legacy, 2);            // legacy default-texture selector
+  put_u32(legacy, 3);            // overall kBlendSrcAlpha
   put_f32(legacy, 1); put_f32(legacy, 1);
   put_f32(legacy, 1); put_f32(legacy, 1);
   legacy.push_back(0);           // GH1 use-environ
-  put_u16(legacy, 0x0101);       // prelit=1, z-mode=normal
-  put_u32(legacy, 1);
-  put_u16(legacy, 0);
-  put_u32(legacy, 3);            // actual kBlendSrcAlpha
-  put_u16(legacy, 0);
+  legacy.push_back(1);           // vertexAmbient
+  legacy.push_back(0);           // vertexDynamic
+  legacy.push_back(1);           // cull
+  put_u32(legacy, 2);            // MultipassLit
+  legacy.push_back(1);           // normalize
+  put_u32(legacy, 1);            // normal Z mode
+  legacy.push_back(1);           // alphaCutout
+  legacy.push_back(0);           // alphaWrite
   const MatObj legacy_mat = decode_mat("legacy.mat", legacy);
   CHECK(legacy_mat.decoded);
   CHECK(legacy_mat.diffuse_tex == "legacy.tex");
   CHECK(!legacy_mat.use_environ);
   CHECK(legacy_mat.prelit);
+  CHECK(legacy_mat.legacy_vertex_ambient);
+  CHECK(!legacy_mat.legacy_vertex_dynamic);
+  CHECK(legacy_mat.cull);
+  CHECK(legacy_mat.has_cull);
+  CHECK(legacy_mat.legacy_multipass == 2);
+  CHECK(legacy_mat.legacy_normalize);
   CHECK(legacy_mat.z_mode == 1);
+  CHECK(legacy_mat.alpha_cut);
+  CHECK(!legacy_mat.alpha_write);
   CHECK(legacy_mat.blend == 3);
+  CHECK(legacy_mat.legacy_texture_stages.size() == 1);
+  CHECK(legacy_mat.legacy_texture_stages[0].blend == 2);
+  CHECK(legacy_mat.legacy_texture_stages[0].tex_gen == 0);
   CHECK(!legacy_mat.has_render_state);
 
   auto legacy_selector1 = legacy;
@@ -1421,7 +1435,8 @@ void test_mat() {
   const MatObj legacy_selector5_mat =
       decode_mat("legacy_selector5.mat", legacy_selector5);
   CHECK(legacy_selector5_mat.diffuse_tex.empty());
-  CHECK(legacy_selector5_mat.use_environ);
+  CHECK(!legacy_selector5_mat.use_environ);
+  CHECK(legacy_selector5_mat.legacy_texture_stages[0].tex_gen == 5);
 
   std::vector<uint8_t> b;
   put_u32(b, 27);                // version 0x1b

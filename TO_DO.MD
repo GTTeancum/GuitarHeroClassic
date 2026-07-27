@@ -23,6 +23,9 @@
   fidelity, mixed-content support, maintenance cost, archive integration, and
   traceability to packed source facts. Conversion must be systemic and
   deterministic; do not substitute hand-edited assets or per-object patches.
+  Converter output may be mounted as loose files for iteration or packaged as
+  a patch ARK for distribution; both routes must consume the same deterministic
+  manifest and byte-identical converted assets.
   The numbered format-gap register and completion gates are maintained in
   `docs/GH1_GH2_FORMAT_CONVERSION.md`.
 
@@ -56,29 +59,7 @@
   5. Treat PS2-to-Xbox guitar adapters as active protocol translators when they enumerate as standard Xbox controllers. They should normally need only adapter-specific input mapping/whammy validation, not a PS2 controller protocol driver. Escalate to driver work only for nonstandard descriptors or initialization.
 ## Open GH1 Venue TODO
 
-1. Restore source-accurate GH1 venue prop placement, hierarchy, draw state,
-  and lighting. Deferred by user direction 2026-07-24. The current
-  mixed-content Small Club proof
-  `.codex/current-evidence/combined-intro-arena/mixed-gh2-overlay-white-front.bmp`
-  visibly contains at least these unresolved defects:
-  1. Drum-kit pieces are displaced into the extreme foreground instead of
-    remaining assembled around the drummer.
-  2. The singer's microphone/stand intersects and is drawn through the floor
-    monitor speaker.
-  3. Record props and their suspension strings appear in the foreground;
-    their authored presentation is expected to hang from the ceiling.
-  4. Several bright rectangular surfaces behind the performers are visibly
-    inconsistent with the surrounding venue and may have incorrect material,
-    lighting, hierarchy, or draw-state handling. The screenshot alone does
-    not establish which.
-  5. Conduct a complete object-by-object visual audit of the same venue frame
-    after the known defects are traced; the four observations above are not
-    assumed to be exhaustive.
-
-  Trace the decoded prop transforms, parent graph, authored visibility/groups,
-  material state, Environ/light ownership, and retail runtime behavior before
-  changing rendering. Fix shared format/runtime semantics rather than venue-,
-  prop-, mesh-, or material-name exceptions.
+No open items.
 ## Completed GH1 Venue
 
 1. ~~Resolve the Big Club central wedge artifact.~~ Closed by user direction
@@ -93,6 +74,17 @@
   authored black fades. Restoring the default world framebuffer clear to black
   removes both rectangle boundaries while retaining their red/blue gradients.
   Proof: `.codex/current-evidence/combined-intro-arena/arena-black-clear.bmp`.
+3. ~~Restore source-accurate GH1 venue prop placement, hierarchy, draw state,
+  and lighting.~~ Completed 2026-07-27 by the systemic GH1-to-GH2 native
+  converter. All seven venues now carry source transforms, typed parent/group
+  graphs, material and texture state, Environ/light ownership, animation,
+  scripts, crowds, and native CamShots into revision-24 GH2 directories. The
+  final Small Club proof keeps the drum kit assembled, the role-owned
+  microphone upright, suspended props out of the foreground, and identifies
+  the pale wall panels as authored `plaster_wall.mat -> plaster.tex`, without
+  a venue-, prop-, mesh-, material-, or offset-specific correction. The
+  seven-venue matrix and video are linked from
+  `proofs/gh1-native-conversion-final/FINAL_PROOF_MANIFEST.md`.
 
 ## Completed Gameplay / Runtime
 
@@ -242,6 +234,16 @@
     keyboard slot; a current-build checkpoint covers all eight playable GH1
     guitarists. Format, test, isolation, video, and deployment hashes are in
     `.codex/current-evidence/gh1-arm-twist-reopen/FINAL_PROOF_MANIFEST.md`.
+29. ~~Close the GH1-to-GH2 native MILO/DTB/ACP conversion-format gaps.~~
+    Completed 2026-07-27. The converter closes all 105 packed GH1 directories
+    and 926 ACPs with 13,115 converted objects, 625 source-derived target
+    objects, 201 native CamShots/181,864 keys, seven compiled venue scripts,
+    zero blocked objects, and identical independent output ledgers. All 13
+    character packages and all seven venue packages load through GH2-native
+    paths in the deployed hybrid. Tests, inventories, hashes, runtime matrix,
+    screenshots, and video are linked from
+    `proofs/gh1-native-conversion-final/FINAL_PROOF_MANIFEST.md`.
+
 ## Completed / Historical Rendering & Asset Format
 
 1. 2026-07-13: Venue milestone accepted complete for current scope: MILO loading/dependency discovery, venue animation routing, Lighting/LightPreset/Environ, and RedOctane pistons/gears. Future issues in these areas should be handled as-needed rather than blocking the next milestone. Active native work now moves to the GH2 camera pipeline using ihatecompvir/MiloEditor source behavior and audited camera materials as support.

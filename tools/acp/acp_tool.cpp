@@ -1,19 +1,113 @@
 #include "acp.h"
 
+#include <algorithm>
+#include <array>
+#include <cstring>
 #include <cstdio>
+#include <limits>
+#include <stdexcept>
 #include <string>
+
+namespace {
+
+bool ends_with(const std::string& value, const char* suffix) {
+    const size_t size = std::strlen(suffix);
+    return value.size() >= size &&
+           value.compare(value.size() - size, size, suffix) == 0;
+}
+
+float read_f32(const std::vector<uint8_t>& bytes, size_t offset) {
+    if (offset + sizeof(float) > bytes.size())
+        throw std::runtime_error("ACP sample value exceeds data block");
+    float value = 0.0f;
+    std::memcpy(&value, bytes.data() + offset, sizeof(value));
+    return value;
+}
+
+void print_positions(const gh::acp::File& file) {
+    for (size_t set_index = 0;
+         set_index < file.channel_sets.size(); ++set_index) {
+        const auto& set = file.channel_sets[set_index];
+        size_t channel_offset = 0;
+        for (const auto& channel : set.channels) {
+            const size_t channel_size =
+                gh::acp::channel_file_size(channel, set.compression);
+            if (ends_with(channel, ".pos") && set.sample_count != 0) {
+                std::array<float, 3> first{};
+                std::array<float, 3> last{};
+                std::array<float, 3> minimum{
+                    std::numeric_limits<float>::infinity(),
+                    std::numeric_limits<float>::infinity(),
+                    std::numeric_limits<float>::infinity()};
+                std::array<float, 3> maximum{
+                    -std::numeric_limits<float>::infinity(),
+                    -std::numeric_limits<float>::infinity(),
+                    -std::numeric_limits<float>::infinity()};
+                for (uint32_t sample = 0;
+                     sample < set.sample_count; ++sample) {
+                    const size_t base =
+                        static_cast<size_t>(sample) * set.frame_size +
+                        channel_offset;
+                    std::array<float, 3> value{};
+                    for (size_t axis = 0; axis < value.size(); ++axis) {
+                        value[axis] =
+                            read_f32(set.sample_bytes,
+                                     base + axis * sizeof(float));
+                        minimum[axis] =
+                            std::min(minimum[axis], value[axis]);
+                        maximum[axis] =
+                            std::max(maximum[axis], value[axis]);
+                    }
+                    if (sample == 0) first = value;
+                    if (sample + 1 == set.sample_count) last = value;
+                }
+                std::printf(
+                    "set%zu %s samples=%u "
+                    "first=%g,%g,%g last=%g,%g,%g "
+                    "range=%g,%g,%g\n",
+                    set_index, channel.c_str(), set.sample_count,
+                    first[0], first[1], first[2],
+                    last[0], last[1], last[2],
+                    maximum[0] - minimum[0],
+                    maximum[1] - minimum[1],
+                    maximum[2] - minimum[2]);
+            }
+            channel_offset += channel_size;
+        }
+    }
+}
+
+}  // namespace
 
 int main(int argc, char** argv) {
     if (argc != 3 ||
         (std::string(argv[1]) != "info" &&
+         std::string(argv[1]) != "channels" &&
+         std::string(argv[1]) != "positions" &&
          std::string(argv[1]) != "verify")) {
         std::fprintf(stderr,
-                     "Usage: acp_tool <info|verify> <file.acp>\n");
+                     "Usage: acp_tool "
+                     "<info|channels|positions|verify> <file.acp>\n");
         return 2;
     }
     try {
         const auto bytes = gh::acp::read_file(argv[2]);
         const auto file = gh::acp::parse(bytes);
+        if (std::string(argv[1]) == "channels") {
+            for (size_t set = 0; set < file.channel_sets.size(); ++set) {
+                std::printf("set%zu samples=%u compression=%u channels=%zu\n",
+                            set, file.channel_sets[set].sample_count,
+                            file.channel_sets[set].compression,
+                            file.channel_sets[set].channels.size());
+                for (const auto& channel : file.channel_sets[set].channels)
+                    std::printf("  %s\n", channel.c_str());
+            }
+            return 0;
+        }
+        if (std::string(argv[1]) == "positions") {
+            print_positions(file);
+            return 0;
+        }
         if (std::string(argv[1]) == "verify") {
             const auto serialized = gh::acp::serialize(file);
             if (serialized != bytes) {

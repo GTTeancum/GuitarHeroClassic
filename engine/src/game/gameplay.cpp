@@ -1251,7 +1251,18 @@ void read_object_fields_like_miloeditor(
     const uint16_t revision = static_cast<uint16_t>(combined_revision & 0xffff);
     (void)r.symbol();  // ObjectFields.type
     const bool has_tree = r.boolean();
-    if (has_tree) (void)read_dtb_parent(r, &props);
+    if (has_tree) {
+        const auto children = read_dtb_parent(r, &props);
+        // Hmx::TypeProps serializes its map as flat alternating
+        // Symbol/value roots. Nested 0x13 pairs remain accepted for older
+        // generated files and are populated by read_dtb_node above.
+        for (size_t i = 0; i + 1 < children.size(); i += 2) {
+            if (children[i].kind == MiloValue::Kind::Symbol &&
+                !children[i].s.empty()) {
+                props[children[i].s] = children[i + 1];
+            }
+        }
+    }
     if (revision > 0) (void)r.symbol();
 }
 
@@ -2516,7 +2527,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
         }
 
         const uint32_t keyframe_count = r.u32();
-        if (keyframe_count == 0 || keyframe_count > 64) {
+        if (keyframe_count == 0 || keyframe_count > 65535) {
             throw std::runtime_error("CamShot keyframe count invalid");
         }
         shot.frames.reserve(keyframe_count);
@@ -3988,7 +3999,9 @@ std::vector<Gameplay::CameraKey> load_gh1_regular_camera_keys(
     std::vector<Gameplay::CameraKey> out;
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
-        auto entry = ark.find("venues/" + venue + "/gen/camera.dtb");
+        auto entry = ark.find("world/" + venue + "/gen/camera.dtb");
+        if (!entry)
+            entry = ark.find("venues/" + venue + "/gen/camera.dtb");
         if (!entry) return out;
         const auto tree = gh::dtb::parse(ark.read_entry(*entry, {ark_path}));
         std::vector<Gh1VenueCameraRecord> records;
@@ -4791,14 +4804,14 @@ bool parse_venue_script_animate_rows(const gh::dtb::NodeList& rows,
     for (size_t i = first; i < rows.size(); ++i) {
         if (!rows[i] || !gh::dtb::is_array(*rows[i])) continue;
         const auto& row = gh::dtb::children(*rows[i]);
-        if (row.size() < 2 || !row[0] || !row[1]) continue;
+        if (row.empty() || !row[0]) continue;
         const std::string key = gh::dtb::as_string(*row[0]).value_or("");
-        if (key == "dest") {
+        if (key == "dest" && row.size() >= 2 && row[1]) {
             const auto value = dtb_number_value(*row[1]);
             if (!value) continue;
             step.anim_dest_frame = static_cast<float>(std::max(0.0, *value));
             saw_value = true;
-        } else if (key == "period") {
+        } else if (key == "period" && row.size() >= 2 && row[1]) {
             VenueScriptStep period_step;
             if (!parse_venue_script_delay_value(*row[1], period_step))
                 continue;
@@ -4808,16 +4821,33 @@ bool parse_venue_script_animate_rows(const gh::dtb::NodeList& rows,
                 static_cast<float>(std::max(0.0, period_step.delay_max));
             step.anim_period_random = period_step.delay_random;
             saw_value = true;
-        } else if (key == "range" && row.size() >= 3 && row[2]) {
+        } else if ((key == "range" || key == "loop") &&
+                   row.size() >= 3 && row[1] && row[2]) {
             const auto start = dtb_number_value(*row[1]);
             const auto end = dtb_number_value(*row[2]);
             if (!start || !end) continue;
             step.anim_start_frame =
-                static_cast<float>(std::max(0.0, std::min(*start, *end)));
+                static_cast<float>(std::max(0.0, *start));
             step.anim_end_frame =
-                static_cast<float>(std::max(0.0, std::max(*start, *end)));
+                static_cast<float>(std::max(0.0, *end));
             step.anim_has_range = true;
+            step.value = key == "loop" ? 1 : 0;
             saw_value = true;
+        } else if (key == "loop") {
+            step.value = 1;
+            saw_value = true;
+        } else if (key == "units" && row.size() >= 2 && row[1]) {
+            const std::string units =
+                gh::dtb::as_string(*row[1]).value_or("");
+            if (!units.empty()) {
+                step.anim_units_explicit = true;
+                step.anim_beat_units = units == "kTaskBeats";
+            }
+        } else if (key == "blend" && row.size() >= 2 && row[1]) {
+            if (const auto blend = dtb_number_value(*row[1])) {
+                step.anim_blend_seconds =
+                    static_cast<float>(std::max(0.0, *blend));
+            }
         }
     }
     return saw_value;
@@ -4881,7 +4911,6 @@ std::map<std::string, std::vector<std::string>> anim_children_by_group(
     const ghogx::milo_scene::Scene& scene) {
     std::map<std::string, std::vector<std::string>> out;
     for (const auto& group : scene.groups) {
-        if (group.anim_children.empty() && !group.legacy_view) continue;
         auto& children = out[canonical_milo_ref(group.name)];
         for (const auto& child : group.anim_children) {
             push_unique_ref(children, canonical_milo_ref(child));
@@ -5091,7 +5120,12 @@ void parse_venue_script_statement(const gh::dtb::Node& node,
     if (head == "switch" && kids.size() >= 3 && kids[1]) {
         VenueScriptStep step;
         step.kind = VenueScriptStep::Kind::Switch;
-        step.name = dtb_ref_or_atom_name(*kids[1]);
+        if (gh::dtb::is_array(*kids[1])) {
+            step.expression = parse_venue_script_expression(*kids[1]);
+            step.has_expression = true;
+        } else {
+            step.name = dtb_ref_or_atom_name(*kids[1]);
+        }
         for (size_t i = 2; i < kids.size(); ++i) {
             if (!kids[i] || !gh::dtb::is_array(*kids[i])) continue;
             const auto& row = gh::dtb::children(*kids[i]);
@@ -5101,7 +5135,8 @@ void parse_venue_script_statement(const gh::dtb::Node& node,
             parse_venue_script_sequence(row, 1,
                                         step.switch_branches[*key]);
         }
-        if (!step.name.empty() && !step.switch_branches.empty())
+        if ((step.has_expression || !step.name.empty()) &&
+            !step.switch_branches.empty())
             steps.push_back(std::move(step));
         return;
     }
@@ -6372,7 +6407,6 @@ std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
                         anim.name.c_str(), anim.material.c_str(),
                         anim.keys_owner.c_str());
                 }
-                continue;
             }
             out[anim.name] = anim;
         }
@@ -29675,7 +29709,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_script_context_type_.clear();
     venue_script_namespace_role_.clear();
     executing_venue_script_ = false;
-    legacy_gh1_venue_script_ = false;
+    venue_script_sections_ready_ = true;
     legacy_gh1_lighting_message_.clear();
     pending_transient_venue_events_.clear();
     venue_material_defaults_.clear();
@@ -32053,11 +32087,16 @@ bool Gameplay::apply_venue_script_env_anim(const std::string& anim_name,
             active.persistent = switch_step->value == 1;
             active.source_blend_period_seconds = clamped_period;
             active.has_source_filter = true;
-            active.source_filter.name = "legacy_switch_" + ref;
+            active.source_filter.name = "venue_switch_" + ref;
             active.source_filter.target_ref = ref;
             active.source_filter.start_frame = switch_step->anim_start_frame;
             active.source_filter.end_frame = switch_step->anim_end_frame;
             active.source_filter.scale = switch_step->anim_scale;
+            if (switch_step->anim_units_explicit) {
+                active.source_filter.anim_rate =
+                    switch_step->anim_beat_units ? 1 : 0;
+                active.source_filter.period = switch_step->anim_period;
+            }
             active.source_filter.type = switch_step->value == 1 ? 1 : 0;
             active.duration_seconds = venue_filter_duration_seconds(
                 active.source_filter, &chart_, active.start_time);
@@ -32140,11 +32179,16 @@ bool Gameplay::apply_venue_script_env_anim(const std::string& anim_name,
             active.persistent = switch_step->value == 1;
             active.source_blend_period_seconds = clamped_period;
             active.has_source_filter = true;
-            active.source_filter.name = "legacy_switch_" + ref;
+            active.source_filter.name = "venue_switch_" + ref;
             active.source_filter.target_ref = ref;
             active.source_filter.start_frame = switch_step->anim_start_frame;
             active.source_filter.end_frame = switch_step->anim_end_frame;
             active.source_filter.scale = switch_step->anim_scale;
+            if (switch_step->anim_units_explicit) {
+                active.source_filter.anim_rate =
+                    switch_step->anim_beat_units ? 1 : 0;
+                active.source_filter.period = switch_step->anim_period;
+            }
             active.source_filter.type = switch_step->value == 1 ? 1 : 0;
             active.duration_seconds = venue_filter_duration_seconds(
                 active.source_filter, &chart_, active.start_time);
@@ -32202,11 +32246,15 @@ bool Gameplay::apply_venue_script_light_anim(
                            }),
             active_anims.end());
         VenueAnimFilter filter;
-        filter.name = "legacy_switch_" + ref;
+        filter.name = "venue_switch_" + ref;
         filter.target_ref = ref;
         filter.start_frame = switch_step.anim_start_frame;
         filter.end_frame = switch_step.anim_end_frame;
         filter.scale = switch_step.anim_scale;
+        if (switch_step.anim_units_explicit) {
+            filter.anim_rate = switch_step.anim_beat_units ? 1 : 0;
+            filter.period = switch_step.anim_period;
+        }
         filter.type = switch_step.value == 1 ? 1 : 0;
         const float initial_frame =
             venue_filter_frame_at(filter, 0.0, false, &chart_, song_time_);
@@ -32432,24 +32480,33 @@ bool Gameplay::apply_venue_script_animate_to(const VenueScriptStep& step) {
     return true;
 }
 
-bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
+bool Gameplay::apply_venue_script_animation(const VenueScriptStep& step) {
     const std::string ref = canonical_milo_ref(step.name);
     const char* operation_name =
         step.kind == VenueScriptStep::Kind::AnimTask
             ? "anim_task"
             : (step.anim_realtime ? "switch_anim_rt" : "switch_anim");
+    const auto task_rate = [&](int anim_rate) {
+        if (!step.anim_units_explicit) return anim_rate;
+        return step.anim_beat_units ? 1 : 0;
+    };
     const auto source_scale = [&](int anim_rate) {
-        if (step.kind != VenueScriptStep::Kind::AnimTask ||
-            step.anim_period <= 0.0001f || !step.anim_has_range) {
+        if (step.anim_period <= 0.0001f || !step.anim_has_range) {
             return std::isfinite(step.anim_scale) ? step.anim_scale : 1.0f;
         }
         const float span =
             std::fabs(step.anim_end_frame - step.anim_start_frame);
-        const float fpu = rnd_animatable_frames_per_unit(anim_rate);
+        const float fpu =
+            rnd_animatable_frames_per_unit(task_rate(anim_rate));
         return span > 0.0001f && fpu > 0.0001f
                    ? span / (step.anim_period * fpu)
                    : 1.0f;
     };
+    const float blend_seconds =
+        step.anim_units_explicit && step.anim_beat_units
+            ? static_cast<float>(venue_anim_time_units_to_seconds(
+                  1, song_time_, step.anim_blend_seconds, &chart_))
+            : step.anim_blend_seconds;
     auto start_particle =
         [&](const std::map<std::string, VenueParticleRoute>& routes,
             std::vector<ActiveVenueParticleSystem>& active_particles,
@@ -32462,14 +32519,14 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
             if (debug_venue_filters_enabled()) {
                 std::fprintf(
                     stderr,
-                    "[world] legacy %s %s resolved source-null ParticleSysAnim no-op scope=%s\n",
+                    "[world] venue animation %s %s resolved source-null ParticleSysAnim no-op scope=%s\n",
                     operation_name,
                     requested_ref.c_str(), particle_scope);
             }
             return true;
         }
         route.has_source_filter = true;
-        route.source_filter.name = "legacy_switch_" + requested_ref;
+        route.source_filter.name = "venue_switch_" + requested_ref;
         route.source_filter.target_ref = route.anim;
         route.source_filter.start_frame =
             step.anim_has_range ? step.anim_start_frame : 0.0f;
@@ -32477,9 +32534,14 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
             step.anim_has_range ? step.anim_end_frame : route.duration_frames;
         route.source_filter.scale =
             source_scale(route.source_filter.anim_rate);
+        if (step.anim_units_explicit) {
+            route.source_filter.anim_rate =
+                task_rate(route.source_filter.anim_rate);
+            route.source_filter.period = step.anim_period;
+        }
         route.source_filter.type = step.value == 1 ? 1 : 0;
-        route.source_filter.event_blend_seconds = step.anim_blend_seconds;
-        route.source_blend_period_seconds = step.anim_blend_seconds;
+        route.source_filter.event_blend_seconds = blend_seconds;
+        route.source_blend_period_seconds = blend_seconds;
 
         active_particles.erase(
             std::remove_if(active_particles.begin(), active_particles.end(),
@@ -32507,7 +32569,7 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
         if (debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
-                "[world] legacy %s %s rate=%d units=%s fpu=%.1f scope=%s particle=%s frame=%.2f..%.2f type=%s scale=%.3f blend=%.3f\n",
+                "[world] venue animation %s %s rate=%d units=%s fpu=%.1f scope=%s particle=%s frame=%.2f..%.2f type=%s scale=%.3f blend=%.3f\n",
                 operation_name,
                 requested_ref.c_str(), route.source_filter.anim_rate,
                 rnd_animatable_task_units_label(
@@ -32517,7 +32579,7 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
                 particle_scope, route.particle.c_str(),
                 route.source_filter.start_frame, route.source_filter.end_frame,
                 step.value == 1 ? "loop" : "range",
-                route.source_filter.scale, step.anim_blend_seconds);
+                route.source_filter.scale, blend_seconds);
         }
         return true;
     };
@@ -32545,7 +32607,13 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
         const bool has_texture = !anim.texture_keys.empty();
         if (!anim.has_alpha && !has_color && !has_texture &&
             !has_tex_transform) {
-            return false;
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue animation %s %s resolved channel-empty MatAnim no-op scope=%s\n",
+                    operation_name, requested_ref.c_str(), material_scope);
+            }
+            return true;
         }
 
         active_anims.erase(
@@ -32574,9 +32642,9 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
         active.tex_scale_keys = anim.tex_scale_keys;
         active.tex_rotation_keys = anim.tex_rotation_keys;
         active.persistent = !step.anim_has_range || step.value == 1;
-        active.source_blend_period_seconds = step.anim_blend_seconds;
+        active.source_blend_period_seconds = blend_seconds;
         active.has_source_filter = true;
-        active.source_filter.name = "legacy_switch_" + requested_ref;
+        active.source_filter.name = "venue_switch_" + requested_ref;
         active.source_filter.target_ref = requested_ref;
         active.source_filter.anim_rate = anim.anim_rate;
         active.source_filter.start_frame =
@@ -32584,8 +32652,12 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
         active.source_filter.end_frame =
             step.anim_has_range ? step.anim_end_frame : anim.duration_frames;
         active.source_filter.scale = source_scale(anim.anim_rate);
+        if (step.anim_units_explicit) {
+            active.source_filter.anim_rate = task_rate(anim.anim_rate);
+            active.source_filter.period = step.anim_period;
+        }
         active.source_filter.type = step.value == 1 ? 1 : 0;
-        active.source_filter.event_blend_seconds = step.anim_blend_seconds;
+        active.source_filter.event_blend_seconds = blend_seconds;
         active.duration_seconds = venue_filter_duration_seconds(
             active.source_filter, &chart_, active.start_time);
         if (has_color) {
@@ -32604,7 +32676,7 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
         if (debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
-                "[world] legacy %s %s rate=%d units=%s fpu=%.1f scope=%s material=%s frame=%.2f..%.2f type=%s scale=%.3f blend=%.3f\n",
+                "[world] venue animation %s %s rate=%d units=%s fpu=%.1f scope=%s material=%s frame=%.2f..%.2f type=%s scale=%.3f blend=%.3f\n",
                 operation_name,
                 requested_ref.c_str(), anim.anim_rate,
                 rnd_animatable_task_units_label(anim.anim_rate),
@@ -32615,11 +32687,20 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
                                     : anim.duration_frames,
                 step.value == 1 ? "loop" : "range",
                 source_scale(anim.anim_rate),
-                step.anim_blend_seconds);
+                blend_seconds);
         }
         (void)material_textures;
         return true;
     };
+    if (milo_ref_has_suffix(ref, ".envanim") &&
+        apply_venue_script_env_anim(ref, step.anim_start_frame,
+                                    blend_seconds, &step)) {
+        return true;
+    }
+    if (milo_ref_has_suffix(ref, ".litanim") &&
+        apply_venue_script_light_anim(ref, step)) {
+        return true;
+    }
     if (start_particle(lighting_direct_particle_anims_,
                        active_lighting_particles_, "lighting", ref) ||
         start_particle(venue_direct_particle_anims_, active_venue_particles_,
@@ -32654,25 +32735,32 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
         scope = "venue";
     }
     if (!source || !active || source->empty()) {
-        // GH1 View-based `.anim` objects propagate SetFrame to their
-        // preliminary Animatable member list. A degenerate loop/range is the
-        // native static-state form used by the shared OFF macro.
-        if (step.anim_has_range) {
+        // RndGroup::SetFrame propagates to the animatable subset built by
+        // SyncObjects. Converted GH1 View objects are ordinary GH2 Groups, so
+        // this applies to both static OFF states and nondegenerate ranges.
+        const auto find_group_children =
+            [&](const std::string& child_ref)
+                -> const std::vector<std::string>* {
+            if (const auto group_it =
+                    lighting_anim_group_children_.find(child_ref);
+                group_it != lighting_anim_group_children_.end()) {
+                return &group_it->second;
+            }
+            if (const auto group_it =
+                    venue_anim_group_children_.find(child_ref);
+                group_it != venue_anim_group_children_.end()) {
+                return &group_it->second;
+            }
+            return nullptr;
+        };
+        if (find_group_children(ref)) {
             std::unordered_set<std::string> seen;
-            auto apply_static_group =
+            auto apply_group =
                 [&](auto&& self, const std::string& raw_ref) -> bool {
                 const std::string child_ref = canonical_milo_ref(raw_ref);
                 if (!seen.insert(child_ref).second) return false;
-                const std::vector<std::string>* children = nullptr;
-                if (const auto group_it =
-                        lighting_anim_group_children_.find(child_ref);
-                    group_it != lighting_anim_group_children_.end()) {
-                    children = &group_it->second;
-                } else if (const auto group_it =
-                               venue_anim_group_children_.find(child_ref);
-                           group_it != venue_anim_group_children_.end()) {
-                    children = &group_it->second;
-                }
+                const std::vector<std::string>* children =
+                    find_group_children(child_ref);
                 if (!children) {
                     if (start_particle(lighting_direct_particle_anims_,
                                        active_lighting_particles_, "lighting",
@@ -32703,18 +32791,20 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
                     if (milo_ref_has_suffix(child_ref, ".envanim")) {
                         return apply_venue_script_env_anim(
                             child_ref, step.anim_start_frame,
-                            step.anim_blend_seconds, &step);
+                            blend_seconds, &step);
                     }
                     if (milo_ref_has_suffix(child_ref, ".litanim")) {
                         return apply_venue_script_light_anim(child_ref, step);
                     }
-                    return false;
+                    VenueScriptStep child_step = step;
+                    child_step.name = child_ref;
+                    return apply_venue_script_animation(child_step);
                 }
                 if (children->empty()) {
                     if (debug_venue_filters_enabled()) {
                         std::fprintf(
                             stderr,
-                            "[world] legacy %s %s resolved source-null View animation no-op\n",
+                            "[world] venue animation %s %s resolved empty RndGroup no-op\n",
                             operation_name,
                             child_ref.c_str());
                     }
@@ -32726,17 +32816,17 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
                 }
                 return applied;
             };
-            if (apply_static_group(apply_static_group, ref)) return true;
+            if (apply_group(apply_group, ref)) return true;
         }
         if (debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
-                "[world] legacy %s unresolved target=%s range=%d frame=%.2f..%.2f type=%s scale=%.3f blend=%.3f\n",
+                "[world] venue animation %s unresolved target=%s range=%d frame=%.2f..%.2f type=%s scale=%.3f blend=%.3f\n",
                 operation_name,
                 ref.c_str(), step.anim_has_range ? 1 : 0,
                 step.anim_start_frame, step.anim_end_frame,
                 step.value == 1 ? "loop" : "range", step.anim_scale,
-                step.anim_blend_seconds);
+                blend_seconds);
         }
         return false;
     }
@@ -32749,7 +32839,11 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
             filter.type = step.value == 1 ? 1 : 0;
         }
         filter.scale = source_scale(filter.anim_rate);
-        filter.event_blend_seconds = step.anim_blend_seconds;
+        if (step.anim_units_explicit) {
+            filter.anim_rate = task_rate(filter.anim_rate);
+            filter.period = step.anim_period;
+        }
+        filter.event_blend_seconds = blend_seconds;
         filter.event_delay_seconds = 0.0f;
     }
     for (auto active_it = active->begin(); active_it != active->end();) {
@@ -32769,7 +32863,7 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
     const float resolved_scale =
         filters.empty() ? source_scale(0) : filters.front().scale;
     ActiveVenueAnimFilter started;
-    started.event_name = "legacy_switch_anim:" + ref;
+    started.event_name = "venue_switch_anim:" + ref;
     started.filters = std::move(filters);
     started.start_time = song_time_;
     started.persistent = !step.anim_has_range || step.value == 1;
@@ -32779,14 +32873,14 @@ bool Gameplay::apply_legacy_venue_switch_anim(const VenueScriptStep& step) {
             source->empty() ? 0 : source->front().anim_rate;
         std::fprintf(
             stderr,
-            "[world] legacy %s %s rate=%d units=%s fpu=%.1f scope=%s frame=%.2f..%.2f type=%s scale=%.3f blend=%.3f filters=%zu\n",
+            "[world] venue animation %s %s rate=%d units=%s fpu=%.1f scope=%s frame=%.2f..%.2f type=%s scale=%.3f blend=%.3f filters=%zu\n",
             operation_name,
             ref.c_str(), source_rate,
             rnd_animatable_task_units_label(source_rate),
             rnd_animatable_frames_per_unit(source_rate), scope,
             step.anim_start_frame, step.anim_end_frame,
             step.value == 1 ? "loop" : "range", resolved_scale,
-            step.anim_blend_seconds, source->size());
+            blend_seconds, source->size());
     }
     return true;
 }
@@ -33017,7 +33111,7 @@ bool Gameplay::execute_venue_script_object_messages(
 }
 
 std::string Gameplay::evaluate_venue_script_expression(
-    const VenueScriptExpression& expression) const {
+    const VenueScriptExpression& expression) {
     const auto truthy = [](const std::string& value) {
         return !value.empty() && value != "0" && value != "0.000000" &&
                value != "FALSE" && value != "kDataUnhandled";
@@ -33051,6 +33145,23 @@ std::string Gameplay::evaluate_venue_script_expression(
     if (expression.atom == ">") {
         try {
             return std::stod(child(0)) > std::stod(child(1)) ? "1" : "0";
+        } catch (const std::exception&) {
+            return "0";
+        }
+    }
+    if (expression.atom == "random_int") {
+        try {
+            const int minimum =
+                static_cast<int>(std::floor(std::stod(child(0))));
+            const int maximum =
+                static_cast<int>(std::floor(std::stod(child(1))));
+            const int low = std::min(minimum, maximum);
+            const int high = std::max(minimum, maximum);
+            const int value = static_cast<int>(std::floor(
+                venue_script_random_float(
+                    static_cast<double>(low),
+                    static_cast<double>(high) + 1.0)));
+            return std::to_string(std::clamp(value, low, high));
         } catch (const std::exception&) {
             return "0";
         }
@@ -33233,8 +33344,14 @@ void Gameplay::execute_venue_script_steps(
                         step.anim_dest_frame, step.anim_period,
                         venue_script_context_object_.c_str());
                 }
-                apply_venue_script_env_anim(target, step.anim_dest_frame,
-                                            step.anim_period);
+                VenueScriptStep resolved = step;
+                resolved.name = target;
+                if (resolved.anim_has_range) {
+                    apply_venue_script_animation(resolved);
+                } else {
+                    resolved.kind = VenueScriptStep::Kind::AnimateTo;
+                    apply_venue_script_animate_to(resolved);
+                }
                 break;
             }
             case VenueScriptStep::Kind::AnimateObject: {
@@ -33258,7 +33375,7 @@ void Gameplay::execute_venue_script_steps(
                 apply_venue_script_animate_to(step);
                 break;
             case VenueScriptStep::Kind::AnimTask:
-                apply_legacy_venue_switch_anim(step);
+                apply_venue_script_animation(step);
                 break;
             case VenueScriptStep::Kind::SwitchAnim: {
                 VenueScriptStep resolved = step;
@@ -33275,7 +33392,7 @@ void Gameplay::execute_venue_script_steps(
                             step.anim_start_frame_max + 1.0f));
                     resolved.anim_start_random = false;
                 }
-                apply_legacy_venue_switch_anim(resolved);
+                apply_venue_script_animation(resolved);
                 break;
             }
             case VenueScriptStep::Kind::SetObjectShowing:
@@ -33537,14 +33654,22 @@ void Gameplay::execute_venue_script_steps(
                 break;
             }
             case VenueScriptStep::Kind::Switch: {
-                if (!variables) break;
-                const auto selector = variables->find(step.name);
-                if (selector == variables->end() ||
-                    selector->second.empty()) {
-                    break;
-                }
                 try {
-                    const int key = std::stoi(selector->second.front());
+                    std::string selected;
+                    if (step.has_expression) {
+                        selected =
+                            evaluate_venue_script_expression(step.expression);
+                    } else if (variables) {
+                        const auto selector = variables->find(step.name);
+                        if (selector == variables->end() ||
+                            selector->second.empty()) {
+                            break;
+                        }
+                        selected = selector->second.front();
+                    } else {
+                        break;
+                    }
+                    const int key = std::stoi(selected);
                     const auto branch = step.switch_branches.find(key);
                     if (branch != step.switch_branches.end())
                         execute_venue_script_steps(branch->second, stack,
@@ -33932,9 +34057,12 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     update_venue_event_trigger_gates(event_name);
     const bool venue_event_trigger_routes_enabled =
         venue_event_route_enabled_by_triggers(event_name);
-    execute_venue_script_event(event_name);
+    if (venue_script_sections_ready_)
+        execute_venue_script_event(event_name);
     constexpr std::string_view player_fret_prefix = "hit_p0_fret";
-    if (legacy_gh1_venue_script_ &&
+    if (venue_script_sections_ready_ &&
+        venue_script_handlers_.find("hit_gem") !=
+            venue_script_handlers_.end() &&
         event_name.rfind(player_fret_prefix, 0) == 0) {
         try {
             const int fret =
@@ -40454,7 +40582,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     venue_script_object_handlers_ =
                         script_data.object_handlers;
                     venue_script_initial_state_ = script_data.state;
-                    legacy_gh1_venue_script_ = script_data.legacy_gh1;
+                    venue_script_sections_ready_ =
+                        venue_script_handlers_.find("finish_loading") ==
+                        venue_script_handlers_.end();
                     venue_script_state_ = venue_script_initial_state_;
                     venue_script_objects_.clear();
                     venue_event_script_messages_.clear();
@@ -40601,8 +40731,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 camera_keys_ = load_camera_position_keys(
                     hdr_path_, ark_path_, quickplay_rig_->venue,
                     intro_camera.anim);
-                const auto gh1_intro = load_gh1_intro_camera_record(
-                    hdr_path_, ark_path_, quickplay_rig_->venue);
+                // Native CamShot data is authoritative. The legacy GH1 DTB
+                // reader is only a compatibility fallback for old bundles
+                // that have not been converted yet.
+                const auto gh1_intro =
+                    camera_keys_.empty()
+                        ? load_gh1_intro_camera_record(
+                              hdr_path_, ark_path_, quickplay_rig_->venue)
+                        : std::nullopt;
                 {
                     const std::string gh1_intro_anim =
                         gh1_intro ? gh1_intro->path + ".tnm" : std::string{};
@@ -41163,17 +41299,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_->set_mesh_color_overrides({});
                 lighting_->set_mesh_anim_blends({});
                 lighting_->set_hidden_meshes(composed_lighting_hidden_meshes());
-                if (legacy_gh1_venue_script_) {
+                const bool has_script_init =
+                    venue_script_handlers_.find("init") !=
+                    venue_script_handlers_.end();
+                const bool has_script_finish_loading =
+                    venue_script_handlers_.find("finish_loading") !=
+                    venue_script_handlers_.end();
+                if (has_script_init || has_script_finish_loading) {
                     execute_venue_script_event("init");
                     // Arena sends finish_loading after every venue section is
                     // resident. Its retail handlers detach animation parents
                     // and perform other cross-section graph setup before the
                     // intro/excitement handlers begin driving those objects.
                     execute_venue_script_event("finish_loading");
-                    // GH1 loads its lighting section before arena handlers are
-                    // expected to touch lighting objects. Our assembly loads
-                    // the main venue first, so replay only the legacy script
-                    // messages once the lighting View/mesh maps exist.
+                    venue_script_sections_ready_ = true;
+                    // A finish_loading handler is the source contract that
+                    // section-owned objects are now resident. Replay the
+                    // latched messages only after that barrier.
                     execute_venue_script_event("intro_start");
                     execute_venue_script_event("music_start");
                     execute_venue_script_event(
@@ -46359,33 +46501,30 @@ void Gameplay::draw(ghogx::render::Window& win) {
         if (lighting_) {
             LightingRequest lighting_request =
                 lighting_request_at(chart_, song_time_, intro_camera_seconds_);
-            if (!legacy_gh1_venue_script_) {
-                if (source_game_lost_camera_dispatched_ || failed_) {
-                    lighting_request.category = "LOSE";
-                    lighting_request.adjective.clear();
-                } else if (source_game_won_message_dispatched_) {
-                    const bool encore_win =
-                        std::find(source_game_won_camera_categories_.begin(),
-                                  source_game_won_camera_categories_.end(),
-                                  "WIN_ENCORE") !=
-                            source_game_won_camera_categories_.end() ||
-                        std::find(source_game_won_camera_categories_.begin(),
-                                  source_game_won_camera_categories_.end(),
-                                  "WIN_ENCORE_SONG") !=
-                            source_game_won_camera_categories_.end();
-                    lighting_request.category =
-                        encore_win ? "WIN_ENCORE" : "WIN";
-                    lighting_request.adjective.clear();
-                } else if (song_time_ < intro_camera_seconds_ &&
-                           intro_camera_category_ == "INTRO_ENCORE") {
-                    lighting_request.category = "INTRO_ENCORE";
-                    lighting_request.adjective.clear();
-                }
+            if (source_game_lost_camera_dispatched_ || failed_) {
+                lighting_request.category = "LOSE";
+                lighting_request.adjective.clear();
+            } else if (source_game_won_message_dispatched_) {
+                const bool encore_win =
+                    std::find(source_game_won_camera_categories_.begin(),
+                              source_game_won_camera_categories_.end(),
+                              "WIN_ENCORE") !=
+                        source_game_won_camera_categories_.end() ||
+                    std::find(source_game_won_camera_categories_.begin(),
+                              source_game_won_camera_categories_.end(),
+                              "WIN_ENCORE_SONG") !=
+                        source_game_won_camera_categories_.end();
+                lighting_request.category =
+                    encore_win ? "WIN_ENCORE" : "WIN";
+                lighting_request.adjective.clear();
+            } else if (song_time_ < intro_camera_seconds_ &&
+                       intro_camera_category_ == "INTRO_ENCORE") {
+                lighting_request.category = "INTRO_ENCORE";
+                lighting_request.adjective.clear();
             }
             const uint32_t lighting_excitement =
                 venue_excitement_level(active_venue_event_);
-            if (legacy_gh1_venue_script_ &&
-                diagnostic_venue_event_.empty()) {
+            if (diagnostic_venue_event_.empty()) {
                 std::string message;
                 if (lighting_excitement <= 1) {
                     message = "set_lights_bad";
@@ -46400,7 +46539,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     else
                         message += "verse";
                 }
-                if (message != legacy_gh1_lighting_message_) {
+                if (venue_script_handlers_.find(message) !=
+                        venue_script_handlers_.end() &&
+                    message != legacy_gh1_lighting_message_) {
                     legacy_gh1_lighting_message_ = message;
                     execute_venue_script_event(message);
                     if (debug_venue_filters_enabled()) {
@@ -46864,7 +47005,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             std::string performer_environment =
                 perf.lighting_environment_ref;
             ghogx::render::MiloSceneRenderer* environment_owner = world_.get();
-            if (legacy_gh1_venue_script_ && lighting_) {
+            if (lighting_ && !legacy_gh1_performer_environments_.empty()) {
                 const std::string gh1_environment =
                     perf.role == "singer" &&
                             !legacy_gh1_singer_environment_.empty()

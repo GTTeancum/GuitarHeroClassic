@@ -89,6 +89,8 @@ struct Directory {
     // holds the dir's instance properties (y_per_second, slots, top/bottom_y).
     uint64_t    dir_entry_offset = 0;
     uint64_t    dir_entry_size = 0;
+    uint32_t    dir_terminator_value = 0;
+    std::vector<uint8_t> dir_body_bytes;
     // True only when the complete object-table sequence has one unique
     // terminator chain, every next body begins with the revision required by
     // its declared type, and the final terminator reaches payload EOF.
@@ -138,8 +140,8 @@ Directory parse_directory(const std::vector<uint8_t>& payload);
 std::vector<uint8_t> serialize_directory_prefix(const Directory& directory);
 
 // Serialize a complete directory whose framing has been proven exact. This
-// currently covers GH1 revision 10, preserving/editing every raw class body
-// independently while rebuilding the table and object terminators.
+// covers GH1 revision 10 and GH2 revision 24, preserving/editing every raw
+// root/child class body independently while rebuilding object terminators.
 std::vector<uint8_t> serialize_directory(const Directory& directory);
 
 // File helper.

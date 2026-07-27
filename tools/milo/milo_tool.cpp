@@ -76,6 +76,8 @@ int main(int argc, char** argv) {
             std::printf("dir_type    : %s\n", d.dir_type.c_str());
             std::printf("dir_name    : %s\n", d.dir_name.c_str());
             std::printf("entries     : %zu\n", d.entries.size());
+            std::printf("boundaries  : %s\n",
+                        d.boundaries_exact ? "exact" : "fallback");
 
             std::map<std::string, size_t> by_type;
             size_t total_body_bytes = 0;
@@ -89,9 +91,10 @@ int main(int argc, char** argv) {
             }
             std::printf("\nEntries:\n");
             for (const auto& e : d.entries) {
-                std::printf("  %-22s  size=%-8llu  %s\n",
+                std::printf("  %-22s  size=%-8llu body=%-8zu  %s\n",
                             e.type.c_str(),
-                            (unsigned long long)e.size, e.name.c_str());
+                            (unsigned long long)e.size,
+                            e.body_bytes.size(), e.name.c_str());
             }
             std::printf("\ntotal body bytes (sum of entry sizes): %zu\n", total_body_bytes);
             return 0;
@@ -121,13 +124,19 @@ int main(int argc, char** argv) {
             }
             int ok = 0;
             for (const auto& e : d.entries) {
-                if (e.offset + e.size > payload.size()) continue;
+                if (e.body_bytes.empty() && e.size != 0) {
+                    std::fprintf(stderr,
+                                 "unresolved body boundary: %s %s (%llu bytes)\n",
+                                 e.type.c_str(), e.name.c_str(),
+                                 static_cast<unsigned long long>(e.size));
+                    continue;
+                }
                 std::string safe = e.name;
                 for (auto& c : safe) { if (c == '/' || c == '\\') c = '_'; }
                 fs::path dst = fs::path(outdir) / (e.type + "__" + safe);
                 std::ofstream o(dst, std::ios::binary);
-                o.write(reinterpret_cast<const char*>(payload.data() + e.offset),
-                        static_cast<std::streamsize>(e.size));
+                o.write(reinterpret_cast<const char*>(e.body_bytes.data()),
+                        static_cast<std::streamsize>(e.body_bytes.size()));
                 ++ok;
             }
             std::printf("extracted %d entries -> %s\n", ok, outdir.c_str());
