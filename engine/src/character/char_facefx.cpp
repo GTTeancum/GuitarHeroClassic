@@ -493,6 +493,52 @@ std::optional<FaceFxAnimation> parse_animation(
 
 }  // namespace
 
+std::vector<std::string> facefx_viseme_milo_candidates(
+    const std::string& character_milo,
+    const std::vector<FaceFxLipSyncServo>& servos) {
+  std::vector<std::string> out;
+  const auto add = [&](std::string path) {
+    if (path.empty()) return;
+    path = normalize_path(std::move(path));
+    if (std::find(out.begin(), out.end(), path) == out.end()) {
+      out.push_back(std::move(path));
+    }
+  };
+  const auto compiled_suffix = [](std::string path) {
+    constexpr std::string_view source_suffix = ".milo";
+    if (path.size() >= source_suffix.size() &&
+        path.compare(path.size() - source_suffix.size(),
+                     source_suffix.size(), source_suffix) == 0) {
+      path.resize(path.size() - source_suffix.size());
+      path += ".milo_ps2";
+    }
+    return path;
+  };
+  const auto compiled_directory = [](std::string path) {
+    path = normalize_path(std::move(path));
+    const size_t slash = path.find_last_of('/');
+    if (slash == std::string::npos) return path;
+    const std::string directory = path.substr(0, slash);
+    if (directory.size() >= 4 &&
+        directory.compare(directory.size() - 4, 4, "/gen") == 0) {
+      return path;
+    }
+    return directory + "/gen" + path.substr(slash);
+  };
+
+  for (const FaceFxLipSyncServo& servo : servos) {
+    if (servo.viseme_milo.empty()) continue;
+    const std::string resolved =
+        resolve_relative(character_milo, servo.viseme_milo);
+    const std::string compiled = compiled_suffix(resolved);
+    add(resolved);
+    add(compiled);
+    add(compiled_directory(resolved));
+    add(compiled_directory(compiled));
+  }
+  return out;
+}
+
 std::optional<FaceFxPose> load_facefx_pose(const std::string& hdr_path,
                                            const std::string& ark_path,
                                            const std::string& character_milo,

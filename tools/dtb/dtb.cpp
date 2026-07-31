@@ -319,6 +319,15 @@ Tree parse_dta(std::string_view text) {
                     fail("empty variable name");
                 return atom(0x02, value.substr(1));
             }
+            // Legacy CharClip enter/exit event strings use single quotes to
+            // force message and argument atoms to remain Symbols, for example
+            // `{ $dude 'set_hand' 'fist' }`. They are not string literals:
+            // the serialized CharClip payload stores the surrounding event as
+            // a string, then DataReadString reparses this inner DTA fragment.
+            if (value.size() >= 2 && value.front() == '\'' &&
+                value.back() == '\'') {
+                return atom(0x05, value.substr(1, value.size() - 2));
+            }
 
             char* end = nullptr;
             errno = 0;

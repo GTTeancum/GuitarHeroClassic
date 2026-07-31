@@ -546,6 +546,37 @@ Gh1CharacterManifest compile_gh1_character_manifest(
     return manifest;
 }
 
+std::vector<Gh1CharacterTrackSurfaceSpec>
+compile_gh1_character_track_surfaces(
+    const std::vector<uint8_t>& dtb_bytes) {
+    const auto parsed = gh::dtb::parse(dtb_bytes);
+    std::vector<Gh1CharacterTrackSurfaceSpec> result;
+    std::set<std::string> identities;
+    for (const auto& row : parsed.root) {
+        if (!row || !gh::dtb::is_array(*row)) continue;
+        const auto& values = gh::dtb::children(*row);
+        if (values.empty()) continue;
+        const std::string authored_name =
+            string_value(values.front());
+        const auto surface =
+            direct_keyed(row, "track_surface");
+        const std::string source_surface =
+            first_string_after_key(surface);
+        if (authored_name.empty() || source_surface.empty())
+            throw std::runtime_error(
+                "GH1 character track surfaces: incomplete row");
+        if (!identities.insert(authored_name).second)
+            throw std::runtime_error(
+                "GH1 character track surfaces: duplicate character " +
+                authored_name);
+        result.push_back({authored_name, source_surface});
+    }
+    if (result.empty())
+        throw std::runtime_error(
+            "GH1 character track surfaces: no rows compiled");
+    return result;
+}
+
 std::string gh1_character_manifest_tsv(
     const Gh1CharacterManifest& manifest) {
     const auto role_name = [](Gh1CharacterRole role) {

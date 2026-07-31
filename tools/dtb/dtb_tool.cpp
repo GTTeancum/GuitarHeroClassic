@@ -2,6 +2,7 @@
 //
 // Usage:
 //   dtb_tool dump    <file.dtb> [--lines]   Print as DTA-style text.
+//   dtb_tool compile <file.dta> <file.dtb>   Compile text to a plain DTB.
 //   dtb_tool info    <file.dtb>             Print metadata.
 //   dtb_tool surface <file.dtb>             Print the (target :: message) call
 //                                           surface (for 1:1 class-behavior RE).
@@ -11,6 +12,8 @@
 
 #include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <iostream>
 #include <set>
 #include <string>
@@ -75,6 +78,7 @@ void usage() {
   std::fprintf(stderr,
                "Usage:\n"
                "  dtb_tool dump    <file.dtb> [--lines]\n"
+               "  dtb_tool compile <file.dta> <file.dtb>\n"
                "  dtb_tool info    <file.dtb>\n"
                "  dtb_tool surface <file.dtb>\n"
                "  dtb_tool verify  <file.dtb>\n");
@@ -89,6 +93,24 @@ int main(int argc, char** argv) {
   std::string path = argv[2];
 
   try {
+    if (sub == "compile") {
+      if (argc != 4) usage();
+      std::ifstream input(path, std::ios::binary);
+      if (!input) throw std::runtime_error("cannot open input");
+      const std::string text((std::istreambuf_iterator<char>(input)),
+                             std::istreambuf_iterator<char>());
+      gh::dtb::Tree tree = gh::dtb::parse_dta(text);
+      tree.storage = gh::dtb::Storage::Plain;
+      const std::vector<uint8_t> bytes = gh::dtb::serialize(tree);
+      std::ofstream output(argv[3], std::ios::binary);
+      if (!output) throw std::runtime_error("cannot open output");
+      output.write(reinterpret_cast<const char*>(bytes.data()),
+                   static_cast<std::streamsize>(bytes.size()));
+      if (!output) throw std::runtime_error("cannot write output");
+      std::printf("compiled %s -> %s (%zu bytes)\n", path.c_str(), argv[3],
+                  bytes.size());
+      return 0;
+    }
     auto bytes = gh::dtb::read_file(path);
     auto tree = gh::dtb::parse(bytes);
 

@@ -2660,7 +2660,7 @@ Group12 parse_group12(const std::vector<uint8_t>& bytes) {
     Cursor cursor(bytes);
     Group12 group;
     group.revision = cursor.u32();
-    if (group.revision != 12)
+    if (group.revision != 12 && group.revision != 13)
         throw std::runtime_error(
             "MILO object: unsupported GH2 Group revision");
     group.object_fields = parse_object_fields0(cursor, "Group");
@@ -2673,6 +2673,8 @@ Group12 parse_group12(const std::vector<uint8_t>& bytes) {
     for (uint32_t i = 0; i < object_count; ++i)
         group.objects.push_back(cursor.string());
     group.environment = cursor.string();
+    if (group.revision > 12)
+        group.draw_only = cursor.string();
     group.lod = cursor.string();
     group.lod_screen_size = cursor.f32();
     if (cursor.remaining() != 0)
@@ -2683,7 +2685,7 @@ Group12 parse_group12(const std::vector<uint8_t>& bytes) {
 }
 
 std::vector<uint8_t> serialize_group12(const Group12& group) {
-    if (group.revision != 12)
+    if (group.revision != 12 && group.revision != 13)
         throw std::runtime_error(
             "MILO object: unsupported GH2 Group revision");
     if (group.objects.size() > std::numeric_limits<uint32_t>::max())
@@ -2699,9 +2701,40 @@ std::vector<uint8_t> serialize_group12(const Group12& group) {
     for (const auto& object : group.objects)
         append_string(out, object);
     append_string(out, group.environment);
+    if (group.revision > 12)
+        append_string(out, group.draw_only);
     append_string(out, group.lod);
     append_f32(out, group.lod_screen_size);
     return out;
+}
+
+std::vector<ResolvedViewEnvironmentSegment>
+resolve_view_environment_segments(
+    const std::vector<ResolvedObjectReference>& drawable_objects) {
+    std::vector<ResolvedViewEnvironmentSegment> segments;
+    std::string current_environment;
+    for (const auto& object : drawable_objects) {
+        if (object.type == "Environ") {
+            current_environment = object.name;
+            continue;
+        }
+        if (object.type == "Cam") continue;
+        if (segments.empty() ||
+            segments.back().environment != current_environment) {
+            ResolvedViewEnvironmentSegment segment;
+            segment.environment = current_environment;
+            segments.push_back(std::move(segment));
+        }
+        auto& objects = segments.back().drawable_objects;
+        const auto existing = std::find_if(
+            objects.begin(), objects.end(),
+            [&](const ResolvedObjectReference& candidate) {
+                return candidate.name == object.name;
+            });
+        if (existing != objects.end()) objects.erase(existing);
+        objects.push_back(object);
+    }
+    return segments;
 }
 
 Group12 convert_view7_to_group12(
@@ -2727,20 +2760,24 @@ Group12 convert_view7_to_group12(
     };
     for (const auto& object : effective_graph.animation_objects)
         append_unique(object.name);
-    for (const auto& object : effective_graph.drawable_objects) {
-        if (object.type == "Environ") {
-            if (target.environment.empty())
-                target.environment = object.name;
-            continue;
-        }
-        if (object.type == "Cam")
-            continue;
+    const auto environment_segments =
+        resolve_view_environment_segments(effective_graph.drawable_objects);
+    if (environment_segments.size() > 1)
+        throw std::runtime_error(
+            "MILO object: GH1 View contains multiple ordered Environ scopes; "
+            "target Group conversion requires environment segment Groups");
+    if (!environment_segments.empty()) {
+        target.environment = environment_segments.front().environment;
+    }
+    for (const auto& segment : environment_segments) {
+      for (const auto& object : segment.drawable_objects) {
         const auto existing =
             std::find(target.objects.begin(), target.objects.end(),
                       object.name);
         if (existing != target.objects.end())
             target.objects.erase(existing);
         target.objects.push_back(object.name);
+      }
     }
     return target;
 }
@@ -5650,6 +5687,65 @@ std::vector<uint8_t> serialize_trans9(const Trans9& trans) {
     return out;
 }
 
+Waypoint3 parse_waypoint3(const std::vector<uint8_t>& bytes) {
+    Cursor cursor(bytes);
+    Waypoint3 waypoint;
+    waypoint.revision = cursor.u32();
+    if (waypoint.revision != 3)
+        throw std::runtime_error(
+            "MILO object: unsupported GH2 Waypoint revision");
+    waypoint.object_fields =
+        parse_object_fields0(cursor, "Waypoint");
+    // GH2 revision 3 retains the pre-revision-5 compatibility Drawable
+    // payload loaded through a temporary RndMesh before RndTransformable.
+    waypoint.legacy_drawable =
+        parse_drawable3(cursor, "Waypoint");
+    waypoint.transformable =
+        parse_transformable9(cursor, "Waypoint");
+    waypoint.flags = cursor.u32();
+    const uint32_t connection_count =
+        bounded_count(cursor, "Waypoint connection");
+    waypoint.connections.reserve(connection_count);
+    for (uint32_t index = 0; index < connection_count; ++index)
+        waypoint.connections.push_back(cursor.string());
+    waypoint.radius = cursor.f32();
+    waypoint.y_radius = cursor.f32();
+    waypoint.angle_radius = cursor.f32();
+    if (cursor.remaining() != 0)
+        throw std::runtime_error(
+            "MILO object: GH2 Waypoint reader residual bytes=" +
+            std::to_string(cursor.remaining()));
+    return waypoint;
+}
+
+std::vector<uint8_t> serialize_waypoint3(
+    const Waypoint3& waypoint) {
+    if (waypoint.revision != 3)
+        throw std::runtime_error(
+            "MILO object: unsupported GH2 Waypoint revision");
+    if (waypoint.connections.size() >
+        std::numeric_limits<uint32_t>::max())
+        throw std::runtime_error(
+            "MILO object: too many Waypoint connections");
+    std::vector<uint8_t> out;
+    append_u32(out, waypoint.revision);
+    serialize_object_fields0(
+        out, waypoint.object_fields, "Waypoint");
+    serialize_drawable3(
+        out, waypoint.legacy_drawable, "Waypoint");
+    serialize_transformable9(
+        out, waypoint.transformable, "Waypoint");
+    append_u32(out, waypoint.flags);
+    append_u32(
+        out, static_cast<uint32_t>(waypoint.connections.size()));
+    for (const auto& connection : waypoint.connections)
+        append_string(out, connection);
+    append_f32(out, waypoint.radius);
+    append_f32(out, waypoint.y_radius);
+    append_f32(out, waypoint.angle_radius);
+    return out;
+}
+
 Trans9 convert_bounce_plane_to_trans9(
     const std::array<float, 4>& plane) {
     const float length_squared =
@@ -6214,6 +6310,8 @@ std::vector<uint8_t> round_trip_gh2_object_body(
         return serialize_trans9(parse_trans9(bytes));
     if (type == "TransAnim")
         return serialize_trans_anim6(parse_trans_anim6(bytes));
+    if (type == "Waypoint")
+        return serialize_waypoint3(parse_waypoint3(bytes));
     if (type == "WorldFx")
         return serialize_world_fx1(parse_world_fx1(bytes));
     throw std::runtime_error(

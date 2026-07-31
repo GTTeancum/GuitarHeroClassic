@@ -31,6 +31,8 @@ struct Gh2CharacterModelPackage {
     std::vector<std::string> unresolved_dependencies;
     std::vector<std::string> generated_dependencies;
     size_t internal_reference_count = 0;
+    size_t native_transform_count = 0;
+    size_t native_upper_twist_sibling_count = 0;
     size_t face_transition_count = 0;
     std::string face_controller_type;
     bool complete = false;

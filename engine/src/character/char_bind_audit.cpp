@@ -238,7 +238,7 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
     std::printf(
         "[controller-driver] char=%s name=%s version=%d "
         "weightableVersion=%d target=%s clip=%s weight=%.4f "
-        "weightOwner=%s weightProp=%s enabled=%d midi=%d "
+        "weightOwner=%s weightProp=%s realign=%d midi=%d "
         "midiVersion=%d midiUnreadBytes=%zu midiDefaultClip=%s "
         "midiLegacyString=%s midiParser=%s "
         "midiFlagParser=%s midiBlendOverridePct=%.4f\n",
@@ -246,7 +246,7 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
         driver.weightable_version, none_if_empty(driver.target),
         none_if_empty(driver.clip_milo), driver.weight,
         none_if_empty(driver.weight_owner),
-        none_if_empty(driver.weight_prop), driver.enabled ? 1 : 0,
+        none_if_empty(driver.weight_prop), driver.realign ? 1 : 0,
         driver.midi ? 1 : 0, driver.midi_version,
         driver.midi_unread_bytes, none_if_empty(driver.midi_default_clip),
         none_if_empty(driver.midi_legacy_string), none_if_empty(driver.midi_parser),

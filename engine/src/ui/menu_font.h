@@ -73,7 +73,22 @@ class MenuFont {
   // normalized against the vertical cell height.
   float cap_height() const { return cap_height_; }    // impact: 34
   float line_height() const { return line_height_; }  // impact: 50
+  // Convert an atlas-cell Y coordinate into RndText's local Z for an authored
+  // mSize. Harmonix builds glyph quads at mSize * CellDiff() high, where
+  // CellDiff is cellSize.y / cellSize.x, and middle alignment translates the
+  // quad by half that full cell height. The ink box may be cropped, but it
+  // remains positioned inside that cell.
+  float rnd_text_local_z(float glyph_y, float text_size) const {
+    return cap_height_ > 0.0f
+               ? -((glyph_y - line_height_ * 0.5f) / cap_height_) *
+                     text_size
+               : 0.0f;
+  }
   bool has_source_char_info() const { return has_source_char_info_; }
+  bool has_material_color() const { return has_material_color_; }
+  const std::array<float, 4>& material_color() const {
+    return material_color_;
+  }
 
   // Glyph for a byte (Latin-1 code). nullptr if the font has no such glyph.
   // impact is an UPPERCASE-only font, so lowercase folds to its uppercase glyph
@@ -117,6 +132,8 @@ class MenuFont {
 
   asset::Image atlas_;
   std::string material_name_;
+  std::array<float, 4> material_color_{{1.0f, 1.0f, 1.0f, 1.0f}};
+  bool has_material_color_ = false;
   std::string charset_;                 // 104 chars, exact order from the file
   std::array<Glyph, 256> glyphs_{};     // indexed by Latin-1 code
   std::array<SourceCharInfo, 256> char_info_{};

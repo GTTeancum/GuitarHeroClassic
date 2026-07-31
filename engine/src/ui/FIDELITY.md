@@ -642,6 +642,17 @@ never DEFINED as a handler are true engine primitives needing grounded C++:
   `set_profile_name`. `autosave_goto` currently performs the requested
   `ui goto_screen` directly; the autosave interstitial itself remains a later
   fidelity layer.
+- **BandTextEntry editing — `[VERBATIM-DATA]` + `[DTB-SURFACE]`.** Packed
+  `ui/gen/config.dtb::textentry/styles` supplies each component's exact
+  character cycle and maximum length (`band_name=20`, `high_score=8`), and the
+  MILO-authored type selects the matching style. Packed `manage_bands.dtb`
+  maps Green to next-letter, Red to delete/back, and strum Up/Down to changing
+  the active character. Runtime now preserves the committed prefix separately
+  from that active character, so Green no longer submits an empty profile.
+  Start/Enter is the PC-host completion input; successful completion follows
+  the authored campaign/`autosave_goto` route, and packed
+  `error_no_profile_screen` Continue returns through its real pop-screen
+  handler.
 - **Profile delete/save-complete flow - `[DTB-SURFACE]`.** Stock
   `manage_bands.dta::manage_band_screen` routes `delete_band.btn` into
   `mem_card.dta::delete_confirm`, whose first dialog button calls

@@ -94,6 +94,79 @@ size_t channel_file_size(const std::string& channel, uint32_t compression) {
     throw std::runtime_error("ACP: unknown channel type: " + channel);
 }
 
+DecodedChannelSample decode_channel_sample(
+    const ChannelSet& set, size_t channel_index, uint32_t sample_index) {
+    if (channel_index >= set.channels.size())
+        throw std::runtime_error("ACP: channel index out of range");
+    if (set.sample_count == 0)
+        throw std::runtime_error("ACP: channel set has no samples");
+    const uint32_t resolved_sample =
+        set.sample_count == 1 ? 0 : sample_index;
+    if (resolved_sample >= set.sample_count)
+        throw std::runtime_error("ACP: sample index out of range");
+
+    size_t channel_offset = 0;
+    for (size_t index = 0; index < channel_index; ++index) {
+        channel_offset +=
+            channel_file_size(set.channels[index], set.compression);
+    }
+    const std::string& channel = set.channels[channel_index];
+    const size_t channel_size =
+        channel_file_size(channel, set.compression);
+    const size_t base =
+        static_cast<size_t>(resolved_sample) * set.frame_size +
+        channel_offset;
+    if (base > set.sample_bytes.size() ||
+        channel_size > set.sample_bytes.size() - base) {
+        throw std::runtime_error("ACP: sample bytes exceed channel set");
+    }
+
+    auto read_i16 = [&](size_t offset) {
+        int16_t value = 0;
+        std::memcpy(&value, set.sample_bytes.data() + base + offset,
+                    sizeof(value));
+        return value;
+    };
+    auto read_f32_at = [&](size_t offset) {
+        float value = 0.0f;
+        std::memcpy(&value, set.sample_bytes.data() + base + offset,
+                    sizeof(value));
+        return value;
+    };
+
+    DecodedChannelSample decoded;
+    if (ends_with(channel, ".pos") || ends_with(channel, ".scale")) {
+        decoded.component_count = 3;
+        for (size_t axis = 0; axis < 3; ++axis)
+            decoded.values[axis] = read_f32_at(axis * sizeof(float));
+        return decoded;
+    }
+    if (ends_with(channel, ".quat")) {
+        decoded.component_count = 4;
+        if (set.compression == 0) {
+            for (size_t axis = 0; axis < 4; ++axis)
+                decoded.values[axis] =
+                    read_f32_at(axis * sizeof(float));
+        } else {
+            for (size_t axis = 0; axis < 4; ++axis) {
+                decoded.values[axis] =
+                    std::max(static_cast<float>(
+                                 read_i16(axis * sizeof(int16_t))) /
+                                 32767.0f,
+                             -1.0f);
+            }
+        }
+        return decoded;
+    }
+
+    decoded.component_count = 1;
+    decoded.values[0] =
+        set.compression == 0
+            ? read_f32_at(0)
+            : static_cast<float>(read_i16(0)) * 0.0006103515625f;
+    return decoded;
+}
+
 File parse(const std::vector<uint8_t>& bytes) {
     Cursor cursor(bytes);
     File file;

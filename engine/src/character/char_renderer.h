@@ -15,6 +15,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -60,6 +61,7 @@ class CharRenderer {
   void set_use_scene_lighting(bool enabled);
   void set_reference_base(bool enabled);
   void set_color_modulation(float r, float g, float b, float a = 1.0f);
+  bool has_drawable_geometry() const;
   bool set_object_showing(std::string_view object_name, bool showing);
   std::optional<std::array<float, 16>> attached_prop_world(
       std::string_view object_name) const;
@@ -88,7 +90,9 @@ class CharRenderer {
   bool refresh_worldcrowd_impostor(
       const ghogx::render::OrbitCamera& scene_cam,
       const std::array<float, 16>& source_character_world,
-      float source_character_height);
+      float source_character_height,
+      const std::function<void(const ghogx::render::OrbitCamera&)>&
+          draw_attached = {});
   void draw_worldcrowd_impostors_over_scene(
       const ghogx::render::OrbitCamera& cam,
       const std::vector<std::array<float, 16>>& placement_worlds,
@@ -124,26 +128,34 @@ std::array<float, 16> source_character_mesh_submission_world(
 // covered alongside the skin equation itself.
 bool source_character_mesh_renders_decoded_skinning(const SkinnedMesh& mesh);
 
-// GH1 BandCharacter revision 10 stores the selected body branch as a child
-// View of top.view. The child name is authored per character
-// (for example lod0_body.view or lod0_<model>.view), so resolve it from the
-// source graph instead of assuming one literal object name.
+// Resolve the selected body branch from the decoded Character9 LOD references.
+// The referenced object may be a Group or a converted legacy View; its authored
+// spelling is not part of the runtime contract.
 std::optional<std::string> source_character_active_lod_view(
+    const Character& character, int min_lod);
+
+// Resolve the complete authored draw closure for the selected Character9 LOD.
+// The closure starts at the selected root LOD and walks its decoded ancestor
+// groups while suppressing sibling LOD branches. Direct mesh children of those
+// ancestors (for example authored instruments or accessories) remain visible;
+// ungrouped skeleton/editor helper meshes do not become implicit draw roots.
+SourceCharacterDrawClosure source_character_draw_closure(
     const Character& character, int min_lod);
 
 // Character meshes repurpose the serialized vertex-color bytes as skin
 // weights, so RndMat.prelit cannot be treated as a generic lighting bypass on
-// this path. RndMat.use_environ remains the gate for venue lighting, while the
-// standalone viewer keeps its diagnostic lights independently of scene state.
+// this path. RndMat.use_environ remains the gate for venue lighting, while
+// non-gameplay diagnostic rendering keeps its lights independent of scene
+// state.
 struct SourceCharacterMaterialLightingPlan {
   bool fixed_function_lighting = false;
 };
 
 inline SourceCharacterMaterialLightingPlan
-source_character_material_lighting_plan(bool use_scene_lighting, bool eye_mesh,
+source_character_material_lighting_plan(bool use_scene_lighting,
                                         bool use_environ, bool prelit) {
   (void)prelit;
-  return {!eye_mesh && (!use_scene_lighting || use_environ)};
+  return {!use_scene_lighting || use_environ};
 }
 
 // GH2's authored shader-domain light colors can exceed 1.0 (the Festival

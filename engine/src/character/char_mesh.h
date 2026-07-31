@@ -65,16 +65,24 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 namespace ghogx::character {
 
-// One skinned vertex: position + normal in bind-pose model space, 4 linear-blend
-// bone weights (referring to the owning mesh's bone palette, in order), and uv.
+// GH1/GH2 PS2 mesh revisions serialize one shared four-float slot. After bone
+// resolution it remains signed linear-blend weights for skinned geometry or is
+// packed through Hmx::Color32 for unskinned vertex color, so alias both views
+// without changing the packed 48-byte source stride.
 struct SkinVertex {
   float px, py, pz;
   float nx, ny, nz;
-  float w[4];       // bone weights; w[i] applies to palette bone i
+  union {
+    float w[4];       // skinned: w[i] applies to palette bone i
+    struct {
+      float r, g, b, a;  // unskinned: packed Hmx::Color32 channels
+    };
+  };
   float u, v;
 };
 static_assert(sizeof(SkinVertex) == 48,
@@ -92,6 +100,8 @@ struct SourceRndMeshVertLoadPlan {
   bool reads_legacy_extra_vec2 = false;
   bool reads_bone_indices = false;
   bool reads_post_indices_vec4 = false;
+  bool quantizes_unskinned_color32 = false;
+  bool preserves_signed_skinned_float_weights = false;
   bool postload_color_to_weights = false;
   bool postload_clears_color = false;
   bool gh2_rev28_color_payload_is_skin_weights = false;
@@ -2457,8 +2467,9 @@ struct RndMorphPose {
   std::vector<RndMorphKey> keys;
 };
 
-// GH1 RndMorph revision 3.  Each pose names a same-directory Mesh and carries
-// authored weight keys; SetFrame blends those source vertices into target.
+// GH1 RndMorph revision 3 and GH2 revision 4. Each pose names a
+// same-directory Mesh and carries authored weight keys; SetFrame blends those
+// source vertices into target.
 struct RndMorph {
   std::string name;
   int32_t revision = 0;
@@ -5695,8 +5706,11 @@ struct CharBoneTwist {
 struct RuntimeIKMidiState {
   bool initialized = false;
   std::string active_spot;
-  float spot_start_time_seconds = 0.0f;
-  std::array<float, 16> start_world =
+  float active_event_beat = 0.0f;
+  float target_beat = 0.0f;
+  float fraction = 0.0f;
+  float fraction_per_beat = 0.0f;
+  std::array<float, 16> spot_relative_xfm =
       {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 };
 
@@ -6007,6 +6021,89 @@ struct OpaqueObjectRow {
   size_t body_bytes = 0;
   std::string head_hex;
   std::string tail_hex;
+};
+
+struct OutfitLoaderOutfit {
+  uint8_t hide = 0;
+  uint8_t desire = 0;
+  uint8_t exclude = 0;
+};
+
+struct OutfitLoaderCategory {
+  uint8_t selected = 0;
+  uint8_t shown = 0;
+  std::vector<OutfitLoaderOutfit> outfits;
+};
+
+struct OutfitLoader {
+  std::string name;
+  int32_t revision = 0;
+  std::string object_type;
+  std::string directory;
+  std::vector<OutfitLoaderCategory> categories;
+  bool decoded = false;
+  std::string error;
+};
+
+OutfitLoader decode_outfit_loader(
+    const std::string& entry_name,
+    const std::vector<uint8_t>& body);
+
+struct CharWalk {
+  std::string name;
+  int32_t revision = 0;
+  std::string object_type;
+  bool decoded = false;
+  std::string error;
+};
+
+CharWalk decode_char_walk(const std::string& entry_name,
+                          const std::vector<uint8_t>& body);
+
+struct WorldFx {
+  std::string name;
+  int32_t revision = 0;
+  int32_t render_directory_revision = 0;
+  int32_t object_directory_revision = 0;
+  std::string object_type;
+  std::string proxy_path;
+  std::vector<std::string> subdirectories;
+  std::string environment;
+  std::string test_event;
+  std::string legacy_symbol_1;
+  std::string legacy_symbol_2;
+  std::string parent;
+  milo_scene::Xfm local;
+  milo_scene::Xfm world;
+  int32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
+  bool showing = false;
+  float draw_order = 0.0f;
+  float frame = 0.0f;
+  int32_t anim_rate = 0;
+  bool decoded = false;
+  std::string error;
+};
+
+WorldFx decode_world_fx(const std::string& entry_name,
+                        const std::vector<uint8_t>& body);
+
+struct CharMeshHideRow {
+  std::string drawable;
+  int32_t flags = 0;
+  bool show = false;
+};
+
+struct CharMeshHide {
+  std::string name;
+  int32_t revision = 0;
+  int32_t alt_revision = 0;
+  int32_t flags = 0;
+  std::vector<CharMeshHideRow> hides;
+  size_t unread_bytes = 0;
+  bool decoded = false;
+  std::string error;
 };
 
 struct SourceRndTexLoadPlan {
@@ -6595,7 +6692,7 @@ struct CharDriver {
   std::string weight_prop;
   std::string target;
   std::string clip_milo;
-  bool enabled = false;
+  bool realign = false;
   bool midi = false;
   int32_t midi_version = 0;
   size_t midi_unread_bytes = 0;
@@ -6633,6 +6730,11 @@ struct AttachedPropTransformProxy {
   milo_scene::Xfm bind_local;
 };
 
+struct CharacterLod {
+  float screen_size = 0.0f;
+  std::string group;
+};
+
 // A whole decoded band character.
 struct Character {
   std::string dir_name;
@@ -6640,10 +6742,18 @@ struct Character {
   int32_t dir_version = 0;
   uint64_t dir_entry_offset = 0;
   uint64_t dir_entry_size = 0;
-  // Root Character/BandCharacter/RndDir/ObjectDir object body bytes. Keep this
-  // as a bounded inventory until the exact GH2 Character/RndDir/ObjectDir body
-  // revision relation is source-backed.
+  // Exact serialized root bytes, plus the source-backed GH2 Character9 /
+  // BandCharacter1 fields used by runtime selection. The bytes remain for
+  // residual accounting and future revision work.
   std::vector<uint8_t> dir_entry_bytes;
+  bool root_decoded = false;
+  std::string root_decode_error;
+  std::string root_object_type;
+  std::vector<CharacterLod> root_lods;
+  std::string root_shadow;
+  bool root_self_shadow = false;
+  std::string root_sphere_base;
+  std::string root_environment;
 
   std::vector<SkinnedMesh> meshes;
   std::vector<milo_scene::TransObj> bones;  // skeleton (Trans "bone_*"/"spot_*")
@@ -6672,6 +6782,10 @@ struct Character {
   std::vector<RndAnimFilter> anim_filters;
   std::vector<EventTrigger> event_triggers;
   std::vector<ObjectRow> object_rows;
+  std::vector<OutfitLoader> outfit_loaders;
+  std::vector<CharWalk> char_walks;
+  std::vector<WorldFx> world_fxes;
+  std::vector<CharMeshHide> mesh_hides;
   std::vector<RndTex> tex_rows;
   std::vector<OpaqueObjectRow> opaque_rows;
   std::vector<CharDriver> drivers;
@@ -6739,6 +6853,11 @@ struct Character {
   bool has_transform(const std::string& name) const;
 };
 
+struct SourceCharacterDrawClosure {
+  bool authoritative = false;
+  std::unordered_set<std::string> meshes;
+};
+
 // Native render-policy helper for the project hair two-sided override. The
 // source-backed part is the decoded CharHair point-bone membership; the helper
 // intentionally does not infer blend, depth, sort, or physics behavior.
@@ -6764,7 +6883,9 @@ CharEyes decode_eyes(const std::string& entry_name,
 RndTex decode_rnd_tex(const std::string& entry_name,
                       const std::vector<uint8_t>& body);
 RndMorph decode_rnd_morph(const std::string& entry_name,
-                          const std::vector<uint8_t>& body);
+                           const std::vector<uint8_t>& body);
+CharMeshHide decode_char_mesh_hide(const std::string& entry_name,
+                                   const std::vector<uint8_t>& body);
 // Apply an authored RndMorph frame to its same-directory target mesh. GH1
 // setup supplies an empty serialized target and binds by morph stem
 // (face.mrf -> face.mesh, lashes.mrf -> lashes.mesh).

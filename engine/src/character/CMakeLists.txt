@@ -15,6 +15,8 @@ add_library(ghogx_character STATIC
     char_renderer.h
     char_clip.cpp
     char_clip.h
+    character_type_script.cpp
+    character_type_script.h
 )
 target_include_directories(ghogx_character PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/..
@@ -22,9 +24,17 @@ target_include_directories(ghogx_character PUBLIC
 target_link_libraries(ghogx_character PUBLIC
     ghogx_milo_scene
     ghogx_asset
-    ark_v3 dtb ps2_texture milo
+    ghogx_script
+    ark_v3 dtb ps2_texture milo milo_object
     d3d9
 )
+
+add_executable(ghogx_character_type_script_test
+    character_type_script_test.cpp)
+target_link_libraries(ghogx_character_type_script_test PRIVATE
+    ghogx_character)
+add_test(NAME ghogx_character_type_script_test
+         COMMAND ghogx_character_type_script_test)
 
 add_executable(ghogx_character_bind_audit char_bind_audit.cpp)
 target_link_libraries(ghogx_character_bind_audit PRIVATE ghogx_character)

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace gh::milo_convert {
@@ -10,6 +11,12 @@ namespace gh::milo_convert {
 struct Gh2VenueScriptConversion {
     std::vector<uint8_t> bytes;
     std::string dta;
+    size_t source_roots = 0;
+    size_t recognized_roots = 0;
+    size_t unrecognized_roots = 0;
+    std::vector<std::pair<std::string, std::string>> loaded_sections;
+    std::vector<std::string> initialized_states;
+    std::vector<std::string> handler_names;
     size_t source_functions = 0;
     size_t handlers = 0;
     size_t function_calls_inlined = 0;

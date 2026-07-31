@@ -44,6 +44,20 @@ static std::string first_existing(const std::string& dir, std::vector<std::strin
 static bool near(float a, float b) { return std::fabs(a - b) < 0.001f; }
 
 int main(int argc, char** argv) {
+  {
+    ghogx::ui::MenuLabel label;
+    label.has_world = true;
+    label.world[10] = -101.205f;
+    CHECK(!ghogx::ui::menu_label_uses_authored_world_transform(label));
+    label.has_transform_animated_ancestor = true;
+    CHECK(ghogx::ui::menu_label_uses_authored_world_transform(label));
+    label.has_transform_animated_ancestor = false;
+    label.world[10] = -45.667f;
+    CHECK(ghogx::ui::menu_label_uses_authored_world_transform(label));
+    label.has_world = false;
+    CHECK(!ghogx::ui::menu_label_uses_authored_world_transform(label));
+  }
+
   std::string ark_dir =
       argc > 1 ? argv[1]
                : "C:/Programming/GitHub/Guitar Hero II/Guitar Hero II PS2 (USA)/GEN";
@@ -1404,6 +1418,29 @@ int main(int argc, char** argv) {
     CHECK(character_select_title->font.empty());
     CHECK(character_select_title->text == "select_character");
     CHECK(character_select_title->text_tail.valid);
+  }
+  for (const char* name : {"outfit1.btn", "outfit2.btn"}) {
+    const auto outfit = std::find_if(
+        character_select_labels.begin(), character_select_labels.end(),
+        [name](const ghogx::ui::MenuLabel& label) {
+          return label.name == name;
+        });
+    CHECK(outfit != character_select_labels.end());
+    if (outfit == character_select_labels.end()) continue;
+    CHECK(outfit->type == "BandButton");
+    CHECK(outfit->font == "helveticablack");
+    CHECK(outfit->parent == "text_skin.grp");
+    CHECK(ghogx::ui::menu_label_uses_black_outfit_button_text(*outfit));
+    CHECK(near(outfit->world[0], 0.956327f));
+    CHECK(near(outfit->world[1], -0.292311f));
+    CHECK(near(outfit->world[2], 0.0f));
+    const auto origin =
+        ghogx::ui::transform_menu_text_point(outfit->world, 0.0f, 0.0f);
+    const auto local_x =
+        ghogx::ui::transform_menu_text_point(outfit->world, 1.0f, 0.0f);
+    CHECK(near(local_x[0] - origin[0], outfit->world[0]));
+    CHECK(near(local_x[1] - origin[1], outfit->world[1]));
+    CHECK(near(local_x[2] - origin[2], outfit->world[2]));
   }
 
   auto audio_labels =

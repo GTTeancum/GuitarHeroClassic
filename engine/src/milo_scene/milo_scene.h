@@ -60,7 +60,8 @@
 //     i32   vertex_count
 //     verts : vertex_count × 48 bytes, each =
 //                position (3×f32) + normal (3×f32) +
-//                weight/bone scalars (4×f32, not color in GH2 rev 28) +
+//                Hmx::Color32 payload (4×f32; retained as vertex color when
+//                unskinned, moved to bone weights by PostLoad when skinned) +
 //                uv (2×f32)
 //     i32   face_count
 //     faces : face_count × (3 × u16) triangle indices
@@ -130,6 +131,10 @@
 #include <vector>
 
 namespace ghogx::milo_scene {
+
+// Exact Hmx::Color32 stream conversion used by pre-separate-color RndMesh
+// revisions: multiply by 255, truncate, and retain the low byte.
+float source_hmx_color32_channel(float value);
 
 // 4×3 affine transform stored as a row-major 3x3 rotation + a translation.
 // Matches the Harmonix Trans matrix layout exactly.
@@ -1276,10 +1281,23 @@ struct CamObj {
 
 struct WaypointObj {
   std::string name;
+  uint16_t revision = 0;
+  uint16_t drawable_revision = 0;
+  uint16_t transformable_revision = 0;
   Xfm local;
   Xfm world_stored;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
+  std::string parent;
   uint32_t flags = 0;
+  std::vector<std::string> connections;
+  float radius = 12.0f;
+  float y_radius = 0.0f;
+  float angle_radius = 0.0f;
+  bool source_order_decoded = false;
   bool decoded = false;
+  std::string error;
 };
 
 struct FlareObj {

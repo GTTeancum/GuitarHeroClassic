@@ -559,6 +559,18 @@ struct Drawable3 {
     float draw_order = 0.0f;
 };
 
+struct Waypoint3 {
+    uint32_t revision = 3;
+    ObjectFields0 object_fields;
+    Drawable3 legacy_drawable;
+    Transformable9 transformable;
+    uint32_t flags = 0;
+    std::vector<std::string> connections;
+    float radius = 12.0f;
+    float y_radius = 0.0f;
+    float angle_radius = 0.0f;
+};
+
 struct MultiMesh1 {
     uint32_t revision = 1;
     ObjectFields0 object_fields;
@@ -575,6 +587,7 @@ struct Group12 {
     Drawable3 drawable;
     std::vector<std::string> objects;
     std::string environment;
+    std::string draw_only;
     std::string lod;
     float lod_screen_size = 0.0f;
 };
@@ -586,6 +599,11 @@ struct ResolvedObjectReference {
 
 struct ResolvedViewGraph {
     std::vector<ResolvedObjectReference> animation_objects;
+    std::vector<ResolvedObjectReference> drawable_objects;
+};
+
+struct ResolvedViewEnvironmentSegment {
+    std::string environment;
     std::vector<ResolvedObjectReference> drawable_objects;
 };
 
@@ -1369,6 +1387,8 @@ ParticleSys27 convert_particle_sys22_to_particle_sys27(
     const ParticleSys& source, const std::string& bounce_name = {});
 Trans9 parse_trans9(const std::vector<uint8_t>& bytes);
 std::vector<uint8_t> serialize_trans9(const Trans9& trans);
+Waypoint3 parse_waypoint3(const std::vector<uint8_t>& bytes);
+std::vector<uint8_t> serialize_waypoint3(const Waypoint3& waypoint);
 Trans9 convert_bounce_plane_to_trans9(
     const std::array<float, 4>& plane);
 Font15 parse_font15(const std::vector<uint8_t>& bytes);
@@ -1385,6 +1405,9 @@ AnimFilter1 convert_legacy_animatable_to_anim_filter1(
     const LegacyAnimatable& source, const std::string& anim);
 Group12 parse_group12(const std::vector<uint8_t>& bytes);
 std::vector<uint8_t> serialize_group12(const Group12& group);
+std::vector<ResolvedViewEnvironmentSegment>
+resolve_view_environment_segments(
+    const std::vector<ResolvedObjectReference>& drawable_objects);
 Group12 convert_view7_to_group12(
     const View& source, const ResolvedViewGraph& effective_graph);
 ObjectDir16 parse_object_dir16(const std::vector<uint8_t>& bytes);

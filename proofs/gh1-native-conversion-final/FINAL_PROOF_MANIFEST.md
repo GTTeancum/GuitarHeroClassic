@@ -2,7 +2,12 @@
 
 Date: 2026-07-27
 
-## Result
+> **Parity gate reopened 2026-07-27.** This artifact proves deterministic
+> conversion, native loading, and short runtime execution only. It does not
+> prove retail visual or behavioral parity. The video visibly overlaps the
+> performers. Do not use this manifest to close G7, G8, or G12.
+
+## Smoke-test result
 
 The GH1 MILO/DTB/ACP conversion contract is closed for the complete packed
 character, animation, attachment, prop, and venue inventory. Conversion is

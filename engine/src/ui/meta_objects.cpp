@@ -84,6 +84,62 @@ Symbol node_symbol_or_string(const DataNode& node) {
   return Symbol();
 }
 
+void flatten_symbols(const DataNode& node, std::vector<Symbol>& out) {
+  if (auto symbol = node.as_symbol()) {
+    if (symbol->valid()) out.push_back(*symbol);
+    return;
+  }
+  if (auto array = node.as_array()) {
+    for (std::size_t i = 0; i < array->size(); ++i)
+      flatten_symbols(array->at(i), out);
+  }
+}
+
+std::vector<Symbol> ui_macro_symbols(const ConfigDb& db, Symbol macro_name) {
+  std::vector<Symbol> out;
+  const DataArray* ui = db.table(Symbol("ui"));
+  if (!ui) return out;
+  for (std::size_t i = 0; i < ui->size(); ++i) {
+    auto entry = ui->at(i).as_array();
+    if (!entry || entry->size() < 3) continue;
+    if (node_text(entry->at(0)) != "#define" ||
+        node_symbol_or_string(entry->at(1)) != macro_name) {
+      continue;
+    }
+    for (std::size_t j = 2; j < entry->size(); ++j)
+      flatten_symbols(entry->at(j), out);
+    break;
+  }
+  return out;
+}
+
+std::vector<Symbol> character_symbols(const ConfigDb& db) {
+  std::vector<Symbol> characters = db.characters();
+  return characters.empty()
+             ? ui_macro_symbols(db, Symbol("CHARACTERS"))
+             : characters;
+}
+
+std::vector<Symbol> outfits_for_character(const ConfigDb& db,
+                                          Symbol character) {
+  std::vector<Symbol> out;
+  const auto variants = db.character_variants(character);
+  for (const auto& variant : variants) out.push_back(variant.selection);
+  if (!out.empty()) return out;
+
+  const std::string base = character.c_str();
+  for (Symbol outfit : ui_macro_symbols(db, Symbol("LOAD_CHARACTERS"))) {
+    const std::string name = outfit.c_str();
+    if (name == base ||
+        (name.rfind(base, 0) == 0 && name.size() == base.size() + 1 &&
+         name.back() >= '0' && name.back() <= '9')) {
+      out.push_back(outfit);
+    }
+  }
+  if (out.empty() && character.valid()) out.push_back(character);
+  return out;
+}
+
 Symbol default_venue(const ConfigDb* db) {
   Symbol venue = db ? db->default_venue() : Symbol();
   return venue.valid() ? venue : Symbol("small2");
@@ -741,14 +797,18 @@ class PlayerConfig : public MetaObject {
       return true;
     }
     if (std::strcmp(m, "set_outfit_index") == 0) {
-      const int index = std::clamp(arg_int(args, 0, 0), 0, 1);
-      set_property(Symbol("outfit_index"), DataNode::Int(index));
       Symbol character = node_symbol_or_string(
           get_property(Symbol("character")));
-      std::string base = character.c_str();
-      if (!base.empty() && base.back() >= '0' && base.back() <= '9')
-        base.pop_back();
-      const Symbol outfit(base + std::to_string(index + 1));
+      const std::vector<Symbol> outfits =
+          db_ ? outfits_for_character(*db_, character)
+              : std::vector<Symbol>();
+      const int index = outfits.empty()
+                            ? 0
+                            : std::clamp(arg_int(args, 0, 0), 0,
+                                         static_cast<int>(outfits.size() - 1));
+      set_property(Symbol("outfit_index"), DataNode::Int(index));
+      const Symbol outfit =
+          outfits.empty() ? character : outfits[static_cast<std::size_t>(index)];
       if (outfit.valid())
         set_property(Symbol("character_outfit"), DataNode::Sym(outfit));
       // multiplayer.dta binds this return value and passes it directly to
@@ -769,6 +829,96 @@ class PlayerConfig : public MetaObject {
         std::strcmp(m, "remove_sink") == 0) {
       set_property(Symbol("last_sink"), args.size() ? args.at(0) : DataNode());
       set_property(Symbol("last_sink_op"), DataNode::Sym(msg));
+      return true;
+    }
+    return false;
+  }
+};
+
+class CharacterProvider : public MetaObject {
+ public:
+  CharacterProvider(ScreenManager* mgr, ConfigDb* db)
+      : MetaObject(Symbol("character_provider"), mgr, db) {}
+
+ protected:
+  bool handle_meta(Symbol msg, const DataArray& args, DataNode& out) override {
+    if (!db_) return false;
+    const char* m = msg.c_str();
+    const std::vector<Symbol> characters = character_symbols(*db_);
+    if (std::strcmp(m, "list_length") == 0 ||
+        std::strcmp(m, "num_data") == 0) {
+      out = DataNode::Int(static_cast<int>(characters.size()));
+      return true;
+    }
+    if (std::strcmp(m, "get_index") == 0) {
+      Symbol character = arg_symbol(args, 0);
+      if (Symbol canonical = db_->character_for_variant(character);
+          canonical.valid()) {
+        character = canonical;
+      }
+      const auto found =
+          std::find(characters.begin(), characters.end(), character);
+      out = DataNode::Int(found == characters.end()
+                              ? 0
+                              : static_cast<int>(found - characters.begin()));
+      return true;
+    }
+    if (std::strcmp(m, "get_symbol") == 0 ||
+        std::strcmp(m, "get_text") == 0) {
+      int index = arg_int(args, 0, 0);
+      if (index < 0) index = 0;
+      if (index >= static_cast<int>(characters.size()))
+        index = characters.empty() ? 0
+                                   : static_cast<int>(characters.size() - 1);
+      out = characters.empty() ? DataNode()
+                               : DataNode::Sym(characters[index]);
+      return true;
+    }
+    if (std::strcmp(m, "is_active") == 0) {
+      out = DataNode::Int(1);
+      return true;
+    }
+    const Symbol character = arg_symbol(args, 0);
+    const std::vector<Symbol> outfits =
+        outfits_for_character(*db_, character);
+    if (std::strcmp(m, "num_outfits") == 0) {
+      out = DataNode::Int(static_cast<int>(outfits.size()));
+      return true;
+    }
+    if (std::strcmp(m, "get_outfit") == 0) {
+      int index = arg_int(args, 1, 0);
+      if (index < 0) index = 0;
+      if (index >= static_cast<int>(outfits.size()))
+        index = outfits.empty() ? 0 : static_cast<int>(outfits.size() - 1);
+      out = outfits.empty() ? DataNode() : DataNode::Sym(outfits[index]);
+      return true;
+    }
+    if (std::strcmp(m, "get_outfit_label") == 0) {
+      int index = arg_int(args, 1, 0);
+      if (index < 0) index = 0;
+      if (index >= static_cast<int>(outfits.size()))
+        index = outfits.empty() ? 0 : static_cast<int>(outfits.size() - 1);
+      const CharacterVariant* variant =
+          outfits.empty() ? nullptr : db_->character_variant(outfits[index]);
+      out = variant ? DataNode::Str(variant->label) : DataNode();
+      return true;
+    }
+    if (std::strcmp(m, "get_outfit_blurb") == 0) {
+      int index = arg_int(args, 1, 0);
+      if (index < 0) index = 0;
+      if (index >= static_cast<int>(outfits.size()))
+        index = outfits.empty() ? 0 : static_cast<int>(outfits.size() - 1);
+      const CharacterVariant* variant =
+          outfits.empty() ? nullptr : db_->character_variant(outfits[index]);
+      // Imported variants have no GH2-authored outfit copy. Keep that absence
+      // explicit instead of borrowing another game's or the character bio.
+      if (!variant || variant->source_game != Symbol("gh2")) {
+        out = DataNode::Str("");
+        return true;
+      }
+      const std::string token =
+          std::string(character.c_str()) + "_outfit_blurb";
+      out = DataNode::Sym(Symbol(token.c_str()));
       return true;
     }
     return false;
@@ -1065,13 +1215,17 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
         node_symbol_or_string(get_property(Symbol("character_outfit"))));
     if (outfit.valid()) {
       set_property(Symbol("character_outfit"), DataNode::Sym(outfit));
-      std::string character = outfit.c_str();
-      while (!character.empty() && character.back() >= '0' &&
-             character.back() <= '9')
-        character.pop_back();
-      if (!character.empty())
-        set_property(Symbol("character"),
-                     DataNode::Sym(Symbol(character.c_str())));
+      Symbol character =
+          db_ ? db_->character_for_variant(outfit) : Symbol();
+      if (!character.valid()) {
+        std::string legacy = outfit.c_str();
+        while (!legacy.empty() && legacy.back() >= '0' &&
+               legacy.back() <= '9')
+          legacy.pop_back();
+        character = Symbol(legacy);
+      }
+      if (character.valid())
+        set_property(Symbol("character"), DataNode::Sym(character));
     }
     return true;
   }
@@ -1688,6 +1842,8 @@ void install_meta_singletons(ScreenManager& mgr, ConfigDb& db) {
                     std::make_unique<PracticeSectionProvider>(&mgr, &db));
   mgr.add_singleton(Symbol("song_provider"),
                     std::make_unique<SongProvider>(&mgr, &db));
+  mgr.add_singleton(Symbol("character_provider"),
+                    std::make_unique<CharacterProvider>(&mgr, &db));
   mgr.add_singleton(Symbol("store_item_provider"),
                     std::make_unique<StoreProvider>(
                         Symbol("store_item_provider"), &mgr, &db));

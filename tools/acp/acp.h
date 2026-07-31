@@ -35,7 +35,14 @@ struct File {
     std::vector<uint8_t> trailing_bytes;
 };
 
+struct DecodedChannelSample {
+    std::array<float, 4> values{};
+    size_t component_count = 0;
+};
+
 size_t channel_file_size(const std::string& channel, uint32_t compression);
+DecodedChannelSample decode_channel_sample(
+    const ChannelSet& set, size_t channel_index, uint32_t sample_index);
 File parse(const std::vector<uint8_t>& bytes);
 std::vector<uint8_t> serialize(const File& file);
 std::vector<uint8_t> read_file(const std::string& path);

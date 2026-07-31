@@ -1,5 +1,6 @@
 #include "character/char_mesh.h"
 #include "character/char_renderer.h"
+#include "milo_object.h"
 
 #include <array>
 #include <cmath>
@@ -55,7 +56,8 @@ void put_matrix(std::vector<uint8_t>& b, float tx, float ty, float tz) {
 
 bool approx(float a, float b) { return std::fabs(a - b) < 1.0e-4f; }
 
-std::vector<uint8_t> make_rev28_mesh_with_group_section() {
+std::vector<uint8_t> make_rev28_mesh_with_group_section(
+    bool include_bones = true) {
   std::vector<uint8_t> b;
   put_u32(b, 28);                 // RndMesh revision
   put_zeros(b, 9);                // ObjectFields revision 0, empty type/root
@@ -84,7 +86,13 @@ std::vector<uint8_t> make_rev28_mesh_with_group_section() {
   for (int i = 0; i < 3; ++i) {
     put_f32(b, p[i][0]); put_f32(b, p[i][1]); put_f32(b, p[i][2]);
     put_f32(b, 0.0f); put_f32(b, 0.0f); put_f32(b, 1.0f);
-    put_f32(b, 1.0f); put_f32(b, 0.0f); put_f32(b, 0.0f); put_f32(b, 0.0f);
+    if (i == 1) {
+      put_f32(b, -0.25f); put_f32(b, 0.5f);
+      put_f32(b, 1.25f); put_f32(b, 1.0f);
+    } else {
+      put_f32(b, 1.0f); put_f32(b, 0.0f);
+      put_f32(b, 0.0f); put_f32(b, 0.0f);
+    }
     put_f32(b, p[i][0]); put_f32(b, p[i][1]);
   }
 
@@ -93,6 +101,7 @@ std::vector<uint8_t> make_rev28_mesh_with_group_section() {
 
   put_u32(b, 1);                  // groupSizes count
   b.push_back(1);                 // groupSizes[0] > 0 drives GroupSection tail
+  if (!include_bones) return b;
 
   put_str(b, "bone_head.mesh");   // old-style four source palette names
   put_str(b, "");
@@ -277,36 +286,62 @@ ghogx::character::CharHair make_two_strand_hair() {
 }  // namespace
 
 int main() {
+  {
+    std::vector<uint8_t> morph4;
+    put_u32(morph4, 4);                  // RndMorph revision
+    put_zeros(morph4, 9);                // Hmx::Object revision 0
+    put_u32(morph4, 4);                  // RndAnimatable revision
+    put_f32(morph4, 12.5f);              // current frame
+    put_u32(morph4, 1);                  // kTaskBeats
+    put_u32(morph4, 1);                  // one pose
+    put_str(morph4, "face_smile.mesh");
+    put_u32(morph4, 2);                  // two scalar keys
+    put_f32(morph4, 0.0f);
+    put_f32(morph4, 0.0f);
+    put_f32(morph4, 1.0f);
+    put_f32(morph4, 24.0f);
+    put_str(morph4, "face.mesh");
+    morph4.push_back(1);                 // normals
+    morph4.push_back(0);                 // spline
+    put_f32(morph4, 0.75f);              // intensity
+
+    const auto decoded =
+        ghogx::character::decode_rnd_morph("face.mrf", morph4);
+    CHECK(decoded.decoded);
+    CHECK(decoded.revision == 4);
+    CHECK(decoded.anim_revision == 4);
+    CHECK(decoded.anim_objects.empty());
+    CHECK(decoded.poses.size() == 1);
+    CHECK(decoded.poses[0].mesh == "face_smile.mesh");
+    CHECK(decoded.poses[0].keys.size() == 2);
+    CHECK(approx(decoded.poses[0].keys[1].weight, 1.0f));
+    CHECK(approx(decoded.poses[0].keys[1].frame, 24.0f));
+    CHECK(decoded.target == "face.mesh");
+    CHECK(decoded.normals);
+    CHECK(!decoded.spline);
+    CHECK(approx(decoded.intensity, 0.75f));
+  }
+
   std::printf("character_mesh_decode_test\n");
   const auto viewer_body =
       ghogx::character::source_character_material_lighting_plan(
-          false, false, true, true);
+          false, true, true);
   CHECK(viewer_body.fixed_function_lighting);
-
-  const auto viewer_eye =
-      ghogx::character::source_character_material_lighting_plan(
-          false, true, true, true);
-  CHECK(!viewer_eye.fixed_function_lighting);
 
   const auto scene_prelit =
       ghogx::character::source_character_material_lighting_plan(
-          true, false, true, true);
+          true, true, true);
   CHECK(scene_prelit.fixed_function_lighting);
 
   const auto scene_nonprelit =
       ghogx::character::source_character_material_lighting_plan(
-          true, false, true, false);
+          true, true, false);
   CHECK(scene_nonprelit.fixed_function_lighting);
 
   const auto scene_no_environment =
       ghogx::character::source_character_material_lighting_plan(
-          true, false, false, false);
+          true, false, false);
   CHECK(!scene_no_environment.fixed_function_lighting);
-
-  const auto scene_nonprelit_eye =
-      ghogx::character::source_character_material_lighting_plan(
-          true, true, true, false);
-  CHECK(!scene_nonprelit_eye.fixed_function_lighting);
 
   const auto in_range_light =
       ghogx::character::source_character_fixed_function_light_rgb(
@@ -373,6 +408,8 @@ int main() {
   CHECK(!rev28_vert_plan.reads_separate_weights);
   CHECK(!rev28_vert_plan.reads_bone_indices);
   CHECK(!rev28_vert_plan.reads_post_indices_vec4);
+  CHECK(!rev28_vert_plan.quantizes_unskinned_color32);
+  CHECK(rev28_vert_plan.preserves_signed_skinned_float_weights);
   CHECK(rev28_vert_plan.postload_color_to_weights);
   CHECK(rev28_vert_plan.postload_clears_color);
   CHECK(rev28_vert_plan.gh2_rev28_color_payload_is_skin_weights);
@@ -382,6 +419,7 @@ int main() {
   CHECK(!rev29_vert_plan.reads_separate_weights);
   CHECK(rev29_vert_plan.reads_bone_indices);
   CHECK(!rev29_vert_plan.reads_post_indices_vec4);
+  CHECK(rev29_vert_plan.preserves_signed_skinned_float_weights);
   CHECK(rev29_vert_plan.postload_color_to_weights);
   CHECK(!rev29_vert_plan.gh2_rev28_color_payload_is_skin_weights);
 
@@ -390,6 +428,7 @@ int main() {
   CHECK(rev37_vert_plan.reads_separate_weights);
   CHECK(rev37_vert_plan.reads_bone_indices);
   CHECK(rev37_vert_plan.reads_post_indices_vec4);
+  CHECK(!rev37_vert_plan.preserves_signed_skinned_float_weights);
   CHECK(!rev37_vert_plan.postload_color_to_weights);
 
   const auto rev10_vert_plan =
@@ -397,6 +436,8 @@ int main() {
   CHECK(!rev10_vert_plan.reads_legacy_weight_pair);
   CHECK(!rev10_vert_plan.computes_legacy_pair_weights);
   CHECK(rev10_vert_plan.reads_legacy_extra_vec2);
+  CHECK(rev10_vert_plan.quantizes_unskinned_color32);
+  CHECK(!rev10_vert_plan.preserves_signed_skinned_float_weights);
   CHECK(!rev10_vert_plan.postload_color_to_weights);
 
   const auto rev28_bone_tail =
@@ -3869,6 +3910,10 @@ int main() {
   CHECK(mesh.bone_palette[0] == "bone_head.mesh");
   CHECK(mesh.bind.size() == 1);
   CHECK(approx(mesh.bind[0].pos[0], 10.0f));
+  CHECK(approx(mesh.verts[1].w[0], -0.25f));
+  CHECK(approx(mesh.verts[1].w[1], 0.5f));
+  CHECK(approx(mesh.verts[1].w[2], 1.25f));
+  CHECK(approx(mesh.verts[1].w[3], 1.0f));
   CHECK(mesh.group_sections.size() == 1);
   CHECK(mesh.group_sections[0].sections.size() == 2);
   CHECK(mesh.group_sections[0].sections[0] == 1);
@@ -3880,6 +3925,17 @@ int main() {
       ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 25);
   CHECK(rb1_style.decoded);
   CHECK(rb1_style.group_sections.empty());
+
+  const auto unskinned_bytes = make_rev28_mesh_with_group_section(false);
+  const ghogx::character::SkinnedMesh unskinned =
+      ghogx::character::decode_skinned_mesh(
+          "unskinned.mesh", unskinned_bytes, 25);
+  CHECK(unskinned.decoded);
+  CHECK(unskinned.bone_palette.empty());
+  CHECK(approx(unskinned.verts[1].r, 193.0f / 255.0f));
+  CHECK(approx(unskinned.verts[1].g, 127.0f / 255.0f));
+  CHECK(approx(unskinned.verts[1].b, 62.0f / 255.0f));
+  CHECK(approx(unskinned.verts[1].a, 1.0f));
 
   const ghogx::character::CharHair rev8_hair =
       ghogx::character::decode_hair("rev8.hair",
@@ -4248,26 +4304,140 @@ int main() {
   CHECK(approx(preserved_len_strand.points[0].pos[2], 3.0f));
 
   ghogx::character::Character authored_lod_views;
-  authored_lod_views.dir_version = 10;
-  ghogx::milo_scene::GroupObj top_view;
-  top_view.name = "top.view";
-  top_view.children = {"lod0_performer.view", "lod1_performer.view",
-                       "necklace.mesh"};
+  authored_lod_views.root_decoded = true;
+  authored_lod_views.root_lods = {
+      {1.0f, "primary_body"},
+      {0.0f, "distant_body"},
+  };
   ghogx::milo_scene::GroupObj lod0_view;
-  lod0_view.name = "lod0_performer.view";
+  lod0_view.name = "primary_body";
   lod0_view.children = {"performer_body.mesh"};
   ghogx::milo_scene::GroupObj lod1_view;
-  lod1_view.name = "lod1_performer.view";
+  lod1_view.name = "distant_body";
   lod1_view.children = {"performer_lod1_body.mesh"};
-  authored_lod_views.groups = {top_view, lod0_view, lod1_view};
+  ghogx::milo_scene::GroupObj top_view;
+  top_view.name = "authored_character_root";
+  top_view.children = {
+      "primary_body", "distant_body", "authored_accessory.mesh"};
+  authored_lod_views.groups = {lod0_view, lod1_view, top_view};
+  for (const char* name : {
+           "performer_body.mesh", "performer_lod1_body.mesh",
+           "authored_accessory.mesh", "ungrouped_helper.mesh"}) {
+    ghogx::character::SkinnedMesh mesh;
+    mesh.name = name;
+    authored_lod_views.meshes.push_back(std::move(mesh));
+  }
   const auto active_lod0 =
       ghogx::character::source_character_active_lod_view(authored_lod_views,
                                                          0);
   const auto active_lod1 =
       ghogx::character::source_character_active_lod_view(authored_lod_views,
                                                          1);
-  CHECK(active_lod0 && *active_lod0 == "lod0_performer.view");
-  CHECK(active_lod1 && *active_lod1 == "lod1_performer.view");
+  CHECK(active_lod0 && *active_lod0 == "primary_body");
+  CHECK(active_lod1 && *active_lod1 == "distant_body");
+  const auto draw_lod0 =
+      ghogx::character::source_character_draw_closure(authored_lod_views, 0);
+  const auto draw_lod1 =
+      ghogx::character::source_character_draw_closure(authored_lod_views, 1);
+  CHECK(draw_lod0.authoritative);
+  CHECK(draw_lod0.meshes.count("performer_body.mesh") == 1);
+  CHECK(draw_lod0.meshes.count("performer_lod1_body.mesh") == 0);
+  CHECK(draw_lod0.meshes.count("authored_accessory.mesh") == 1);
+  CHECK(draw_lod0.meshes.count("ungrouped_helper.mesh") == 0);
+  CHECK(draw_lod1.authoritative);
+  CHECK(draw_lod1.meshes.count("performer_body.mesh") == 0);
+  CHECK(draw_lod1.meshes.count("performer_lod1_body.mesh") == 1);
+  CHECK(draw_lod1.meshes.count("authored_accessory.mesh") == 1);
+  CHECK(draw_lod1.meshes.count("ungrouped_helper.mesh") == 0);
+
+  std::vector<uint8_t> mesh_hide_body;
+  put_u32(mesh_hide_body, 2);  // CharMeshHide revision
+  put_u32(mesh_hide_body, 0);  // Hmx::Object fields revision
+  put_str(mesh_hide_body, ""); // subtype
+  mesh_hide_body.push_back(0); // null DTB parent
+  put_u32(mesh_hide_body, 0x4);
+  put_u32(mesh_hide_body, 2);
+  put_str(mesh_hide_body, "left_hand.mesh");
+  put_u32(mesh_hide_body, 0x1);
+  mesh_hide_body.push_back(1);
+  put_str(mesh_hide_body, "right_hand.mesh");
+  put_u32(mesh_hide_body, 0x2);
+  mesh_hide_body.push_back(0);
+  const auto mesh_hide =
+      ghogx::character::decode_char_mesh_hide("hands.hide", mesh_hide_body);
+  CHECK(mesh_hide.decoded);
+  CHECK(mesh_hide.revision == 2);
+  CHECK(mesh_hide.flags == 0x4);
+  CHECK(mesh_hide.hides.size() == 2);
+  CHECK(mesh_hide.hides[0].drawable == "left_hand.mesh");
+  CHECK(mesh_hide.hides[0].flags == 0x1);
+  CHECK(mesh_hide.hides[0].show);
+  CHECK(mesh_hide.hides[1].drawable == "right_hand.mesh");
+  CHECK(mesh_hide.hides[1].flags == 0x2);
+  CHECK(!mesh_hide.hides[1].show);
+  CHECK(mesh_hide.unread_bytes == 0);
+
+  gh::milo_object::OutfitLoader1 source_outfit_loader;
+  source_outfit_loader.object_fields.type = "guitar";
+  source_outfit_loader.directory = "../../../world/shared/outfits";
+  gh::milo_object::OutfitLoaderCategory1 source_category;
+  source_category.selected = 1;
+  source_category.shown = 0;
+  source_category.outfits.push_back({1, 2, 3});
+  source_category.outfits.push_back({4, 5, 6});
+  source_outfit_loader.categories.push_back(source_category);
+  const auto outfit_loader = ghogx::character::decode_outfit_loader(
+      "guitar.outfit",
+      gh::milo_object::serialize_outfit_loader1(source_outfit_loader));
+  CHECK(outfit_loader.decoded);
+  CHECK(outfit_loader.revision == 1);
+  CHECK(outfit_loader.object_type == "guitar");
+  CHECK(outfit_loader.directory == "../../../world/shared/outfits");
+  CHECK(outfit_loader.categories.size() == 1);
+  CHECK(outfit_loader.categories[0].selected == 1);
+  CHECK(outfit_loader.categories[0].shown == 0);
+  CHECK(outfit_loader.categories[0].outfits.size() == 2);
+  CHECK(outfit_loader.categories[0].outfits[1].hide == 4);
+  CHECK(outfit_loader.categories[0].outfits[1].desire == 5);
+  CHECK(outfit_loader.categories[0].outfits[1].exclude == 6);
+
+  gh::milo_object::CharWalk1 source_char_walk;
+  source_char_walk.object_fields.type = "guitarist";
+  const auto char_walk = ghogx::character::decode_char_walk(
+      "walk", gh::milo_object::serialize_char_walk1(source_char_walk));
+  CHECK(char_walk.decoded);
+  CHECK(char_walk.revision == 1);
+  CHECK(char_walk.object_type == "guitarist");
+
+  gh::milo_object::WorldFx1 source_world_fx;
+  auto& source_world_dir = source_world_fx.render_directory;
+  source_world_dir.object_directory.proxy_path = "../shared_fx.milo";
+  source_world_dir.transformable.parent = "bone_R-hand.mesh";
+  source_world_dir.transformable.local[9] = 6.25f;
+  source_world_dir.transformable.local[10] = -0.75f;
+  source_world_dir.transformable.local[11] = 1.5f;
+  source_world_dir.drawable.showing = false;
+  source_world_dir.animatable.frame = 12.0f;
+  source_world_dir.animatable.rate = 1;
+  const auto world_fx = ghogx::character::decode_world_fx(
+      "shared_fx", gh::milo_object::serialize_world_fx1(source_world_fx));
+  CHECK(world_fx.decoded);
+  CHECK(world_fx.revision == 1);
+  CHECK(world_fx.render_directory_revision == 8);
+  CHECK(world_fx.object_directory_revision == 16);
+  CHECK(world_fx.proxy_path == "../shared_fx.milo");
+  CHECK(world_fx.parent == "bone_R-hand.mesh");
+  CHECK(approx(world_fx.local.pos[0], 6.25f));
+  CHECK(approx(world_fx.local.pos[1], -0.75f));
+  CHECK(approx(world_fx.local.pos[2], 1.5f));
+  CHECK(approx(world_fx.world.pos[0], 0.0f));
+  CHECK(world_fx.constraint == 0);
+  CHECK(world_fx.target.empty());
+  CHECK(!world_fx.preserve_scale);
+  CHECK(!world_fx.showing);
+  CHECK(approx(world_fx.draw_order, 0.0f));
+  CHECK(approx(world_fx.frame, 12.0f));
+  CHECK(world_fx.anim_rate == 1);
 
   std::printf("  [ok] RndMesh rev28 groupSections=%zu palette=%zu raw=%zu\n",
               mesh.group_sections.size(), mesh.bone_palette.size(),

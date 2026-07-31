@@ -226,9 +226,26 @@ int main() {
   ok &= eye_registers.find("invalid-op-must-not-resolve") ==
         eye_registers.end();
 
+  ghogx::character::FaceFxLipSyncServo path_servo;
+  path_servo.viseme_milo = "../../anims/female_viseme.milo";
+  const auto viseme_candidates =
+      ghogx::character::facefx_viseme_milo_candidates(
+          "char/female_singer/og/gen/female_singer.milo_ps2",
+          {path_servo});
+  ok &= viseme_candidates == std::vector<std::string>({
+      "char/female_singer/anims/female_viseme.milo",
+      "char/female_singer/anims/female_viseme.milo_ps2",
+      "char/female_singer/anims/gen/female_viseme.milo",
+      "char/female_singer/anims/gen/female_viseme.milo_ps2",
+  });
+  ok &= ghogx::character::facefx_viseme_milo_candidates(
+            "char/female_singer/og/gen/female_singer.milo_ps2", {})
+            .empty();
+
   if (!ok) {
     std::cerr << "FaceFX materialization must preserve GH2 node-ordinal, "
-                 "neutral-residual, and final source-pass behavior.\n";
+                 "neutral-residual, final source-pass, and serialized "
+                 "viseme-path behavior.\n";
     return 1;
   }
   return 0;

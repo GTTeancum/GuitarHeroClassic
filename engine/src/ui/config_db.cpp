@@ -41,7 +41,9 @@ void ConfigDb::load(const gh::ark::ArkV3Reader& ark, const std::vector<std::stri
       {"songs", "config/gen/songs.dtb"},     {"guitars", "config/gen/guitars.dtb"},
       {"store", "config/gen/store.dtb"},     {"campaign", "config/gen/campaign.dtb"},
       {"gh2", "config/gen/gh2.dtb"},         {"credits", "config/gen/credits.dtb"},
-      {"tips", "config/gen/tips.dtb"}};
+      {"tips", "config/gen/tips.dtb"},
+      {"ui", "ui/gen/ui.dtb"},
+      {"character_variants", "config/gen/character_variants.dtb"}};
   for (const auto& f : kFiles) {
     try {
       auto entry = ark.find(f.path);
@@ -52,6 +54,60 @@ void ConfigDb::load(const gh::ark::ArkV3Reader& ark, const std::vector<std::stri
     } catch (const std::exception& ex) {
       std::fprintf(stderr, "[configdb] %s: %s\n", f.path, ex.what());
     }
+  }
+  character_variants_.clear();
+  if (const DataArray* catalog = table(Symbol("character_variants"))) {
+    auto text_field = [](const DataArray* record, Symbol key) {
+      DataNode value = ConfigDb::field(record, key);
+      if (auto text = value.as_string()) return std::string(*text);
+      if (auto symbol = value.as_symbol())
+        return std::string(symbol->c_str());
+      return std::string();
+    };
+    for (std::size_t character_index = 0;
+         character_index < catalog->size(); ++character_index) {
+      auto character_record = catalog->at(character_index).as_array();
+      if (!character_record || character_record->empty()) continue;
+      const Symbol character =
+          character_record->at(0).as_symbol().value_or(Symbol());
+      if (!character.valid()) continue;
+      for (std::size_t variant_index = 1;
+           variant_index < character_record->size(); ++variant_index) {
+        auto variant_record =
+            character_record->at(variant_index).as_array();
+        if (!variant_record || variant_record->empty()) continue;
+        CharacterVariant variant;
+        variant.character = character;
+        variant.selection =
+            variant_record->at(0).as_symbol().value_or(Symbol());
+        variant.source_game =
+            field(variant_record.get(), Symbol("source"))
+                .as_symbol()
+                .value_or(Symbol());
+        variant.label = text_field(variant_record.get(), Symbol("label"));
+        variant.model_path =
+            text_field(variant_record.get(), Symbol("model"));
+        variant.ui_model_path =
+            text_field(variant_record.get(), Symbol("ui_model"));
+        variant.ui_anim_path =
+            text_field(variant_record.get(), Symbol("ui_anim"));
+        variant.main_anim_path =
+            text_field(variant_record.get(), Symbol("main_anim"));
+        variant.strum_anim_path =
+            text_field(variant_record.get(), Symbol("strum_anim"));
+        variant.fret_anim_path =
+            text_field(variant_record.get(), Symbol("fret_anim"));
+        variant.highway_surface_path =
+            text_field(variant_record.get(), Symbol("highway_surface"));
+        if (variant.selection.valid() && !variant.model_path.empty())
+          character_variants_.push_back(std::move(variant));
+      }
+    }
+  }
+  if (!character_variants_.empty()) {
+    std::fprintf(stderr,
+                 "[configdb] character catalog: characters=%zu variants=%zu\n",
+                 characters().size(), character_variants_.size());
   }
   load_practice_sections(ark, ark_paths);
 }
@@ -306,6 +362,38 @@ Symbol ConfigDb::guitar_for_skin(Symbol skin_name) const {
     if (guitar_skin(guitar_key, skin_name)) return guitar_key;
   }
   return Symbol();
+}
+
+std::vector<Symbol> ConfigDb::characters() const {
+  std::vector<Symbol> out;
+  for (const CharacterVariant& variant : character_variants_) {
+    if (std::find(out.begin(), out.end(), variant.character) == out.end())
+      out.push_back(variant.character);
+  }
+  return out;
+}
+
+std::vector<CharacterVariant> ConfigDb::character_variants(
+    Symbol character) const {
+  std::vector<CharacterVariant> out;
+  for (const CharacterVariant& variant : character_variants_) {
+    if (variant.character == character) out.push_back(variant);
+  }
+  return out;
+}
+
+const CharacterVariant* ConfigDb::character_variant(Symbol selection) const {
+  const auto found = std::find_if(
+      character_variants_.begin(), character_variants_.end(),
+      [&](const CharacterVariant& variant) {
+        return variant.selection == selection;
+      });
+  return found == character_variants_.end() ? nullptr : &*found;
+}
+
+Symbol ConfigDb::character_for_variant(Symbol selection) const {
+  const CharacterVariant* variant = character_variant(selection);
+  return variant ? variant->character : Symbol();
 }
 
 DataNode ConfigDb::field(const DataArray* record, Symbol key) {

@@ -69,7 +69,7 @@ enum Builtin {
   BI_NONE = 0,
   BI_IF, BI_IF_ELSE, BI_DO, BI_SWITCH, BI_FOREACH, BI_FOREACH_INT, BI_COND, BI_SET,
   BI_EQ, BI_NE, BI_LT, BI_GT, BI_LE, BI_GE,
-  BI_NOT, BI_AND, BI_OR,
+  BI_NOT, BI_AND, BI_OR, BI_BIT_AND, BI_BIT_OR,
   BI_ADD, BI_SUB, BI_MUL, BI_DIV, BI_MOD, BI_MIN, BI_MAX,
   BI_INC, BI_ADD_ASSIGN, BI_INT, BI_ARRAY, BI_ELEM, BI_FIND_ELEM,
   BI_RANDOM_ELEM, BI_REMOVE_ELEM,
@@ -91,6 +91,7 @@ int lookup_builtin(Symbol s) {
     add("<", BI_LT);           add(">", BI_GT);
     add("<=", BI_LE);          add(">=", BI_GE);
     add("!", BI_NOT);          add("&&", BI_AND);   add("||", BI_OR);
+    add("&", BI_BIT_AND);      add("|", BI_BIT_OR);
     add("+", BI_ADD);          add("-", BI_SUB);
     add("*", BI_MUL);          add("/", BI_DIV);     add("mod", BI_MOD);
     add("min", BI_MIN);        add("max", BI_MAX);
@@ -376,6 +377,8 @@ DataNode Interp::eval_command(const Node& cmd, Env& env) {
       case BI_NOT: return bi_logic(cmd, env, BI_NOT);
       case BI_AND: return bi_logic(cmd, env, BI_AND);
       case BI_OR: return bi_logic(cmd, env, BI_OR);
+      case BI_BIT_AND: return bi_bitwise(cmd, env, false);
+      case BI_BIT_OR: return bi_bitwise(cmd, env, true);
       case BI_ADD: return bi_arith(cmd, env, BI_ADD);
       case BI_SUB: return bi_arith(cmd, env, BI_SUB);
       case BI_MUL: return bi_arith(cmd, env, BI_MUL);
@@ -636,6 +639,27 @@ DataNode Interp::bi_logic(const Node& c, Env& env, int op) {
     if (op == BI_OR && t) return DataNode::Int(1);
   }
   return DataNode::Int(op == BI_AND ? 1 : 0);
+}
+
+DataNode Interp::bi_bitwise(const Node& c, Env& env, bool bit_or) {
+  const NodeList& k = gh::dtb::children(c);
+  if (k.size() < 2) return DataNode::Int(0);
+  auto integer_value = [&](const Node& source) {
+    DataNode value = eval(source, env);
+    if (const auto integer = value.as_int()) return *integer;
+    if (const auto symbol = value.as_symbol()) {
+      if (env.host) {
+        return env.host->get_global(*symbol).as_int().value_or(0);
+      }
+    }
+    return 0;
+  };
+  int32_t result = integer_value(*k[1]);
+  for (std::size_t i = 2; i < k.size(); ++i) {
+    const int32_t value = integer_value(*k[i]);
+    result = bit_or ? (result | value) : (result & value);
+  }
+  return DataNode::Int(result);
 }
 
 DataNode Interp::bi_arith(const Node& c, Env& env, int op) {

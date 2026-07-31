@@ -1093,6 +1093,9 @@ int main(int argc, char** argv) {
   const std::string mc_checking = mgr.localize(Symbol("mc_checking"));
   CHECK(mc_checking != "mc_checking");
   CHECK(mc_checking.find("memory card") != std::string::npos);
+  CHECK(mgr.localize(Symbol("classic_outfit_blurb")).empty());
+  CHECK(mgr.localize(Symbol("funk1_outfit_blurb")).empty());
+  CHECK(mgr.localize(Symbol("grim_outfit_blurb")).empty());
 
   gh::dtb::NodeList init_roots =
       ui::load_ui_script_roots_from_ark(ark, arks, "ui/gen/init.dtb");
@@ -1721,6 +1724,16 @@ int main(int argc, char** argv) {
       profile_ten = dir->find(Symbol("profile.ten"));
     CHECK(profile_ten != nullptr);
     if (profile_ten) {
+      CHECK(profile_ten->get_property(Symbol("text_entry_style"))
+                .as_symbol()
+                .value_or(Symbol()) == Symbol("band_name"));
+      CHECK(profile_ten->get_property(Symbol("max_length"))
+                .as_int()
+                .value_or(0) == 20);
+      CHECK(profile_ten->get_property(Symbol("characters"))
+                .as_string()
+                .value_or("") ==
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !?.'");
       DataArray text_arg;
       text_arg.push(DataNode::Str("THE CODEX"));
       profile_ten->handle_property(Symbol("set_text"), text_arg);
@@ -2299,16 +2312,72 @@ int main(int argc, char** argv) {
             .as_symbol()
             .value_or(Symbol()) == Symbol("focused"));
 
-  // BandTextEntry::ResumeInput reopens editing and selecting a completed name
-  // reports IsDone.  endgame.dtb uses that exact state to advance from the
-  // high-score name entry to the completion screen.
+  // CharsysPanel::SetDoor receives a player index followed by the external
+  // PanelDir mesh. The one-argument exit call clears that player's binding.
+  ui::UiObject charsys_panel(Symbol("CharsysPanel"));
+  ui::UiObject character_door(Symbol("Mesh"));
+  character_door.set_name(Symbol("cs_door.mesh"));
+  DataArray set_character_door;
+  set_character_door.push(DataNode::Int(0));
+  set_character_door.push(DataNode::Obj(&character_door));
+  charsys_panel.handle_property(Symbol("set_door"), set_character_door);
+  CHECK(charsys_panel.get_property(Symbol("char_door_0")).as_object() ==
+        &character_door);
+  DataArray clear_character_door;
+  clear_character_door.push(DataNode::Int(0));
+  charsys_panel.handle_property(Symbol("set_door"), clear_character_door);
+  CHECK(charsys_panel.get_property(Symbol("char_door_0")).as_object() ==
+        nullptr);
+
+  // BandTextEntry keeps the committed name separate from its active character:
+  // stock manage_bands.dtb maps strum to character scrolling, Green to
+  // accepting that character, and Red to deleting the committed suffix.
+  // Submission is a separate operation and ResumeInput reopens it.
   ui::UiObject text_entry(Symbol("BandTextEntry"));
   text_entry.handle_property(Symbol("resume_input"), DataArray());
   CHECK(!truthy(text_entry.handle_property(Symbol("is_done"), DataArray())));
+  CHECK(text_entry.handle_property(Symbol("no_text_entered"), DataArray())
+            .as_int()
+            .value_or(0) == 1);
+  CHECK(text_entry.get_property(Symbol("text"))
+            .as_string()
+            .value_or("") == "A");
+  DataArray scroll_next;
+  scroll_next.push(DataNode::Int(1));
+  text_entry.handle_property(Symbol("scroll_character"), scroll_next);
+  CHECK(text_entry.get_property(Symbol("text"))
+            .as_string()
+            .value_or("") == "B");
+  text_entry.handle_property(Symbol("accept_character"), DataArray());
+  CHECK(text_entry.handle_property(Symbol("get_text"), DataArray())
+            .as_string()
+            .value_or("") == "B");
+  CHECK(text_entry.handle_property(Symbol("length"), DataArray())
+            .as_int()
+            .value_or(-1) == 1);
+  CHECK(text_entry.get_property(Symbol("text"))
+            .as_string()
+            .value_or("") == "BB");
+  text_entry.handle_property(Symbol("delete_character"), DataArray());
+  CHECK(text_entry.handle_property(Symbol("no_text_entered"), DataArray())
+            .as_int()
+            .value_or(0) == 1);
+  DataArray set_name;
+  set_name.push(DataNode::Str("THE CODEX"));
+  text_entry.handle_property(Symbol("set_text"), set_name);
+  CHECK(text_entry.handle_property(Symbol("get_text"), DataArray())
+            .as_string()
+            .value_or("") == "THE CODEX");
   text_entry.handle_property(Symbol("send_select"), DataArray());
   CHECK(truthy(text_entry.handle_property(Symbol("is_done"), DataArray())));
+  CHECK(text_entry.get_property(Symbol("text"))
+            .as_string()
+            .value_or("") == "THE CODEX");
   text_entry.handle_property(Symbol("resume_input"), DataArray());
   CHECK(!truthy(text_entry.handle_property(Symbol("is_done"), DataArray())));
+  CHECK(text_entry.get_property(Symbol("text"))
+            .as_string()
+            .value_or("") == "THE CODEX");
 
   // Script-set label text is runtime state on the MILO child object. The menu
   // renderer resolves this same object name and prefers the live `text` and
@@ -2626,20 +2695,29 @@ int main(int argc, char** argv) {
     Object* outfit2 = outfit_panel->find_path("outfit2.btn");
     CHECK(outfit1 != nullptr);
     CHECK(outfit2 != nullptr);
-    if (outfit1)
-      CHECK(outfit1->get_property(Symbol("text"))
-                .as_string()
-                .value_or("") == "punk1_outfit");
-    if (outfit2)
-      CHECK(outfit2->get_property(Symbol("text"))
-                .as_string()
-                .value_or("") == "punk2_outfit");
+    // This test owns the multiplayer panel flow, not catalog contents. Exact
+    // project-authored names and chronological windows are pinned by
+    // ghogx_character_variant_catalog_test, so only require the live two-row
+    // viewport to be populated with distinct provider values here.
+    const std::string outfit1_text(
+        outfit1 ? outfit1->get_property(Symbol("text"))
+                      .as_string()
+                      .value_or("")
+                : "");
+    const std::string outfit2_text(
+        outfit2 ? outfit2->get_property(Symbol("text"))
+                      .as_string()
+                      .value_or("")
+                : "");
+    CHECK(!outfit1_text.empty());
+    CHECK(!outfit2_text.empty());
+    CHECK(outfit1_text != outfit2_text);
   } else {
     CHECK(false);
   }
   if (Object* char_multi = mgr.find_object(Symbol("char_multi")))
     char_multi->set_property(Symbol("char_object_0"),
-                             DataNode::Sym(Symbol("punk1")));
+                             DataNode::Sym(Symbol("gh1_punk")));
   multi_button(0, Symbol("kPad_DD"));
   DataArray player0_args;
   player0_args.push(DataNode::Int(0));
@@ -2650,7 +2728,7 @@ int main(int argc, char** argv) {
     CHECK(player0->get_property(Symbol("outfit_index"))
               .as_int().value_or(-1) == 1);
     CHECK(player0->get_property(Symbol("character_outfit"))
-              .as_symbol().value_or(Symbol()) == Symbol("punk2"));
+              .as_symbol().value_or(Symbol()) == Symbol("punk1"));
   } else {
     CHECK(false);
   }
@@ -2658,7 +2736,7 @@ int main(int argc, char** argv) {
     CHECK(char_multi->get_property(Symbol("char_transfer_pending_0"))
               .as_int().value_or(0) == 1);
     CHECK(char_multi->get_property(Symbol("char_transfer_source_0"))
-              .as_symbol().value_or(Symbol()) == Symbol("punk1"));
+              .as_symbol().value_or(Symbol()) == Symbol("gh1_punk"));
   } else {
     CHECK(false);
   }
@@ -4515,6 +4593,11 @@ int main(int argc, char** argv) {
                          .as_string().value_or("") == "151144");
     CHECK(name1 && !truthy(name1->get_property(Symbol("showing"))));
     CHECK(entry1 && truthy(entry1->get_property(Symbol("showing"))));
+    CHECK(entry1 && entry1->get_property(Symbol("text_entry_style"))
+                         .as_symbol().value_or(Symbol()) ==
+                         Symbol("high_score"));
+    CHECK(entry1 && entry1->get_property(Symbol("max_length"))
+                         .as_int().value_or(0) == 8);
     CHECK(entry1 && entry1->get_property(Symbol("text"))
                          .as_string().value_or("") == "AAAA");
     Object* highscore_helpbar = mgr.resolve_object(Symbol("helpbar"));

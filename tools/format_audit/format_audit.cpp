@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <map>
 #include <set>
 #include <sstream>
@@ -87,6 +88,15 @@ const char* dtb_storage_name(gh::dtb::Storage storage) {
     return "unknown";
 }
 
+bool is_rnd_animatable_type(const std::string& type) {
+    return type == "AnimFilter" || type == "CamAnim" ||
+           type == "EnvAnim" || type == "Group" ||
+           type == "LightAnim" || type == "MatAnim" ||
+           type == "MeshAnim" || type == "Morph" ||
+           type == "ParticleSysAnim" || type == "PollAnim" ||
+           type == "PropAnim" || type == "TransAnim";
+}
+
 void usage() {
     std::fprintf(stderr,
                  "Usage:\n"
@@ -134,6 +144,9 @@ int main(int argc, char** argv) {
         std::vector<std::string> mat_records;
         std::vector<std::string> view_records;
         std::vector<std::string> object_records;
+        std::vector<std::string> legacy_anim_records;
+        std::vector<std::string> anim_filter_records;
+        std::vector<std::string> anim_ownership_records;
         std::vector<std::string> failures;
         std::set<std::string> archive_paths;
         std::map<uint32_t, size_t> legacy_anim_operation_types;
@@ -323,6 +336,9 @@ int main(int argc, char** argv) {
                         }
                     }
                     std::map<std::string, size_t> local_types;
+                    std::map<std::string, std::string> local_object_types;
+                    for (const auto& object : directory.entries)
+                        local_object_types[object.name] = object.type;
                     bool audited_bodies_exact =
                         directory.dir_version == 10;
                     for (const auto& object : directory.entries) {
@@ -422,6 +438,54 @@ int main(int argc, char** argv) {
                                     first, first + object.size);
                                 bool exact = false;
                                 std::string body_error;
+                                auto note_object_legacy_animatable =
+                                    [&](const gh::milo_object::LegacyAnimatable&
+                                            animatable) {
+                                        note_legacy_animatable(animatable);
+                                        std::ostringstream operations;
+                                        operations << std::setprecision(9);
+                                        for (size_t i = 0;
+                                             i < animatable.operations.size();
+                                             ++i) {
+                                            if (i != 0) operations << ';';
+                                            const auto& operation =
+                                                animatable.operations[i];
+                                            operations
+                                                << operation.type << ':'
+                                                << operation.first << ':'
+                                                << operation.second << ':'
+                                                << (operation.loop ? 1 : 0)
+                                                << ':' << operation.integers[0]
+                                                << ':' << operation.integers[1]
+                                                << ':' << operation.integers[2];
+                                        }
+                                        std::ostringstream references;
+                                        for (size_t i = 0;
+                                             i < animatable.objects.size();
+                                             ++i) {
+                                            if (i != 0) references << ';';
+                                            references
+                                                << clean_tsv(
+                                                       animatable.objects[i]);
+                                        }
+                                        std::ostringstream record;
+                                        record
+                                            << clean_tsv(entry.full_path)
+                                            << '\t'
+                                            << clean_tsv(directory.dir_type)
+                                            << '\t' << clean_tsv(object.type)
+                                            << '\t' << clean_tsv(object.name)
+                                            << '\t'
+                                            << animatable.operations.size()
+                                            << '\t' << animatable.objects.size()
+                                            << '\t'
+                                            << clean_tsv(operations.str())
+                                            << '\t'
+                                            << clean_tsv(references.str())
+                                            << '\n';
+                                        legacy_anim_records.push_back(
+                                            record.str());
+                                    };
                                 try {
                                     if (directory.dir_version == 24 &&
                                         object.type == "Mesh") {
@@ -477,6 +541,39 @@ int main(int argc, char** argv) {
                                              "FaceFxLipSyncServo" ||
                                          object.type == "OutfitLoader" ||
                                          object.type == "WorldFx")) {
+                                        if (object.type == "EventTrigger") {
+                                            const auto decoded =
+                                                gh::milo_object::
+                                                    parse_event_trigger8(body);
+                                            for (const auto& animation :
+                                                 decoded.animations) {
+                                                const auto found =
+                                                    local_object_types.find(
+                                                        animation.animation);
+                                                std::ostringstream record;
+                                                record
+                                                    << clean_tsv(
+                                                           entry.full_path)
+                                                    << '\t'
+                                                    << clean_tsv(
+                                                           directory.dir_type)
+                                                    << "\tEventTrigger\t"
+                                                    << clean_tsv(object.name)
+                                                    << "\tevent_route\t"
+                                                    << clean_tsv(
+                                                           animation.animation)
+                                                    << '\t'
+                                                    << (found ==
+                                                                local_object_types
+                                                                    .end()
+                                                            ? std::string()
+                                                            : clean_tsv(
+                                                                  found->second))
+                                                    << '\n';
+                                                anim_ownership_records
+                                                    .push_back(record.str());
+                                            }
+                                        }
                                         exact =
                                             gh::milo_object::
                                                 round_trip_gh2_object_body(
@@ -591,7 +688,7 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::parse_morph(
                                                 body);
-                                        note_legacy_animatable(
+                                        note_object_legacy_animatable(
                                             decoded.animatable);
                                         exact =
                                             gh::milo_object::
@@ -612,7 +709,7 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_trans_anim(body);
-                                        note_legacy_animatable(
+                                        note_object_legacy_animatable(
                                             decoded.animatable);
                                         exact =
                                             gh::milo_object::
@@ -642,7 +739,7 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_mesh_anim(body);
-                                        note_legacy_animatable(
+                                        note_object_legacy_animatable(
                                             decoded.animatable);
                                         exact =
                                             gh::milo_object::
@@ -673,7 +770,7 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_cam_anim(body);
-                                        note_legacy_animatable(
+                                        note_object_legacy_animatable(
                                             decoded.animatable);
                                         exact =
                                             gh::milo_object::
@@ -684,7 +781,7 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_env_anim(body);
-                                        note_legacy_animatable(
+                                        note_object_legacy_animatable(
                                             decoded.animatable);
                                         exact =
                                             gh::milo_object::
@@ -705,7 +802,7 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_light_anim(body);
-                                        note_legacy_animatable(
+                                        note_object_legacy_animatable(
                                             decoded.animatable);
                                         exact =
                                             gh::milo_object::
@@ -730,7 +827,7 @@ int main(int argc, char** argv) {
                                             gh::milo_object::
                                                 parse_particle_sys_anim(
                                                     body);
-                                        note_legacy_animatable(
+                                        note_object_legacy_animatable(
                                             decoded.animatable);
                                         exact =
                                             gh::milo_object::
@@ -751,7 +848,7 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_mat_anim(body);
-                                        note_legacy_animatable(
+                                        note_object_legacy_animatable(
                                             decoded.animatable);
                                         exact =
                                             gh::milo_object::
@@ -780,7 +877,7 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::parse_movie(
                                                 body);
-                                        note_legacy_animatable(
+                                        note_object_legacy_animatable(
                                             decoded.animatable);
                                         exact =
                                             gh::milo_object::
@@ -801,10 +898,58 @@ int main(int argc, char** argv) {
                                         object.type == "AnimFilter") {
                                         const auto decoded =
                                             gh::milo_object::
-                                                parse_anim_filter1(body);
+                                                 parse_anim_filter1(body);
+                                        {
+                                            std::ostringstream record;
+                                            record << std::setprecision(9)
+                                                   << clean_tsv(entry.full_path)
+                                                   << '\t'
+                                                   << clean_tsv(
+                                                          directory.dir_type)
+                                                   << '\t'
+                                                   << clean_tsv(object.name)
+                                                   << '\t'
+                                                   << clean_tsv(decoded.anim)
+                                                   << '\t'
+                                                   << decoded.animatable.rate
+                                                   << '\t' << decoded.scale
+                                                   << '\t' << decoded.offset
+                                                   << '\t' << decoded.start
+                                                   << '\t' << decoded.end
+                                                   << '\t' << decoded.type
+                                                   << '\t' << decoded.period
+                                                   << '\n';
+                                            anim_filter_records.push_back(
+                                                record.str());
+                                        }
+                                        {
+                                            const auto found =
+                                                local_object_types.find(
+                                                    decoded.anim);
+                                            std::ostringstream record;
+                                            record
+                                                << clean_tsv(entry.full_path)
+                                                << '\t'
+                                                << clean_tsv(
+                                                       directory.dir_type)
+                                                << "\tAnimFilter\t"
+                                                << clean_tsv(object.name)
+                                                << "\tfilter_target\t"
+                                                << clean_tsv(decoded.anim)
+                                                << '\t'
+                                                << (found ==
+                                                            local_object_types
+                                                                .end()
+                                                        ? std::string()
+                                                        : clean_tsv(
+                                                              found->second))
+                                                << '\n';
+                                            anim_ownership_records.push_back(
+                                                record.str());
+                                        }
                                         exact =
                                             gh::milo_object::
-                                                serialize_anim_filter1(
+                                                 serialize_anim_filter1(
                                                     decoded) == body;
                                     } else if (
                                         directory.dir_version == 24 &&
@@ -816,6 +961,30 @@ int main(int argc, char** argv) {
                                             gh::milo_object::
                                                 serialize_group12(
                                                     decoded) == body;
+                                        for (const auto& child :
+                                             decoded.objects) {
+                                            const auto found =
+                                                local_object_types.find(child);
+                                            if (found ==
+                                                    local_object_types.end() ||
+                                                !is_rnd_animatable_type(
+                                                    found->second))
+                                                continue;
+                                            std::ostringstream record;
+                                            record
+                                                << clean_tsv(entry.full_path)
+                                                << '\t'
+                                                << clean_tsv(
+                                                       directory.dir_type)
+                                                << "\tGroup\t"
+                                                << clean_tsv(object.name)
+                                                << "\tgroup_child\t"
+                                                << clean_tsv(child) << '\t'
+                                                << clean_tsv(found->second)
+                                                << '\n';
+                                            anim_ownership_records.push_back(
+                                                record.str());
+                                        }
                                     } else if (
                                         object.type == "Font") {
                                         const auto decoded =
@@ -839,7 +1008,7 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::parse_view(
                                                 body);
-                                        note_legacy_animatable(
+                                        note_object_legacy_animatable(
                                             decoded.animatable);
                                         std::ostringstream rec;
                                         rec << clean_tsv(entry.full_path)
@@ -942,7 +1111,7 @@ int main(int argc, char** argv) {
                                         const auto decoded =
                                             gh::milo_object::
                                                 parse_particle_sys(body);
-                                        note_legacy_animatable(
+                                        note_object_legacy_animatable(
                                             decoded.animatable);
                                         exact =
                                             gh::milo_object::
@@ -1227,6 +1396,55 @@ int main(int argc, char** argv) {
         for (const auto& record : object_records)
             object_report << record;
         std::printf("object report: %s\n", object_report_path.c_str());
+
+        const std::string legacy_anim_report_path =
+            report_path + ".legacy-animatables.tsv";
+        std::ofstream legacy_anim_report(
+            legacy_anim_report_path, std::ios::binary);
+        if (!legacy_anim_report)
+            throw std::runtime_error(
+                "cannot create " + legacy_anim_report_path);
+        legacy_anim_report
+            << "archive_path\tdirectory_type\tobject_type\tobject_name"
+               "\toperation_count\tobject_ref_count\toperations"
+               "\tobject_refs\n";
+        for (const auto& record : legacy_anim_records)
+            legacy_anim_report << record;
+        std::printf(
+            "legacy Animatable report: %s\n",
+            legacy_anim_report_path.c_str());
+
+        const std::string anim_filter_report_path =
+            report_path + ".anim-filters.tsv";
+        std::ofstream anim_filter_report(
+            anim_filter_report_path, std::ios::binary);
+        if (!anim_filter_report)
+            throw std::runtime_error(
+                "cannot create " + anim_filter_report_path);
+        anim_filter_report
+            << "archive_path\tdirectory_type\tobject_name\ttarget"
+               "\tanim_rate\tscale\toffset\tstart\tend\ttype\tperiod\n";
+        for (const auto& record : anim_filter_records)
+            anim_filter_report << record;
+        std::printf(
+            "AnimFilter report: %s\n",
+            anim_filter_report_path.c_str());
+
+        const std::string anim_ownership_report_path =
+            report_path + ".anim-ownership.tsv";
+        std::ofstream anim_ownership_report(
+            anim_ownership_report_path, std::ios::binary);
+        if (!anim_ownership_report)
+            throw std::runtime_error(
+                "cannot create " + anim_ownership_report_path);
+        anim_ownership_report
+            << "archive_path\tdirectory_type\towner_type\towner_name"
+               "\trelationship\tchild_name\tchild_type\n";
+        for (const auto& record : anim_ownership_records)
+            anim_ownership_report << record;
+        std::printf(
+            "animation ownership report: %s\n",
+            anim_ownership_report_path.c_str());
 
         size_t failures_total = 0;
         for (const auto& pair : counts) failures_total += pair.second.failed;

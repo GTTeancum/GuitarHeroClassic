@@ -10,6 +10,7 @@ from capstone import (
     CS_ARCH_MIPS,
     CS_MODE_LITTLE_ENDIAN,
     CS_MODE_MIPS32,
+    CS_MODE_MIPS64,
     CS_OP_IMM,
     CS_OP_REG,
     Cs,
@@ -23,6 +24,11 @@ def main() -> int:
     parser.add_argument("elf", type=Path)
     parser.add_argument("text", nargs="+")
     parser.add_argument("--max-results", type=int, default=64)
+    parser.add_argument(
+        "--mips64",
+        action="store_true",
+        help="decode the PS2 Emotion Engine's MIPS III instruction forms",
+    )
     args = parser.parse_args()
     if args.max_results < 1 or args.max_results > 1024:
         parser.error("--max-results must be between 1 and 1024")
@@ -52,7 +58,9 @@ def main() -> int:
             print(f"string 0x{address:08x} {text!r}")
 
         disassembler = Cs(
-            CS_ARCH_MIPS, CS_MODE_MIPS32 | CS_MODE_LITTLE_ENDIAN
+            CS_ARCH_MIPS,
+            (CS_MODE_MIPS64 if args.mips64 else CS_MODE_MIPS32)
+            | CS_MODE_LITTLE_ENDIAN,
         )
         disassembler.detail = True
         disassembler.skipdata = True

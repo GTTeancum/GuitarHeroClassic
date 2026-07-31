@@ -31,6 +31,7 @@ add_subdirectory(${TOOLS_DIR}/dtb         ${CMAKE_BINARY_DIR}/_tools_dtb)
 add_subdirectory(${TOOLS_DIR}/texture_ps2 ${CMAKE_BINARY_DIR}/_tools_tex)
 add_subdirectory(${TOOLS_DIR}/vgs         ${CMAKE_BINARY_DIR}/_tools_vgs)
 add_subdirectory(${TOOLS_DIR}/milo        ${CMAKE_BINARY_DIR}/_tools_milo)
+add_subdirectory(${TOOLS_DIR}/milo_object ${CMAKE_BINARY_DIR}/_tools_milo_object)
 
 # ---- DTB -> runtime bridge (needs the dtb tool target above) --------------
 add_subdirectory(src/dtb_bridge)
@@ -88,22 +89,6 @@ else()
     target_compile_options(ghogx PRIVATE -Wall -Wextra)
 endif()
 ghogx_add_windows_import_guard(ghogx)
-
-# ---- Win32 audiovisual viewer ---------------------------------------------
-
-if(WIN32)
-    add_executable(ghogx_viewer src/viewer.cpp)
-    target_link_libraries(ghogx_viewer PRIVATE
-        ark_v3 ps2_texture vgs
-        winmm gdi32 user32
-    )
-    if(MSVC)
-        target_compile_options(ghogx_viewer PRIVATE /W4)
-    else()
-        target_compile_options(ghogx_viewer PRIVATE -Wall -Wextra)
-    endif()
-    ghogx_add_windows_import_guard(ghogx_viewer)
-endif()
 
 if(WIN32)
     find_program(GHOGX_POWERSHELL powershell.exe)

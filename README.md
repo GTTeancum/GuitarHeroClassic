@@ -43,16 +43,6 @@ Built on the standalone reader libraries (`tools/ark`, `tools/dtb`, `tools/textu
 
 On the small2 (Open Mic) venue: 42 textures decoded, 3 skipped (reference external paths), 0 failures.
 
-#### `ghogx_viewer` (Win32 GDI + WaveOut)
-
-```powershell
-.\engine\build\ghogx_viewer.exe --ark-dir "<GH80s>\GEN" `
-    --tex-path  "ui/image/og/gen/us_poster_character_keep.png_ps2" `
-    --vgs-path  "world/arena/streams/crowd_v6_4good.vgs"
-```
-
-Opens a window with the decoded PS2 texture; simultaneously decodes the VGS stem and plays it back via the Win32 WaveOut API. Single binary, no SDL, no external runtime. The audiovisual proof that PS2 assets run natively on PC.
-
 ## Legacy: rexglue 360 recompile (reference only)
 
 The old `gh2test` build target (under `src/`, `generated/`, `gh2test_*.toml`) is the GH2 360 binary recompiled via [ReXGlue SDK](https://github.com/rexglue/rexglue-sdk). It boots, navigates menus, and reaches gameplay — useful as a working blueprint to crib gameplay logic from while building the new engine. It is **not** the deliverable. Documented here for archival completeness.

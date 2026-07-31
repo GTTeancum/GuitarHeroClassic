@@ -6,7 +6,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from capstone import CS_ARCH_MIPS, CS_MODE_LITTLE_ENDIAN, CS_MODE_MIPS32, Cs
+from capstone import (
+    CS_ARCH_MIPS,
+    CS_MODE_LITTLE_ENDIAN,
+    CS_MODE_MIPS32,
+    CS_MODE_MIPS64,
+    Cs,
+)
 from elftools.elf.elffile import ELFFile
 
 
@@ -20,6 +26,11 @@ def main() -> int:
     parser.add_argument("--start", type=parse_int, required=True)
     parser.add_argument("--end", type=parse_int, required=True)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--mips64",
+        action="store_true",
+        help="decode the PS2's 64-bit GPR instructions instead of MIPS32",
+    )
     args = parser.parse_args()
 
     if args.end <= args.start:
@@ -48,7 +59,8 @@ def main() -> int:
 
     disassembler = Cs(
         CS_ARCH_MIPS,
-        CS_MODE_MIPS32 | CS_MODE_LITTLE_ENDIAN,
+        (CS_MODE_MIPS64 if args.mips64 else CS_MODE_MIPS32)
+        | CS_MODE_LITTLE_ENDIAN,
     )
     disassembler.detail = False
     # Capstone does not decode every Emotion Engine MMI instruction.  Keep the

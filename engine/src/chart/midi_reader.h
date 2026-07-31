@@ -58,9 +58,13 @@ struct DrumCue {
 };
 
 struct FretPositionCue {
+    // Original MIDI note interval. The mapped spot is due at `tick`; the
+    // inverted MidiParser event is dispatched earlier at `event_beat`.
     uint32_t tick;
     int pitch = 0;       // 40..59 from config/midi_parsers.dta::player*_fret_pos
     int spot_index = 0;  // 1..20, maps to spot_neck_fretNN.mesh
+    uint32_t tick_off = 0;
+    double event_beat = 0.0;
 };
 
 struct HandGemCue {
@@ -131,6 +135,7 @@ struct Chart {
     // Convert a MIDI tick to wall-clock seconds using the tempo map.
     double tick_to_sec(uint32_t tick) const;
     uint32_t sec_to_tick(double sec) const;
+    double sec_to_beat(double sec) const;
 
     // Total song duration: time of the last note-off across all difficulties.
     double duration_sec() const;

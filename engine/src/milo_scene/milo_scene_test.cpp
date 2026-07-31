@@ -2732,6 +2732,54 @@ void test_group_draw_order_matches_rnddir_roots() {
       "  [ok] Group draw roots: opaque before translucent, hidden child suppressed\n");
 }
 
+void test_waypoint_source_order_rev3() {
+  std::vector<uint8_t> b;
+  put_u32(b, 3);                 // Waypoint revision.
+  put_u32(b, 0);                 // Hmx::Object revision.
+  put_str(b, "");                // object name.
+  b.push_back(0);                // no property tree.
+  put_u32(b, 3);                 // legacy RndDrawable revision.
+  b.push_back(1);                // showing.
+  put_f32(b, 0.0f);              // sphere.
+  put_f32(b, 0.0f);
+  put_f32(b, 0.0f);
+  put_f32(b, 0.0f);
+  put_f32(b, 2.5f);              // draw order.
+  put_u32(b, 9);                 // embedded RndTransformable revision.
+  put_matrix(b, 1.0f, 2.0f, 3.0f);
+  put_matrix(b, 4.0f, 5.0f, 6.0f);
+  put_u32(b, 0);                 // constraint.
+  put_str(b, "");                // target.
+  b.push_back(0);                // preserve scale.
+  put_str(b, "root.trans");      // parent.
+  put_u32(b, 0xC0);              // walk + solo-walk flags.
+  put_u32(b, 2);                 // connections.
+  put_str(b, "walk_b.way");
+  put_str(b, "walk_c.way");
+  put_f32(b, 12.0f);
+  put_f32(b, 3.0f);
+  put_f32(b, 0.75f);
+
+  const WaypointObj waypoint = decode_waypoint("walk_a.way", b);
+  CHECK(waypoint.decoded);
+  CHECK(waypoint.source_order_decoded);
+  CHECK(waypoint.revision == 3);
+  CHECK(waypoint.drawable_revision == 3);
+  CHECK(waypoint.transformable_revision == 9);
+  CHECK(waypoint.flags == 0xC0);
+  CHECK(waypoint.connections.size() == 2);
+  CHECK(waypoint.connections[0] == "walk_b.way");
+  CHECK(waypoint.connections[1] == "walk_c.way");
+  CHECK(approx(waypoint.local.pos[0], 1.0f));
+  CHECK(approx(waypoint.world_stored.pos[2], 6.0f));
+  CHECK(approx(waypoint.radius, 12.0f));
+  CHECK(approx(waypoint.y_radius, 3.0f));
+  CHECK(approx(waypoint.angle_radius, 0.75f));
+  CHECK(waypoint.parent == "root.trans");
+  std::printf("  [ok] Waypoint rev3 source order: connections=%zu\n",
+              waypoint.connections.size());
+}
+
 void test_band_placer() {
   std::vector<uint8_t> b;
   put_u32(b, 2);                 // BandPlacer version.
@@ -2891,6 +2939,82 @@ void test_real_pause_tile_source_transforms() {
   std::printf("  [ok] real pause border tiles: pause, controller-loss, audio settings, and video settings source UV flips form all four corners\n");
 }
 
+void test_real_redoctane_main_hall_winding_contract() {
+  const std::string ark_dir =
+      "C:/Programming/GitHub/Guitar Hero II/gh2_ps2_hybrid_assets/gen";
+  const std::string hdr = first_existing(ark_dir, {"main.hdr", "MAIN.HDR"});
+  const std::string ark = first_existing(ark_dir, {"main_0.ark", "MAIN_0.ARK"});
+  if (hdr.empty() || ark.empty()) {
+    std::printf("  [skip] real RedOctane main-hall winding (no PS2 archive)\n");
+    return;
+  }
+
+  Scene scene;
+  CHECK(load_scene(hdr, ark, "world/big/og/gen/big_geom.milo_ps2", scene));
+  const MeshObj* main_hall = nullptr;
+  for (const MeshObj& mesh : scene.meshes) {
+    if (mesh.name == "main_hall.mesh") {
+      main_hall = &mesh;
+      break;
+    }
+  }
+  CHECK(main_hall != nullptr);
+  CHECK(main_hall && main_hall->decoded);
+  if (!main_hall) return;
+  const MatObj* material = scene.find_mat(main_hall->material);
+  CHECK(material != nullptr);
+
+  const auto world = scene.world_matrix(*main_hall);
+  const float determinant =
+      world[0] * (world[5] * world[10] - world[6] * world[9]) -
+      world[1] * (world[4] * world[10] - world[6] * world[8]) +
+      world[2] * (world[4] * world[9] - world[5] * world[8]);
+  std::size_t aligned = 0;
+  std::size_t reversed = 0;
+  std::size_t degenerate = 0;
+  for (std::size_t i = 0; i + 2 < main_hall->indices.size(); i += 3) {
+    const Vertex& a = main_hall->verts[main_hall->indices[i + 0]];
+    const Vertex& b = main_hall->verts[main_hall->indices[i + 1]];
+    const Vertex& c = main_hall->verts[main_hall->indices[i + 2]];
+    const float ab[3] = {b.px - a.px, b.py - a.py, b.pz - a.pz};
+    const float ac[3] = {c.px - a.px, c.py - a.py, c.pz - a.pz};
+    const float geometric[3] = {
+        ab[1] * ac[2] - ab[2] * ac[1],
+        ab[2] * ac[0] - ab[0] * ac[2],
+        ab[0] * ac[1] - ab[1] * ac[0],
+    };
+    const float authored_normal[3] = {
+        a.nx + b.nx + c.nx,
+        a.ny + b.ny + c.ny,
+        a.nz + b.nz + c.nz,
+    };
+    const float dot = geometric[0] * authored_normal[0] +
+                      geometric[1] * authored_normal[1] +
+                      geometric[2] * authored_normal[2];
+    if (dot > 1.0e-6f)
+      ++aligned;
+    else if (dot < -1.0e-6f)
+      ++reversed;
+    else
+      ++degenerate;
+  }
+  CHECK(determinant > 0.0f);
+  CHECK(aligned == main_hall->face_count);
+  CHECK(reversed == 0);
+  CHECK(degenerate == 0);
+  CHECK(material && material->cull);
+  std::printf(
+      "  [ok] RedOctane main_hall source winding: determinant=%.6f faces=%u "
+      "normal_aligned=%zu normal_reversed=%zu degenerate=%zu "
+      "bounds=(%.3f %.3f %.3f)-(%.3f %.3f %.3f) parent=%s owner=%s "
+      "material=%s cull=%d\n",
+      determinant, main_hall->face_count, aligned, reversed, degenerate,
+      main_hall->bb_min[0], main_hall->bb_min[1], main_hall->bb_min[2],
+      main_hall->bb_max[0], main_hall->bb_max[1], main_hall->bb_max[2],
+      main_hall->parent.c_str(), main_hall->geometry_owner.c_str(),
+      main_hall->material.c_str(), material && material->cull ? 1 : 0);
+}
+
 void test_mesh() {
   std::vector<uint8_t> b;
   put_u32(b, 28);                // mesh version 0x1c
@@ -2918,13 +3042,19 @@ void test_mesh() {
   for (int i = 0; i < 3; ++i) {
     put_f32(b, P[i][0]); put_f32(b, P[i][1]); put_f32(b, P[i][2]);  // pos
     put_f32(b, 0); put_f32(b, 0); put_f32(b, 1);                    // normal
-    put_f32(b, 1); put_f32(b, 0); put_f32(b, 0); put_f32(b, 0);     // weights
+    if (i == 1) {
+      put_f32(b, -0.25f); put_f32(b, 0.5f);
+      put_f32(b, 1.25f); put_f32(b, 1.0f);  // pre-separate-color slot
+    } else {
+      put_f32(b, 1); put_f32(b, 0); put_f32(b, 0); put_f32(b, 0);
+    }
     put_f32(b, P[i][0]); put_f32(b, P[i][1]);                       // uv
   }
   put_u32(b, 1);                 // face_count = 1
   put_u16(b, 0); put_u16(b, 1); put_u16(b, 2);  // the triangle
   put_u32(b, 1);                 // groupSizesCount
   b.push_back(1);                // one material/face group
+  const size_t unskinned_body_size = b.size();
   put_str(b, "bone_a.mesh");     // old pre-rev33 fixed four-entry bone table
   put_str(b, "bone_b.mesh");
   put_str(b, "");
@@ -2945,6 +3075,10 @@ void test_mesh() {
   CHECK(m.parent == "track.view");
   CHECK(m.showing);
   CHECK(approx(m.verts[0].w[0], 1.0f) && approx(m.verts[0].w[1], 0.0f));
+  CHECK(approx(m.verts[0].r, 1.0f) && approx(m.verts[0].g, 1.0f));
+  CHECK(approx(m.verts[1].w[0], -0.25f));
+  CHECK(approx(m.verts[1].w[1], 0.5f));
+  CHECK(approx(m.verts[1].w[2], 1.25f));
   CHECK(m.bones.size() == 2);
   CHECK(m.bones[0].name == "bone_a.mesh");
   CHECK(approx(m.bones[0].offset.pos[0], 7.0f));
@@ -2956,6 +3090,24 @@ void test_mesh() {
               m.vertex_count, m.face_count, m.material.c_str(),
               m.parent.c_str(), m.bb_min[0], m.bb_min[1], m.bb_min[2],
               m.bb_max[0], m.bb_max[1], m.bb_max[2]);
+
+  const std::vector<uint8_t> unskinned_body(
+      b.begin(), b.begin() + unskinned_body_size);
+  MeshObj unskinned = decode_mesh("unskinned.mesh", unskinned_body);
+  CHECK(unskinned.decoded);
+  CHECK(unskinned.bones.empty());
+  CHECK(approx(unskinned.verts[0].r, 1.0f));
+  CHECK(approx(unskinned.verts[0].g, 0.0f));
+  CHECK(approx(unskinned.verts[0].b, 0.0f));
+  CHECK(approx(unskinned.verts[0].a, 0.0f));
+  CHECK(approx(unskinned.verts[0].w[0], 0.0f));
+  CHECK(approx(unskinned.verts[1].r, 193.0f / 255.0f));
+  CHECK(approx(unskinned.verts[1].g, 127.0f / 255.0f));
+  CHECK(approx(unskinned.verts[1].b, 62.0f / 255.0f));
+  CHECK(approx(unskinned.verts[1].a, 1.0f));
+  std::printf(
+      "  [ok] Mesh pre-separate-color slot: unskinned packs Color32; "
+      "skinned preserves signed float weights\n");
 
   // World-matrix composition: a mesh under a Trans that translates by (10,0,0).
   Scene sc;
@@ -3245,10 +3397,12 @@ int main() {
   test_spotlight_source_order_rev20();
   test_cam_projection_fields();
   test_group_transform();
+  test_waypoint_source_order_rev3();
   test_group_draw_order_matches_rnddir_roots();
   test_band_placer();
   test_real_menu_band_placers();
   test_real_pause_tile_source_transforms();
+  test_real_redoctane_main_hall_winding_contract();
   test_mesh();
   test_particle_sys_source_order();
   test_world_crowd_gh2_matrix_stride();

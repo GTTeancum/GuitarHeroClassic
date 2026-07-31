@@ -2,6 +2,25 @@
 
 ## Venue Camera
 
+- 2026-07-28 native CharWalk type/group promotion:
+  the DTB type compiler now retains data-only members and loads the exact
+  stock `BandCharacter/guitarist` walk delays, `walkspot` mask, and
+  `max_walk_wait`, together with `CharWalk/guitarist.path_radius`. Native
+  guitarist packages resolve `walk_turn`, `walk_walk`, and `walk_stop`
+  `CharClipGroup` rows and every referenced clip. Converted GH1 guitarist
+  flags no longer retain GH1 family-membership bits that collide with GH2
+  meanings. Hidden native-only runs load 20 turn, 16 walk, and 16 stop clips
+  with the authored `0xC0` waypoint mask, radius 12, and max wait 6 in both a
+  converted GH1 venue and stock GH2 Arena. The proof does not claim the
+  remaining transition/regulation scorer is retail-exact.
+- 2026-07-28 GH2 `actually_walking` body:
+  retail registers the symbol at `0x0010CD64`; dispatch at `0x0010CD88`
+  loads `Character+0x248` and calls `CharWalk` `0x00184FD0`. That body
+  requires `mState > 0`, a most-playing driver, and a clip match against
+  `mClips[min(mCurNode-2,last)]`. Native now keeps GH2
+  `None/Going/Stopping` state separate from turn/walk/stop playback phase and
+  requires a concrete current walk clip for the camera predicate. The older
+  GH1 `0x00197548` citation is superseded for this GH2-primary bridge.
 - 2026-07-18 gameplay RndCam source summaries:
   MiloEditor source reads `RndCam` as optional base `Object`, `RndTrans`,
   optional legacy `RndDrawable`, near/far/Y-FOV, screen rect, z range, and
@@ -15299,3 +15318,96 @@ GH2 PS2 retail layout, and native theatre validation):
   keyboard in `Jessica`'s authored keyboard lineup. The post-deploy four-role
   smoke is under
   `.codex/current-evidence/gh1-character-complete/deployed-smoke-20260725/`.
+
+## 2026-07-28 GH2 normal CharWalk scheduler
+
+- `BandCharacter::Poll` at `0x0010AD00..0x0010AD64` checks the current
+  excitement-level delay remaining and creates a normal `0x40` walk request
+  only when that value is strictly negative.
+- Delay reset at `0x0010C3D0` records the current time epoch, calls
+  `RandomFloat(min,max)` only for enabled two-number rows, and stores the
+  exact `1e30` sentinel for disabled rows. The request constructor at
+  `0x0010C2E0` schedules a task over `[now, now + max_walk_wait]`; completion
+  or expiry destroys the task and resamples the delays.
+- Task Poll at `0x0011FC88..0x0011FF94` uses normal `kWalkSpot` (`0x40`),
+  retains the returned route order, and treats the last non-current route
+  point as the destination. The type's broader `0xC0` mask is not substituted
+  for this normal request.
+- Direction is lateral exactly when `abs(local_y) < abs(2*local_x)`.
+  Right/left become `0x200/0x100`; forward/back become `0x400/0x800`.
+  Lateral requests retain the lateral turn hint but choose forward walking
+  with 25-percent probability. Backward is the only vertical turn hint.
+  Walk flags add `0x1000` below excitement 3 or `0x2000` otherwise.
+- Native gameplay now uses these recovered scheduling facts and exact
+  walk/turn/final flag sets. Raw GH1 compatibility selection remains in its
+  own branch. Transition/root-fit scoring, regulation, and live
+  `CharClipDriver` ownership remain explicitly fenced.
+
+## 2026-07-28 authored Character/CharDriver owner boundary
+
+- The packed `char/gen/char_objects.dtb` type program is now the live owner of
+  every decoded character `CharDriver`, including nonstandard rows such as
+  `wings.drv`. Serialized driver order, realign, clip-set references, groups,
+  saved `DataNode`, starved handler, beat scale, and clip events all cross one
+  generic runtime boundary; no character or clip name selects behavior.
+- Stock performer MIDI markers dispatch their authored type-handler names.
+  GH2 bracketed markers are unwrapped, while GH1 role markers use the recovered
+  semantic mapping already used by the performer parser. `taskmgr beat` and
+  each `*_parser next_event_beat` read the live chart timeline. The gameplay
+  `game` singleton, optional `handle` semantics, dynamic event sources, and
+  WorldFx child lookup are exposed as runtime objects, so stock BAND_COMMON
+  enters with zero unhandled messages.
+- `CharDriver::PlayIfSafe` is statically recovered from the GH2 PS2 ELF:
+  handler wrapper `0x00172D58..0x00172E0C`, core
+  `0x001714D0..0x001716F8`. It subtracts the current first-playing node's
+  remaining beat span from the requested window. A candidate matching the
+  requested `DataNode` is accepted when it does not carry `safeFlags`, or
+  when its authored beat length is strictly less than the adjusted window.
+  Focused tests cover subtraction, the strict comparison, and the
+  no-safe-flag path.
+- GH1 band clips preserve the shared active/idle/win/lose bits. Because GH1
+  has no separate GH2 venue-intro domains, the converter promotes source
+  `kBandIdle` (`0x40`) into target `kBandIntro` (`0x400`) and
+  `kBandIntroIdle` (`0x1000`). GH1's drummer domain contains all-beat,
+  double, half, and normal active motion but no GH2 `kBandNosnare` (`0x200`)
+  member. The converter identifies that domain by its three drummer-specific
+  flag families and promotes its normal active motion into the target-only
+  no-snare domain without changing samples. The rules are role/domain/flag
+  based, not name based. A hidden, input-free strict-native Small Club run
+  proves all four roles enter through decoded scripts; singer and bassist
+  resolve both intro queries at target flags `0x1440`, while GH2 `[nobeat]`
+  resolves source `drummer_active_fast_normal` at target flags `0x206`.
+- Guitarist `play` is a native `BandCharacter` message, not a missing packed
+  type handler. GH2 PS2 `BandCharacter::Handle` at
+  `0x0010C9E0..0x0010CB7C` maps play/idle/wail/solo messages to the
+  normal/idle/extreme/solo groups through `0x0010B7F8`; the two off messages
+  restore normal through `0x0010C5B8`. The decoded type owner now implements
+  that class boundary. A hidden strict-native Small Club run resolves guitar
+  `[play]` to `stand_fast_02`, reports no unresolved/failed/unhandled handler
+  rows, and sustains 59.393 steady FPS.
+
+## 2026-07-29 source-to-live performer formation ledger
+
+- GH1 Arena and CharSys use the same owner at global `0x00363748`. Arena
+  initialization fills the `+0xF0` walk record and `+0xE0` stage records;
+  CharSys consumes those same vectors. The retail copy paths move four
+  16-byte rows, proving each record is one complete transform.
+- The offline converter emits a machine-readable row for each mapping:
+  guitarist0 from walk spot 1, then singer/bassist/drummer from stage spots
+  1/2/3. Every row contains the raw source matrix, normalized native Waypoint
+  matrix, flags, and serialized target name. The complete packed audit has
+  28/28 passing venue/role rows.
+- `GHOGX_DEBUG_PERFORMER_START=1` now adds one
+  `[world-start-ledger]` record per live performer. It records the actual
+  selection source, Waypoint, fallback/request/Waypoint flags, and all 12
+  transform floats at nine significant digits, which round-trips every
+  binary32 value. The older readable four-row matrix remains available.
+- A hidden, input-free, all-GH1 strict-native sweep reaches `playing` in all
+  seven venues. All 28 live matrices match the converter's reparsed Waypoints
+  with zero float-bit mismatches. All 42 role pairs have distinct
+  translations; minimum separation is 73.707 source units. No venue,
+  character, object, or coordinate-specific route participates.
+- Evidence:
+  `proofs/gh1-native-conversion-parity/formation-transform-contract/`.
+  This closes performer start formation only, not matched retail posing,
+  animation, cameras, lighting, or prop behavior.

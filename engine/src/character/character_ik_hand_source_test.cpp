@@ -55,8 +55,13 @@ int main() {
   using ghogx::character::SourceCharIKHandSetHandResult;
   using ghogx::character::SourceCharIKHandTargetInput;
   using ghogx::character::SourceCharIKHandWristConstraintInput;
+  using ghogx::character::CharIKHand;
+  using ghogx::character::Character;
+  using ghogx::character::SkinnedMesh;
+  using ghogx::character::apply_character_controllers;
   using ghogx::character::source_char_ik_hand_copy_plan;
   using ghogx::character::source_char_ik_hand_elbow_cosine;
+  using ghogx::character::source_gh2_ps2_char_ik_hand_elbow_cosine;
   using ghogx::character::source_char_ik_hand_elbow_collision_gate;
   using ghogx::character::source_char_ik_hand_elbow_swing;
   using ghogx::character::source_char_ik_hand_elbow_bend_rows;
@@ -211,6 +216,94 @@ int main() {
   ok &= expect_bool(source_char_ik_hand_elbow_cosine(measure, -1000.0f, cosine),
                     true, "source low clamp accepted");
   ok &= expect_float(cosine, -1.0f, "source low clamp");
+  ok &= expect_float(source_gh2_ps2_char_ik_hand_elbow_cosine(1.0f), 0.985f,
+                     "GH2 PS2 IKElbow high clamp");
+  ok &= expect_float(source_gh2_ps2_char_ik_hand_elbow_cosine(-1.0f), -0.985f,
+                     "GH2 PS2 IKElbow low clamp");
+  ok &= expect_float(source_gh2_ps2_char_ik_hand_elbow_cosine(0.25f), 0.25f,
+                     "GH2 PS2 IKElbow interior cosine");
+
+  auto mesh_transform = [](const std::string& name,
+                           const std::string& parent,
+                           float x, float y, float z) {
+    SkinnedMesh mesh;
+    mesh.name = name;
+    mesh.parent = parent;
+    mesh.local.pos[0] = x;
+    mesh.local.pos[1] = y;
+    mesh.local.pos[2] = z;
+    return mesh;
+  };
+  Character mesh_character;
+  mesh_character.dir_type = "BandCharacter";
+  mesh_character.dir_version = 24;
+  mesh_character.meshes = {
+      mesh_transform("root.mesh", "", 0.0f, 0.0f, 0.0f),
+      mesh_transform("upper.mesh", "root.mesh", 0.0f, 0.0f, 0.0f),
+      mesh_transform("fore.mesh", "upper.mesh", 9.0f, 0.0f, 0.0f),
+      mesh_transform("hand.mesh", "fore.mesh", 12.0f, 0.0f, 0.0f),
+      mesh_transform("target.mesh", "root.mesh", 15.0f, 10.0f, 0.0f),
+  };
+  for (const auto& mesh : mesh_character.meshes)
+    mesh_character.bind_mesh_local.push_back(mesh.local);
+  CharIKHand mesh_ik;
+  mesh_ik.name = "mesh_hand.ik";
+  mesh_ik.hand = "hand.mesh";
+  mesh_ik.target = "target.mesh";
+  mesh_ik.weight = 1.0f;
+  mesh_character.ik_hands.push_back(mesh_ik);
+  apply_character_controllers(mesh_character, 0.0f);
+  ok &= expect_bool(
+      std::fabs(mesh_character.meshes[1].local.rot[0][1]) > 0.01f ||
+          std::fabs(mesh_character.meshes[1].local.rot[1][0]) > 0.01f,
+      true, "GH2 CharIKHand resolves mesh-backed arm chain");
+
+  Character prop_target_character;
+  prop_target_character.dir_type = "BandCharacter";
+  prop_target_character.dir_version = 24;
+  prop_target_character.meshes = {
+      mesh_transform("root.mesh", "", 0.0f, 0.0f, 0.0f),
+      mesh_transform("upper.mesh", "root.mesh", 0.0f, 0.0f, 0.0f),
+      mesh_transform("fore.mesh", "upper.mesh", 9.0f, 0.0f, 0.0f),
+      mesh_transform("hand.mesh", "fore.mesh", 12.0f, 0.0f, 0.0f),
+  };
+  for (const auto& mesh : prop_target_character.meshes)
+    prop_target_character.bind_mesh_local.push_back(mesh.local);
+  ghogx::character::AttachedPropTransformProxy prop_target;
+  prop_target.name = "target.mesh";
+  prop_target.parent = "root.mesh";
+  prop_target.local.pos[0] = 15.0f;
+  prop_target.local.pos[1] = 10.0f;
+  prop_target.bind_local = prop_target.local;
+  prop_target_character.attached_prop_transform_proxies.emplace(
+      prop_target.name, prop_target);
+  // An output-graph cache for a resident instrument transform is not a
+  // substitute for that transform's live shared-ObjectDir local chain.
+  prop_target_character.runtime_pose_output_worlds["target.mesh"] = {
+      1.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 1.0f, 0.0f,
+      0.0f, 0.0f, 0.0f, 1.0f};
+  CharIKHand prop_target_ik = mesh_ik;
+  prop_target_ik.name = "prop_target_hand.ik";
+  prop_target_character.ik_hands.push_back(prop_target_ik);
+  apply_character_controllers(prop_target_character, 0.0f);
+  const auto live_prop_target =
+      prop_target_character.runtime_ik_hand_targets.find(
+          prop_target_ik.name);
+  ok &= expect_bool(
+      live_prop_target !=
+          prop_target_character.runtime_ik_hand_targets.end(),
+      true, "GH2 CharIKHand resolves attached-prop target");
+  if (live_prop_target !=
+      prop_target_character.runtime_ik_hand_targets.end()) {
+    ok &= expect_float(live_prop_target->second[0], 15.0f,
+                       "attached-prop target world x");
+    ok &= expect_float(live_prop_target->second[1], 10.0f,
+                       "attached-prop target world y");
+    ok &= expect_float(live_prop_target->second[2], 0.0f,
+                       "attached-prop target world z");
+  }
 
   const auto bend_rows = source_char_ik_hand_elbow_bend_rows(0.8f, 0.6f);
   ok &= expect_bool(bend_rows.applied, true, "elbow bend rows applied");

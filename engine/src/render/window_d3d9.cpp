@@ -36,6 +36,10 @@ struct Window::Impl {
   unsigned short pad_now  = 0;
   unsigned short pad_prev = 0;
   int gamepad_count = 0;
+  uint64_t input_pump_count = 0;
+  bool xinput_connected[XUSER_MAX_COUNT] = {};
+  uint64_t xinput_next_probe[XUSER_MAX_COUNT] = {};
+  bool player_one_is_guitar = false;
   bool relative_mouse = false;
   bool relative_mouse_centered = false;
   bool relative_mouse_hidden = false;
@@ -123,7 +127,6 @@ LRESULT CALLBACK wnd_proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       return 0;
     case WM_KEYDOWN:
       if (impl && wp < 256) impl->key_now[wp] = true;
-      if (wp == VK_ESCAPE && impl) impl->should_close = true;  // hard quit
       return 0;
     case WM_KEYUP:
       if (impl && wp < 256) impl->key_now[wp] = false;
@@ -195,12 +198,19 @@ std::unique_ptr<Window> Window::create(int width, int height, const char* title)
   pp.BackBufferFormat = D3DFMT_UNKNOWN;  // match desktop
   pp.BackBufferWidth = width;
   pp.BackBufferHeight = height;
-  pp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;  // vsync
+  // The application owns one precise 60 Hz frame deadline across title,
+  // menus, and gameplay. A second D3D9 interval-one wait makes a frame that
+  // finishes near vblank miss that vblank and block for another refresh,
+  // producing venue-dependent 30--50 FPS pacing even when the measured frame
+  // work fits the 16.67 ms budget. Windowed DWM composition still presents
+  // the immediate swap chain coherently; keep the one authoritative clock in
+  // app_main instead of stacking two independent schedulers.
+  pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
   pp.hDeviceWindow = impl->hwnd;
   pp.EnableAutoDepthStencil = TRUE;     // depth buffer for 3-D rendering
   pp.AutoDepthStencilFormat = D3DFMT_D24S8;
 
-  const char* device_path = "HAL hardware VP D24S8 vsync";
+  const char* device_path = "HAL hardware VP D24S8 immediate";
   auto try_create_device = [&](D3DDEVTYPE device_type, DWORD flags,
                                D3DFORMAT depth_format, UINT interval,
                                const char* label) {
@@ -214,14 +224,16 @@ std::unique_ptr<Window> Window::create(int width, int height, const char* title)
   };
 
   HRESULT hr = try_create_device(D3DDEVTYPE_HAL,
-                                 D3DCREATE_HARDWARE_VERTEXPROCESSING,
-                                 D3DFMT_D24S8, D3DPRESENT_INTERVAL_ONE,
-                                 device_path);
+                                  D3DCREATE_HARDWARE_VERTEXPROCESSING,
+                                  D3DFMT_D24S8,
+                                  D3DPRESENT_INTERVAL_IMMEDIATE,
+                                  device_path);
   if (FAILED(hr)) {
     // Retry with software vertex processing (some adapters / headless setups).
     hr = try_create_device(D3DDEVTYPE_HAL, D3DCREATE_SOFTWARE_VERTEXPROCESSING,
-                           D3DFMT_D24S8, D3DPRESENT_INTERVAL_ONE,
-                           "HAL software VP D24S8 vsync");
+                           D3DFMT_D24S8,
+                           D3DPRESENT_INTERVAL_IMMEDIATE,
+                           "HAL software VP D24S8 immediate");
   }
   if (FAILED(hr)) {
     // Hidden validation windows on some drivers reject D24S8/vsync paths even
@@ -303,21 +315,43 @@ void Window::pump() {
   float gh_whammy_axis = 0.0f;
   XINPUT_STATE xs = {};
   bool player_one_connected = false;
-  bool player_one_is_guitar = false;
+  bool player_one_is_guitar = impl_->player_one_is_guitar;
   impl_->gamepad_count = 0;
+  ++impl_->input_pump_count;
+  constexpr uint64_t kDisconnectedProbeFrames = 15;
   for (DWORD player = 0; player < XUSER_MAX_COUNT; ++player) {
+    if (!impl_->xinput_connected[player] &&
+        impl_->input_pump_count < impl_->xinput_next_probe[player]) {
+      continue;
+    }
     XINPUT_STATE state = {};
-    if (XInputGetState(player, &state) != ERROR_SUCCESS) continue;
+    if (XInputGetState(player, &state) != ERROR_SUCCESS) {
+      impl_->xinput_connected[player] = false;
+      impl_->xinput_next_probe[player] =
+          impl_->input_pump_count + kDisconnectedProbeFrames;
+      if (player == 0) {
+        impl_->player_one_is_guitar = false;
+        player_one_is_guitar = false;
+      }
+      continue;
+    }
+    const bool newly_connected = !impl_->xinput_connected[player];
+    impl_->xinput_connected[player] = true;
     ++impl_->gamepad_count;
     if (player == 0) {
       xs = state;
       player_one_connected = true;
-      XINPUT_CAPABILITIES capabilities = {};
-      if (XInputGetCapabilities(player, XINPUT_FLAG_GAMEPAD, &capabilities) ==
-          ERROR_SUCCESS) {
-        player_one_is_guitar =
-            xinput_subtype_is_guitar(capabilities.SubType);
+      if (newly_connected) {
+        XINPUT_CAPABILITIES capabilities = {};
+        if (XInputGetCapabilities(player, XINPUT_FLAG_GAMEPAD,
+                                  &capabilities) == ERROR_SUCCESS) {
+          impl_->player_one_is_guitar =
+              xinput_subtype_is_guitar(capabilities.SubType);
+        } else {
+          impl_->player_one_is_guitar = false;
+        }
       }
+      player_one_is_guitar = impl_->player_one_is_guitar;
     }
   }
   if (player_one_connected) {
@@ -441,6 +475,7 @@ bool Window::action_pressed(Action a) const {
     case Action::Back:
       // Retail guitar menus use Red for cancel/back (S on keyboard).
       return guitar_edge(1u << 1) || key_edge(VK_BACK) ||
+             key_edge(VK_ESCAPE) ||
              pad_edge(XINPUT_GAMEPAD_B);
     case Action::Start:
       return key_edge(VK_RETURN) || pad_edge(XINPUT_GAMEPAD_START);

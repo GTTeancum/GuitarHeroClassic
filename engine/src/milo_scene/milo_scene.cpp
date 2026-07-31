@@ -20,6 +20,11 @@
 
 namespace ghogx::milo_scene {
 
+float source_hmx_color32_channel(float value) {
+  const int packed = static_cast<int>(value * 255.0f);
+  return static_cast<float>(packed & 0xFF) / 255.0f;
+}
+
 namespace {
 
 // Bounds-checked little-endian cursor over a single entry body.
@@ -759,6 +764,10 @@ void rebuild_group_authored_draw_order(Scene& scene) {
     if (!group.draw_only.empty() && name_has_suffix(group.draw_only, ".mesh") &&
         scene_has_mesh(scene, group.draw_only)) {
       grouped_mesh_set.insert(group.draw_only);
+    }
+    if (!group.draw_only.empty() &&
+        find_group_obj(scene, group.draw_only)) {
+      referenced_groups.insert(group.draw_only);
     }
   }
   scene.grouped_meshes.assign(grouped_mesh_set.begin(), grouped_mesh_set.end());
@@ -2850,14 +2859,65 @@ WaypointObj decode_waypoint(const std::string& entry_name,
   WaypointObj w;
   w.name = entry_name;
   try {
-    // GH2 PS2 Waypoint is a Trans subclass, but its Trans block is embedded
-    // after Waypoint properties rather than at byte 0. In arena_chars.milo_ps2
-    // the embedded block is:
-    //   i32 9, local matrix, world matrix, 13 bytes, i32 flags
-    // The flags line up with macros.dta: guitarist0mp=512, singer=4,
-    // bassist=16, drummer=32. Some authored walk/interact waypoints append
-    // extra property strings after the Trans rows; reject values outside the
-    // documented bitfield so those string bytes cannot masquerade as starts.
+    Reader r(body.data(), body.size());
+    w.revision = low_revision(r.u32());
+    if (w.revision != 3) {
+      throw std::runtime_error(
+          "milo_scene: unsupported GH2 Waypoint revision");
+    }
+    read_object_fields(r);
+
+    w.drawable_revision = low_revision(r.u32());
+    if (w.drawable_revision == 0 || w.drawable_revision > 3) {
+      throw std::runtime_error(
+          "milo_scene: unsupported Waypoint Drawable revision");
+    }
+    (void)r.u8();  // legacy temporary RndMesh showing
+    if (w.drawable_revision < 2) {
+      const uint32_t drawable_count = r.u32();
+      if (drawable_count > 1024) {
+        throw std::runtime_error(
+            "milo_scene: implausible Waypoint drawable count");
+      }
+      for (uint32_t i = 0; i < drawable_count; ++i) (void)r.str();
+    }
+    if (w.drawable_revision > 0) r.skip(16);  // legacy sphere
+    if (w.drawable_revision > 2) (void)r.f32();  // legacy draw order
+
+    read_trans_block(r, w.local, w.world_stored, w.constraint, w.target,
+                     w.preserve_scale, w.parent, false,
+                     &w.transformable_revision);
+    if (w.transformable_revision != 9) {
+      throw std::runtime_error(
+          "milo_scene: unsupported Waypoint Transformable revision");
+    }
+    w.flags = r.u32();
+    const uint32_t connection_count = r.u32();
+    if (connection_count > 4096) {
+      throw std::runtime_error(
+          "milo_scene: implausible Waypoint connection count");
+    }
+    w.connections.reserve(connection_count);
+    for (uint32_t i = 0; i < connection_count; ++i) {
+      w.connections.push_back(r.str());
+    }
+    w.radius = r.f32();
+    w.y_radius = r.f32();
+    w.angle_radius = r.f32();
+    if (r.pos != r.n) {
+      throw std::runtime_error(
+          "milo_scene: GH2 Waypoint residual bytes");
+    }
+    w.source_order_decoded = true;
+    w.decoded = true;
+    return w;
+  } catch (const std::exception& ex) {
+    w.error = ex.what();
+  }
+
+  try {
+    // Compatibility-only fallback for source layouts not yet converted to
+    // the exact GH2 revision-3 row above.
     size_t trans_ver_at = body.size();
     for (size_t o = 0; o + 4 <= body.size(); ++o) {
       int32_t v;
@@ -4185,17 +4245,18 @@ MeshObj decode_mesh(const std::string& entry_name,
       Vertex& v = mesh.verts[i];
       v.px = r.f32(); v.py = r.f32(); v.pz = r.f32();
       v.nx = r.f32(); v.ny = r.f32(); v.nz = r.f32();
-      // ihatecompvir's RndMesh reader treats GH2 rev 28's pre-separate-color
-      // slot as color first, then copies it into boneWeights when mBones exists.
-      const float weight0 = r.f32();
-      const float weight1 = r.f32();
-      const float weight2 = r.f32();
-      const float weight3 = r.f32();
-      v.w[0] = weight0;
-      v.w[1] = weight1;
-      v.w[2] = weight2;
-      v.w[3] = weight3;
-      v.r = 1.0f; v.g = 1.0f; v.b = 1.0f; v.a = 1.0f;
+      // GH1/GH2 PS2 keep this pre-separate-color slot as four source floats
+      // until the bone table resolves. Skinned meshes preserve the signed and
+      // over-one values as weights; unskinned meshes pack the same floats
+      // through Hmx::Color32 as authored vertex color.
+      v.r = r.f32();
+      v.g = r.f32();
+      v.b = r.f32();
+      v.a = r.f32();
+      v.w[0] = 0.0f;
+      v.w[1] = 0.0f;
+      v.w[2] = 0.0f;
+      v.w[3] = 0.0f;
       v.u  = r.f32(); v.v  = r.f32();
     }
 
@@ -4258,6 +4319,26 @@ MeshObj decode_mesh(const std::string& entry_name,
             mesh.bones.push_back(BoneTransform{std::move(names[i]), offsets[i]});
           }
         }
+      }
+    }
+
+    if (!mesh.bones.empty()) {
+      for (Vertex& vertex : mesh.verts) {
+        vertex.w[0] = vertex.r;
+        vertex.w[1] = vertex.g;
+        vertex.w[2] = vertex.b;
+        vertex.w[3] = vertex.a;
+        vertex.r = 1.0f;
+        vertex.g = 1.0f;
+        vertex.b = 1.0f;
+        vertex.a = 1.0f;
+      }
+    } else {
+      for (Vertex& vertex : mesh.verts) {
+        vertex.r = source_hmx_color32_channel(vertex.r);
+        vertex.g = source_hmx_color32_channel(vertex.g);
+        vertex.b = source_hmx_color32_channel(vertex.b);
+        vertex.a = source_hmx_color32_channel(vertex.a);
       }
     }
 

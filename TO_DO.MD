@@ -28,6 +28,12 @@
   manifest and byte-identical converted assets.
   The numbered format-gap register and completion gates are maintained in
   `docs/GH1_GH2_FORMAT_CONVERSION.md`.
+4. Distribution must not require or ship a modified copy of the user's GH2
+  archive. Ship our pre-converted GH2-native GH1 characters, animations, and
+  venues as project-owned overlay inputs. On the user's machine, import GH1
+  only for its songs, and import GH80s for its songs and characters. GH2
+  remains the base archive and continues to own gameplay, UI, HUD, and other
+  primary presentation.
 
 ## Open Gameplay / Runtime TODO
 
@@ -35,31 +41,503 @@
   centered overlays which do not consume the full screen; the live venue and
   characters must remain visible in the background. Recover the retail panel
   bounds, overlay behavior, and gameplay-render lifetime before changing it.
-2. Manage Band navigation/soft lock: Up/Down could not move into the character
-  entries. Pressing Green/`A` reached a “Please enter a band name” error screen
-  which could not be exited. Recover the retail focus graph, validation-dialog
-  ownership, and cancel route.
-3. `Esc` must not close the game during normal retail-style play; it is too easy
-  to trigger accidentally. Route quitting through an intentional UI action.
-4. Audio Settings adjustment direction is reversed. Retail expectation for the
+2. Audio Settings adjustment direction is reversed. Retail expectation for the
   current vertical control mapping is Up -> right/increase and
   Down -> left/decrease.
-5. Default input/audio calibration needs measurement and correction. On Easy,
+3. Default input/audio calibration needs measurement and correction. On Easy,
   first-tier live play registered roughly 5% of attempted notes. Determine
   audio output latency, render/input timing, chart window, and calibration
   defaults from measured clocks before widening hit windows.
-6. Smooth choppy transitions in some authored flyby camera shots without removing or replacing the PS2 camera behavior.
-7. Consider adding a distinct HOPO glow in the style of Guitar Hero III and later games.
-8. Complete whammy deformation/action on sustain tails.
-9. Add original-Xbox support for Xbox 360 guitar hardware through controller-port-to-female-USB adapters:
+4. Smooth choppy transitions in some authored flyby camera shots without removing or replacing the PS2 camera behavior.
+5. Consider adding a distinct HOPO glow in the style of Guitar Hero III and later games.
+6. Complete whammy deformation/action on sustain tails.
+7. Add original-Xbox support for Xbox 360 guitar hardware through controller-port-to-female-USB adapters:
   1. Implement the wired Xbox 360 X-Plorer first. Add its USB VID/PID, initialization and report parsing, then map frets, strum, Start/Back, whammy, and tilt/star power where exposed.
   2. Implement the Xbox 360 Wireless Receiver second. Handle receiver enumeration/initialization, connection and disconnection reports, input packets, pairing/sync behavior, and only the status/LED commands actually required.
   3. Deliberately support one receiver and one active wireless instrument/controller per physical original-Xbox controller port. Bind the first compatible connected slot, ignore additional receiver slots, and allow a new device to claim the port after disconnect. Do not implement multitap-style fanout.
   4. Use public protocol behavior and hardware captures for a clean implementation; Linux `xpad` is a useful behavioral reference, but do not copy GPL implementation code unless licensing is explicitly compatible.
   5. Treat PS2-to-Xbox guitar adapters as active protocol translators when they enumerate as standard Xbox controllers. They should normally need only adapter-specific input mapping/whammy validation, not a PS2 controller protocol driver. Escalate to driver work only for nonstandard descriptors or initialization.
+
+## Open Native Conversion Parity TODO
+
+1. Prove character parity for all 13 GH1 packages against matched retail GH1
+  behavior, not merely successful GH2-native loading. Cover every role,
+  selectable guitarist, outfit, LOD, skeleton, skin palette, controller,
+  attachment, prop, shadow, face/eye state, and authored animation family at
+  matched source times and camera views. The overlapping start formation seen
+  in the 2026-07-27 smoke-test video is now closed from source facts rather
+  than visual judgment. A packed converter ledger and hidden strict-native
+  sweep cover all seven GH1 venues and four roles: 28/28 live transforms match
+  the emitted source-derived Waypoints at zero float-bit mismatches, and all
+  42 pairwise role translations reject exact overlap. Evidence:
+  `proofs/gh1-native-conversion-parity/formation-transform-contract/`.
+  This closes start formation, not matched pose/animation or the item-wide
+  character and venue parity gates. All 13 converted
+  BandCharacter packages and one source-derived native clip per package now
+  pass the strict native-only load matrix with zero failed meshes, missing
+  assets, decode errors, unsupported Morph revisions, or gate violations.
+  Character surface state is also no longer selected from eye/hair spellings:
+  decoded `CharEyes` links identify controlled eye meshes, while decoded
+  `RndMat` fields exclusively drive lighting, culling, blend, alpha, depth, and
+  wrap. Stock GH2 Metal1 and converted GH1 Metal input-free checks retain
+  visible eyes with the systemic path. Evidence:
+  `proofs/gh1-native-conversion-parity/structural-character-render-state/`.
+  Runtime LOD and ordinary-pass shadow exclusion now consume the exact decoded
+  `Character9`/`BandCharacter1` root references shared with the offline
+  converter; the former `top.view`/`lod0.grp` and `shadow*` spelling branches
+  are gone. Input-free strict-native loads decode every stock GH2 crowd/band
+  root and each converted GH1 band root used by the focused run. Evidence:
+  `proofs/gh1-native-conversion-parity/character-root-contract/`.
+  The shared white rear-head geometry reported on both singers is also fixed
+  from that root contract. The submitted objects were unmaterialed resident
+  `Bip01 Ponytail*` skeleton/editor helper meshes outside each singer's
+  authored `top.view` graph—not missing hair textures. Character drawing now
+  traverses the active decoded LOD and its ancestor-group closure, retains
+  authored direct accessory children, suppresses sibling LOD branches, and
+  does not append unrelated ungrouped meshes. No singer, ponytail, mesh,
+  material, or empty-material rule exists. Fresh unfiltered rear views from
+  the deployed build remove the white helpers from both singers while
+  retaining their hair and body. A complete Small Club scene stays clean at
+  59.893 steady FPS, and a strict-native load sweep passes all 13 converted
+  character packages with zero engine failures. A fresh current-build,
+  input-free side-by-side motion capture also runs each singer's
+  source-authored active clip under the same fixed rear camera with the
+  ordinary unfiltered draw path; both rear silhouettes remain clean. Evidence:
+  `proofs/gh1-native-conversion-parity/singer-rear-head-contract/`.
+  The adjacent FaceFx package-path subcase is also closed generically:
+  gameplay and the viewer now resolve only decoded
+  `FaceFxLipSyncServo.viseme_milo` references, while converted GH1 singers
+  with Morph/EventTrigger face programs and no FaceFx servo perform no
+  character-name-derived `*_viseme` lookup. Evidence:
+  `proofs/gh1-native-conversion-parity/facefx-serialized-viseme-path/`.
+  Full package-load evidence:
+  `proofs/gh1-native-conversion-parity/strict-native-character-matrix/`. Keep
+  this item open for the matched behavioral and visual matrix above.
+2. Prove venue parity for all seven GH1 venues against matched retail GH1
+  behavior. Cover hierarchy and placement, materials and multipass state,
+  lighting/environments, particles, crowds, props, visibility, scripts/events,
+  animation timing, opening sweeps, and regular cameras. Renderer culling no
+  longer contains the diagnostic-era RedOctane `main_hall.mesh` exception.
+  Packed GH2 evidence proves that mesh has a positive determinant, 219/219
+  face/normal agreement, and authored `cull=true`; the shared renderer now
+  reverses winding only for a negative submitted world-transform determinant.
+  Focused tests plus native-only GH2 RedOctane and converted GH1 Small Club
+  runs pass. Evidence:
+  `proofs/gh1-native-conversion-parity/systemic-cull-handedness/`.
+  The GH1 VenueCam target/screen subcase is now source-closed. Read-only
+  retail state plus `SLUS-21224:0x0016E080` proves normal single-player target
+  index zero resolves the player guitarist, not the vocalist. The converter
+  and both compatibility adapters now preserve
+  `guitarist0:bone_head.mesh`, direct centered `singer_in/out` coordinates,
+  and the native selected-path endpoint progression (including equal
+  `start/end` resolving immediately to `out`). The full sweep passes 201/201
+  records and strict-native archive loading resolves the corrected refs. The
+  selected ArenaSinger vtable entry calls retail `0x0018D3C0`, whose literal
+  lookup is `bone_head.mesh`; this supersedes the earlier spine interpretation
+  and explains the former vertical target difference without a camera or
+  character offset. The hidden archive-backed run remains in `playing` state
+  at 60.017 steady FPS, and all seven corrected venue packages verify exact
+  after deployment. Evidence:
+  `proofs/gh1-native-conversion-parity/venuecam-target-screen-contract/`.
+  Venue geometry visibility also no longer tests the literal material names
+  `invisible.mat` or `ray_blocker.mat`. Packed Arena/Festival clip masks are
+  governed by decoded zero material alpha, while Theatre proves that the same
+  spelling is not itself a visibility contract. Hidden Arena, Festival, and
+  Theatre guards pass after removing the exception. Evidence:
+  `proofs/gh1-native-conversion-parity/render-material-identity-contract/`.
+  Ordered GH1 View environment state is also preserved now. Multi-scope View7
+  draw streams emit deterministic native environment child Groups instead of
+  flattening every drawable under the first Environ. The full audit remains
+  105/105 MILOs, 926/926 ACPs, and zero blockers. A fresh deployed strict-native
+  sweep reaches gameplay in all seven venues at 57.269--57.730 steady FPS.
+  Evidence:
+  `proofs/gh1-native-conversion-parity/view-environment-scope-contract/` and
+  `proofs/gh1-native-conversion-parity/venue-parity-matrix/final-view-scope-helper-lifecycle/`.
+  This closes the identity-branch, View environment-scope, and temporary
+  Arena-helper subcases, not the matched seven-venue visual/behavioral matrix.
+3. Produce semantic source-to-target differential ledgers for every converted
+  field. A target file reparsing and running is insufficient: each retained,
+  translated, synthesized, or intentionally discarded source field must have a
+  tested target meaning and residual accounting. Schema-level accounting is
+  implemented as of 2026-07-27: an independent canonical source schema and
+  conversion table agree exactly for all 21 observed MILO class revisions,
+  standalone ACP revision 18/sample-set revision 5, and Classic DTB/SEQ
+  container/node fields, plus the semantic GH1 VenueCam and Arena-script
+  domains. The full packed audit emits 762 rows (603 source fields and 159
+  synthesized target fields), covers 105/105 MILO directories, 926/926 ACPs,
+  all 172 DTB/SEQ assets (87,977 nodes across 13 preserved container control
+  words), 201/201 camera records, and all seven venue scripts with 10
+  source-validated section links and one native state initializer. The
+  converter now promotes each main venue to the retail GH2 WorldDir11 root
+  contract and links those authored sections as native ObjectDir
+  subdirectories. There are zero missing schema fields, residual trailing
+  bytes, unrecognized script roots, or conversion blockers. Evidence:
+  `proofs/gh1-native-conversion-parity/semantic-field-contract/`. The
+  intentional-discard ledger now expands every aggregate count into 17,314
+  source-addressable rows across 1,030 archive assets and 11,471 objects.
+  Every row names its archive path, object, class/revision, field, value
+  class, and proof status. All 28 aggregate buckets reconcile exactly, and no
+  instance remains `nondefault_requires_retail_proof`. The six
+  `Cam9.drawable.showing=false` rows are all authored
+  `6 foot camera.cam` helpers in six venues; native GH2 Cam is not a
+  Drawable. The Mat21 retained/translated family is now closed too: full
+  reports cover 1,693 roots and 1,181 authored texture stages, and an
+  independent formula check finds zero mismatches across global material
+  state, texture-stage state, pass synthesis/linkage/defaults, SrcAlpha
+  intensify, and MultipassSrc resets. The Mesh25 non-transform value family
+  is closed corpus-wide as well: all 7,087 source meshes are paired with their
+  reparsed Mesh28 targets, covering 356,288 vertices, 411,158 faces, 1,609
+  skinned meshes, drawable/material/owner/mutable/volume state, groups, empty
+  BSP conversion, bone slots/matrices, and strip caches with zero mismatches.
+  The report also identifies all 1,139 legacy child vectors as inputs to the
+  directory transform graph rather than treating them as silent discards. That
+  graph is now closed across all 8,095 source transformables and all 4,545
+  authored child-owner links, with zero unresolved links or mismatched
+  matrices, parents, constraints, targets, or preserve-scale flags. The
+  instance report covers the 1,653 explicit-parent wins, seven later
+  child-owner wins, 4,507 self-parent/child-owner results, 1,928 self-parent
+  objects without owners, and 21 multiple-owner cases. Tex8 is closed at the
+  per-value level as well: 1,067/1,067 textures and all 16,535,680 embedded
+  bitmap payload bytes match their reparsed Tex10 targets across wrapper state,
+  every HMX bitmap header field, reserved bytes, and payload digest. ACP18 is
+  now closed too: all 926 clips, 42,386 channel entries, and 18,810,192 sample
+  bytes match reparsed CharClipSamples10 targets, including independent
+  cumulative channel-type counts, frame-size accounting, export-bit removal,
+  play-time flag mapping, target defaults, and the data-free retail duplicate
+  header. TransAnim4 retained payload/filter reduction is closed too: 686
+  animations, 30,263 transform keys, 312 legacy operations, and 163
+  synthesized AnimFilter1 objects compare exactly to reparsed targets. Its
+  three animation-membership references are now preserved by a generic
+  cycle-checked View animation closure rather than discarded. The full
+  View7-to-Group ledger covers all 678 Views, 1,132 animation references,
+  5,433 drawable references, 14 MatAnim expansions, 72 environment-scope
+  Groups, 51 draw-only Groups, and 10 View filters with zero mismatches. Keep
+  this item open for other retained/translated class families and script/event
+  behavioral coverage. The combined direct-animation ledger also closes 270
+  Morph/LightAnim/CamAnim/EnvAnim/ParticleSysAnim/MeshAnim/Movie objects,
+  4,502 keys, and 19 filters with zero payload mismatches or additional nested
+  memberships. MatAnim5 is closed across 156 objects and 183 stage outcomes:
+  169 exact native passes, 12 retail-consumed frame-zero early stages, and two
+  source-authored split-name overrides, all instance-accounted without
+  asset-name logic. The six remaining simple object families are also closed:
+  a 6,588-row ledger independently compares all 456 packed Cam9, Environ1,
+  Flare3, Light3, MultiMesh0, and Text15 instances against reparsed GH2
+  targets. It covers retained payloads, Drawable conversion, native
+  ObjectFields0/new-field defaults, MultiMesh transform arrays, and the
+  Cam9 horizontal-to-vertical 4:3 FOV formula with zero mismatches. Removed
+  Drawable object-list/target fields are empty in every affected instance.
+  ParticleSys22 is now closed too: all 76 systems and 3,737 field rows compare
+  exactly, including 896 preserved particles, two legacy-operation filters,
+  13 independently reconstructed native bounce Trans matrices, and three
+  correctly unbound enabled zero-normal planes. Its Animatable membership
+  lists are all empty. Font7 is now closed too: all 20 fonts and 5,540 field
+  rows compare exactly after independent bitmap decoding and alpha-column
+  metric regeneration, including all 5,120 fixed character-info entries,
+  1,896 rasterized character placements, and 128 kerning rows.
+  The GH2
+  `CharClipSamples10` legacy enter/exit strings and counted
+  beat-event rows are now retained rather than discarded. A clean packed sweep
+  proves all 55 crowd clips carry source-authored `set_hand` enter events; the
+  runtime now preprocesses `char_objects.dtb`, follows the serialized
+  `BandCharacter -> Character` superclass relation, and executes the exact
+  type handler/event. The former clip-name hand guess and clip-name monkey-head
+  rule are removed. Evidence:
+  `proofs/gh1-native-conversion-parity/worldcrowd-script-contract/`. This closes
+  that identity-branch subcase but not the item-wide differential/behavioral
+  matrix. The formerly separate `WorldFx` gap is closed for the observed GH2
+  revision-1 contract: the shared loader decodes the complete embedded
+  `RndDir8` state, resolves each authored proxy and parent transform, and uses
+  the same runtime for crowd and performer effects. Retail `SLUS_214.47`
+  static analysis proves that serialized drawable visibility is distinct from
+  the live running gate: `WorldFx::Start` at `0x002726B8` sets object offset
+  `0x98`, `WorldFx::Stop` at `0x002728E0` clears it, and `WorldFx::Poll` at
+  `0x002725D0` checks it. A hidden, input-free Glam1 gameplay run resolves all
+  five stock proxies and visibly activates both hand flames through the
+  authored guitarist `solo_on` + `peak_on` type-script path. No effect,
+  character, proxy, bone, or material name is used by the shared
+  load/update/draw implementation. Evidence:
+  `proofs/gh1-native-conversion-parity/worldfx-performer-contract/`.
+  The stock character opaque-row boundary is also closed structurally. Exact
+  target readers now retain 20/20 OutfitLoader1 and 19/19 CharWalk1 rows in
+  addition to the 100 current performer/crowd WorldFx1 rows. The explicit
+  24-performer and 13-crowd sweeps report zero decode failures and zero opaque
+  rows. This does not claim complete live CharClipDriver ownership or
+  OutfitLoader switching algorithms. Evidence:
+  `proofs/gh1-native-conversion-parity/stock-character-opaque-row-closure/`.
+  The character-start subcase now executes stock `start_at`,
+  `waypoint_find`, `Character::teleport`, and `waypoint_last` semantics through
+  a shared construction-order registry. Live world-role identity is kept
+  separate from the asset package name, and a hidden Small Club run routes all
+  four performer starts through decoded type-script waypoints. Exact
+  `Waypoint::FindNearest` plus source-order connection DFS now drive the live
+  route and share the registry order mutated by those start scripts. The live
+  CharWalk outer state machine, object
+  layout, authored walk/turn/stop lookups, clip-list traversal, plan rows, and
+  waypoint direction update are now recovered from retail static evidence.
+  Native separates retail `None/Going/Stopping` state from turn/walk/stop
+  playback phase. The GH2 `actually_walking` dispatch is also recovered at
+  `0x0010CD88 -> 0x00184FD0` and now requires both active state and a concrete
+  current walk clip. Native now also loads the exact GH2 type data for walk
+  delays, waypoint flags, maximum wait, and path radius, and resolves all
+  three serialized walk `CharClipGroup` families. The converter removes GH1
+  family-membership bits after group construction; all eight guitarist-main
+  packages pass the 623-clip mask sweep, and the corrected packages are
+  deployed. The retail normal-walk scheduler is now recovered and implemented:
+  enabled-only delay sampling, the `1e30` disabled sentinel, six-second request
+  window, `kWalkSpot` request mask, source-order destination, and exact
+  lateral/forward/backward plus normal/extreme flag tuple all have focused
+  tests. Retail `CharClip::FindNode` authored-node and timing/beat-alignment
+  fallback semantics are also typed and tested. The exact retail
+  turn-candidate scorer is now implemented and tested: source
+  `FirstPlaying`, current-to-turn mode 3, turn-to-walk last-node lookup,
+  `bone_facing` root/heading prediction, farther-distance rejection, strict
+  wrapped-angle minimization, and authored turn/walk beat handoff. The prior
+  last-named waypoint shortcut is removed: exact Waypoint3 decoding now
+  retains connections/radii, retail nearest selection and source-order DFS
+  routing are implemented, blocked intermediate walk spots are honored, and
+  successful destinations rotate to the registry tail. The geometric
+  regulator is typed and focused-tested, including its signed cross-product
+  correction. The exact self-transition schedule/PlanPoint builder,
+  ForwardPredict/BackPredict feed, source-order stop filtering, reverse stop
+  prediction, beat-parity alignment, strict retail stop score, and
+  waypoint-radius endpoint adjustment are now implemented and feed live
+  playback/corridor control. The later PlanPoint distance correction is now
+  recovered and implemented too: source offsets `mCurPoint=0x6C`,
+  `mLastPoint=0x70`, PlanPoints `=0x74`, and
+  `mOffsetSpeed=0xC74` drive the exact two-point-capped remaining-distance
+  correction, while the selected stop point replaces the provisional
+  overshoot count. A hidden, input-free, native-only Arena run now completes
+  `walk_right.way -> walk_center.way -> walk_left.way` through one authored
+  turn, four repeated walk clips, one stop clip, and destination handoff.
+  The recovered GH2 PS2 `CharClipDriver` node core is now live: exact
+  constructor start/transition/zero-width/mode-8 behavior, fixed-seed PS2
+  range randomization, next-first arbitrary-depth Evaluate/ScaleAdd,
+  beat/real/user time, alignment, strict beat-event crossings, cosine residual
+  weights, stack retirement, `FirstPlaying`, and `MostPlaying` all have
+  focused tests. Fresh hidden strict-native GH1 Small Club and GH2 Arena runs
+  reach gameplay with four GH2-layout performers at steady 59.961/60.043 FPS,
+  and the verified executable is deployed. The exact GH2 PS2 outer
+  `CharDriver::Poll` mechanics are also recovered and live: integer-beat
+  realignment, the PS2 stack-starved predicate, optional starved-event
+  callback, graph-loop replay, saved-`DataNode` node-loop resolution, and
+  synchronous enter/exit/beat-event owner callbacks all have focused tests.
+  The serialized final `CharDriver3` byte is correctly decoded as `realign`;
+  a complete 13-model/30-driver GH1 sweep proves only the drummer and
+  keyboard main drivers set it. Fresh strict-native Small Club and Arena runs
+  hold 60.017/59.935 steady FPS. Live saved-`DataNode`/script-owner binding is
+  now complete at authored call sites: all serialized driver names, groups,
+  starved handlers, beat scale, realign, node-loop replay, clip events, chart
+  handlers, and the PS2 `play_if_safe` predicate route through the decoded
+  type owner. GH1 band-idle clips are promoted by semantic flag into GH2's two
+  otherwise absent intro domains during conversion. A drummer domain is
+  identified by its all-beat/double/half source flags, and its normal active
+  motion now covers GH2's target-only no-snare domain. Static GH2 recovery
+  also routes native BandCharacter play/idle/wail/solo messages into their
+  authored clip groups. A deployed-archive sweep passes all 13 decoded
+  character type owners with zero unhandled messages. All eight converted GH1
+  guitarists now also pass a 600-frame live GH2-song matrix: the authored
+  `[play]` event reaches the recovered native `normal` group, selects a
+  source-authored clip, records no unresolved/failed/unhandled handler rows,
+  and sustains 59.248-59.788 steady FPS. GH1
+  `config/gen/characters.dtb::track_surface` is now the source of truth for
+  each guitarist's permitted unique highway texture. The converter emits all
+  eight bitmaps under the target-native `<package>_keep.bmp_ps2` contract,
+  including the authored `hair_metal -> hair.bmp` case; the deployed patch ARK
+  verifies exactly and a live Alterna run selects the converted surface
+  without a missing-asset row. No character-name mapping exists in runtime or
+  conversion code. The full matched visual/behavioral character matrix
+  remains open. Evidence:
+  `proofs/gh1-native-conversion-parity/charclipdriver-exact-core/` and
+  `proofs/gh1-native-conversion-parity/charclipdriver-outer-poll/` and
+  `proofs/gh1-native-conversion-parity/charclipdriver-authored-owner/` and
+  `proofs/gh1-native-conversion-parity/native-guitarist-play-matrix/` and
+  `proofs/gh1-native-conversion-parity/waypoint-type-script-contract/` and
+  `proofs/gh1-native-conversion-parity/charwalk-runtime-contract/` and
+  `proofs/gh1-native-conversion-parity/native-charwalk-controller/` and
+  `proofs/gh1-native-conversion-parity/charwalk-motion-plan-complete/`.
+4. Prove mixed-content isolation across GH1/GH2 songs, characters, and venues
+  while GH2 remains authoritative for gameplay, highway, HUD, title card, and
+  UI. Converted packages must load with GH1 runtime compatibility paths
+  disabled. A strict native-only gate is implemented as of 2026-07-27. The
+  seven-venue matrix loads native WorldDir-owned geometry, authored lighting
+  subdirectories, compiled `world/...` scripts, native CamShots, and four
+  `layout=GH2` performer packages while playing GH2 `shoutatthedevil`; every
+  row reaches gameplay with zero raw-layout markers or gate violations. The
+  Small Club run also proves native revision-4 Morph decoding with zero
+  unsupported face Morphs. A separate strict matrix loads all 13 character
+  packages plus one native source-derived clip per package with zero failures.
+  Evidence:
+  `proofs/gh1-native-conversion-parity/strict-native-venue-matrix/` and
+  `proofs/gh1-native-conversion-parity/strict-native-character-matrix/`. Keep
+  this item open for the complete song/character gameplay cross-product and
+  matched parity. A 2026-07-28 native-only mixed run additionally combines a
+  GH2 song and native GH2 RedOctane venue with converted GH1 `metal`,
+  `female_singer`, `metal_bass`, and `metal_drummer`. All four use
+  `layout=GH2`, and the female singer resolves her source-owned
+  `female_singer_idle` clip through a role/namespace rule rather than a model
+  name branch. Evidence:
+  `proofs/gh1-native-conversion-parity/native-role-clip-resolution/`.
+5. Replace the 2026-07-27 smoke-test checkpoint with matched PCSX2/runtime
+  comparison videos and machine-readable parity results. Do not mark the
+  conversion goal complete based only on load success, zero-error logs, or a
+  short gameplay capture.
+6. Implement a first-run, user-owned archive builder. When no merged archive
+  exists, ask the user to locate their GH2, GH1, and GH80s ISOs (or the
+  corresponding verified ARK/HDR pairs), validate each title/revision, and
+  build a new local GH2-based `main.hdr`/`main_0.ark` without modifying the
+  supplied discs or source archives. Merge inputs in this ownership order:
+  stock GH2 base content; the project's pre-converted GH1 characters,
+  animations, and venues; GH1 songs extracted from the user's GH1 archive;
+  and GH80s songs plus characters extracted from the user's GH80s archive.
+  Use deterministic manifests, namespaced collision handling, sufficient-space
+  checks, resumable/atomic output, clear provenance/error reporting, and a
+  rebuild path when project content or source discs change. Do not redistribute
+  original GH1, GH2, or GH80s assets, and do not perform GH1 character/venue
+  conversion during first run.
+7. Review GH1 Johnny Napalm/Punk facial geometry: one teeth set is positioned
+  outside the mouth during the character-select animation. Determine the
+  responsible authored face object, visibility state, animation/controller,
+  and transform ownership from the converted package and matched GH1 source;
+  do not add a character-name offset or mesh-hiding exception. Observation:
+  `C:/Users/smmel/AppData/Local/Temp/codex-clipboard-f31279e3-6eec-496d-bc31-8ab3418187ad.png`.
+
+## Open Shared GH1 / GH2 Venue TODO
+
+1. Complete native venue presentation parity across both source families:
+  all seven converted GH1 venues against retail GH1 and all eight native GH2
+  venues against retail GH2. Cover prop transforms and layering, materials and
+  multipass state, lighting/environments, particles, crowds, visibility,
+  scripts/events, animation timing, opening sweeps, and regular cameras. Shared
+  renderer/runtime corrections may serve both families, but GH1 conversion
+  semantics must not clobber authored GH2 behavior and GH2 assumptions must not
+  overwrite GH1 source facts. Use source-format evidence and matched runtime
+  comparisons; do not add venue-, object-, material-, camera-, or prop-specific
+  presentation fixes.
+  The shared prelit/environment light-channel subcase is source-recovered and
+  implemented. GH2 PS2 `Ps2Mat::Select` enables its light channel exactly when
+  `use_environ || !prelit`; the old renderer incorrectly disabled lighting for
+  `prelit && use_environ`, multiplied in only dark ambient, and crushed
+  Basement's baked surfaces nearly to black. Runtime now follows the decoded
+  two-field truth table. A converted GH1 Basement run retains its animated blue
+  environment while restoring baked venue/character detail, and a native GH2
+  Arena regression retains authored cyan/green lighting. No venue, mesh,
+  material, color, or brightness rule exists. Evidence:
+  `proofs/gh1-native-conversion-parity/material-light-channel-contract/`.
+  This closes that material-light-channel subcase, not the full 15-venue
+  matched presentation matrix. The GH1 conversion side now also preserves
+  ordered View7 Environ changes through deterministic native child Groups.
+  This is a source-format correction and does not alter native GH2 Group
+  semantics. Evidence:
+  `proofs/gh1-native-conversion-parity/view-environment-scope-contract/`.
+
 ## Open GH1 Venue TODO
 
-No open items.
+1. Complete the matched retail-to-converted visual and behavioral venue parity
+  sweep described above and in the shared GH1/GH2 venue item. The current
+  seven-venue matrix proves that each world loads; it does not prove that
+  props, materials, lighting, animation, crowds, cameras, and scripts
+  reproduce retail output. The 2026-07-28 refresh additionally proves ordered
+  View7 environment scopes, the native Arena-helper lifecycle, archive-backed
+  deployment, and stable live rendering across all seven venues. Keep this
+  item open for matched retail camera/time comparisons. Evidence:
+  `proofs/gh1-native-conversion-parity/venue-parity-matrix/final-view-scope-helper-lifecycle/`.
+  The Small Club standalone smoke MatAnim is now decoded exactly: its packed
+  Animatable0 program is scale `0.00120000006`, offset `0`, loop `0..100`,
+  with two UV-translation keys and no View, PollAnim, EventTrigger, or script
+  owner. Offline conversion correctly emits the native MatAnim/filter pair.
+  The animation-timing subcase is closed by retail static execution evidence:
+  `SLUS_212.24:0x001AC0C0` loads Animatable0 filters/children,
+  `0x001AC640` creates the five operation types, and `0x001ABAB8` evaluates
+  them only after an external caller supplies a frame. No task or implicit
+  clock is created. The full packed sweep finds 1,866 Animatable0 bodies and
+  only operation types 0/1. Unowned Small Club `record*.matanim` and Theatre
+  `tram.mnm` follow the same contract. They remain callable native
+  MatAnim/filter pairs but must not auto-start. Evidence:
+  `.codex/analysis/gh1-native-matanim-scheduling/`.
+2. Decode the GH1 Small Club's light-colored stone-like stage panels and
+  horizontal trim correctly. The large side/back panels and upper stage trim
+  called out in the 2026-07-27 visual review do not reproduce the retail
+  material/texture/render result. Recover the governing source asset fields and
+  render-state semantics; do not add object-, material-, or venue-specific
+  overrides. Source recovery and implementation completed 2026-07-27:
+  `main_room_stage.1.mesh` uses `plaster_wall.mat`/`plaster.tex`, is unskinned,
+  and carries the baked result in revision-25/28's shared four-float
+  color-or-weight slot. Raw Mesh25 and converted Mesh28 retain the same 105
+  vertices, 94 faces, and byte-identical serialized channel ranges. The
+  runtime was incorrectly treating that slot only as weights and replacing
+  every vertex color with white. It now keeps the serialized slot as four raw
+  floats until the decoded bone table resolves: skinned meshes preserve those
+  floats as weights and clear color to white, while unskinned meshes convert
+  them through `Hmx::Color32` and retain the quantized color. This is
+  revision/topology driven and contains no venue, character, mesh, material,
+  texture, or channel-value exception. Focused source-layout tests and the
+  combined character/runtime regression pass 55/55. Evidence:
+  `proofs/gh1-native-conversion-parity/small-club-vertex-color-contract/`.
+  Keep this item open until the user accepts the fresh matched visual proof.
+3. Verify the GH1 Small Club hanging-record presentation against retail. The
+  earlier native capture showed square texture cards around the records. The
+  user's 2026-07-28 annotated review
+  (`codex-clipboard-636530f3-bfaa-4b91-baf1-f2d977e0805a.png`) likewise shows
+  opaque black rectangular cards and records that may be intended to render
+  two-sided; treat both as observations, not evidence of the intended retail
+  result. The retail comparison must explicitly establish whether each hanging
+  record is visible from its front and rear faces and whether its source alpha
+  removes the rectangular card so only the record silhouette remains.
+  The paired `record*.1.mesh` role is now recovered from the packed geometry:
+  all 21 attached children are four-vertex/two-face suspension strips, each
+  parented to its corresponding record with an invariant 44.683188-unit long
+  extent and only 0.201836--0.281165 units across. They are the authored
+  strings/supports, not rear record cards or opaque rectangular backings.
+  Raw and converted vertex, normal, color-slot, UV, face, and material
+  semantics match for all 21. Do not attribute an opaque rectangle to those
+  strips or to record-texture alpha without proving which submitted surface
+  produced it.
+  Source recovery and systemic implementation completed 2026-07-27:
+  `record*.mat` is authored `kBlendSrc`, `alphaCut=true`, `cull=false`, so the
+  cards are two-sided alpha-tested geometry. Each 64x64 indexed PS2 bitmap has
+  814 transparent, 130 partial-alpha, and 3,152 opaque pixels, and converted
+  decoded output is SHA-256 identical to the raw source. The renderer now
+  applies decoded `RndMat.alphaCut`/threshold state to every venue material.
+  The converted View/Drawable graph also reproduces raw submission counts
+  exactly (181 main and 145 lighting meshes), including record child
+  geometry. No black-key, record-name, mesh-name, screen-space, or
+  venue-specific transparency rule was added. The paired
+  `record.matanim`/`record_g.matanim` programs encode a half-turn, but the
+  retail Animatable0 execution trace proves that their scale/range rows only
+  filter an externally supplied frame. Neither MatAnim has a View child owner
+  or venue-script reference, so no rotation clock may be invented from the
+  presence of keys alone. These source facts do not by themselves prove
+  matched retail presentation. A fresh current-build native
+  capture confirms the rectangular record-card background is removed and the
+  decoded record silhouettes remain visible. The separate solid red/brown
+  block at screen left was not the smoke plane: a deterministic smoke A/B
+  proves `smoke_plane01.mesh` supplies the authored textured golden haze. The
+  block was the temporary Arena helper `target_parent.mesh`, exposed after its
+  existing native lifecycle classifier was dropped from both visibility paths.
+  Restoring that source-recovered generic helper family removes the block while
+  retaining the amp and smoke. Keep this item open for front/rear retail GH1 PCSX2
+  visual comparison and user acceptance. Evidence:
+  `proofs/gh1-native-conversion-parity/venue-prop-layering-contract/` and
+  `proofs/gh1-native-conversion-parity/view-environment-scope-contract/`.
+
+## Completed Native Conversion Parity
+
+1. ~~Restore playable framerate and stable frame pacing across every converted
+  GH1 and native GH2 venue.~~ Completed 2026-07-28. A hidden, input-free,
+  strict-native matrix covers all seven converted GH1 venues and all eight
+  native GH2 venues with four GH2-layout performers. Every run exits zero,
+  reaches gameplay, reports four profile windows and zero gameplay-time
+  initialization, and sustains 58.785--60.201 FPS. The systemic correction
+  removes stacked D3D9/application frame waits, uses an accumulated 60 Hz
+  deadline, caches only provably static render data and hierarchy state, and
+  reduces disconnected XInput probes without changing connected-device
+  polling. It contains no venue, mesh, material, object, or character-name
+  exceptions. Evidence:
+  `proofs/gh1-native-conversion-parity/frame-pacing-full-matrix/`.
+
+2. ~~Attach both player instruments through the authored GH2 attachment and hand-controller contracts.~~ Accepted complete 2026-07-29. Source-exact attachment, target ownership, parser timing, beat-rate/easing, and quaternion transform interpolation now cover every GH1 guitarist plus all bassist presentation families without identity- or asset-specific rules. The independent raw/native ledger accepts 80/80 fret-target frames with zero failures; the refreshed all-GH1 main-gameplay videos show Classic and the bassist holding their instruments. Evidence: `proofs/gh1-native-conversion-parity/matched-arm-chain-differential/` and `proofs/gh1-native-conversion-parity/instrument-hand-parity/`.
+3. ~~Close the shared arm-twist regression for every character carrying upper- or forearm-twist bones.~~ Accepted complete 2026-07-29. GH1 and GH2 retail disassembly, 6,000 independently recomputed controller events across all 13 performers, owner-tagged live transforms, and six refreshed close all-GH1 gameplay videos prove the source sibling/serial branches with zero nonfinite rows or formula failures. The user accepted the final presentation. Evidence: `proofs/gh1-native-conversion-parity/matched-retail-twist-differential/` and `proofs/gh1-native-conversion-parity/instrument-hand-parity/arm-twist-isolation/strict-native-gameplay-current/`.
+
 ## Completed GH1 Venue
 
 1. ~~Resolve the Big Club central wedge artifact.~~ Closed by user direction
@@ -71,20 +549,22 @@ No open items.
   `back_splash.mat` authors `Src` in both Mat21 blend fields, so no synthetic
   alpha or object-name exception was added. The hard edges came from the
   renderer's invented blue-gray world clear contrasting with the cards'
-  authored black fades. Restoring the default world framebuffer clear to black
-  removes both rectangle boundaries while retaining their red/blue gradients.
-  Proof: `.codex/current-evidence/combined-intro-arena/arena-black-clear.bmp`.
-3. ~~Restore source-accurate GH1 venue prop placement, hierarchy, draw state,
-  and lighting.~~ Completed 2026-07-27 by the systemic GH1-to-GH2 native
-  converter. All seven venues now carry source transforms, typed parent/group
-  graphs, material and texture state, Environ/light ownership, animation,
-  scripts, crowds, and native CamShots into revision-24 GH2 directories. The
-  final Small Club proof keeps the drum kit assembled, the role-owned
-  microphone upright, suspended props out of the foreground, and identifies
-  the pale wall panels as authored `plaster_wall.mat -> plaster.tex`, without
-  a venue-, prop-, mesh-, material-, or offset-specific correction. The
-  seven-venue matrix and video are linked from
-  `proofs/gh1-native-conversion-final/FINAL_PROOF_MANIFEST.md`.
+   authored black fades. Restoring the default world framebuffer clear to black
+   removes both rectangle boundaries while retaining their red/blue gradients.
+   Proof: `.codex/current-evidence/combined-intro-arena/arena-black-clear.bmp`.
+3. ~~Preserve ordered GH1 View environment scopes and restore the native
+   Arena-helper lifecycle.~~ Completed 2026-07-28. Multi-scope View7 streams now
+   emit deterministic native environment child Groups and a draw-only traversal
+   Group instead of applying the first Environ to every child. Retail Small Club
+   consequently routes the smoke planes through `smoke.env`; a deterministic
+   A/B proves the decoded, hash-identical `smoke.tex` supplies the textured
+   golden haze. The separate red block is source-proven `target_parent.mesh`,
+   whose existing generic Arena helper classifier had regressed out of the main
+   and lighting visibility paths. Restoring that classifier removes only the
+   temporary helper. The deployed seven-venue sweep reaches gameplay at
+   57.269--57.730 steady FPS. Evidence:
+   `proofs/gh1-native-conversion-parity/view-environment-scope-contract/` and
+   `proofs/gh1-native-conversion-parity/venue-parity-matrix/final-view-scope-helper-lifecycle/`.
 
 ## Completed Gameplay / Runtime
 
@@ -216,34 +696,101 @@ No open items.
     repeated source-timed `ref`/`open` transitions:
     `.codex/current-evidence/gh1-character-complete/`
     `singer-eventlist-runtime/run-gh1-direct.log`. This closes only the singer
-    event producer; the separately reopened arm-twist defect is closed by
-    completed item 28.
-28. ~~Complete GH1 characters after the rejected ribbon/noodle-arm proof.~~
-    Completed 2026-07-26 from packed and retail facts. GH1 body ACPs animate
-    clavicle, upper arm, forearm, and hand but omit the twist transforms used
-    by weighted arm palettes. Packed `charsys/gen/charbase.dtb` creates two
-    `AnimServoForeTwist` and two `AnimServoUpperTwist` controllers per
-    revision-10 mesh-transform character; read-only PCSX2 memory contains the
-    same four live servo objects and ordered bone rows. The runtime now parses
-    and executes that shared graph only for the GH1 layout, while GH2 retains
-    its separate `CharForeTwist`/`CharUpperTwist` bone graph. No character-,
-    side-, mesh-, bone-, material-, clip-, song-, venue-, pose-, or
-    offset-specific correction was added. All 53 character tests pass.
-    Time-separated all-GH1 proofs cover Alterna as a different guitarist,
-    male and female singers, bassist, drummer, and the song-authored `Jessica`
-    keyboard slot; a current-build checkpoint covers all eight playable GH1
-    guitarists. Format, test, isolation, video, and deployment hashes are in
-    `.codex/current-evidence/gh1-arm-twist-reopen/FINAL_PROOF_MANIFEST.md`.
-29. ~~Close the GH1-to-GH2 native MILO/DTB/ACP conversion-format gaps.~~
-    Completed 2026-07-27. The converter closes all 105 packed GH1 directories
-    and 926 ACPs with 13,115 converted objects, 625 source-derived target
-    objects, 201 native CamShots/181,864 keys, seven compiled venue scripts,
-    zero blocked objects, and identical independent output ledgers. All 13
-    character packages and all seven venue packages load through GH2-native
-    paths in the deployed hybrid. Tests, inventories, hashes, runtime matrix,
-    screenshots, and video are linked from
-    `proofs/gh1-native-conversion-final/FINAL_PROOF_MANIFEST.md`.
-
+    event producer; the subsequently reopened arm-twist defect is tracked in
+    Open Native Conversion Parity item 8.
+28. ~~Merge GH1, GH2, and GH80s variants into the character-select costume
+    list.~~ Completed 2026-07-29. Authored localized character names join the
+    three source rosters into 11 canonical characters and 33 exact variants
+    (8 GH1, 19 GH2, 6 GH80s) without a character-name runtime table. Variants
+    retain their exact model, UI/main/strum/fret animation, and unique highway
+    routes; source order is GH1, GH2, then GH80s. Seventeen project-authored
+    outfit names are stored in the validated data manifest
+    `config/character_variant_labels.tsv`; no runtime character-name branch
+    selects them. The fixed two-value selector scrolls its values over the
+    stationary background and wraps in both directions, and the exact selected
+    record is handed into gameplay. The generated overlay applies idempotently
+    (`reused=65 replaced=0 added=0 appended=0`) and the deployed catalog audit
+    passes all 33 model/animation routes, order, provider, wrap, and viewport
+    checks. Deployed DTB readback additionally matches all 17 supplied labels.
+    Implementation/rebuild contract:
+    `docs/CHARACTER_VARIANT_MERGE.md`. Proof:
+    `.codex-test-character-catalog-final.log` and
+    `proofs/character-merge-menu-boot.log`. Campaign door presentation was
+    corrected on 2026-07-30 after the first proof exposed an edge-on door.
+    Retail `SLUS_214.47:0x00142420..0x00142464` proves that
+    `CharsysPanel::Poll` reads the character's `bone_door` Z, forces Euler
+    `(pi/2, 0, Z)`, and writes that Matrix3 to the external `cs_door.mesh`
+    without replacing its authored translation. The runtime now follows that
+    exact bridge. The eight variants without a door channel use a
+    catalog-authored `ui_loop` already-open Z pose through the same bridge; no
+    character-name rule or guessed angle is present. Numeric and visual proof:
+    `proofs/campaign-character-select-door-corrected/` and
+    `proofs/campaign-character-select-door-gh1-fallback/`.
+    The full Career hero/outfit panel received a packed-source fidelity pass
+    on 2026-07-30. Stock `sel_skin.tnm` targets `cs_camerafix.grp` over frames
+    0..10 in exactly 0.4 seconds while `career.dtb` switches the authored hero
+    and outfit text groups. The renderer now resolves each label's real MILO
+    parent chain and uses its serialized WorldXfm bind pose whenever that
+    chain is targeted by a packed TransAnim. This corrects the outfit heading
+    without a label-, panel-, or character-specific placement rule. The
+    right outfit wall is also restored from packed and live retail facts.
+    `cs_wall2.mesh` authors both a negative-X transform and source triangles
+    reversed relative to its normals, so the renderer combines decoded
+    source-face parity with transform handedness instead of applying a second
+    cull reversal. A read-only GH2 EE-memory trace then identified the remaining
+    solid-black-half defect: retail converts every `TexGen=1` source matrix from
+    centered Y-up coordinates to its centered V-down generator. For
+    `cs_wall.mat`, the serialized translation `(-1.2495, 0)` becomes the live
+    retail translation `(1.999, 0)`. The renderer now applies that exact generic
+    conversion after packed material animation. It does not invent alpha—the
+    texture is fully opaque—and contains no panel, mesh, material, venue, or
+    character-name rule.
+    Source contract and matched forward/back proofs:
+    `docs/CHARACTER_SELECT_MENU_FIDELITY.md` and
+    `proofs/campaign-character-select-right-background/`.
+    The 2026-07-30 follow-up restores the retail black outfit-choice treatment
+    only for the packed `helveticablack` BandButtons directly under
+    `text_skin.grp`; the font material itself is white, so the typeface is not
+    globally recolored. Description selection is catalog-driven: native GH2
+    variants use their stock `<character>_outfit_blurb` when present, while
+    added GH1/GH80s variants and missing stock outfit tokens are blank. The
+    prior character-biography fallback was removed. Focused tests and matched
+    native/imported visual proofs are under
+    `proofs/campaign-character-select-right-background/outfit-corrections/`.
+    The corrected right-wall proof and direct retail comparison are
+    `proofs/campaign-character-select-right-background/retail-texgen-xfm/frame_00700.bmp`
+    and
+    `proofs/campaign-character-select-right-background/retail-texgen-xfm/retail-vs-native.png`.
+    A second 2026-07-30 source pass corrected the outfit-label plane and
+    middle alignment without per-label offsets. The packed buttons' complete
+    world X/Z basis now reaches the glyph vertices, preserving the depth
+    component that `sel_skin.tnm` cancels at the settled outfit state instead
+    of leaving a projected angle. Recovered `RndText::SetupCharVerts` proves
+    that `mSize` scales by `RndFont::cellSize.x`, while `kMiddle*` centers the
+    full `mSize * (cellSize.y/cellSize.x)` cell. For
+    `helveticablack.font`, the exact cell is `(29,36)`, so using 14.5 as the
+    vertical center was the source of the low label; the shared renderer now
+    uses 18. Tests pin the packed transform and font metrics. Current visual
+    proof:
+    `proofs/campaign-character-select-right-background/outfit-label-source-metrics/`.
+29. ~~Restore retail-style band-name entry so Career can reach character
+    selection.~~ Completed 2026-07-29 from packed
+    `ui/gen/manage_bands.dtb`, `ui/gen/config.dtb`, and
+    `ui/gen/error.dtb`. `BandTextEntry` now keeps the committed prefix
+    separate from its active character: Up/Down cycles the authored
+    `band_name` character set, Green/`A` advances the active character,
+    Red/`S` deletes (or follows the authored back route when empty), and
+    Start/Enter submits. The style's authored 20-character limit is loaded
+    from data rather than shared with the independent eight-character
+    high-score style. Successful submission stores the campaign profile and
+    routes to `sel_difficulty_screen`, whose next retail selection reaches
+    `sel_character_new_screen`; the empty-name Continue dialog pops safely
+    back to name entry. Focused proof:
+    `.codex-test-band-name-entry-focused.log`.
+30. ~~Prevent accidental `Esc` termination during normal retail-style
+    play.~~ Completed 2026-07-29. Win32 no longer treats `Esc` as a hard-close
+    event; it now enters the same Back action path as Red/`S`, leaving actual
+    window close as the intentional quit path.
 ## Completed / Historical Rendering & Asset Format
 
 1. 2026-07-13: Venue milestone accepted complete for current scope: MILO loading/dependency discovery, venue animation routing, Lighting/LightPreset/Environ, and RedOctane pistons/gears. Future issues in these areas should be handled as-needed rather than blocking the next milestone. Active native work now moves to the GH2 camera pipeline using ihatecompvir/MiloEditor source behavior and audited camera materials as support.

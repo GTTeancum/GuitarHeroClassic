@@ -29,7 +29,7 @@ class Window {
   Window& operator=(const Window&) = delete;
 
   // Pump pending OS messages + sample input (call once per frame). Sets
-  // should_close() on WM_CLOSE / WM_DESTROY / Esc, and snapshots keyboard +
+  // should_close() on WM_CLOSE / WM_DESTROY, and snapshots keyboard +
   // XInput controller state for action_pressed().
   void pump();
   bool should_close() const;

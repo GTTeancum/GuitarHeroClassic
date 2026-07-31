@@ -116,7 +116,32 @@ int main(int argc, char** argv) {
       helvetica_black.load(hdr, ark0, "ui/gen/helveticablack.milo_ps2");
   CHECK(helvetica_ok);
   CHECK(helvetica_black.valid());
+  CHECK(helvetica_black.has_material_color());
+  CHECK(helvetica_black.material_color()[0] == 1.0f);
+  CHECK(helvetica_black.material_color()[1] == 1.0f);
+  CHECK(helvetica_black.material_color()[2] == 1.0f);
+  CHECK(helvetica_black.material_color()[3] == 1.0f);
   if (helvetica_black.valid()) {
+    // Exact RndFont cellSize from helveticablack.font. RndText::SetupCharVerts
+    // scales both axes by mSize / cellSize.x, makes the quad
+    // mSize * CellDiff() high, and kMiddle* offsets it by half that full cell.
+    // The capital ink is therefore centered against Y=18, not cellSize.x/2
+    // (14.5), which would visibly leave outfit labels low in their arrows.
+    CHECK(helvetica_black.cap_height() == 29.0f);
+    CHECK(helvetica_black.line_height() == 36.0f);
+    CHECK(helvetica_black.rnd_text_local_z(18.0f, 30.0f) == 0.0f);
+    CHECK(helvetica_black.rnd_text_local_z(0.0f, 29.0f) == 18.0f);
+    CHECK(helvetica_black.rnd_text_local_z(36.0f, 29.0f) == -18.0f);
+    const ghogx::ui::Glyph* r = helvetica_black.glyph('R');
+    const ghogx::ui::Glyph* o = helvetica_black.glyph('O');
+    CHECK(r != nullptr);
+    CHECK(o != nullptr);
+    if (r && o) {
+      CHECK(r->yoff == 8.0f);
+      CHECK(r->ph == 19.0f);
+      CHECK(o->yoff == 7.0f);
+      CHECK(o->ph == 21.0f);
+    }
     const ghogx::ui::Glyph* apostrophe = helvetica_black.glyph('\'');
     CHECK(apostrophe != nullptr);
     if (apostrophe) {

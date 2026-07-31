@@ -309,14 +309,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(anim_tempo==\"kTempoFast\")",
                  "kTempoFast selects fast band clips before medium fallbacks");
+  ok &= absent(gameplay_c,
+               "singer.find(\"female_singer\")",
+               "singer animation selection has no character-name branch");
   ok &= contains(gameplay_c,
-                 "if(singer.find(\"female_singer\")!="
-                 "std::string::npos){add_performer(\"singer\",singer,"
-                 "singer,\"singer\",\"start_singer.way\",4u,"
-                 "{\"singer_idle\"},{},"
-                 "{\"singer_active_medium_01\","
-                 "\"singer_active_medium_02\",\"singer_active_fast\"",
-                 "female singer uses decoded idle/active clips and skips absent intro");
+                 "{\"singer_idle_medium_01\",\"singer_idle_medium_02\","
+                 "\"singer_idle\"}",
+                 "generic singer candidates include the role-owned idle semantic");
   ok &= contains(gameplay_c,
                  "\"singer_active_medium_01\",\"singer_active_medium_02\","
                  "\"singer_active_fast\"",
@@ -386,12 +385,14 @@ int main() {
                  "desired_active=&perf.idle_clip;desired_mode=\"idle\";}",
                  "authored idle events select idle on the same main-driver player as performance modes");
   ok &= contains(gameplay_c,
-                 "constuint32_tplay_flags=desired_mode==\"star_power\"?"
+                 "constuint32_tplay_flags="
+                 "desired_mode==\"star_power\"||desired_mode==\"win\"||"
+                 "desired_mode==\"lose\"?"
                  "ghogx::character::kCharPlayNoLoop:"
                  "ghogx::character::kCharPlayLoop;"
                  "perf.active_player.play(*desired_active,play_flags,"
-                 "character_driver_blend_seconds());",
-                 "direct play_mode transitions blend on the shared source-style main driver while one-shot star-power clips do not loop");
+                 "-1.0f);",
+                 "direct play_mode transitions use decoded clip blend width while one-shot clips do not loop");
   ok &= absent(gameplay_c,
                "perf.active_player.play(*desired_active,"
                "ghogx::character::kCharPlayLoop|"
@@ -5763,12 +5764,18 @@ int main() {
   ok &= contains(renderer_c,
                  "culled_by_backface",
                  "venue inspector reports backface-cull evidence for flipped floor probes");
-  ok &= contains(renderer_c,
-                 "is_redoctane_main_hall_reversed_shell",
-                 "RedOctane audience-floor shell cull fix is source-keyed, not global");
-  ok &= contains(renderer_c,
-                 "redoctane_main_hall_reversed_shell",
-                 "RedOctane cull override logs its source-backed reason");
+  ok &= contains(
+      renderer_c,
+      "world_transform_reverses_winding(draw_world),source_winding_reversed",
+      "one-sided venue culling combines submitted and source winding parity");
+  ok &= contains(
+      renderer_c,
+      "source_mesh_winding_reversed_.emplace(&mesh,"
+      "mesh_source_winding_reversed(mesh));",
+      "decoded source triangle winding is cached without mesh-name exceptions");
+  ok &= absent(renderer_c,
+               "is_redoctane_main_hall_reversed_shell",
+               "venue culling has no RedOctane mesh-name exception");
   ok &= contains(renderer_c,
                  "debug_pick_culled_by_cull_mode",
                  "venue inspector reports culling using the actual mesh cull mode");
@@ -8892,11 +8899,15 @@ int main() {
                  "m.tex_xfm[2][2]=1.0f;",
                  "Mat decoder preserves UV offset while forcing 2-D homogeneous texture scale");
   ok &= contains(milo_scene_cpp_c,
-                 "constfloatweight0=r.f32();",
-                 "GH2 v28 Mesh decoder reads the authored weight slot before UVs");
+                 "v.r=r.f32();v.g=r.f32();v.b=r.f32();v.a=r.f32();",
+                 "GH2 v28 Mesh decoder retains the shared PS2 floats until bone resolution");
   ok &= contains(milo_scene_cpp_c,
-                 "v.r=1.0f;v.g=1.0f;v.b=1.0f;v.a=1.0f;",
-                 "GH2 v28 Mesh decoder does not treat weights as vertex color");
+                 "if(!mesh.bones.empty()){for(Vertex&vertex:mesh.verts){vertex.w[0]=vertex.r;",
+                 "GH2 v28 Mesh PostLoad preserves shared floats as weights for skinned geometry");
+  ok &= contains(milo_scene_cpp_c,
+                 "}else{for(Vertex&vertex:mesh.verts){vertex.r="
+                 "source_hmx_color32_channel(vertex.r);",
+                 "GH2 v28 Mesh PostLoad packs Color32 only for unskinned geometry");
   ok &= contains(milo_scene_cpp_c,
                  "crowd.total_placements=r.u32();",
                  "WorldCrowd decoder preserves ihatecompvir WorldCrowd mNum");
@@ -9401,6 +9412,20 @@ int main() {
                  "material_z_mode==kZModeNormal||material_z_mode==kZModeForce||"
                  "material_z_mode==kZModeDecal;",
                  "renderer bases venue mesh z-write on decoded RndMat z mode");
+  ok &= contains(renderer_c,
+                 "constboolalpha_test=mat_obj&&mat_obj->has_render_state&&"
+                 "mat_obj->alpha_cut&&!debug_highlighted_mesh;",
+                 "renderer enables venue alpha testing from decoded RndMat alphaCut state");
+  ok &= contains(renderer_c,
+                 "std::clamp(mat_obj?mat_obj->alpha_threshold:0,0,255)",
+                 "renderer uses the decoded RndMat alpha threshold without asset-specific keys");
+  ok &= contains(renderer_c,
+                 "d3d_state.render(D3DRS_ALPHATESTENABLE,"
+                 "alpha_test?TRUE:FALSE);",
+                 "renderer applies or clears alpha testing for every venue material");
+  ok &= contains(renderer_c,
+                 "d3d_state.render(D3DRS_ALPHAFUNC,D3DCMP_GREATER);",
+                 "venue alphaCut follows the source greater-than threshold test");
   ok &= absent(renderer_c,
                "material_blend==kBlendSrcAlpha||",
                "source-alpha blend no longer globally disables venue z-write");
@@ -12162,8 +12187,14 @@ int main() {
                  "returnfalse;",
                  "WorldCrowd runtime defaults to RB-style direct placement actor basis");
   ok &= contains(gameplay_c,
-                 "apply_worldcrowd_actor_mesh_visibility(",
-                 "WorldCrowd runtime applies clip-named crowd mesh variant visibility");
+                 "load_character_type_script_program(",
+                 "WorldCrowd runtime loads the authored character type program");
+  ok &= contains(gameplay_c,
+                 "runtime.type_script->run_clip_event(",
+                 "WorldCrowd runtime executes serialized CharClip events");
+  ok &= absent(gameplay_c,
+               "worldcrowd_hand_variant_for_clip(",
+               "WorldCrowd hand state must not be inferred from clip names");
   ok &= contains(gameplay_c,
                  "worldcrowd_actor_source_height(",
                  "WorldCrowd runtime derives billboard height from decoded actor rows");
@@ -12270,8 +12301,11 @@ int main() {
                  "character_world,camera_ref):character_world",
                  "3D WorldCrowd actors honor the authored CamShot crowd_face_camera yaw path");
   ok &= contains(rebuild_worldcrowd_runtime_c,
-                 "apply_worldcrowd_actor_mesh_visibility(character,clip.name);",
-                 "WorldCrowd actor mesh variants are resolved before renderer upload");
+                 "runtime.type_script->run_handler(\"enter\",&script_error)",
+                 "WorldCrowd actor state enters through the authored character type handler");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "runtime.clip.legacy_enter_event",
+                 "WorldCrowd actor state consumes the exact serialized clip enter event");
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "load_char_clip_group(hdr_path_,ark_path_,main_milos,"
                  "group_name)",
@@ -12334,8 +12368,9 @@ int main() {
                  "active_venue_event_,worldcrowd_widescreen_);",
                  "WorldCrowd runtime initializes DTA crowd fullness from the active event");
   ok &= contains(rebuild_worldcrowd_runtime_c,
-                 "runtime.visible_bounds_radius=visible_bounds_radius;",
-                 "WorldCrowd runtime records visible actor bounds before renderer ownership transfer");
+                 "runtime.visible_bounds_radius="
+                 "worldcrowd_actor_visible_bounds_radius(runtime_character);",
+                 "WorldCrowd runtime records visible actor bounds after authored visibility execution");
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "crowd_placement_index,source_character_height,"
                  "area_it->second,crowd.rotate_to_camera});",
@@ -12441,8 +12476,8 @@ int main() {
                  "character renderer exposes the source material lighting decision for focused coverage");
   ok &= contains(char_renderer_h_c,
                  "(void)prelit;"
-                 "return{!eye_mesh&&(!use_scene_lighting||use_environ)};",
-                 "character lighting preserves the source use-environment gate without misreading skin-weight colors as prelit diffuse");
+                 "return{!use_scene_lighting||use_environ};",
+                 "character lighting preserves the source use-environment gate without mesh-name exceptions or misreading skin-weight colors as prelit diffuse");
   ok &= contains(char_renderer_c,
                  "material_lighting.fixed_function_lighting?TRUE:FALSE);",
                  "environment materials retain the fixed-function DX8-era light path");
@@ -15167,12 +15202,18 @@ int main() {
   ok &= contains(renderer_c,
                  "apply_face_camera_yaw(world,m,eye);",
                  "renderer applies camera-facing yaw to selected meshes");
+  ok &= absent(renderer_c,
+               "is_authored_invisible_material(",
+               "renderer visibility must not be selected from a material name");
+  ok &= absent(renderer_c,
+               "\"invisible.mat\"",
+               "renderer must not special-case a named invisible material");
+  ok &= absent(renderer_c,
+               "\"ray_blocker.mat\"",
+               "renderer must not special-case a named ray blocker material");
   ok &= contains(renderer_c,
-                 "is_authored_invisible_material(material)",
-                 "renderer suppresses authored invisible material clip masks");
-  ok &= contains(renderer_c,
-                 "material==\"invisible.mat\"||material==\"ray_blocker.mat\"",
-                 "renderer suppresses authored ray blockers instead of painting venue floor gaps");
+                 "if(ma<=0.001f)return;",
+                 "renderer suppresses zero-alpha materials through decoded color state");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key,source_restarted_shot);",
                  "regular camera path applies CamShot visibility through StartAnim lifetime");
@@ -16426,6 +16467,96 @@ int main() {
   ok &= contains(gameplay_c,
                  "returng_camera_source_guitarist0_charwalk_state;",
                  "regular camera walking bridge returns the live recovered CharWalk state");
+  ok &= contains(
+      gameplay_c,
+      "load_character_type_script_walk_config("
+      "character_hdr_path,character_ark_path,"
+      "runtime_character.dir_type,"
+      "runtime_character.root_object_type,",
+      "native CharWalk loads its GH2 class/type configuration from char_objects");
+  ok &= contains(
+      gameplay_c,
+      "perf.charwalk_waypoint_flags=walk_config->waypoint_flags;",
+      "native CharWalk uses the authored waypoint mask");
+  ok &= contains(
+      gameplay_c,
+      "constexpruint32_tkWalkSpot=0x00000040u;"
+      "constuint32_trequest_waypoint_flags="
+      "perf.gh1_character_runtime?"
+      "perf.charwalk_waypoint_flags:kWalkSpot;",
+      "native CharWalk normal requests use retail kWalkSpot while raw compatibility remains isolated");
+  ok &= contains(
+      gameplay_c,
+      "source_charwalk_delay_sample(false,0.0f,0.0f,0.0f);",
+      "native CharWalk preserves retail's disabled-delay sentinel");
+  ok &= contains(
+      gameplay_c,
+      "perf.charwalk_start_request_deadline="
+      "source_charwalk_request_deadline("
+      "song_time_,perf.charwalk_max_walk_wait);",
+      "native CharWalk schedules the recovered max_walk_wait request window");
+  ok &= contains(
+      gameplay_c,
+      "source_charwalk_find_route("
+      "native_waypoint_graph,native_source_waypoint,"
+      "request_waypoint_flags,"
+      "request_waypoint_flags|kWalkSpot,"
+      "venue_charwalk_waypoint_registry_order_)",
+      "native CharWalk follows the authored Waypoint connection graph");
+  ok &= contains(
+      gameplay_c,
+      "perf.charwalk_route_positions.push_back("
+      "{perf.world_transform[12],"
+      "perf.world_transform[13],"
+      "perf.world_transform[14]})",
+      "native CharWalk seeds the retail route with the live character position");
+  ok &= contains(
+      gameplay_c,
+      "source_charwalk_direction_request("
+      "direction[0],direction[1],"
+      "static_cast<int>(excitement),random_unit);",
+      "native CharWalk constructs the recovered walk/turn/stop flag tuple");
+  ok &= contains(
+      gameplay_c,
+      "load_native_walk_group(\"walk_turn\","
+      "perf.gh1_walk_turn_clips);",
+      "native CharWalk resolves the authored turn CharClipGroup");
+  ok &= contains(
+      gameplay_c,
+      "load_native_walk_group(\"walk_walk\","
+      "perf.gh1_walk_loop_clips);",
+      "native CharWalk resolves the authored walk CharClipGroup");
+  ok &= contains(
+      gameplay_c,
+      "load_native_walk_group(\"walk_stop\","
+      "perf.gh1_walk_stop_clips);",
+      "native CharWalk resolves the authored stop CharClipGroup");
+  ok &= contains(
+      gameplay_c,
+      "if(perf.charwalk_runtime&&perf.role==\"guitarist0\")",
+      "walk controller is gated by the shared native/raw CharWalk runtime fact");
+  ok &= contains(gameplay_h_c,
+                 "intgh1_walk_state=0;intgh1_walk_phase=0;",
+                 "performer keeps retail CharWalk state separate from turn/walk/stop phase");
+  ok &= contains(gameplay_c,
+                 "perf.gh1_walk_phase=phase;"
+                 "perf.gh1_walk_state=phase==3?2:1;",
+                 "walk playback publishes retail Going/Stopping state from the independent clip phase");
+  ok &= contains(gameplay_c,
+                 "perf.gh1_walk_state==1?"
+                 "CameraSourceCharWalkState::kStateGoing:"
+                 "perf.gh1_walk_state==2?"
+                 "CameraSourceCharWalkState::kStateStopping:",
+                 "camera bridge consumes the retail CharWalk state values directly");
+  ok &= contains(gameplay_c,
+                 "returncamera_source_guitarist0_charwalk_state()!="
+                 "CameraSourceCharWalkState::kStateNone&&"
+                 "g_camera_source_guitarist0_charwalk_clip_active;",
+                 "actually_walking mirrors retail state plus active walk-clip checks");
+  ok &= contains(gameplay_c,
+                 "perf.gh1_walk_state!=0&&"
+                 "perf.gh1_walk_player.current_clip()!=nullptr;",
+                 "native bridge publishes a concrete active walk clip");
   ok &= contains(gameplay_c,
                  "\"[world]cameraCharWalkobjects:"
                  "scope=guitarist0_character"
@@ -16439,7 +16570,7 @@ int main() {
                  "\"CharWalk::mState=\"+"
                  "camera_source_charwalk_state_label("
                  "camera_source_guitarist0_charwalk_state())+"
-                 "\"native_bridge=retail_0x197548_state_and_active_walk_clip)\";",
+                 "\"native_bridge=retail_0x184FD0_state_and_active_walk_clip)\";",
                  "regular camera diagnostics label the recovered retail CharWalk state/clip gate");
   ok &= contains(gameplay_c,
                  "constboolkGuitaristWalking="
@@ -18436,16 +18567,16 @@ int main() {
                  "perf.active_player.play(perf.band_jump_clip,"
                  "ghogx::character::kCharPlayDirty|"
                  "ghogx::character::kCharPlayNoLoop,"
-                 "character_driver_blend_seconds());",
+                 "-1.0f);",
                  "band_jump plays the traced dirty non-loop clip on the active source stack");
   ok &= absent(gameplay_c, "perf.band_jump_player.clear();",
-               "band_jump stack return is handled by CharClipPlayer transient exit");
+               "band_jump remains on the shared source driver stack");
   ok &= appears_before(
       gameplay_c,
       "perf.active_player.play(perf.band_jump_clip,"
       "ghogx::character::kCharPlayDirty|"
       "ghogx::character::kCharPlayNoLoop,"
-      "character_driver_blend_seconds());",
+      "-1.0f);",
       "constNoteCueperf_note_cue=",
       "band_jump dispatch remains before note/hand pose evaluation");
   ok &= contains(gameplay_c,

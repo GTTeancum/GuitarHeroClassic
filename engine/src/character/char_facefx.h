@@ -74,6 +74,14 @@ struct FaceFxMaterializedFrame {
   bool valid = false;
 };
 
+// Resolve the serialized FaceFxLipSyncServo viseme-MILO references relative
+// to their owning character package. The returned order covers authored,
+// compiled-suffix, gen-directory, and compiled gen-directory forms without
+// synthesizing a character-name-based fallback.
+std::vector<std::string> facefx_viseme_milo_candidates(
+    const std::string& character_milo,
+    const std::vector<FaceFxLipSyncServo>& servos);
+
 std::optional<FaceFxPose> load_facefx_pose(const std::string& hdr_path,
                                            const std::string& ark_path,
                                            const std::string& character_milo,

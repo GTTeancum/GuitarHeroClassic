@@ -1,5 +1,6 @@
 #include "character/char_clip.h"
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
@@ -712,13 +713,19 @@ bool expect_driver_state_helpers() {
               {"Handle", "SyncProperty", "Save", "Copy", "Load", "Poll",
                "Replace", "EvaluateFlags", "Display", "FindClip",
                "FirstClip", "FirstPlayingClip"}) ||
+      runtime_dump.gh2_ps2_poll_range !=
+          "0x00171830 -> 0x00171C64" ||
+      runtime_dump.gh2_ps2_poll_starved_range !=
+          "0x001710B8 -> 0x001710DC" ||
+      runtime_dump.gh2_ps2_layout.size() != 9 ||
+      !runtime_dump.gh2_ps2_poll_recovered ||
       runtime_dump.rb3_latest_has_poll_body ||
       runtime_dump.rb2_dump_has_poll_range ||
       runtime_dump.has_evaluate_flags_statement_body ||
       runtime_dump.has_set_beat_scale_statement_body ||
       runtime_dump.safe_to_find_clip || runtime_dump.safe_to_display ||
       runtime_dump.safe_to_evaluate_flags || runtime_dump.safe_to_import_poll) {
-    std::cerr << "driver RB2 runtime dump evidence mismatch\n";
+    std::cerr << "driver source/static runtime evidence mismatch\n";
     ok = false;
   }
   return ok;
@@ -1063,6 +1070,56 @@ bool expect_context_lookup(
 
 bool expect_clip_driver_helpers() {
   bool ok = true;
+  if (!nearf(
+          ghogx::character::source_gh2_char_clip_driver_eased_weight(0.0f),
+          0.0f) ||
+      !nearf(
+          ghogx::character::source_gh2_char_clip_driver_eased_weight(0.25f),
+          0.14644661f) ||
+      !nearf(
+          ghogx::character::source_gh2_char_clip_driver_eased_weight(0.5f),
+          0.5f) ||
+      !nearf(
+          ghogx::character::source_gh2_char_clip_driver_eased_weight(0.75f),
+          0.85355339f) ||
+      !nearf(
+          ghogx::character::source_gh2_char_clip_driver_eased_weight(1.0f),
+          1.0f)) {
+    std::cerr << "GH2 clip-driver cosine ease mismatch\n";
+    ok = false;
+  }
+
+  auto source_rng = ghogx::character::source_gh2_ps2_random_construct();
+  const std::array<uint32_t, 5> expected_source_random = {
+      2109446437u, 1998309191u, 1343495090u, 940098533u, 1193505786u};
+  for (uint32_t expected : expected_source_random) {
+    if (ghogx::character::source_gh2_ps2_random_next(source_rng) != expected) {
+      std::cerr << "GH2 global Random sequence mismatch\n";
+      ok = false;
+      break;
+    }
+  }
+  source_rng = ghogx::character::source_gh2_ps2_random_construct();
+  if (!nearf(ghogx::character::source_gh2_ps2_random_unit(source_rng),
+             0.5982208251953125f)) {
+    std::cerr << "GH2 global Random float conversion mismatch\n";
+    ok = false;
+  }
+  ghogx::character::CharClip random_phase_clip;
+  random_phase_clip.start_beat = 2.0f;
+  random_phase_clip.end_beat = 6.0f;
+  if (!nearf(
+          ghogx::character::source_gh2_char_clip_driver_randomized_beat(
+              random_phase_clip, 2.0f, 1.25f),
+          3.25f) ||
+      !nearf(
+          ghogx::character::source_gh2_char_clip_driver_randomized_beat(
+              random_phase_clip, 2.0f, 3.0f),
+          3.0f)) {
+    std::cerr << "GH2 clip-driver constructor range phase mismatch\n";
+    ok = false;
+  }
+
   const uint32_t masked =
       ghogx::character::source_char_clip_driver_masked_play_flags(
           0x12345678u, 0x0000f623u);
@@ -1092,11 +1149,11 @@ bool expect_clip_driver_helpers() {
   }
   ghogx::character::CharClip held_clip;
   held_clip.loaded = true;
-  held_clip.frames.resize(1);
+  held_clip.frames.resize(31);
   held_clip.flags = 0x00400000u;
   ghogx::character::CharClip release_clip;
   release_clip.loaded = true;
-  release_clip.frames.resize(1);
+  release_clip.frames.resize(31);
   release_clip.flags = 0x00000000u;
   ghogx::character::CharClipPlayer player;
   player.play(held_clip, ghogx::character::kCharPlayLoop |
@@ -1105,9 +1162,34 @@ bool expect_clip_driver_helpers() {
     std::cerr << "driver EvaluateFlags active clip mismatch\n";
     ok = false;
   }
-  player.set_source_driver_blend_width(1.0f);
-  player.play(release_clip, ghogx::character::kCharPlayLoop);
+  player.play(release_clip, ghogx::character::kCharPlayLoop, 1.0f);
+  if (player.source_first_playing_clip() != &held_clip) {
+    std::cerr << "driver FirstPlaying did not skip zero-weight stack head\n";
+    ok = false;
+  }
+  const auto runtime_evidence =
+      ghogx::character::source_char_clip_driver_runtime_dump_evidence();
+  if (runtime_evidence.gh2_ps2_constructor_range !=
+          "0x00198660 -> 0x00198968" ||
+      runtime_evidence.gh2_ps2_evaluate_range !=
+          "0x00198B00 -> 0x00198E78" ||
+      runtime_evidence.gh2_ps2_scale_add_range !=
+          "0x00198E78 -> 0x00198F38" ||
+      runtime_evidence.gh2_ps2_align_to_frame_range !=
+          "0x00198F38 -> 0x00199000" ||
+      runtime_evidence.gh2_ps2_layout.size() != 15 ||
+      !runtime_evidence.gh2_ps2_evaluate_recovered ||
+      !runtime_evidence.gh2_ps2_scale_add_recovered ||
+      !runtime_evidence.gh2_ps2_align_to_frame_recovered) {
+    std::cerr << "GH2 PS2 clip-driver static recovery evidence mismatch\n";
+    ok = false;
+  }
   player.advance(0.5f);
+  if (player.source_first_playing_clip() != &release_clip ||
+      !nearf(player.source_first_playing_time_seconds(), 0.5f)) {
+    std::cerr << "driver FirstPlaying did not select nonzero stack head\n";
+    ok = false;
+  }
   if (!nearf(player.evaluate_flags(0x00400000u), 0.5f)) {
     std::cerr << "driver EvaluateFlags blend mismatch\n";
     ok = false;
@@ -1172,8 +1254,8 @@ bool expect_clip_driver_helpers() {
   transition_player.play(outgoing_pose_clip,
                          ghogx::character::kCharPlayLoop |
                              ghogx::character::kCharPlayNoBlend);
-  transition_player.set_source_driver_blend_width(1.0f);
-  transition_player.play(incoming_pose_clip, ghogx::character::kCharPlayLoop);
+  transition_player.play(incoming_pose_clip,
+                         ghogx::character::kCharPlayLoop, 1.0f);
   transition_player.advance(0.5f);
   const std::vector<ghogx::character::ClipChannel> transition_pose =
       transition_player.sampled_pose();
@@ -1537,6 +1619,61 @@ bool expect_clip_driver_helpers() {
     ok = false;
   }
 
+  // Attached instruments occupy the same retail ObjectDir as the character.
+  // A hand-driver output must therefore acquire and update imported prop
+  // transforms before publishing the world consumed by CharIKHand.
+  ghogx::character::Character prop_target_character;
+  ghogx::character::AttachedPropTransformProxy prop_parent;
+  prop_parent.name = "bone_prop_parent.mesh";
+  prop_parent.local.pos[0] = 100.0f;
+  prop_parent.bind_local = prop_parent.local;
+  prop_target_character.attached_prop_transform_proxies.emplace(
+      prop_parent.name, prop_parent);
+  ghogx::character::AttachedPropTransformProxy prop_target;
+  prop_target.name = "bone_prop_target.mesh";
+  prop_target.parent = prop_parent.name;
+  prop_target.local.pos[0] = 10.0f;
+  prop_target.local.pos[1] = 20.0f;
+  prop_target.local.pos[2] = 30.0f;
+  prop_target.bind_local = prop_target.local;
+  prop_target_character.attached_prop_transform_proxies.emplace(
+      prop_target.name, prop_target);
+  ghogx::character::CharClip prop_target_clip;
+  prop_target_clip.loaded = true;
+  prop_target_clip.frames.resize(1);
+  ghogx::character::ClipChannel prop_target_pos;
+  prop_target_pos.type = ghogx::character::ClipChannel::kPos;
+  prop_target_pos.bone_name = "bone_prop_target.mesh";
+  prop_target_pos.pos[0] = 20.0f;
+  prop_target_pos.pos[1] = 40.0f;
+  prop_target_pos.pos[2] = 60.0f;
+  prop_target_clip.frames[0].push_back(prop_target_pos);
+  ghogx::character::CharClip::OutputBone prop_parent_output;
+  prop_parent_output.name = "bone_prop_parent.mesh";
+  ghogx::character::CharClip::OutputBone prop_target_output;
+  prop_target_output.name = "bone_prop_target.mesh";
+  prop_target_output.parent = "bone_prop_parent.mesh";
+  prop_target_clip.output_bones = {prop_parent_output, prop_target_output};
+  ghogx::character::apply_clip_frame_weighted(
+      prop_target_clip, 0, 0.25f, prop_target_character);
+  const auto& acquired_prop_target =
+      prop_target_character.attached_prop_transform_proxies.at(
+          "bone_prop_target.mesh");
+  const auto prop_target_world =
+      prop_target_character.runtime_pose_output_worlds.find(
+          "bone_prop_target");
+  if (!nearf(acquired_prop_target.local.pos[0], 12.5f) ||
+      !nearf(acquired_prop_target.local.pos[1], 25.0f) ||
+      !nearf(acquired_prop_target.local.pos[2], 37.5f) ||
+      prop_target_world ==
+          prop_target_character.runtime_pose_output_worlds.end() ||
+      !nearf(prop_target_world->second[12], 112.5f) ||
+      !nearf(prop_target_world->second[13], 25.0f) ||
+      !nearf(prop_target_world->second[14], 37.5f)) {
+    std::cerr << "typed publisher did not acquire the shared prop transform namespace\n";
+    ok = false;
+  }
+
   ghogx::character::Character missing_target_character;
   ghogx::milo_scene::TransObj missing_target_guard;
   missing_target_guard.name = "bone_guard.mesh";
@@ -1635,8 +1772,8 @@ bool expect_clip_driver_helpers() {
   stack_player.play(stack_base_clip,
                     ghogx::character::kCharPlayLoop |
                         ghogx::character::kCharPlayNoBlend);
-  stack_player.set_source_driver_blend_width(0.2f);
-  stack_player.play(stack_transient_clip, ghogx::character::kCharPlayNoLoop);
+  stack_player.play(stack_transient_clip,
+                    ghogx::character::kCharPlayNoLoop, 0.2f);
   stack_player.advance(0.1f);
   if (!nearf(stack_player.evaluate_flags(0x00400000u), 0.5f) ||
       stack_player.current_clip() != &stack_transient_clip) {
@@ -1644,9 +1781,321 @@ bool expect_clip_driver_helpers() {
     ok = false;
   }
   stack_player.advance(1.0f);
-  if (stack_player.current_clip() != &stack_base_clip ||
-      !nearf(stack_player.evaluate_flags(0x00400000u), 1.0f)) {
-    std::cerr << "non-loop transient stack did not exit back to previous clip\n";
+  if (stack_player.current_clip() != &stack_transient_clip ||
+      stack_player.source_stack_depth() != 1 ||
+      !nearf(stack_player.evaluate_flags(0x00400000u), 0.0f)) {
+    std::cerr << "GH2 Evaluate did not retire the fully obscured next stack\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClip beat_clip;
+  beat_clip.loaded = true;
+  beat_clip.frames.resize(61);
+  beat_clip.fps = 30;
+  beat_clip.start_beat = 2.0f;
+  beat_clip.end_beat = 4.0f;
+  beat_clip.beats_per_second = 2.0f;
+  ghogx::character::CharClipPlayer beat_player;
+  beat_player.play(beat_clip,
+                   ghogx::character::kCharPlayLoop |
+                       ghogx::character::kCharPlayNoBlend);
+  beat_player.advance_source(0.25f, 0.25f, 0.125f);
+  if (!nearf(beat_player.source_current_beat(), 2.25f) ||
+      !nearf(beat_player.source_current_d_beat(), 0.25f) ||
+      !nearf(beat_player.current_time_seconds(), 0.125f)) {
+    std::cerr << "GH2 task-beat clip-driver advance mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClipPlayer realtime_player;
+  realtime_player.play(
+      beat_clip, ghogx::character::kCharPlayLoop |
+                     ghogx::character::kCharPlayNoBlend |
+                     ghogx::character::kCharPlayRealTime);
+  realtime_player.advance_source(0.10f, 0.10f, 0.25f);
+  if (!nearf(realtime_player.source_current_beat(), 2.5f) ||
+      !nearf(realtime_player.source_current_d_beat(), 0.5f) ||
+      !nearf(realtime_player.current_time_seconds(), 0.25f)) {
+    std::cerr << "GH2 real-time clip-driver advance mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClip event_clip = beat_clip;
+  event_clip.start_beat = 0.0f;
+  event_clip.end_beat = 4.0f;
+  event_clip.beats_per_second = 1.0f;
+  event_clip.legacy_enter_event = "enter_event";
+  event_clip.legacy_exit_event = "exit_event";
+  event_clip.beat_events = {{0.5f, "first_event"},
+                            {1.5f, "second_event"}};
+  ghogx::character::CharClipPlayer event_player;
+  std::vector<std::string> executed_events;
+  event_player.set_source_event_handler(
+      [&executed_events](const ghogx::character::CharClip&,
+                         std::string_view event) {
+        executed_events.emplace_back(event);
+      });
+  event_player.play(event_clip,
+                    ghogx::character::kCharPlayNoLoop |
+                        ghogx::character::kCharPlayNoBlend);
+  event_player.advance_source(0.75f, 0.75f, 0.75f);
+  const auto first_crossed = event_player.take_source_crossed_events();
+  if (first_crossed.size() != 1 || first_crossed[0].clip != &event_clip ||
+      first_crossed[0].index != 0 ||
+      !nearf(first_crossed[0].beat, 0.5f) ||
+      first_crossed[0].event != "first_event" ||
+      !event_player.source_crossed_events().empty() ||
+      executed_events !=
+          std::vector<std::string>{"enter_event", "first_event"}) {
+    std::cerr << "GH2 strict event cursor first crossing mismatch\n";
+    ok = false;
+  }
+  event_player.advance_source(1.75f, 1.0f, 1.0f);
+  const auto second_crossed = event_player.take_source_crossed_events();
+  if (second_crossed.size() != 1 || second_crossed[0].index != 1 ||
+      !nearf(second_crossed[0].beat, 1.5f) ||
+      second_crossed[0].event != "second_event") {
+    std::cerr << "GH2 strict event cursor second crossing mismatch\n";
+    ok = false;
+  }
+  event_player.clear();
+  if (executed_events !=
+      std::vector<std::string>{"enter_event", "first_event",
+                               "second_event", "exit_event"}) {
+    std::cerr << "GH2 CharClip event owner callback order mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClip outgoing_beat_clip = beat_clip;
+  outgoing_beat_clip.name = "outgoing";
+  outgoing_beat_clip.start_beat = 0.0f;
+  outgoing_beat_clip.end_beat = 4.0f;
+  outgoing_beat_clip.beats_per_second = 1.0f;
+  outgoing_beat_clip.blend_width = 1.0f;
+  ghogx::character::CharClip incoming_beat_clip = outgoing_beat_clip;
+  incoming_beat_clip.name = "incoming";
+  incoming_beat_clip.start_beat = 1.0f;
+  incoming_beat_clip.end_beat = 3.0f;
+  outgoing_beat_clip.transitions.push_back(
+      {"incoming", {{1.0f, 2.0f}}});
+  ghogx::character::CharClipPlayer ramp_player;
+  ramp_player.play(outgoing_beat_clip,
+                   ghogx::character::kCharPlayLoop |
+                       ghogx::character::kCharPlayNoBlend);
+  ramp_player.advance_source(0.5f, 0.5f, 0.5f);
+  ramp_player.play(incoming_beat_clip,
+                   ghogx::character::kCharPlayLoop |
+                       ghogx::character::kCharPlayFirst);
+  ramp_player.advance_source(0.75f, 0.25f, 0.25f);
+  ramp_player.advance_source(1.0f, 0.25f, 0.25f);
+  if (!nearf(ramp_player.source_current_beat(), 2.0f) ||
+      !nearf(ramp_player.source_current_blend_fraction(), 0.0f) ||
+      ramp_player.source_first_playing_clip() != &outgoing_beat_clip) {
+    std::cerr << "GH2 transition ramp advanced before outgoing node boundary\n";
+    ok = false;
+  }
+  ramp_player.advance_source(1.25f, 0.25f, 0.25f);
+  if (!nearf(ramp_player.source_current_beat(), 2.25f) ||
+      !nearf(ramp_player.source_current_blend_fraction(), 0.25f) ||
+      !nearf(ramp_player.current_blend_weight(), 0.14644661f) ||
+      ramp_player.source_first_playing_clip() != &incoming_beat_clip ||
+      ramp_player.source_most_playing_clip() != &outgoing_beat_clip) {
+    std::cerr << "GH2 transition ramp/blend/playing selection mismatch\n";
+    ok = false;
+  }
+  ramp_player.advance_source(2.0f, 0.75f, 0.75f);
+  if (ramp_player.source_stack_depth() != 1 ||
+      ramp_player.current_clip() != &incoming_beat_clip ||
+      ramp_player.source_most_playing_clip() != &incoming_beat_clip) {
+    std::cerr << "GH2 full blend did not delete the complete next stack\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClip zero_blend_clip = incoming_beat_clip;
+  zero_blend_clip.name = "zero_blend";
+  zero_blend_clip.blend_width = 0.0f;
+  ghogx::character::CharClipPlayer zero_blend_player;
+  zero_blend_player.play(outgoing_beat_clip,
+                         ghogx::character::kCharPlayLoop |
+                             ghogx::character::kCharPlayNoBlend);
+  zero_blend_player.play(zero_blend_clip,
+                         ghogx::character::kCharPlayLoop);
+  if (zero_blend_player.source_stack_depth() != 2 ||
+      !nearf(zero_blend_player.source_current_blend_fraction(), 0.0f)) {
+    std::cerr << "GH2 zero-width constructor incorrectly skipped its stack "
+                 "node\n";
+    ok = false;
+  }
+  zero_blend_player.advance_source(0.25f, 0.25f, 0.25f);
+  if (zero_blend_player.source_stack_depth() != 1 ||
+      zero_blend_player.current_clip() != &zero_blend_clip ||
+      !nearf(zero_blend_player.source_current_blend_fraction(), 1.0f)) {
+    std::cerr << "GH2 zero-width transition did not complete in Evaluate\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClipPlayer explicit_start_player;
+  explicit_start_player.play_source(
+      incoming_beat_clip, ghogx::character::kCharPlayNoLoop,
+      2.25f, 0.5f, 0.75f);
+  if (!nearf(explicit_start_player.source_current_beat(), 2.25f) ||
+      !nearf(explicit_start_player.source_current_blend_fraction(), 0.0f)) {
+    std::cerr << "GH2 explicit-start constructor state mismatch\n";
+    ok = false;
+  }
+  explicit_start_player.advance_source(0.25f, 0.25f, 0.25f);
+  if (!nearf(explicit_start_player.source_current_beat(), 2.25f) ||
+      !nearf(explicit_start_player.source_current_d_beat(), 0.0f)) {
+    std::cerr << "GH2 explicit-start ramp advanced before its boundary\n";
+    ok = false;
+  }
+  explicit_start_player.advance_source(0.55f, 0.30f, 0.30f);
+  if (!nearf(explicit_start_player.source_current_beat(), 2.55f) ||
+      !nearf(explicit_start_player.source_current_blend_fraction(), 0.4f)) {
+    std::cerr << "GH2 explicit-start ramp/blend advance mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClipPlayer dirty_player;
+  dirty_player.play(incoming_beat_clip,
+                    ghogx::character::kCharPlayLoop |
+                        ghogx::character::kCharPlayDirty);
+  if (!nearf(dirty_player.source_current_blend_fraction(), 0.000001f)) {
+    std::cerr << "GH2 dirty play mode did not install source epsilon\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClip align_clip = beat_clip;
+  align_clip.start_beat = 0.0f;
+  align_clip.end_beat = 4.0f;
+  align_clip.beats_per_second = 1.0f;
+  ghogx::character::CharClipPlayer align_player;
+  align_player.play(
+      align_clip, ghogx::character::kCharPlayNoLoop |
+                      ghogx::character::kCharPlayNoBlend | 0x2000u);
+  align_player.advance_source(0.6f, 0.2f, 0.2f);
+  if (!nearf(align_player.source_current_beat(), 0.6f) ||
+      !nearf(align_player.source_current_d_beat(), 0.2f)) {
+    std::cerr << "GH2 nearest-half-period beat alignment mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClip loop_clip = beat_clip;
+  loop_clip.start_beat = 1.0f;
+  loop_clip.end_beat = 2.0f;
+  loop_clip.beats_per_second = 1.0f;
+  ghogx::character::CharClipPlayer loop_player;
+  loop_player.play(loop_clip,
+                   ghogx::character::kCharPlayLoop |
+                       ghogx::character::kCharPlayNoBlend);
+  loop_player.advance_source(1.5f, 1.5f, 1.5f);
+  if (!nearf(loop_player.source_current_beat(), 1.5f)) {
+    std::cerr << "GH2 loop overrun did not carry from end to start\n";
+    ok = false;
+  }
+
+  if (!ghogx::character::source_gh2_ps2_char_driver_poll_starved(false,
+                                                                 false) ||
+      !ghogx::character::source_gh2_ps2_char_driver_poll_starved(true,
+                                                                 false) ||
+      ghogx::character::source_gh2_ps2_char_driver_poll_starved(true,
+                                                                true)) {
+    std::cerr << "GH2 PS2 Poll stack-starved predicate mismatch\n";
+    ok = false;
+  }
+
+  const float safe_length =
+      ghogx::character::
+          source_gh2_ps2_char_driver_play_if_safe_length(
+              12.0f, true, 10.0f, 7.0f);
+  if (!nearf(safe_length, 9.0f) ||
+      !nearf(
+          ghogx::character::
+              source_gh2_ps2_char_driver_play_if_safe_length(
+                  12.0f, false, 10.0f, 7.0f),
+          12.0f) ||
+      !ghogx::character::
+          source_gh2_ps2_char_driver_play_if_safe_candidate(
+              0x20u, 0.0f, 8.0f, 0x20u, safe_length) ||
+      ghogx::character::
+          source_gh2_ps2_char_driver_play_if_safe_candidate(
+              0x20u, 0.0f, 9.0f, 0x20u, safe_length) ||
+      !ghogx::character::
+          source_gh2_ps2_char_driver_play_if_safe_candidate(
+              0x10u, 0.0f, 30.0f, 0x20u, safe_length)) {
+    std::cerr << "GH2 PS2 PlayIfSafe predicate mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClip graph_loop_clip = loop_clip;
+  graph_loop_clip.name = "graph_loop";
+  graph_loop_clip.start_beat = 0.0f;
+  graph_loop_clip.end_beat = 2.0f;
+  graph_loop_clip.default_play_flags =
+      ghogx::character::kCharPlayGraphLoop;
+  graph_loop_clip.blend_width = 0.5f;
+  ghogx::character::CharClipPlayer graph_loop_player;
+  size_t graph_starved_calls = 0;
+  graph_loop_player.set_source_starved_handler(
+      [&graph_starved_calls]() { ++graph_starved_calls; });
+  graph_loop_player.play(graph_loop_clip,
+                         ghogx::character::kCharPlayGraphLoop);
+  graph_loop_player.advance_source(0.25f, 0.25f, 0.25f);
+  if (graph_starved_calls != 1 ||
+      graph_loop_player.source_stack_depth() != 2 ||
+      graph_loop_player.current_clip() != &graph_loop_clip ||
+      !nearf(graph_loop_player.source_current_blend_fraction(), 0.0f)) {
+    std::cerr << "GH2 graph-loop Poll replay mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClip node_loop_clip = graph_loop_clip;
+  node_loop_clip.name = "node_loop";
+  node_loop_clip.default_play_flags =
+      ghogx::character::kCharPlayNodeLoop;
+  ghogx::character::CharClip node_loop_next = node_loop_clip;
+  node_loop_next.name = "node_loop_next";
+  ghogx::character::CharClipPlayer node_loop_player;
+  size_t node_resolver_calls = 0;
+  node_loop_player.set_source_node_loop_resolver(
+      [&node_loop_next, &node_resolver_calls]() {
+        ++node_resolver_calls;
+        return &node_loop_next;
+      });
+  node_loop_player.play(node_loop_clip,
+                        ghogx::character::kCharPlayNodeLoop);
+  node_loop_player.advance_source(0.25f, 0.25f, 0.25f);
+  if (node_resolver_calls != 1 ||
+      node_loop_player.source_stack_depth() != 2 ||
+      node_loop_player.current_clip() != &node_loop_next) {
+    std::cerr << "GH2 node-loop Poll resolver/replay mismatch\n";
+    ok = false;
+  }
+  ghogx::character::CharClipPlayer unresolved_node_loop_player;
+  unresolved_node_loop_player.play(
+      node_loop_clip, ghogx::character::kCharPlayNodeLoop);
+  unresolved_node_loop_player.advance_source(0.25f, 0.25f, 0.25f);
+  if (unresolved_node_loop_player.source_stack_depth() != 1 ||
+      unresolved_node_loop_player.current_clip() != &node_loop_clip) {
+    std::cerr << "GH2 unresolved node-loop must not invent replay clip\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClip realign_clip = graph_loop_clip;
+  realign_clip.name = "realign";
+  realign_clip.default_play_flags =
+      ghogx::character::kCharPlayNoLoop | 0x2000u;
+  realign_clip.blend_width = 10.0f;
+  ghogx::character::CharClipPlayer realign_player;
+  realign_player.set_source_realign(true);
+  realign_player.play(realign_clip, 0u);
+  realign_player.advance_source(0.25f, 0.25f, 0.25f);
+  realign_player.advance_source(2.25f, 2.0f, 2.0f);
+  if (realign_player.source_stack_depth() != 2 ||
+      realign_player.current_clip() != &realign_clip ||
+      !(realign_player.source_current_blend_fraction() > 0.0f &&
+        realign_player.source_current_blend_fraction() < 1.0f)) {
+    std::cerr << "GH2 skipped-boundary realign replay mismatch\n";
     ok = false;
   }
 
@@ -2431,5 +2880,199 @@ int main() {
                              "first source node playing");
   ok &= expect_first_playing({0.0f, 0.25f, 1.0f}, static_cast<size_t>(1),
                              "skip zero blend nodes");
+  ghogx::character::CharClip transition_clip;
+  transition_clip.transitions = {
+      {"walk_next", {{1.0f, 10.0f}, {2.0f, 20.0f}, {3.0f, 30.0f}}}};
+  const auto first_transition =
+      ghogx::character::source_char_clip_find_first_transition_node(
+          transition_clip, "walk_next", 1.5f);
+  const auto last_transition =
+      ghogx::character::source_char_clip_find_last_transition_node(
+          transition_clip, "walk_next", 1.5f);
+  if (!first_transition || !last_transition ||
+      !nearf(first_transition->current_beat, 2.0f) ||
+      !nearf(first_transition->next_beat, 20.0f) ||
+      !nearf(last_transition->current_beat, 3.0f) ||
+      !nearf(last_transition->next_beat, 30.0f) ||
+      ghogx::character::source_char_clip_find_first_transition_node(
+          transition_clip, "missing", 0.0f)) {
+    std::cerr << "CharClip transition-node lookup mismatch\n";
+    ok = false;
+  }
+  ghogx::character::CharClip next_clip;
+  next_clip.name = "walk_next";
+  next_clip.start_beat = 3.0f;
+  next_clip.range = 2.0f;
+  next_clip.default_play_flags = 0x4000u;
+  transition_clip.end_beat = 10.0f;
+  const auto mode3_authored =
+      ghogx::character::source_char_clip_find_transition_node(
+          transition_clip, next_clip, 1.5f, 3);
+  const auto mode4_authored =
+      ghogx::character::source_char_clip_find_transition_node(
+          transition_clip, next_clip, 1.5f, 4);
+  ghogx::character::CharClip no_edges = transition_clip;
+  no_edges.transitions.clear();
+  const auto mode3_synth =
+      ghogx::character::source_char_clip_find_transition_node(
+          no_edges, next_clip, 1.25f, 3);
+  const auto mode4_synth =
+      ghogx::character::source_char_clip_find_transition_node(
+          no_edges, next_clip, 1.25f, 4);
+  if (!mode3_authored || !mode4_authored || !mode3_synth || !mode4_synth ||
+      !nearf(mode3_authored->current_beat, 2.0f) ||
+      !nearf(mode3_authored->next_beat, 20.0f) ||
+      !nearf(mode4_authored->current_beat, 3.0f) ||
+      !nearf(mode4_authored->next_beat, 30.0f) ||
+      !nearf(mode3_synth->current_beat, 1.25f) ||
+      !nearf(mode3_synth->next_beat, 5.25f) ||
+      !nearf(mode4_synth->current_beat, 9.0f) ||
+      !nearf(mode4_synth->next_beat, 5.0f) ||
+      ghogx::character::source_char_clip_find_transition_node(
+          no_edges, next_clip, 1.25f, 2)) {
+    std::cerr << "CharClip FindNode mode/alignment mismatch\n";
+    ok = false;
+  }
+  ghogx::character::CharClip facing_clip;
+  facing_clip.start_beat = 1.0f;
+  facing_clip.beats_per_second = 2.0f;
+  facing_clip.fps = 2;
+  ghogx::character::ClipChannel facing_pos_a;
+  facing_pos_a.type = ghogx::character::ClipChannel::kPos;
+  facing_pos_a.bone_name = "bone_facing.mesh";
+  ghogx::character::ClipChannel facing_rot_a;
+  facing_rot_a.type = ghogx::character::ClipChannel::kRotZ;
+  facing_rot_a.bone_name = "bone_facing.mesh";
+  ghogx::character::ClipChannel facing_pos_b = facing_pos_a;
+  facing_pos_b.pos[0] = 2.0f;
+  ghogx::character::ClipChannel facing_rot_b = facing_rot_a;
+  facing_rot_b.angle = 1.0f;
+  facing_clip.frames = {
+      {facing_pos_a, facing_rot_a},
+      {facing_pos_b, facing_rot_b}};
+  const auto facing_half =
+      ghogx::character::source_char_clip_facing_sample_at_beat(
+          facing_clip, 1.5f);
+  if (!facing_half || !nearf(facing_half->facing_pos[0], 1.0f) ||
+      !nearf(facing_half->facing_rot, 0.5f)) {
+    std::cerr << "CharClip beat-to-facing sample mismatch\n";
+    ok = false;
+  }
+  ghogx::character::CharClip stop_clip;
+  stop_clip.start_beat = 0.0f;
+  stop_clip.end_beat = 10.0f;
+  stop_clip.beats_per_second = 1.0f;
+  stop_clip.fps = 1;
+  stop_clip.frames.resize(11);
+  for (size_t frame = 0; frame < stop_clip.frames.size(); ++frame) {
+    auto pos = facing_pos_a;
+    pos.pos[0] = static_cast<float>(frame);
+    stop_clip.frames[frame] = {pos, facing_rot_a};
+  }
+  const auto stop_start =
+      ghogx::character::source_charwalk_find_stop_start_beat(
+          stop_clip, 0.25f);
+  if (!stop_start || !nearf(*stop_start, 3.25f)) {
+    std::cerr << "CharWalk FindStartFrame beat/distance mismatch\n";
+    ok = false;
+  }
+  ghogx::character::CharClip planned_walk;
+  planned_walk.name = "walk";
+  planned_walk.start_beat = 0.0f;
+  planned_walk.end_beat = 16.0f;
+  planned_walk.beats_per_second = 1.0f;
+  planned_walk.fps = 1;
+  planned_walk.frames.resize(17);
+  planned_walk.transitions.push_back(
+      {"walk", {{8.0f, 0.0f}}});
+  for (size_t frame = 0; frame < planned_walk.frames.size(); ++frame) {
+    auto pos = facing_pos_a;
+    pos.pos[0] = static_cast<float>(frame);
+    planned_walk.frames[frame] = {pos, facing_rot_a};
+  }
+  stop_clip.name = "stop";
+  const auto motion_plan =
+      ghogx::character::source_charwalk_build_motion_plan(
+          {{&planned_walk, 0.0f, 0.0f},
+           {&planned_walk, 0.0f, 8.0f}},
+          {{0.0f, 0.0f, 0.0f}, {20.0f, 0.0f, 0.0f}},
+          0.0f, 2.0f, {{&stop_clip, 0x20u}}, 0x20u);
+  if (!motion_plan.valid || motion_plan.schedule.size() < 4 ||
+      motion_plan.schedule.back().clip != &stop_clip ||
+      motion_plan.active_point_count !=
+          motion_plan.selected_point_index ||
+      !nearf(motion_plan.path.back()[0], 12.0f) ||
+      !nearf(motion_plan.end_position[0], 18.0f)) {
+    std::cerr << "CharWalk exact plan/stop selection mismatch: valid="
+              << motion_plan.valid
+              << " schedule=" << motion_plan.schedule.size()
+              << " points=" << motion_plan.points.size()
+              << " active=" << motion_plan.active_point_count
+              << " path_x="
+              << (motion_plan.path.empty()
+                      ? -999.0f
+                      : motion_plan.path.back()[0])
+              << " end_x=" << motion_plan.end_position[0] << "\n";
+    ok = false;
+  }
+  ghogx::character::SourceCharUtlClipPredictState forward_initial;
+  const auto forward_prediction =
+      ghogx::character::source_charwalk_forward_predict(
+          motion_plan, 1, 7.5f, 1.0f, forward_initial);
+  const auto intermediate_back =
+      ghogx::character::source_charwalk_back_predict(
+          motion_plan, 1, 7.5f, 0, 0.0f);
+  const auto final_back =
+      ghogx::character::source_charwalk_back_predict(
+          motion_plan, 1, 7.5f,
+          motion_plan.path.size() - 1, 0.0f);
+  if (!forward_prediction ||
+      forward_prediction->clip_index != 2 ||
+      !nearf(forward_prediction->beat, 0.5f) ||
+      !nearf(forward_prediction->state.pos[0], 1.0f) ||
+      !intermediate_back ||
+      !nearf((*intermediate_back)[0], 0.0f) ||
+      !final_back) {
+    std::cerr << "CharWalk ForwardPredict/BackPredict mismatch\n";
+    ok = false;
+  }
+  ghogx::character::SourceCharWalkMotionPlan offset_plan;
+  offset_plan.valid = true;
+  offset_plan.path = {
+      {0.0f, 0.0f, 0.0f},
+      {10.0f, 0.0f, 0.0f},
+      {20.0f, 0.0f, 0.0f}};
+  offset_plan.schedule = {
+      {&planned_walk, 0.0f, 0.0f},
+      {&planned_walk, 0.0f, 8.0f},
+      {&planned_walk, 0.0f, 8.0f}};
+  offset_plan.points = {
+      {0, 1.0f, 2.0f},
+      {1, 2.0f, 8.0f},
+      {2, 3.0f, 15.0f}};
+  offset_plan.active_point_count = 2;
+  const auto offset_regulation =
+      ghogx::character::source_charwalk_regulate_offset(
+          offset_plan, 0, 1, 3.0f, 1,
+          {5.0f, 0.0f, 0.0f},
+          {8.0f, 0.0f, 0.0f}, 0.5f, 0.0f);
+  if (!offset_regulation.valid ||
+      !offset_regulation.point_advanced ||
+      offset_regulation.point_index != 1 ||
+      !nearf(offset_regulation.offset_speed, 1.0f) ||
+      !nearf(offset_regulation.position[0], 5.5f)) {
+    std::cerr << "CharWalk PlanPoint offset regulation mismatch\n";
+    ok = false;
+  }
+  const auto rejected_plan =
+      ghogx::character::source_charwalk_build_motion_plan(
+          {{&planned_walk, 0.0f, 0.0f},
+           {&planned_walk, 0.0f, 8.0f}},
+          {{0.0f, 0.0f, 0.0f}, {20.0f, 0.0f, 0.0f}},
+          0.0f, 2.0f, {{&stop_clip, 0x20u}}, 0x40u);
+  if (rejected_plan.valid) {
+    std::cerr << "CharWalk stop flag filtering mismatch\n";
+    ok = false;
+  }
   return ok ? 0 : 1;
 }

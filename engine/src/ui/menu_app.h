@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include <array>
+#include <cmath>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -17,6 +19,39 @@
 #include <vector>
 
 namespace ghogx::ui {
+
+struct PanelExternalDependencyPlan {
+  bool import_metacam_cameras = false;
+  bool import_metacam_environment = false;
+};
+
+// GH2 PanelDir references can resolve through the stock metacam subdirectory.
+// A proxy camera remains owned by the panel path, while a direct meta.cam or
+// missing environment reference is imported from that external directory.
+inline PanelExternalDependencyPlan source_panel_external_dependency_plan(
+    const std::string& panel_camera, const std::string& panel_environment,
+    bool panel_environment_is_local) {
+  PanelExternalDependencyPlan plan;
+  plan.import_metacam_cameras = panel_camera == "meta.cam";
+  plan.import_metacam_environment =
+      !panel_environment.empty() && !panel_environment_is_local;
+  return plan;
+}
+
+// GH2 PS2 CharsysPanel::Poll reads the selected character's bone_door Z
+// angle, forces the external panel door to Euler (pi/2, 0, z), and writes the
+// resulting Matrix3 while leaving the panel mesh's authored translation in
+// place. Hmx::MakeRotMatrix uses row-vector Ry * Rx * Rz order.
+inline std::array<float, 9> source_charsys_external_door_rotation(
+    float bone_door_z) {
+  const float cz = std::cos(bone_door_z);
+  const float sz = std::sin(bone_door_z);
+  return {
+      cz, sz, 0.0f,
+      0.0f, 0.0f, 1.0f,
+      sz, -cz, 0.0f,
+  };
+}
 
 struct MenuRunOptions {
   // Menu navigation stays human-driven.  This flag affects only the in-song

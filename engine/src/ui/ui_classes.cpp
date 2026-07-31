@@ -498,6 +498,157 @@ Symbol selection_button(Symbol selection) {
 bool text_entry_class(Symbol cls) {
   return cls == Symbol("UITextEntry") || cls == Symbol("BandTextEntry");
 }
+
+// GH2's BandTextEntry owns a committed prefix and one active character.
+// manage_bands.dtb confirms the input contract: Green advances a character,
+// Red deletes, and strum Up/Down changes the active character. Keep the
+// committed value separate from the displayed prefix+active-character so
+// get_text/length/no_text_entered expose the value the stock scripts expect.
+constexpr const char* kTextEntryCharacters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !?.'";
+constexpr int kDefaultTextEntryMaxLength = 20;
+
+std::string text_entry_characters(Object& obj) {
+  std::string characters =
+      std::string(obj.get_property(Symbol("characters"))
+                      .as_string()
+                      .value_or(""));
+  if (characters.empty()) characters = kTextEntryCharacters;
+  return characters;
+}
+
+std::string text_entry_prefix(Object& obj) {
+  return std::string(
+      obj.get_property(Symbol("text_entry_value")).as_string().value_or(""));
+}
+
+bool text_entry_active_accepted(Object& obj) {
+  return node_bool(
+      obj.get_property(Symbol("text_entry_active_accepted")));
+}
+
+int text_entry_character_index(Object& obj) {
+  const int count = static_cast<int>(text_entry_characters(obj).size());
+  int index =
+      obj.get_property(Symbol("text_entry_character_index"))
+          .as_int()
+          .value_or(0);
+  index %= count;
+  if (index < 0) index += count;
+  return index;
+}
+
+std::string text_entry_value(Object& obj) {
+  std::string value = text_entry_prefix(obj);
+  if (text_entry_active_accepted(obj)) {
+    const std::string characters = text_entry_characters(obj);
+    value.push_back(characters[text_entry_character_index(obj)]);
+  }
+  return value;
+}
+
+int text_entry_max_length(Object& obj) {
+  return std::max(
+      1, obj.get_property(Symbol("max_length"))
+             .as_int()
+             .value_or(kDefaultTextEntryMaxLength));
+}
+
+void refresh_text_entry_display(Object& obj) {
+  std::string display = text_entry_prefix(obj);
+  const bool active_accepted = text_entry_active_accepted(obj);
+  if (active_accepted ||
+      (!node_bool(obj.get_property(Symbol("done"))) &&
+       static_cast<int>(display.size()) < text_entry_max_length(obj))) {
+    const std::string characters = text_entry_characters(obj);
+    display.push_back(characters[text_entry_character_index(obj)]);
+  }
+  obj.set_property(Symbol("text"), DataNode::Str(std::move(display)));
+}
+
+void initialize_text_entry(Object& obj) {
+  if (!obj.has_property(Symbol("text_entry_value"))) {
+    obj.set_property(Symbol("text_entry_value"), DataNode::Str(""));
+    obj.set_property(Symbol("text_entry_active_accepted"), DataNode::Int(0));
+  }
+  if (!obj.has_property(Symbol("text_entry_character_index")))
+    obj.set_property(Symbol("text_entry_character_index"), DataNode::Int(0));
+  refresh_text_entry_display(obj);
+}
+
+void set_text_entry_value(Object& obj, std::string value) {
+  const int max_length = text_entry_max_length(obj);
+  if (static_cast<int>(value.size()) > max_length)
+    value.resize(static_cast<std::size_t>(max_length));
+  int current_index = 0;
+  bool active_accepted = false;
+  if (!value.empty()) {
+    const char current = value.back();
+    value.pop_back();
+    const std::string characters = text_entry_characters(obj);
+    const std::size_t found = characters.find(current);
+    if (found != std::string::npos) {
+      current_index = static_cast<int>(found);
+      active_accepted = true;
+    } else {
+      value.push_back(current);
+    }
+  }
+  obj.set_property(Symbol("text_entry_value"), DataNode::Str(std::move(value)));
+  obj.set_property(Symbol("text_entry_character_index"),
+                   DataNode::Int(current_index));
+  obj.set_property(Symbol("text_entry_active_accepted"),
+                   DataNode::Int(active_accepted ? 1 : 0));
+  refresh_text_entry_display(obj);
+}
+
+void scroll_text_entry_character(Object& obj, int direction) {
+  initialize_text_entry(obj);
+  const int count = static_cast<int>(text_entry_characters(obj).size());
+  int index =
+      (text_entry_character_index(obj) + (direction >= 0 ? 1 : -1)) % count;
+  if (index < 0) index += count;
+  obj.set_property(Symbol("text_entry_character_index"),
+                   DataNode::Int(index));
+  refresh_text_entry_display(obj);
+}
+
+void accept_text_entry_character(Object& obj) {
+  initialize_text_entry(obj);
+  std::string prefix = text_entry_prefix(obj);
+  const std::string value = text_entry_value(obj);
+  if (static_cast<int>(value.size()) >= text_entry_max_length(obj)) return;
+  const std::string characters = text_entry_characters(obj);
+  prefix.push_back(characters[text_entry_character_index(obj)]);
+  obj.set_property(Symbol("text_entry_value"),
+                   DataNode::Str(std::move(prefix)));
+  obj.set_property(Symbol("text_entry_active_accepted"), DataNode::Int(0));
+  refresh_text_entry_display(obj);
+}
+
+void delete_text_entry_character(Object& obj) {
+  initialize_text_entry(obj);
+  if (text_entry_active_accepted(obj)) {
+    obj.set_property(Symbol("text_entry_active_accepted"), DataNode::Int(0));
+  } else {
+    std::string prefix = text_entry_prefix(obj);
+    if (!prefix.empty()) {
+      const char current = prefix.back();
+      prefix.pop_back();
+      const std::string characters = text_entry_characters(obj);
+      const std::size_t found = characters.find(current);
+      if (found != std::string::npos) {
+        obj.set_property(
+            Symbol("text_entry_character_index"),
+            DataNode::Int(static_cast<int>(found)));
+      }
+      obj.set_property(Symbol("text_entry_value"),
+                       DataNode::Str(std::move(prefix)));
+    }
+  }
+  refresh_text_entry_display(obj);
+}
+
 int slider_steps(Object& obj) {
   return std::max(1, node_int(obj.get_property(Symbol("num_steps")), 1));
 }
@@ -944,8 +1095,10 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
       return true;
     }
     if (std::strcmp(m, "set_door") == 0) {
-      set_property(Symbol("char_door"),
-                   args.empty() ? DataNode() : args.at(0));
+      const int player = arg0_int(args);
+      const DataNode door = args.size() > 1 ? args.at(1) : DataNode();
+      set_property(Symbol(indexed_key("char_door", player)), door);
+      set_property(Symbol("char_door"), door);
       return true;
     }
   }
@@ -968,6 +1121,61 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
   // all_ready callbacks; these are native class responsibilities in retail,
   // not scripted handlers.
   if (cls_ == Symbol("MultiSelectPanel")) {
+    auto player_config = [&]() -> Object* {
+      if (!mgr_) return nullptr;
+      Object* game = mgr_->resolve_object(Symbol("game"));
+      if (!game) return nullptr;
+      DataArray player;
+      player.push(DataNode::Int(
+          get_property(Symbol("player_num")).as_int().value_or(0)));
+      return game->handle_property(Symbol("get_player_config"), player)
+          .as_object();
+    };
+    auto outfit_count = [&](Object* config) {
+      if (!mgr_ || !config || !mgr_->current_screen()) return 0;
+      DataArray args;
+      args.push(config->get_property(Symbol("character")));
+      return std::max(
+          0, mgr_->current_screen()
+                 ->handle_property(Symbol("num_outfits"), args)
+                 .as_int()
+                 .value_or(0));
+    };
+    auto outfit_at = [&](Object* config, int index) {
+      if (!mgr_ || !config || !mgr_->current_screen()) return Symbol();
+      DataArray args;
+      args.push(config->get_property(Symbol("character")));
+      args.push(DataNode::Int(std::max(0, index)));
+      return node_symbol_value(mgr_->current_screen()->handle_property(
+          Symbol("get_outfit"), args));
+    };
+    auto outfit_label_at = [&](Object* config, int index) {
+      if (!mgr_ || !config) return std::string();
+      Object* provider =
+          mgr_->resolve_object(Symbol("character_provider"));
+      if (!provider) return std::string();
+      DataArray args;
+      args.push(config->get_property(Symbol("character")));
+      args.push(DataNode::Int(std::max(0, index)));
+      return node_text(provider->handle_property(
+          Symbol("get_outfit_label"), args));
+    };
+    auto refresh_outfit_window = [&](Object* config, int selected) {
+      const int count = outfit_count(config);
+      if (count <= 0) return;
+      const int start = count > 2 ? selected : 0;
+      set_property(Symbol("outfit_window_start"), DataNode::Int(start));
+      for (int row = 0; row < 2; ++row) {
+        Object* button = find_path(row == 0 ? "outfit1.btn"
+                                            : "outfit2.btn");
+        if (!button) continue;
+        const int index = count > 2 ? (start + row) % count : row;
+        if (index >= count) continue;
+        const std::string label = outfit_label_at(config, index);
+        if (!label.empty())
+          button->set_property(Symbol("text"), DataNode::Str(label));
+      }
+    };
     auto set_ready_visible = [&](bool visible) {
       Symbol ready_name = node_symbol_value(get_property(Symbol("ready_label")));
       if (!ready_name.valid()) return;
@@ -1061,6 +1269,43 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
                     ? 1
                     : 0;
       if (delta == 0) return true;
+      if ((name() == Symbol("multi_char_outfit0") ||
+           name() == Symbol("multi_char_outfit1"))) {
+        Object* config = player_config();
+        const int count = outfit_count(config);
+        if (config && count > 2) {
+          int selected =
+              config->get_property(Symbol("outfit_index"))
+                  .as_int()
+                  .value_or(0);
+          selected =
+              (selected + delta + count) % count;
+          DataArray select_index;
+          select_index.push(DataNode::Int(selected));
+          const Symbol outfit = node_symbol_value(
+              config->handle_property(Symbol("set_outfit_index"),
+                                      select_index));
+          set_property(Symbol("focus_button_name"),
+                       DataNode::Sym(Symbol("outfit1")));
+          set_property(Symbol("focus"),
+                       DataNode::Sym(Symbol("outfit1.btn")));
+          sync_panel_focus_state(*this);
+          refresh_outfit_window(config, selected);
+          if (Object* chars = mgr_->resolve_object(Symbol("char_multi"))) {
+            const int player =
+                get_property(Symbol("player_num")).as_int().value_or(0);
+            DataArray show;
+            show.push(DataNode::Int(player));
+            show.push(DataNode::Sym(outfit));
+            chars->handle_property(Symbol("show_char"), show);
+            DataArray event;
+            event.push(DataNode::Int(player));
+            event.push(DataNode::Sym(Symbol("select")));
+            chars->handle_property(Symbol("char_event"), event);
+          }
+          return true;
+        }
+      }
       Symbol current =
           selection_button(node_symbol_value(get_property(Symbol("focus_button_name"))));
       auto it = std::find(authored.begin(), authored.end(), current);
@@ -1236,42 +1481,16 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
     }
     if (std::strcmp(m, "get_outfit") == 0 ||
         std::strcmp(m, "num_outfits") == 0) {
-      Symbol character = arg_symbol(args, 0);
-      std::string base = character.c_str();
-      if (!base.empty() && base.back() >= '0' && base.back() <= '9')
-        base.pop_back();
-      if (std::strcmp(m, "get_outfit") == 0) {
-        const int index = args.size() > 1
-                              ? std::max(0, args.at(1).as_int().value_or(0))
-                              : 0;
-        out = DataNode::Sym(Symbol(base + std::to_string(index + 1)));
-      } else {
-        int count = 1;
-        Object* provider = mgr_ ? mgr_->resolve_object(
-                                      Symbol("store_item_provider"))
-                                : nullptr;
-        if (provider) {
-          DataArray category;
-          category.push(DataNode::Sym(Symbol("outfit")));
-          provider->handle_property(Symbol("set_category"), category);
-          const int total = provider->handle_property(Symbol("list_length"),
-                                                      DataArray())
-                                .as_int()
-                                .value_or(0);
-          const Symbol second(base + "2");
-          for (int i = 0; i < total; ++i) {
-            DataArray index;
-            index.push(DataNode::Int(i));
-            if (provider->handle_property(Symbol("get_symbol"), index)
-                    .as_symbol()
-                    .value_or(Symbol()) == second) {
-              count = 2;
-              break;
-            }
-          }
-        }
-        out = DataNode::Int(count);
-      }
+      Object* provider =
+          mgr_ ? mgr_->resolve_object(Symbol("character_provider"))
+               : nullptr;
+      if (!provider) return true;
+      DataArray provider_args;
+      provider_args.push(args.size() ? args.at(0) : DataNode());
+      if (std::strcmp(m, "get_outfit") == 0)
+        provider_args.push(args.size() > 1 ? args.at(1)
+                                          : DataNode::Int(0));
+      out = provider->handle_property(msg, provider_args);
       return true;
     }
   }
@@ -1410,7 +1629,9 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
   if (std::strcmp(m, "send_select") == 0 ||
       std::strcmp(m, "mock_select") == 0) {
     if (text_entry_class(cls_)) {
+      initialize_text_entry(*this);
       set_property(Symbol("done"), kTrue());
+      refresh_text_entry_display(*this);
       finish_component_select(*this);
       if (mgr_ && mgr_->current_screen())
         mgr_->current_screen()->handle_property(Symbol("TEXT_ENTRY_MSG"),
@@ -1442,11 +1663,19 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
   }
   if (std::strcmp(m, "set_text") == 0 ||
       std::strcmp(m, "set_token") == 0) {
-    set_property(Symbol("text"), arg0(args));
+    if (text_entry_class(cls_))
+      set_text_entry_value(*this, node_text(arg0(args)));
+    else
+      set_property(Symbol("text"), arg0(args));
     return true;
   }
   if (std::strcmp(m, "get_text") == 0) {
-    out = get_property(Symbol("text"));
+    if (text_entry_class(cls_)) {
+      initialize_text_entry(*this);
+      out = DataNode::Str(text_entry_value(*this));
+    } else {
+      out = get_property(Symbol("text"));
+    }
     if (out.empty()) out = DataNode::Str("");
     return true;
   }
@@ -1460,22 +1689,50 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
     return true;
   }
   if (std::strcmp(m, "length") == 0) {
-    out = DataNode::Int(static_cast<int>(node_text(get_property(Symbol("text"))).size()));
+    if (text_entry_class(cls_)) initialize_text_entry(*this);
+    const std::string value =
+        text_entry_class(cls_) ? text_entry_value(*this)
+                               : node_text(get_property(Symbol("text")));
+    out = DataNode::Int(static_cast<int>(value.size()));
     return true;
   }
   if (std::strcmp(m, "no_text_entered") == 0) {
-    out = DataNode::Int(node_text(get_property(Symbol("text"))).empty() ? 1 : 0);
+    if (text_entry_class(cls_)) initialize_text_entry(*this);
+    const std::string value =
+        text_entry_class(cls_) ? text_entry_value(*this)
+                               : node_text(get_property(Symbol("text")));
+    out = DataNode::Int(value.empty() ? 1 : 0);
     return true;
   }
   if (std::strcmp(m, "user_can_scroll") == 0) {
-    out = kTrue();
+    if (text_entry_class(cls_)) initialize_text_entry(*this);
+    out = !text_entry_class(cls_) ||
+                  static_cast<int>(text_entry_value(*this).size()) <
+                      text_entry_max_length(*this)
+              ? kTrue()
+              : kFalse();
     return true;
   }
   if (std::strcmp(m, "resume_input") == 0) {
     set_property(Symbol("done"), kFalse());
+    if (text_entry_class(cls_)) initialize_text_entry(*this);
+    return true;
+  }
+  if (std::strcmp(m, "scroll_character") == 0) {
+    if (text_entry_class(cls_))
+      scroll_text_entry_character(*this, arg0_int(args));
+    return true;
+  }
+  if (std::strcmp(m, "accept_character") == 0) {
+    if (text_entry_class(cls_)) accept_text_entry_character(*this);
+    return true;
+  }
+  if (std::strcmp(m, "delete_character") == 0) {
+    if (text_entry_class(cls_)) delete_text_entry_character(*this);
     return true;
   }
   if (std::strcmp(m, "is_done") == 0) {
+    if (text_entry_class(cls_)) initialize_text_entry(*this);
     out = node_bool(get_property(Symbol("done"))) ? kTrue() : kFalse();
     return true;
   }
@@ -1953,10 +2210,28 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
   }
   if (std::strcmp(m, "set_focus") == 0 || std::strcmp(m, "focus") == 0 ||
       std::strcmp(m, "update_focus") == 0) {
+    const Symbol old_name =
+        node_symbol_value(get_property(Symbol("focus")));
     if (args.size() > 0 && !set_panel_focus_component(*this, arg0(args)))
       set_property(Symbol("focus"), arg0(args));
-    else if (args.size() == 0)
+    else if (args.size() == 0) {
       sync_panel_focus_state(*this);
+      return true;
+    }
+    const Symbol new_name =
+        node_symbol_value(get_property(Symbol("focus")));
+    if (mgr_ && new_name.valid() && new_name != old_name) {
+      Object* old_focus =
+          old_name.valid() ? find_path(old_name.c_str()) : nullptr;
+      Object* new_focus = find_path(new_name.c_str());
+      mgr_->set_global(Symbol("old_focus"),
+                       old_focus ? DataNode::Obj(old_focus) : DataNode());
+      mgr_->set_global(Symbol("new_focus"),
+                       new_focus ? DataNode::Obj(new_focus) : DataNode());
+      mgr_->handle_property(Symbol("FOCUS_MSG"), DataArray());
+      if (has_handler(Symbol("FOCUS_MSG")))
+        handle_property(Symbol("FOCUS_MSG"), DataArray());
+    }
     return true;
   }
   if (cls_ == Symbol("GHScreen") && std::strcmp(m, "set_focus_panel") == 0) {

@@ -1,10 +1,12 @@
 #include "milo_convert.h"
 
 #include "gh2_face_config_patch.h"
+#include "acp.h"
 #include "milo.h"
 #include "milo_object.h"
 #include "singer_face_track.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -42,11 +44,15 @@ void usage() {
         << "  milo_convert_tool convert <GH1.rnd_ps2> --name <dir-name> "
            "--out <GH2.milo_ps2> --manifest <manifest.tsv>\n"
         << "  milo_convert_tool inspect-clipset <GH2.milo_ps2> "
-           "[--channels]\n"
+           "[--channels] [--events]\n"
+        << "  milo_convert_tool sample-clip <GH2.milo_ps2> "
+           "<clip> <sample-index> [channel-filter]\n"
         << "  milo_convert_tool inspect-character <GH2.milo_ps2> "
-           "[--controllers]\n"
+           "[--controllers] [--transforms]\n"
         << "  milo_convert_tool inspect-groups <GH2.milo_ps2>\n"
         << "  milo_convert_tool inspect-skeleton <GH1.rnd_ps2> [--all]\n"
+        << "  milo_convert_tool extract-entry <MILO> <type> <name> "
+           "--out <object-body>\n"
         << "  milo_convert_tool patch-face-config <rnd_objects.dtb> "
            "--out <patched.dtb> [--dta <patched.dta>]\n"
         << "  milo_convert_tool patch-face-midi-config "
@@ -66,6 +72,35 @@ int main(int argc, char** argv) {
     if (argc < 3) usage();
     const std::string command = argv[1];
     fs::path input = argv[2];
+    if (command == "extract-entry") {
+        try {
+            if (argc != 7 || std::string(argv[5]) != "--out")
+                usage();
+            const auto container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            const auto directory = gh::milo::parse_directory(
+                gh::milo::container_payload(container));
+            const std::string type = argv[3];
+            const std::string name = argv[4];
+            const auto found = std::find_if(
+                directory.entries.begin(), directory.entries.end(),
+                [&](const gh::milo::Entry& entry) {
+                    return entry.type == type && entry.name == name;
+                });
+            if (found == directory.entries.end())
+                throw std::runtime_error(
+                    "entry not found: " + type + " " + name);
+            write_file(argv[6], found->body_bytes);
+            std::cout << "type=" << found->type
+                      << " name=" << found->name
+                      << " bytes=" << found->body_bytes.size()
+                      << " output=" << argv[6] << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
     if (command == "patch-face-config") {
         try {
             if (argc != 5 && argc != 7)
@@ -203,10 +238,18 @@ int main(int argc, char** argv) {
         }
     }
     if (command == "inspect-character") {
-        const bool print_controllers =
-            argc == 4 && std::string(argv[3]) == "--controllers";
-        if (argc > 4 || (argc == 4 && !print_controllers))
-            usage();
+        bool print_controllers = false;
+        bool print_transforms = false;
+        for (int arg_index = 3; arg_index < argc; ++arg_index) {
+            const std::string option = argv[arg_index];
+            if (option == "--controllers") {
+                print_controllers = true;
+            } else if (option == "--transforms") {
+                print_transforms = true;
+            } else {
+                usage();
+            }
+        }
         try {
             const auto container = gh::milo::parse_container(
                 gh::milo::read_file(input.string()));
@@ -241,6 +284,52 @@ int main(int argc, char** argv) {
                           << character.lods[index].screen_size
                           << " group="
                           << character.lods[index].group << '\n';
+            }
+            if (print_transforms) {
+                const auto print_transform =
+                    [](const char* type, const std::string& name,
+                       const gh::milo_object::Transformable9& transform) {
+                        std::cout << type << ' ' << name
+                                  << " parent=" << transform.parent
+                                  << " local=[";
+                        for (size_t value_index = 0;
+                             value_index < transform.local.size();
+                             ++value_index) {
+                            if (value_index) std::cout << ',';
+                            std::cout << transform.local[value_index];
+                        }
+                        std::cout << "] world=[";
+                        for (size_t value_index = 0;
+                             value_index < transform.world.size();
+                             ++value_index) {
+                            if (value_index) std::cout << ',';
+                            std::cout << transform.world[value_index];
+                        }
+                        std::cout << "]\n";
+                    };
+                for (const auto& entry : directory.entries) {
+                    if (entry.type == "Trans") {
+                        const auto transform =
+                            gh::milo_object::parse_trans9(entry.body_bytes);
+                        gh::milo_object::Transformable9 fields;
+                        fields.revision = transform.revision;
+                        fields.local = transform.local;
+                        fields.world = transform.world;
+                        fields.constraint = transform.constraint;
+                        fields.target = transform.target;
+                        fields.preserve_scale = transform.preserve_scale;
+                        fields.parent = transform.parent;
+                        print_transform(
+                            entry.type.c_str(), entry.name, fields);
+                    } else if (entry.type == "Mesh") {
+                        const auto mesh = gh::milo_object::parse_mesh28(
+                            entry.body_bytes,
+                            static_cast<uint32_t>(directory.dir_version));
+                        print_transform(
+                            entry.type.c_str(), entry.name,
+                            mesh.transformable);
+                    }
+                }
             }
             if (print_controllers) {
                 for (const auto& entry : directory.entries) {
@@ -673,12 +762,87 @@ int main(int argc, char** argv) {
             return 2;
         }
     }
+    if (command == "sample-clip") {
+        if (argc != 5 && argc != 6) usage();
+        const std::string clip_name = argv[3];
+        const uint32_t sample_index =
+            static_cast<uint32_t>(std::stoul(argv[4]));
+        const std::string filter = argc == 6 ? argv[5] : std::string();
+        try {
+            const auto container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            const auto directory = gh::milo::parse_directory(
+                gh::milo::container_payload(container));
+            const gh::milo::Entry* entry = nullptr;
+            for (const auto& candidate : directory.entries) {
+                if (candidate.type == "CharClipSamples" &&
+                    candidate.name == clip_name) {
+                    entry = &candidate;
+                    break;
+                }
+            }
+            if (!entry)
+                throw std::runtime_error(
+                    "CharClipSamples not found: " + clip_name);
+            const auto body =
+                gh::milo_object::parse_char_clip_samples10(
+                    entry->body_bytes);
+            auto print_set =
+                [&](const char* label,
+                    const gh::milo_object::CharBonesSamples10& source,
+                    uint32_t requested_sample) {
+                    if (source.channels.empty()) return;
+                    gh::acp::ChannelSet set;
+                    set.channels = source.channels;
+                    set.sample_count = source.sample_count;
+                    set.compression = source.compression;
+                    set.sample_bytes = source.sample_bytes;
+                    for (const auto& channel : set.channels)
+                        set.frame_size += gh::acp::channel_file_size(
+                            channel, set.compression);
+                    for (size_t index = 0;
+                         index < set.channels.size(); ++index) {
+                        if (!filter.empty() &&
+                            set.channels[index].find(filter) ==
+                                std::string::npos) {
+                            continue;
+                        }
+                        const auto sample =
+                            gh::acp::decode_channel_sample(
+                                set, index, requested_sample);
+                        std::cout << label << "\tsample="
+                                  << requested_sample << "\t"
+                                  << set.channels[index];
+                        for (size_t component = 0;
+                             component < sample.component_count;
+                             ++component) {
+                            std::cout
+                                << (component == 0 ? "\t" : ",")
+                                << sample.values[component];
+                        }
+                        std::cout << '\n';
+                    }
+                };
+            print_set("full", body.full, sample_index);
+            print_set("one", body.one, 0);
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
     if (command == "inspect-clipset") {
-        const bool print_channels =
-            argc == 4 && std::string(argv[3]) == "--channels";
-        if (argc > 4 ||
-            (argc == 4 && !print_channels))
-            usage();
+        bool print_channels = false;
+        bool print_events = false;
+        for (int index = 3; index < argc; ++index) {
+            const std::string argument = argv[index];
+            if (argument == "--channels")
+                print_channels = true;
+            else if (argument == "--events")
+                print_events = true;
+            else
+                usage();
+        }
         try {
             const auto container = gh::milo::parse_container(
                 gh::milo::read_file(input.string()));
@@ -786,7 +950,16 @@ int main(int argc, char** argv) {
                           << body.full.sample_bytes.size() +
                                  body.one.sample_bytes.size() +
                                  body.duplicate.sample_bytes.size()
+                          << "\tevents=" << body.events.size()
+                          << "\tenter=" << body.legacy_enter_event
+                          << "\texit=" << body.legacy_exit_event
                           << '\n';
+                if (print_events) {
+                    for (const auto& event : body.events)
+                        std::cout << "event\t" << clip.clip
+                                  << "\t" << event.frame
+                                  << "\t" << event.script << '\n';
+                }
                 if (print_channels) {
                     for (const auto& channel : body.full.channels)
                         std::cout << "channel\t" << clip.clip

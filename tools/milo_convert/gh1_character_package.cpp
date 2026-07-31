@@ -260,6 +260,15 @@ guitar_group_masks() {
     };
 }
 
+uint32_t guitar_group_membership_mask() {
+    uint32_t mask = 0;
+    for (const auto& [name, group_mask] : guitar_group_masks()) {
+        (void)name;
+        mask |= group_mask;
+    }
+    return mask;
+}
+
 void add_guitar_groups(
     gh::milo::Directory& directory,
     const Gh1ClipSetSpec& spec,
@@ -441,7 +450,23 @@ Gh2ClipSetPackage make_package(
     root.legacy_type = type;
     root.legacy_type_version = type_version;
 
+    const auto source_has_band_flag =
+        [&](uint32_t flag) {
+            return std::any_of(
+                input.spec.animations.begin(),
+                input.spec.animations.end(),
+                [flag](const Gh1AnimationSpec& animation) {
+                    return (animation.flags & flag) != 0;
+                });
+        };
+    const bool source_has_drum_modes =
+        role == Gh2ClipSetRole::Band &&
+        source_has_band_flag(0x00000008u) &&
+        source_has_band_flag(0x00000010u) &&
+        source_has_band_flag(0x00000020u);
+
     std::set<std::string> allowed_names;
+    std::set<std::string> emitted_clip_names;
     for (const size_t index : indices)
         allowed_names.insert(
             input.spec.animations[index].name);
@@ -468,19 +493,43 @@ Gh2ClipSetPackage make_package(
         auto clip =
             convert_gh1_acp_to_gh2_char_clip_samples10(
                 source, transitions);
+        if (role == Gh2ClipSetRole::GuitarMain) {
+            clip.flags =
+                convert_gh1_guitar_clip_flags_to_gh2(
+                    clip.flags);
+        } else if (role == Gh2ClipSetRole::Band) {
+            clip.flags =
+                convert_gh1_band_clip_flags_to_gh2(
+                    clip.flags, source_has_drum_modes);
+        }
         for (const auto& channel : clip.full.channels)
             add_context(contexts, channel);
         for (const auto& channel : clip.one.channels)
             add_context(contexts, channel);
         const auto body =
             gh::milo_object::serialize_char_clip_samples10(clip);
-        directory.entries.push_back(make_entry(
-            "CharClipSamples", animation.name, body));
-        root.clips.push_back(
-            {animation.name, clip.flags,
-             static_cast<uint32_t>(
-                 gh::milo_object::
-                     char_clip_samples10_ps2_allocate_size(clip))});
+        const uint32_t allocation_size =
+            static_cast<uint32_t>(
+                gh::milo_object::
+                    char_clip_samples10_ps2_allocate_size(clip));
+        const auto append_clip =
+            [&](const std::string& name) {
+                if (!emitted_clip_names.insert(name).second)
+                    throw std::runtime_error(
+                        "milo convert: duplicate target clip " +
+                        name);
+                directory.entries.push_back(make_entry(
+                    "CharClipSamples", name, body));
+                root.clips.push_back(
+                    {name, clip.flags, allocation_size});
+            };
+        append_clip(animation.name);
+        if (role == Gh2ClipSetRole::GuitarStrum) {
+            for (const auto& alias :
+                 gh2_strum_clip_aliases_for_gh1_source(
+                     animation.name))
+                append_clip(alias);
+        }
         package.source_clips.push_back(animation.name);
     }
 
@@ -518,6 +567,45 @@ const char* gh2_clip_set_role_name(Gh2ClipSetRole role) {
         case Gh2ClipSetRole::Generic: return "generic";
     }
     return "unknown";
+}
+
+uint32_t convert_gh1_guitar_clip_flags_to_gh2(
+    uint32_t source_flags) {
+    return source_flags & ~guitar_group_membership_mask();
+}
+
+uint32_t convert_gh1_band_clip_flags_to_gh2(
+    uint32_t source_flags,
+    bool source_has_drum_modes) {
+    constexpr uint32_t kGh1BandActive = 0x00000004u;
+    constexpr uint32_t kGh1BandIdle = 0x00000040u;
+    constexpr uint32_t kGh2BandNosnare = 0x00000200u;
+    constexpr uint32_t kGh2BandIntro = 0x00000400u;
+    constexpr uint32_t kGh2BandIntroIdle = 0x00001000u;
+    if (source_has_drum_modes &&
+        (source_flags & kGh1BandActive) != 0) {
+        source_flags |= kGh2BandNosnare;
+    }
+    if ((source_flags & kGh1BandIdle) != 0) {
+        source_flags |= kGh2BandIntro | kGh2BandIntroIdle;
+    }
+    return source_flags;
+}
+
+std::vector<std::string>
+gh2_strum_clip_aliases_for_gh1_source(
+    const std::string& source_clip) {
+    if (source_clip == "strum_pluck_short")
+        return {
+            "strum_short_01", "strum_short_02",
+            "strum_short_03", "strum_short_04"};
+    if (source_clip == "strum_down_long")
+        return {
+            "strum_long_01", "strum_long_02",
+            "strum_long_03", "strum_long_04"};
+    if (source_clip == "strum_pluck_down")
+        return {"strum_pick_01", "strum_pick_02"};
+    return {};
 }
 
 std::vector<Gh2ClipSetPackage>

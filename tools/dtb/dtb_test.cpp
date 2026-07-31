@@ -89,6 +89,24 @@ int main() {
               gh::dtb::serialize(parsed) == bytes;
     }
     {
+        const auto event = gh::dtb::parse_dta(
+            "{ $dude 'set_hand' 'fist' }");
+        ok &= event.root.size() == 1 &&
+              gh::dtb::is_array(*event.root.front());
+        if (event.root.size() == 1 &&
+            gh::dtb::is_array(*event.root.front())) {
+            const auto& nodes =
+                gh::dtb::children(*event.root.front());
+            ok &= nodes.size() == 3 &&
+                  gh::dtb::as_string(*nodes[0]).value_or("") ==
+                      "dude" &&
+                  gh::dtb::as_string(*nodes[1]).value_or("") ==
+                      "set_hand" &&
+                  gh::dtb::as_string(*nodes[2]).value_or("") ==
+                      "fist";
+        }
+    }
+    {
         gh::dtb::Tree nested;
         nested.root = {
             leaf(0x20, std::string("NESTED")),

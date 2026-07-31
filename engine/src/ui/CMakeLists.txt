@@ -88,3 +88,35 @@ else()
     target_compile_options(ghogx_ui_test PRIVATE -Wall -Wextra)
 endif()
 add_test(NAME ghogx_ui_test COMMAND ghogx_ui_test)
+
+add_executable(ghogx_panel_external_dependency_test
+    panel_external_dependency_test.cpp)
+target_include_directories(ghogx_panel_external_dependency_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/..)
+if(MSVC)
+    target_compile_options(ghogx_panel_external_dependency_test PRIVATE /W4)
+else()
+    target_compile_options(ghogx_panel_external_dependency_test PRIVATE
+        -Wall -Wextra)
+endif()
+add_test(NAME ghogx_panel_external_dependency_test
+         COMMAND ghogx_panel_external_dependency_test)
+
+add_executable(ghogx_character_variant_catalog_test
+    character_variant_catalog_test.cpp)
+target_link_libraries(ghogx_character_variant_catalog_test PRIVATE
+    ghogx_ui_core ghogx_character)
+if(MSVC)
+    target_compile_options(ghogx_character_variant_catalog_test PRIVATE /W4)
+else()
+    target_compile_options(ghogx_character_variant_catalog_test PRIVATE
+        -Wall -Wextra)
+endif()
+
+add_executable(ghogx_band_text_entry_test band_text_entry_test.cpp)
+target_link_libraries(ghogx_band_text_entry_test PRIVATE ghogx_ui_core)
+if(MSVC)
+    target_compile_options(ghogx_band_text_entry_test PRIVATE /W4)
+else()
+    target_compile_options(ghogx_band_text_entry_test PRIVATE -Wall -Wextra)
+endif()

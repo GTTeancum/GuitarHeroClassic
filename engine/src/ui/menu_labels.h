@@ -29,6 +29,11 @@ struct MenuLabel {
   std::string font;   // first embedded string ("impact"); "" if only one string
   std::string parent; // authored parent group/view string, when serialized
   std::vector<std::string> visibility_ancestors; // resolved MILO parent chain
+  // True when this label or one of its resolved transform ancestors is the
+  // target of an authored TransAnim in the owning panel. Such labels must be
+  // built from their serialized WorldXfm bind pose even when that pose starts
+  // off the normal text plane; the animation brings it onto the plane.
+  bool has_transform_animated_ancestor = false;
   std::string text;   // last embedded string = label / locale key ("CAREER")
   std::string nav;    // BandButton nav target (the embedded "*.btn" string)
                       // focus-down link; "" if none (e.g. Text objects)
@@ -99,6 +104,17 @@ struct MenuLabel {
 // row 0 and local Z follows row 2.
 std::array<float, 3> transform_menu_text_point(
     const std::array<float, 12>& xfm, float local_x, float local_z);
+
+// Select the authored transform used to build a label's bind-pose vertices.
+// Static labels with a far scene-space WorldXfm retain the legacy local-plane
+// fallback. Labels in an authored transform-animation chain use WorldXfm so
+// their vertices and the renderer's bind_world matrix share the same basis.
+bool menu_label_uses_authored_world_transform(const MenuLabel& label);
+
+// The stock character panel's outfit rows are the two helveticablack
+// BandButtons authored directly under text_skin.grp. Retail renders that
+// panel-local treatment black in every component state.
+bool menu_label_uses_black_outfit_button_text(const MenuLabel& label);
 
 struct MenuCheckbox {
   std::string name;      // entry name, e.g. "p_scan.chk"

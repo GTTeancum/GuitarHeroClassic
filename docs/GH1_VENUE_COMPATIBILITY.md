@@ -92,27 +92,60 @@ recorded in `.codex/analysis/gh1-role-acp-resolution.md`.
 
 ## Offline GH2-native venue closure
 
-The converter emits a 55-row venue bundle:
+The converter emits a 62-row venue bundle:
 
-- 26 revision-24 MILO directories;
+- 33 revision-24 MILO directories;
 - 21 campath, sequence, event, sound, and other support files;
 - seven compiled native venue scripts; and
 - one shared crowd-animation package.
 
 All output paths are namespaced below `world/gh1_<venue>/gen`. The seven venue
-scripts total 886,557 bytes and have zero blocked operations. The packed venue
-object sweep accounts for 12,979 schema-typed references and rejects a package
+scripts total 886,740 bytes and have zero blocked operations. The packed venue
+object sweep accounts for 14,581 schema-typed references and rejects a package
 if an internal material, texture, geometry owner, parent, animation target,
 Group member, or camera dependency is dangling.
 
+Every main converted venue now owns a real GH2 WorldDir11 root rather than a
+generic RndDir root. All 10 packed `{arena load_section ...}` directives
+resolve to converted lighting/crowd RndDirs and are linked through native
+ObjectDir16 subdirectories; Fest's top-level `reactorState` initializer becomes
+a WorldDir type property. No section name or venue name selects a conversion
+exception.
+
 Each of the 201 GH1 VenueCam records is emitted as a native GH2 revision-20
-CamShot, for a total of 181,864 native keyframes and zero blocked records.
+CamShot, for a total of 191,320 native keyframes and zero blocked records.
 Converted `campaths.milo_ps2` lives beside the target world; source
 `camera.dtb` is not shipped as a runtime dependency. Native CamShots are
 authoritative, and the compatibility reader is considered only when the
 native camera pool is empty. The final Small Club proof starts on native
 `Intro01` and transitions to regular native `flr_near_lft01` through the
 ordinary camera manager.
+
+The repeated native CamShot refs are source-derived rather than an accidental
+blanket mapping. Across the seven packed retail DTBs, all 201 records begin
+with the internal `arena` parent atom, all 201 carry both `singer_in/out` and
+`offset_in/out`, and zero serialize an explicit `target` property. The
+GH2-native bridge consequently uses `arena:venue.view` as the transform parent
+and ArenaSinger slot zero, `guitarist0:bone_head.mesh`, as the normal
+single-player projection subject. GH1 `VenueCam::Update` at
+`SLUS-21224:0x0016E080` reads the record target index at `VenueCam + 0x74`
+and resolves that index through the ArenaSinger vector at `Arena + 0x3C`.
+A read-only retail Basement savestate has target index zero and its selected
+transform is the player guitarist, approximately `(26.8,111.5,66.7)`, not the
+vocalist. A fresh Basement trace proves both native refs resolve and both frame
+target caches populate. The load-log
+`source_object=none` annotation only denotes the absence of a later diagnostic
+source-object field in revision-20 subpart refs; it is not a resolution
+failure. Exact counts and the focused trace are recorded in
+`proofs/gh1-native-conversion-parity/venue-camera-reference-contract/`.
+
+The `singer_in/out` labels are historical field names, not performer-role
+selectors. Their two floats are the desired centered screen coordinate for the
+selected ArenaSinger. GH1 maps `(x,y)` to viewport
+`((x+1)/2,(1-y)/2)`. GH2 `CamShot::SetPos` converts a viewport coordinate back
+to centered `mScreenOffset` with `((u-0.5)*2,(v-0.5)*-2)`, so the two mappings
+are exact inverses. Conversion therefore retains `(x,y)` directly; negating or
+halving either axis is incorrect.
 
 Revision-12 Group members are resolved by target directory type after the
 complete directory is loaded. Animatable members form a recursive event graph;
@@ -135,6 +168,17 @@ script, and native lighting paths and exits successfully, with zero raw GH1
 script loads, unsupported operations, or unresolved animation targets. The
 matrix, intro and regular-camera screenshots, and mixed native video are under
 `proofs/gh1-native-conversion-final/`.
+
+A stricter seven-venue matrix now uses `--require-native-assets`, which
+disables raw `venues/...`, raw `charsys/...`, legacy VenueCam, and raw
+root/sibling section fallback. Every converted root reaches gameplay with
+native world/script/lighting paths and four GH2-layout performers. Small Club
+resolves drawable geometry from its native WorldDir root and `lighting.milo`
+through the authored ObjectDir subdirectory; the lighting section is selected
+from decoded object types rather than its filename. Every row contains zero
+gate violations or legacy markers, and Small Club contains zero unsupported
+revision-4 Morphs. Evidence:
+`proofs/gh1-native-conversion-parity/strict-native-venue-matrix/`.
 
 ## Verified GH1 venue revisions
 
@@ -225,9 +269,11 @@ native roles. The bounded disassembly used for this recovery is stored at
 
 The per-frame update at `0x0016E390` further establishes that:
 
-- `singer_in/out` is interpolated over the active task and mapped from centered
-  screen coordinates to viewport coordinates with `(x + 1) / 2` and
-  `(1 - y) / 2`.
+- `singer_in/out` is interpolated from the selected path-frame progress and
+  mapped from centered screen coordinates to viewport coordinates with
+  `(x + 1) / 2` and `(1 - y) / 2`. The record target index selects the
+  ArenaSinger subject; normal single-player index zero is the player
+  guitarist.
 - `offset_in/out` is interpolated separately as a three-dimensional framing
   offset.
 - A record without an explicit `target` uses the selected parent transform as
@@ -302,9 +348,12 @@ alias.
 
 Regular records use the same endpoint contract as INTRO. Their selected
 TransAnim segment is retained as camera-position keys; `offset_in/out`,
-`singer_in/out`, and `fov_in/out` are evaluated across the authored
-`duration`. A zero-duration record resolves immediately to the `out` state.
-It must not remain at `in`.
+`singer_in/out`, and `fov_in/out` are evaluated from the selected path frame
+normalized between the lower and upper `start/end` frames. This is the exact
+`SLUS-21224:0x0016E548..0x0016E5BC` branch: forward path traversal advances
+`in` to `out`, reverse traversal advances `out` to `in`, and an equal
+`start/end` range resolves immediately to `out` even when `duration` is
+nonzero. A zero-duration record likewise resolves immediately to `out`.
 
 Arena provides a direct retail proof. `flr_near_lft01x12w` selects
 `Cam_t_np_close` with `duration 0`, `offset_in (0,0,0)`, and
@@ -313,16 +362,15 @@ Arena provides a direct retail proof. `flr_near_lft01x12w` selects
 occluder only 7.3 units from the eye. Applying the zero-duration `out` state
 restores the authored floor-left stage/crowd view without hiding that mesh.
 
-GH1 singer coordinates are centered coordinates, not direct GH2 camera
-translations. Both intro and regular records convert them to the compensating
-screen displacement `(-0.5*x, 0.5*y)`. Passing `(x,y)` directly over-shifts
-close shots and crops the singer; theatre provides the clear visual case.
-Native `VenueCam::Update` projects the singer, measures its error from that
-desired viewport point, and converts the error to camera-local right/up
-translation. It preserves the camera orientation; treating the value as a
-rotation rolls records with intentionally off-screen singer coordinates.
-All seven song-time captures after the common correction are in
-`.codex/current-evidence/gh1-regular-venuecam-centered-singer-proof/`.
+GH1 `singer_in/out` coordinates are centered coordinates, not direct camera
+translations and not vocalist selectors. Both intro and regular records retain
+the interpolated `(x,y)` directly as GH2 CamShot screen offsets. Native
+`VenueCam::Update` projects the selected ArenaSinger, measures its error from
+that desired viewport point, and converts the error to camera-local right/up
+translation. GH2 `CamShotFrame::Interp` performs the equivalent translation
+from its centered `mScreenOffset`. Both preserve the authored camera
+orientation; treating the value as a rotation rolls records with intentionally
+off-screen coordinates.
 
 The dedicated `small_club_multi` camera DTB has no GH2 normal-category
 records. Its complete regular vocabulary is `MULTIPLAYER`, `MULTIPLAYER_0`,
@@ -501,6 +549,16 @@ RndDir instead; generic scene enumeration covers both section layouts.
 Independent small_club runtime proof resolves all four roles through those
 helpers and exits successfully with highway and HUD/meters disabled.
 
+A read-only retail Basement state closes the static-placement side of this
+contract. Arena global state `0x00363748 + 0xE0` holds three live stage
+records whose `+0x30` positions exactly match the extracted
+`stage_spot_01..03.mesh` translations. The vector at `+0xF0` holds two live
+walk records that exactly match `walk_spot_01..02.mesh`. The converted
+`start_singer.way` retains the same `stage_spot_01.mesh` translation as the
+retail stage record. A later live singer-bone position cannot be compared to
+that waypoint without matching the performance-animation state; it does not
+justify camera or placement compensation.
+
 ## Legacy ObjectDir draw roots
 
 GH1 nested venue directories draw through an authored root `View` named after
@@ -525,6 +583,35 @@ This matches ObjectDir draw ownership and prevents placement, crowd-limit, and
 other editor helpers from becoming implicit render roots. Numbered Arena
 stage/walk/fire/name-light spot Meshes are also classified explicitly as
 non-draw runtime helpers in both main and section RndDirs.
+
+## Ordered View environment scopes
+
+A GH1 revision-7 View may change rendering environment inside its ordered
+Drawable list. Retail Small Club `lighting_transparent.view` begins under
+`Environ2`, draws its particles and `lighting_rig.view`, then switches to
+`smoke.env` before the four smoke planes, scaffold Views, and solo View. The
+nested lighting rig independently switches through orange, pink, and red
+Environs. Selecting the first Environ as one native Group environment therefore
+changes real source state and incorrectly lights later drawables.
+
+The converter now resolves the ordered stream into environment segments. A
+single-scope View keeps the ordinary native Group environment. A multi-scope
+View emits deterministic `<view>.__environment_<index>.grp` children, each
+with the exact source environment and ordered drawable members, plus a
+`<view>.__draw_only.grp` traversal container. Animation/message membership
+remains on the converted parent Group. The flat View conversion helper rejects
+multi-scope input instead of losing state.
+
+Focused Small Club conversion proves `lighting_transparent.view` emits
+`Environ2` and `smoke.env` segments and `lighting_rig.view` emits its three
+color scopes. The complete audit converts 105/105 MILO assets and 926/926 ACPs
+with zero blockers. In the deployed archive,
+`smoke_plane01.mesh` now resolves through `smoke.env` with ambient
+`(0.3, 0.2, 0.15)`. Source and converted `smoke.tex` decode to the same RGBA
+SHA-256, `4b65c5d20601268485446b1699d622d79827495e81a76a357ba9e7a0534cae90`.
+A deterministic A/B confirms the plane is the textured golden haze, not the
+solid red prop block. Evidence:
+`proofs/gh1-native-conversion-parity/view-environment-scope-contract/`.
 
 ## Revision-21 material texture entries
 
@@ -559,10 +646,14 @@ not keyed to small_club or to a corrective visual heuristic.
 
 With the native lifecycle applied, the solid red `target_parent.mesh` block is
 absent while authored geometry and helper-derived performer placement remain
-unchanged. Proof is in
-`.codex/current-evidence/gh1-small-club-native-helper-lifecycle/`. The remaining
-central hotspot was subsequently resolved as a venue-script state issue, not
-an additive texture-combiner defect.
+unchanged. The 2026-07-28 regression was caused by the already recovered helper
+classifier being dropped from both venue and lighting base-hidden sets; the
+generic classifier is restored rather than replaced with a Small Club fix.
+The exact same fixed camera now retains the complete amp and authored smoke
+haze while removing only the temporary helper. A fresh strict-native
+seven-venue sweep reaches gameplay at 57.269--57.730 steady FPS. Evidence:
+`proofs/gh1-native-conversion-parity/view-environment-scope-contract/` and
+`proofs/gh1-native-conversion-parity/venue-parity-matrix/final-view-scope-helper-lifecycle/`.
 
 ## GH1 lighting messages, function namespaces, and `OFF`
 
@@ -602,6 +693,18 @@ same contract with `sololight01.envanim` and `sololight02.envanim`.
 Nondegenerate View animation ranges propagate to both `EnvAnim` and `LightAnim`
 members with their authored loop/range, scale, and blend values; they are not
 reduced to the static `OFF` case.
+
+Animatable0 scale/range records are frame filters, not self-starting clocks.
+Retail `SLUS_212.24:0x001AC0C0` loads the operation filters and child
+Animatables, `0x001AC640` creates operation types 0 through 4, and
+`0x001ABAB8` filters only a frame supplied by an external caller before
+recursing to children. No task starts in those paths. Consequently the
+unowned Small Club `smoke.matanim`, `record.matanim`, and
+`record_g.matanim`, and Theatre `tram.mnm`, must not be advanced from an
+invented song-time clock. Their native MatAnim/filter pairs preserve callable
+source behavior without fabricating playback. The complete ownership and
+static execution trace is in
+`.codex/analysis/gh1-native-matanim-scheduling/`.
 
 GH2 gameplay excitement and chart-section state are translated to GH1's
 native message family:
@@ -750,6 +853,55 @@ wrap, Z, alpha, color, environment, and cull state. Cross-archive
 measurements, native disassembly, negative experiments, and palette
 statistics are retained under `.codex/analysis/`.
 
+## View drawable boundaries and Small Club hanging records
+
+GH1 revision-7 `View` has two independent membership channels: its legacy
+Drawable child list controls submission, while its animation/message list
+controls propagation. GH2 revision-13 `Group` combines object membership but
+adds a `draw_only` Group reference. The converter now uses that native field
+instead of treating every animation target as drawable. It also recursively
+expands revision-1 Drawable child lists and retains nested Views as authored
+draw boundaries. Unreachable editor/helper drawables remain addressable in
+the target RndDir but are held by a hidden native Group so RndDir root
+discovery does not submit them.
+
+This maps Small Club's raw and converted graphs exactly: the main directory
+submits 181 meshes from 211 grouped objects in both paths, while lighting
+submits 145 meshes from 241 grouped objects in both paths. The additional
+target Groups are only deterministic `draw_only` companions and the hidden
+unreachable-object owner.
+
+The hanging records are not opaque cards in the source. `record.mat`,
+`record_g.mat`, and `record_r.mat` all decode as `kBlendSrc`, normal Z,
+`alphaCut=true`, `alphaWrite=false`, and `cull=false`. The final field makes
+the authored cards two-sided. Their three 64x64, 8-bpp indexed PS2 bitmaps
+each decode to 814 transparent pixels, 130 partial-alpha pixels, and 3,152
+opaque pixels. Raw and converted decoded images are byte-identical.
+
+The paired `record*.1.mesh` objects are not rear cards. All 21 attached
+instances are source-authored four-vertex/two-face suspension strips parented
+to the corresponding record. Their invariant long extent is 44.683188 source
+units and their middle extent is only 0.201836--0.281165 units. A complete
+raw-to-native sweep reports zero vertex, normal, shared color-slot, UV, face,
+or material mismatches for these strips.
+
+The venue renderer previously ignored decoded Mat alpha-cut state. It now
+sets alpha-test enable, `D3DCMP_GREATER`, and the decoded/defaulted material
+threshold on every mesh draw. Mat21 and retail PS2 Mat27 do not serialize a
+threshold, so their recovered default is zero. This leaves only the authored
+record silhouette without a black-key, record/material/mesh name, or venue
+exception. Full evidence is in
+`proofs/gh1-native-conversion-parity/venue-prop-layering-contract/`.
+
+The shared renderer correction also passes a hidden, input-free 15-venue
+regression: all seven converted GH1 venues and all eight native GH2 venues
+load, render fixed-time frames 2 and 120, and exit zero with no failed load,
+unsupported operation, or unresolved target/reference. This proves the GH1
+material correction does not replace or bypass the GH2 venue path. The matrix
+and contact sheets are in
+`proofs/gh1-native-conversion-parity/shared-alpha-cut-regression/`; it remains
+a regression smoke test, not matched retail parity.
+
 ## Resolved proof observations
 
 - The GH1 singer's microphone stand was upside down in earlier integrated venue
@@ -780,3 +932,46 @@ chipped plaster, and its Mat21 state decodes normally as prelit, environment-
 enabled, normal-Z, opaque source blend. Treat the prominence of those panels as
 awaiting native comparison, not as evidence of a missing texture. See
 `.codex/analysis/gh1-small-club-white-panels.md`.
+
+## Prelit and environment light-channel contract
+
+GH2 PS2 `Ps2Mat::Select` at `0x0019CFE0` computes its material light-channel
+count at `0x0019D12C..0x0019D154`. It reads `mUseEnviron` at `+0x40` and
+`mPreLit` at `+0x9C`, then enables one light channel exactly when
+`mUseEnviron || !mPreLit`. The independent Wii renderer signature names the
+same local `numLightChannels`.
+
+This distinction matters to both source families. A prelit material without
+an environment is already lit and bypasses fixed lighting. A prelit material
+which opts into an environment still consumes authored ambient, approximate
+and dynamic lights; its baked vertex color is the material input to that
+channel. The former PC renderer bypassed all prelit materials and manually
+folded in ambient only, making common `prelit=true, use_environ=true` Basement
+surfaces nearly black.
+
+The renderer now consumes only those two decoded fields. Converted GH1
+Basement retains the animated blue environment while restoring its plywood,
+rugs, walls, appliances, drum area, and performers. Native GH2 Arena retains
+its authored cyan/green environment. Evidence:
+`proofs/gh1-native-conversion-parity/material-light-channel-contract/`.
+
+## Full GH1/GH2 frame-pacing contract
+
+The renderer and Windows frame scheduler now pass a hidden, input-free,
+strict-native performance matrix across all seven converted GH1 venues and
+all eight native GH2 venues. Every row reaches gameplay with four
+GH2-layout performers, produces four gameplay profile windows, and reports
+zero gameplay-time initialization. Steady cadence is 58.785--60.201 FPS
+(16.611--17.011 ms); sampled D3D9 presentation remains 0.241--0.452 ms.
+
+The original 33.241--58.242 FPS spread was not a GH1-format cost. D3D9
+presentation waited for refresh and the application then applied another
+frame deadline. Presentation is now immediate and one accumulated application
+deadline owns the 60 Hz cadence. Shared renderer improvements cache immutable
+buffers only for provably static meshes, cache authored parent lookup/base
+world transforms, and reuse consecutive identical environment state.
+Disconnected XInput slots are probed periodically while connected devices
+remain polled every frame. No venue, mesh, material, object, or character-name
+case was introduced, and native GH2 venues use the same path without being
+clobbered. Full results and the reproducible runner are in
+`proofs/gh1-native-conversion-parity/frame-pacing-full-matrix/`.

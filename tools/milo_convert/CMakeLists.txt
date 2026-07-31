@@ -23,11 +23,13 @@ add_subdirectory(../texture_ps2 ${CMAKE_CURRENT_BINARY_DIR}/texture_ps2)
 
 add_library(milo_convert STATIC
     milo_convert.cpp milo_convert.h
+    semantic_field_contract.cpp
     gh1_animation_manifest.cpp gh1_animation_manifest.h
     gh1_character_manifest.cpp gh1_character_manifest.h
     gh1_character_package.cpp gh1_character_package.h
     gh1_character_model_package.cpp gh1_character_model_package.h
     gh1_venue_camera_conversion.cpp gh1_venue_camera_conversion.h
+    gh1_venue_placement_conversion.cpp gh1_venue_placement_conversion.h
     gh1_venue_script_conversion.cpp gh1_venue_script_conversion.h
     gh2_face_config_patch.cpp gh2_face_config_patch.h
     singer_face_track.cpp singer_face_track.h

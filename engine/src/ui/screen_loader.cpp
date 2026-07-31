@@ -19,6 +19,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace ghogx::ui {
@@ -157,8 +158,77 @@ std::int32_t i32_at(const std::vector<std::uint8_t>& bytes, std::size_t pos) {
   return out;
 }
 
+struct TextEntryStyle {
+  std::string text_resource;
+  std::string characters;
+  int max_length = 0;
+};
+using TextEntryStyles = std::unordered_map<std::string, TextEntryStyle>;
+
+void collect_text_entry_styles(const Node& node, TextEntryStyles& out) {
+  if (!gh::dtb::is_array(node)) return;
+  const NodeList& kids = gh::dtb::children(node);
+  if (!kids.empty() && nstr(*kids[0]) == "styles") {
+    for (std::size_t i = 1; i < kids.size(); ++i) {
+      if (!kids[i] || !gh::dtb::is_array(*kids[i])) continue;
+      const NodeList& style = gh::dtb::children(*kids[i]);
+      if (style.empty()) continue;
+      TextEntryStyle decoded;
+      for (std::size_t field_index = 1; field_index < style.size();
+           ++field_index) {
+        if (!style[field_index] ||
+            !gh::dtb::is_array(*style[field_index]))
+          continue;
+        const NodeList& field = gh::dtb::children(*style[field_index]);
+        if (field.size() < 2) continue;
+        const std::string key = nstr(*field[0]);
+        if (key == "text")
+          decoded.text_resource = nstr(*field[1]);
+        else if (key == "characters")
+          decoded.characters = nstr(*field[1]);
+        else if (key == "length")
+          decoded.max_length = gh::dtb::as_int(*field[1]).value_or(0);
+      }
+      if (!decoded.characters.empty() && decoded.max_length > 0)
+        out[nstr(*style[0])] = std::move(decoded);
+    }
+  }
+  for (const auto& child : kids)
+    if (child) collect_text_entry_styles(*child, out);
+}
+
+TextEntryStyles load_text_entry_styles(
+    const gh::ark::ArkV3Reader& ark,
+    const std::vector<std::string>& ark_paths) {
+  TextEntryStyles out;
+  try {
+    auto entry = ark.find("ui/gen/config.dtb");
+    if (!entry) return out;
+    const std::vector<std::uint8_t> bytes =
+        ark.read_entry(*entry, ark_paths);
+    const gh::dtb::Tree tree = gh::dtb::parse(bytes);
+    for (const auto& root : tree.root)
+      if (root) collect_text_entry_styles(*root, out);
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[ui] text-entry style load failed: %s\n",
+                 ex.what());
+  }
+  return out;
+}
+
+bool body_contains_cstring(const std::vector<std::uint8_t>& body,
+                           const std::string& value) {
+  if (value.empty()) return false;
+  const auto begin = std::search(body.begin(), body.end(), value.begin(),
+                                 value.end());
+  return begin != body.end() &&
+         begin + static_cast<std::ptrdiff_t>(value.size()) != body.end() &&
+         *(begin + static_cast<std::ptrdiff_t>(value.size())) == 0;
+}
+
 void seed_milo_widget_state(Object* child, const gh::milo::Entry& entry,
-                            const std::vector<std::uint8_t>& payload) {
+                            const std::vector<std::uint8_t>& payload,
+                            const TextEntryStyles& text_entry_styles) {
   if (!child || entry.offset > payload.size() ||
       entry.size > payload.size() - entry.offset)
     return;
@@ -168,6 +238,21 @@ void seed_milo_widget_state(Object* child, const gh::milo::Entry& entry,
   const std::vector<std::uint8_t> body(
       payload.begin() + static_cast<std::ptrdiff_t>(base),
       payload.begin() + static_cast<std::ptrdiff_t>(base + size));
+
+  if (type == "BandTextEntry") {
+    for (const auto& [name, style] : text_entry_styles) {
+      if (!body_contains_cstring(body, name)) continue;
+      child->set_property(Symbol("characters"),
+                          DataNode::Str(style.characters));
+      child->set_property(Symbol("max_length"),
+                          DataNode::Int(style.max_length));
+      child->set_property(Symbol("text_resource"),
+                          DataNode::Sym(Symbol(style.text_resource)));
+      child->set_property(Symbol("text_entry_style"),
+                          DataNode::Sym(Symbol(name)));
+      break;
+    }
+  }
 
   if (type == "UITrigger") {
     const MenuUiTrigger trigger = decode_menu_ui_trigger_body(body, entry.name);
@@ -429,6 +514,8 @@ int load_panel_milo_widgets(const gh::ark::ArkV3Reader& ark,
                             const std::vector<std::string>& ark_paths,
                             ScreenManager& mgr) {
   int loaded = 0;
+  const TextEntryStyles text_entry_styles =
+      load_text_entry_styles(ark, ark_paths);
   ClassReg& reg = ClassReg::instance();
   static const Symbol kUIComponent("UIComponent");
   ObjectDir& objects = mgr.registry();
@@ -464,7 +551,7 @@ int load_panel_milo_widgets(const gh::ark::ArkV3Reader& ark,
           if (auto* ui = dynamic_cast<UiObject*>(child)) ui->set_manager(&mgr);
           if (child) ++loaded;
         }
-        seed_milo_widget_state(child, e, payload);
+        seed_milo_widget_state(child, e, payload, text_entry_styles);
       }
 
       // RndGroup::SetFrame propagates to the animatable objects named in its

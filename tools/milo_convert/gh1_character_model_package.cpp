@@ -115,6 +115,63 @@ std::string controller_stem(const std::string& name) {
     return dot == std::string::npos ? name : name.substr(0, dot);
 }
 
+bool starts_with_ascii_case_insensitive(
+    const std::string& value,
+    const char* prefix) {
+    for (size_t index = 0; prefix[index] != '\0'; ++index) {
+        if (index >= value.size() ||
+            std::tolower(static_cast<unsigned char>(value[index])) !=
+                std::tolower(static_cast<unsigned char>(prefix[index])))
+            return false;
+    }
+    return true;
+}
+
+bool source_should_strip_character_bone_mesh(
+    const std::string& name) {
+    // RndUtl::ShouldStrip uses case-insensitive bone_/exo_ prefixes and a
+    // case-sensitive spot_ prefix. Character::SyncObjects invokes
+    // ConvertBonesToTranses(dir, false) when bone_pelvis.mesh exists.
+    return starts_with_ascii_case_insensitive(name, "bone_") ||
+           starts_with_ascii_case_insensitive(name, "exo_") ||
+           name.compare(0, 5, "spot_") == 0;
+}
+
+size_t promote_character_bone_meshes_to_transes(
+    gh::milo::Directory& directory) {
+    const bool has_pelvis_mesh = std::any_of(
+        directory.entries.begin(), directory.entries.end(),
+        [](const gh::milo::Entry& entry) {
+            return entry.type == "Mesh" &&
+                   entry.name == "bone_pelvis.mesh";
+        });
+    if (!has_pelvis_mesh) return 0;
+
+    size_t promoted = 0;
+    for (auto& entry : directory.entries) {
+        if (entry.type != "Mesh" ||
+            !source_should_strip_character_bone_mesh(entry.name))
+            continue;
+        const auto mesh =
+            gh::milo_object::parse_mesh28(entry.body_bytes);
+        gh::milo_object::Trans9 trans;
+        trans.object_fields = mesh.object_fields;
+        trans.local = mesh.transformable.local;
+        trans.world = mesh.transformable.world;
+        trans.constraint = mesh.transformable.constraint;
+        trans.target = mesh.transformable.target;
+        trans.preserve_scale =
+            mesh.transformable.preserve_scale;
+        trans.parent = mesh.transformable.parent;
+        entry.type = "Trans";
+        entry.body_bytes =
+            gh::milo_object::serialize_trans9(trans);
+        entry.size = entry.body_bytes.size();
+        ++promoted;
+    }
+    return promoted;
+}
+
 std::string find_eye_mesh(
     const gh::milo::Directory& directory, char side) {
     const std::string side_first =
@@ -360,6 +417,68 @@ std::array<float, 12> invert_transform(
             value[10] * result[3 + c] +
             value[11] * result[6 + c]);
     return result;
+}
+
+size_t validate_upper_twist_sibling_hierarchy_for_gh2(
+    const gh::milo::Directory& directory,
+    const std::vector<Gh1CharacterControllerSpec>& controllers) {
+    size_t validated = 0;
+    for (const auto& controller : controllers) {
+        if (controller.kind != Gh1CharacterControllerKind::UpperTwist)
+            continue;
+        if (controller.bones.size() != 3)
+            throw std::runtime_error(
+                "milo convert: upper-twist requires three authored bones");
+
+        const auto find_trans =
+            [&](const std::string& name) -> const gh::milo::Entry* {
+                const auto found = std::find_if(
+                    directory.entries.begin(),
+                    directory.entries.end(),
+                    [&](const gh::milo::Entry& entry) {
+                        return entry.type == "Trans" &&
+                               entry.name == name;
+                    });
+                return found == directory.entries.end()
+                           ? nullptr
+                           : &*found;
+            };
+        const gh::milo::Entry* twist1_entry =
+            find_trans(controller.bones[0]);
+        const gh::milo::Entry* twist2_entry =
+            find_trans(controller.bones[1]);
+        const gh::milo::Entry* upper_arm_entry =
+            find_trans(controller.bones[2]);
+        if (!twist1_entry || !twist2_entry ||
+            !upper_arm_entry) {
+            throw std::runtime_error(
+                "milo convert: upper-twist native transform missing");
+        }
+
+        const auto twist1 =
+            gh::milo_object::parse_trans9(
+                twist1_entry->body_bytes);
+        const auto twist2 =
+            gh::milo_object::parse_trans9(
+                twist2_entry->body_bytes);
+        const auto upper_arm =
+            gh::milo_object::parse_trans9(
+                upper_arm_entry->body_bytes);
+
+        // GH1 AnimServoUpperTwist and stock GH2 CharUpperTwist both author
+        // twist1, twist2, and upperArm as siblings under the same parent.
+        // GH2's local-row poll writes each helper in that shared parent space;
+        // changing the hierarchy composes twist2 through twist1 a second time.
+        if (twist1.parent.empty() ||
+            twist1.parent != twist2.parent ||
+            twist1.parent != upper_arm.parent) {
+            throw std::runtime_error(
+                "milo convert: upper-twist source graph is not the "
+                "shared GH1/GH2 sibling contract");
+        }
+        ++validated;
+    }
+    return validated;
 }
 
 const gh::milo_object::Mesh28& transform_mesh(
@@ -828,10 +947,14 @@ std::string merge_shadow_model(
         throw std::runtime_error(
             "milo convert: converted character shadow has no groups");
     std::set<std::string> referenced_groups;
-    for (const auto& [name, group] : groups)
+    for (const auto& [name, group] : groups) {
         for (const auto& object : group.objects)
             if (groups.find(object) != groups.end())
                 referenced_groups.insert(object);
+        if (!group.draw_only.empty() &&
+            groups.find(group.draw_only) != groups.end())
+            referenced_groups.insert(group.draw_only);
+    }
     std::vector<std::string> root_groups;
     for (const auto& [name, group] : groups)
         if (referenced_groups.find(name) ==
@@ -1007,6 +1130,16 @@ size_t validate_character_references_impl(
             gh::milo_object::parse_rnd_dir8(
                 directory.dir_body_bytes),
             "render directory root");
+    } else if (directory.dir_type == "WorldDir") {
+        const auto world =
+            gh::milo_object::parse_world_dir11(
+                directory.dir_body_bytes);
+        require_render_directory(
+            world.panel_directory.render_directory,
+            "world directory root");
+        require(
+            world.panel_directory.camera,
+            "world directory root.camera");
     } else {
         gh::milo_object::Character9 character;
         if (directory.dir_type == "BandCharacter")
@@ -1602,6 +1735,12 @@ convert_gh1_character_to_gh2_model_package(
         output.generated_dependencies.push_back(
             "face-control-config:" +
             output.face_controller_type);
+    output.native_transform_count =
+        promote_character_bone_meshes_to_transes(
+            output.directory);
+    output.native_upper_twist_sibling_count =
+        validate_upper_twist_sibling_hierarchy_for_gh2(
+            output.directory, input.spec.controllers);
     output.complete = output.unresolved_dependencies.empty();
     output.internal_reference_count =
         validate_gh2_character_model_references(output.directory);

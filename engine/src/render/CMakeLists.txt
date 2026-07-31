@@ -30,10 +30,28 @@ target_link_libraries(ghogx_render_camera_matrix_test PRIVATE ghogx_render)
 add_test(NAME ghogx_render_camera_matrix_test
          COMMAND ghogx_render_camera_matrix_test)
 
+add_executable(ghogx_render_cull_contract_test cull_contract_test.cpp)
+target_link_libraries(ghogx_render_cull_contract_test PRIVATE ghogx_render)
+add_test(NAME ghogx_render_cull_contract_test
+         COMMAND ghogx_render_cull_contract_test)
+
+add_executable(ghogx_render_material_lighting_contract_test
+               material_lighting_contract_test.cpp)
+target_link_libraries(ghogx_render_material_lighting_contract_test
+                      PRIVATE ghogx_render)
+add_test(NAME ghogx_render_material_lighting_contract_test
+         COMMAND ghogx_render_material_lighting_contract_test)
+
 if(MSVC)
     target_compile_options(ghogx_render_material_uv_test PRIVATE /W4)
     target_compile_options(ghogx_render_camera_matrix_test PRIVATE /W4)
+    target_compile_options(ghogx_render_cull_contract_test PRIVATE /W4)
+    target_compile_options(ghogx_render_material_lighting_contract_test
+                           PRIVATE /W4)
 else()
     target_compile_options(ghogx_render_material_uv_test PRIVATE -Wall -Wextra)
     target_compile_options(ghogx_render_camera_matrix_test PRIVATE -Wall -Wextra)
+    target_compile_options(ghogx_render_cull_contract_test PRIVATE -Wall -Wextra)
+    target_compile_options(ghogx_render_material_lighting_contract_test
+                           PRIVATE -Wall -Wextra)
 endif()

@@ -130,6 +130,12 @@ int main() {
       "hidden_numbered_hair_variant",
       "hair_numbered_variant",
       "blended_hair",
+      "is_guitar_strings_prop_mesh",
+      "is_hair_mesh_name",
+      "is_hair_material_name",
+      "is_eye_mesh_name",
+      "source_ik_hand_role_rank",
+      "bool is_shadow(",
   };
 
   bool ok = true;
@@ -181,6 +187,20 @@ int main() {
     if (char_clip.find(token) == std::string::npos) continue;
     std::cerr << "Forbidden removed hand/IK scaffold token '" << token
               << "' in " << char_clip_path.string() << "\n";
+    ok = false;
+  }
+
+  const auto gameplay_path = source_dir.parent_path() / "game/gameplay.cpp";
+  const std::string gameplay =
+      lowercase(strip_comments_keep_strings(read_file(gameplay_path)));
+  const std::vector<std::string> forbidden_gameplay_identity_defaults = {
+      "token == \"metal\"",
+      "token == \"male\"",
+  };
+  for (const auto& token : forbidden_gameplay_identity_defaults) {
+    if (gameplay.find(token) == std::string::npos) continue;
+    std::cerr << "Forbidden performer-identity default '" << token
+              << "' in " << gameplay_path.string() << "\n";
     ok = false;
   }
 

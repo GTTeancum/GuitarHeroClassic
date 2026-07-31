@@ -11,6 +11,7 @@
 #include "character/char_clip.h"
 #include "character/char_facefx.h"
 #include "character/char_renderer.h"
+#include "character/character_type_script.h"
 #include "game/audio_player.h"
 #include "game/gameplay_session.h"
 #include "game/gameplay_rules.h"
@@ -831,6 +832,21 @@ class Gameplay {
       std::vector<std::pair<std::string, std::string>> archives) {
     auxiliary_asset_paths_ = std::move(archives);
   }
+  // Character-select hands gameplay the exact variant routes generated from
+  // the source archives. Empty strings clear the selection and restore the
+  // song's authored quickplay character.
+  void set_selected_character_variant(
+      std::string selection, std::string model_path,
+      std::string main_anim_path, std::string strum_anim_path,
+      std::string fret_anim_path, std::string highway_surface_path) {
+    selected_character_selection_ = std::move(selection);
+    selected_character_model_path_ = std::move(model_path);
+    selected_character_main_anim_path_ = std::move(main_anim_path);
+    selected_character_strum_anim_path_ = std::move(strum_anim_path);
+    selected_character_fret_anim_path_ = std::move(fret_anim_path);
+    selected_character_highway_surface_path_ =
+        std::move(highway_surface_path);
+  }
   std::string_view quickplay_character_outfit() const {
     return quickplay_rig_ ? std::string_view(quickplay_rig_->character_outfit)
                           : std::string_view();
@@ -843,7 +859,12 @@ class Gameplay {
   //             bit4=Orange bit5=Strum bit6=Star power bit7=Whammy.
   void tick(float dt, uint32_t fret_mask, float whammy_axis = 0.0f);
 
-  // Draw the highway for this frame. Creates the HighwayRenderer on first call.
+  // Build venue, performer, camera, lighting, and prop render resources while
+  // the caller is still presenting its loading screen. This keeps asset
+  // decoding and GPU resource creation out of the first playable frame.
+  bool prepare_world(ghogx::render::Window& win);
+
+  // Draw the highway for this frame.
   void draw(ghogx::render::Window& win);
   void stop_audio();
   void set_paused(bool paused);
@@ -950,6 +971,8 @@ class Gameplay {
   int    difficulty()const { return difficulty_; }
 
  private:
+  void draw_internal(ghogx::render::Window& win, bool initialize_only);
+
   struct LightPresetEnvLightStateSnapshot {
     std::map<std::string, std::array<float, 4>> lighting_environment_colors;
     std::map<std::string, std::array<float, 4>>
@@ -1161,6 +1184,31 @@ class Gameplay {
   void draw_worldcrowd_actor_runtime(
       const ghogx::render::OrbitCamera& cam);
 
+  struct CharacterWorldFxRuntime {
+    ghogx::character::WorldFx source;
+    std::string proxy_milo;
+    std::unique_ptr<ghogx::render::MiloSceneRenderer> renderer;
+    std::vector<VenueAnimFilter> anim_filters;
+    std::map<std::string, std::array<float, 3>> source_local_positions;
+    double active_seconds = 0.0;
+    bool was_active = false;
+  };
+  std::vector<CharacterWorldFxRuntime> load_character_world_fx_runtime(
+      ghogx::render::Window& win, const std::string& source_hdr,
+      const std::string& source_ark, const std::string& character_milo,
+      const ghogx::character::Character& character,
+      std::string_view owner_label);
+  void update_character_world_fx_runtime(
+      std::vector<CharacterWorldFxRuntime>& effects,
+      ghogx::character::CharacterTypeScriptInstance* type_script,
+      std::string_view owner_label, std::string_view state_label, float dt);
+  size_t draw_character_world_fx_runtime(
+      std::vector<CharacterWorldFxRuntime>& effects,
+      const ghogx::character::Character& character,
+      ghogx::character::CharacterTypeScriptInstance* type_script,
+      const std::array<float, 16>& character_world,
+      const ghogx::render::OrbitCamera& camera, bool front_pass);
+
   // Detect a strum-triggered or HOPO note hit in the given lane.
   HitResult try_hit(int lane, bool strummed, bool is_hopo_candidate);
   uint32_t diagnostic_autoplay_fret_mask(
@@ -1192,6 +1240,20 @@ class Gameplay {
       ghogx::character::CharClip clip;
       std::vector<std::string> source_flags;
     };
+    struct AuthoredDriver {
+      std::string hdr_path;
+      std::string ark_path;
+      std::vector<std::string> milo_paths;
+      std::vector<ghogx::character::CharClipCatalogEntry> clip_catalog;
+      std::map<std::string, ghogx::character::CharClipGroup> groups;
+      std::map<std::string, ghogx::character::CharClip> decoded_clips;
+      ghogx::character::CharClipPlayer player;
+      ghogx::DataNode saved_node;
+      bool saved_node_valid = false;
+      std::string starved_handler;
+      float beat_scale = 1.0f;
+      size_t source_order = 0;
+    };
     std::string role;
     std::string character_name;
     std::string event_track;
@@ -1200,7 +1262,16 @@ class Gameplay {
     std::string prop_milo_ref;
     std::string prop_attach_bone;
     bool gh1_character_runtime = false;
+    bool charwalk_runtime = false;
     std::unique_ptr<ghogx::character::CharRenderer> renderer;
+    std::unique_ptr<ghogx::character::CharacterTypeScriptInstance>
+        type_script;
+    std::map<std::string, AuthoredDriver> authored_drivers;
+    std::vector<CharacterWorldFxRuntime> world_fxes;
+    bool type_script_solo_active = false;
+    bool type_script_peak_active = false;
+    bool type_script_god_effect_active = false;
+    bool type_script_game_lost_active = false;
     ghogx::character::CharClip idle_clip;
     ghogx::character::CharClip intro_clip;
     ghogx::character::CharClip active_clip;
@@ -1255,6 +1326,9 @@ class Gameplay {
     ghogx::character::CharClipPlayer fret_player;
     std::vector<ghogx::character::CharClipPlayer> fret_extra_players;
     bool hand_driver_available = false;
+    bool main_driver_realign = false;
+    bool right_hand_driver_realign = false;
+    bool left_hand_driver_realign = false;
     bool midi_playing = false;
     uint32_t last_note_tick = UINT32_MAX;
     double last_strum_started = -9999.0;
@@ -1283,11 +1357,23 @@ class Gameplay {
     std::array<float, 5> gh1_walk_delay_max = {};
     std::array<float, 5> gh1_walk_delay_sample = {};
     float gh1_walk_slop = 12.0f;
+    float charwalk_max_walk_wait = 0.0f;
+    uint32_t charwalk_waypoint_flags = 0;
     float gh1_walk_undershoot = 0.0f;
     float gh1_walk_overshoot = -18.0f;
+    // Retail CharWalk::mState is None/Going/Stopping. Keep the selected
+    // turn/walk/stop clip phase separate from that controller state.
     int gh1_walk_state = 0;
+    int gh1_walk_phase = 0;
     std::string gh1_walk_current_waypoint;
     std::string gh1_walk_target_waypoint;
+    std::vector<std::string> charwalk_route_waypoints;
+    std::vector<std::array<float, 3>> charwalk_route_positions;
+    size_t charwalk_route_waypoint_index = 1;
+    ghogx::character::SourceCharWalkMotionPlan charwalk_motion_plan;
+    size_t charwalk_schedule_index = 0;
+    size_t charwalk_plan_point_index = 0;
+    float charwalk_offset_speed = 0.0f;
     std::array<float, 16> gh1_walk_target_world = {};
     std::array<float, 16> gh1_walk_root_world = {};
     bool gh1_walk_has_root_world = false;
@@ -1297,6 +1383,15 @@ class Gameplay {
     bool gh1_walk_has_last_facing = false;
     double gh1_walk_delay_epoch = -1.0;
     size_t gh1_walk_random_draw_index = 0;
+    bool charwalk_start_request_active = false;
+    double charwalk_start_request_deadline = -1.0;
+    uint32_t charwalk_request_walk_flags = 0;
+    uint32_t charwalk_request_turn_flags = 0;
+    uint32_t charwalk_request_stop_flags = 0;
+    int32_t charwalk_walk_group_which = 0;
+    std::string charwalk_selected_walk_clip;
+    float charwalk_phase_end_seconds = -1.0f;
+    float charwalk_next_start_seconds = 0.0f;
     uint32_t last_anim_note_mask = UINT32_MAX;
     uint32_t last_anim_note_tick = UINT32_MAX;
     std::string last_anim_hand_event;
@@ -1313,6 +1408,15 @@ class Gameplay {
                                              0.0f, 0.0f, 0.0f, 1.0f};
   };
   std::vector<Performer> performers_;
+  ghogx::DataNode handle_performer_driver_message(
+      size_t performer_index,
+      const ghogx::character::CharacterTypeScriptDriverMessage& message);
+  const ghogx::character::CharClip* resolve_performer_driver_node(
+      Performer& performer, std::string_view driver_name,
+      const ghogx::DataNode& node, bool save_node);
+  ghogx::character::CharClipPlayer* performer_driver_player(
+      Performer& performer, std::string_view driver_name);
+  void bind_performer_type_script_driver(size_t performer_index);
   std::string last_performer_lighting_key_;
 
   std::optional<QuickplayRig> quickplay_rig_;
@@ -1585,6 +1689,7 @@ class Gameplay {
   std::map<std::string, std::array<float, 16>> venue_camera_target_worlds_;
   ghogx::milo_scene::Scene venue_chars_scene_;
   bool venue_chars_scene_loaded_ = false;
+  std::vector<size_t> venue_charwalk_waypoint_registry_order_;
   std::map<std::string, ghogx::milo_scene::Scene> worldcrowd_actor_scenes_;
   std::map<std::string, ghogx::character::Character> worldcrowd_actor_characters_;
   std::map<std::string, ghogx::character::CharClip> worldcrowd_actor_clips_;
@@ -1607,6 +1712,9 @@ class Gameplay {
     std::string actor_name;
     std::string actor_milo;
     std::unique_ptr<ghogx::character::CharRenderer> renderer;
+    std::unique_ptr<ghogx::character::CharacterTypeScriptInstance>
+        type_script;
+    std::vector<CharacterWorldFxRuntime> world_fxes;
     ghogx::character::CharClip clip;
     std::map<std::string, ghogx::character::CharClip> clips_by_group;
     ghogx::character::CharClipPlayer player;
@@ -1774,6 +1882,12 @@ class Gameplay {
   std::string base_hdr_path_;
   std::string base_ark_path_;
   std::vector<std::pair<std::string, std::string>> auxiliary_asset_paths_;
+  std::string selected_character_selection_;
+  std::string selected_character_model_path_;
+  std::string selected_character_main_anim_path_;
+  std::string selected_character_strum_anim_path_;
+  std::string selected_character_fret_anim_path_;
+  std::string selected_character_highway_surface_path_;
   std::string highway_asset_hdr_path_;
   std::string highway_asset_ark_path_;
   std::string song_shortname_;

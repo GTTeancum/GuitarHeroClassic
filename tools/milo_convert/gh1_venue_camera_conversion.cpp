@@ -422,13 +422,22 @@ CurveState evaluate(
                            std::clamp(record.end * 0.01f, 0.0f, 1.0f);
     const float source_frame =
         source_start + (source_end - source_start) * progress;
+    const float source_low = std::min(source_start, source_end);
+    const float source_high = std::max(source_start, source_end);
+    const float framing_progress =
+        std::fabs(source_high - source_low) <= 0.000001f
+            ? 1.0f
+            : std::clamp(
+                  (source_frame - source_low) /
+                      (source_high - source_low),
+                  0.0f, 1.0f);
     CurveState state;
     state.position = sample_translation(animation, source_frame);
     for (size_t axis = 0; axis < 3; ++axis) {
         state.position[axis] +=
             record.offset_in[axis] +
             (record.offset_out[axis] - record.offset_in[axis]) *
-                progress;
+                framing_progress;
     }
     if (shake_animation) {
         const auto shake =
@@ -440,13 +449,21 @@ CurveState evaluate(
     state.has_rotation = !animation.rotation_keys.empty();
     const float singer_x =
         record.singer_in[0] +
-        (record.singer_out[0] - record.singer_in[0]) * progress;
+        (record.singer_out[0] - record.singer_in[0]) *
+            framing_progress;
     const float singer_y =
         record.singer_in[1] +
-        (record.singer_out[1] - record.singer_in[1]) * progress;
-    state.screen = {-0.5f * singer_x, 0.5f * singer_y};
+        (record.singer_out[1] - record.singer_in[1]) *
+            framing_progress;
+    // GH1 VenueCam stores the selected ArenaSinger's desired centered screen
+    // coordinate.  GH2 CamShotFrame stores that same normalized coordinate:
+    // CamShot::SetPos converts a viewport point back with
+    // ((u - 0.5) * 2, (v - 0.5) * -2), exactly inverting GH1's
+    // ((x + 1) / 2, (1 - y) / 2) viewport mapping.
+    state.screen = {singer_x, singer_y};
     state.fov =
-        (record.fov_in + (record.fov_out - record.fov_in) * progress) *
+        (record.fov_in +
+         (record.fov_out - record.fov_in) * framing_progress) *
         0.01745329251994329577f;
     return state;
 }
@@ -777,8 +794,16 @@ gh::milo_object::CamShot20 compile_record(
             frame.world_offset[9 + axis] = state.position[axis];
         frame.screen_offset = state.screen;
         frame.blur_depth = 0.5f;
+        // GH1 VenueCam does not resolve the misleadingly named
+        // singer_in/singer_out coordinates against the band vocalist.
+        // VenueCam::Update (SLUS-21224 0x0016E080) selects an ArenaSinger
+        // entry through the record's target index; the normal single-player
+        // path uses slot zero, which is the player guitarist.  The selected
+        // ArenaSinger virtual at 0x0018D3C0 resolves bone_head.mesh and
+        // returns that transform's world matrix. Keep that exact source
+        // subject when materializing the native GH2 CamShot.
         frame.targets.push_back(
-            {0, "singer", "bone_spine1.mesh"});
+            {0, "guitarist0", "bone_head.mesh"});
         frame.parent = {0, "arena", "venue.view"};
         frame.use_parent_rotation = true;
         shot.keyframes.push_back(std::move(frame));

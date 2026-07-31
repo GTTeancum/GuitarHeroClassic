@@ -4,6 +4,7 @@
 
 #include "ark_v3.h"
 #include "milo.h"
+#include "milo_object.h"
 
 #include <algorithm>
 #include <cctype>
@@ -12,48 +13,254 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <map>
 #include <set>
 #include <stdexcept>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace ghogx::character {
 
+namespace {
+
+ghogx::milo_scene::Xfm xfm_from_serialized_4x3(
+    const std::array<float, 12>& values) {
+  ghogx::milo_scene::Xfm out;
+  for (size_t row = 0; row < 3; ++row) {
+    for (size_t column = 0; column < 3; ++column) {
+      out.rot[row][column] = values[row * 3 + column];
+    }
+  }
+  out.pos[0] = values[9];
+  out.pos[1] = values[10];
+  out.pos[2] = values[11];
+  return out;
+}
+
+void decode_character_root(Character& out) {
+  out.root_decoded = false;
+  out.root_decode_error.clear();
+  out.root_object_type.clear();
+  out.root_lods.clear();
+  out.root_shadow.clear();
+  out.root_self_shadow = false;
+  out.root_sphere_base.clear();
+  out.root_environment.clear();
+  if (out.dir_entry_bytes.empty()) {
+    out.root_decode_error = "empty Character directory root";
+    return;
+  }
+
+  try {
+    gh::milo_object::Character9 root;
+    if (out.dir_type == "BandCharacter") {
+      root = gh::milo_object::parse_band_character1(out.dir_entry_bytes).character;
+    } else if (out.dir_type == "Character") {
+      root = gh::milo_object::parse_character9(out.dir_entry_bytes);
+    } else {
+      out.root_decode_error =
+          "unsupported character directory type: " + out.dir_type;
+      return;
+    }
+    out.root_object_type =
+        root.render_directory.object_directory.object_fields.type;
+    out.root_lods.reserve(root.lods.size());
+    for (const auto& lod : root.lods) {
+      out.root_lods.push_back({lod.screen_size, lod.group});
+    }
+    out.root_shadow = root.shadow;
+    out.root_self_shadow = root.self_shadow;
+    out.root_sphere_base = root.sphere_base;
+    out.root_environment = root.render_directory.environment;
+    out.root_decoded = true;
+  } catch (const std::exception& ex) {
+    out.root_decode_error = ex.what();
+  }
+}
+
+}  // namespace
+
+OutfitLoader decode_outfit_loader(
+    const std::string& entry_name,
+    const std::vector<uint8_t>& body) {
+  OutfitLoader out;
+  out.name = entry_name;
+  try {
+    const auto source = gh::milo_object::parse_outfit_loader1(body);
+    out.revision = static_cast<int32_t>(source.revision);
+    out.object_type = source.object_fields.type;
+    out.directory = source.directory;
+    out.categories.reserve(source.categories.size());
+    for (const auto& source_category : source.categories) {
+      OutfitLoaderCategory category;
+      category.selected = source_category.selected;
+      category.shown = source_category.shown;
+      category.outfits.reserve(source_category.outfits.size());
+      for (const auto& source_outfit : source_category.outfits) {
+        category.outfits.push_back(
+            {source_outfit.hide, source_outfit.desire,
+             source_outfit.exclude});
+      }
+      out.categories.push_back(std::move(category));
+    }
+    out.decoded = true;
+  } catch (const std::exception& ex) {
+    out.error = ex.what();
+  }
+  return out;
+}
+
+CharWalk decode_char_walk(const std::string& entry_name,
+                          const std::vector<uint8_t>& body) {
+  CharWalk out;
+  out.name = entry_name;
+  try {
+    const auto source = gh::milo_object::parse_char_walk1(body);
+    out.revision = static_cast<int32_t>(source.revision);
+    out.object_type = source.object_fields.type;
+    out.decoded = true;
+  } catch (const std::exception& ex) {
+    out.error = ex.what();
+  }
+  return out;
+}
+
+WorldFx decode_world_fx(const std::string& entry_name,
+                        const std::vector<uint8_t>& body) {
+  WorldFx out;
+  out.name = entry_name;
+  try {
+    const auto source = gh::milo_object::parse_world_fx1(body);
+    out.revision = static_cast<int32_t>(source.revision);
+    const auto& directory = source.render_directory;
+    const auto& object_directory = directory.object_directory;
+    const auto& transformable = directory.transformable;
+    out.render_directory_revision =
+        static_cast<int32_t>(directory.revision);
+    out.object_directory_revision =
+        static_cast<int32_t>(object_directory.revision);
+    out.object_type = object_directory.object_fields.type;
+    out.proxy_path = object_directory.proxy_path;
+    out.subdirectories = object_directory.subdirectories;
+    out.environment = directory.environment;
+    out.test_event = directory.test_event;
+    out.legacy_symbol_1 = directory.legacy_symbol_1;
+    out.legacy_symbol_2 = directory.legacy_symbol_2;
+    out.parent = transformable.parent;
+    out.local = xfm_from_serialized_4x3(transformable.local);
+    out.world = xfm_from_serialized_4x3(transformable.world);
+    out.constraint = static_cast<int32_t>(transformable.constraint);
+    out.target = transformable.target;
+    out.preserve_scale = transformable.preserve_scale;
+    out.showing = directory.drawable.showing;
+    out.draw_order = directory.drawable.draw_order;
+    out.frame = directory.animatable.frame;
+    out.anim_rate = directory.animatable.rate;
+    out.decoded = true;
+  } catch (const std::exception& ex) {
+    out.error = ex.what();
+  }
+  return out;
+}
+
 std::optional<std::string> source_character_active_lod_view(
     const Character& character, int min_lod) {
-  const milo_scene::GroupObj* top = nullptr;
-  for (const auto& group : character.groups) {
-    if (group.name == "top.view") {
-      top = &group;
-      break;
-    }
+  if (!character.root_decoded || character.root_lods.empty()) {
+    return std::nullopt;
   }
-  if (!top) return std::nullopt;
+  const size_t requested =
+      min_lod <= 0 ? 0u : static_cast<size_t>(min_lod);
+  const size_t index =
+      std::min(requested, character.root_lods.size() - 1u);
+  const std::string& group_name = character.root_lods[index].group;
+  if (group_name.empty()) return std::nullopt;
+  const bool resident =
+      std::any_of(character.groups.begin(), character.groups.end(),
+                  [&](const milo_scene::GroupObj& group) {
+                    return group.name == group_name;
+                  });
+  return resident ? std::optional<std::string>(group_name) : std::nullopt;
+}
 
-  const std::string prefix = min_lod >= 1 ? "lod1" : "lod0";
-  for (const std::string& child : top->children) {
-    if (child.size() < 5 ||
-        child.compare(child.size() - 5, 5, ".view") != 0 ||
-        child.size() < prefix.size()) {
-      continue;
-    }
-    bool prefix_matches = true;
-    for (size_t i = 0; i < prefix.size(); ++i) {
-      const unsigned char value = static_cast<unsigned char>(child[i]);
-      if (static_cast<char>(std::tolower(value)) != prefix[i]) {
-        prefix_matches = false;
-        break;
+SourceCharacterDrawClosure source_character_draw_closure(
+    const Character& character, int min_lod) {
+  SourceCharacterDrawClosure result;
+  const auto active =
+      source_character_active_lod_view(character, min_lod);
+  if (!active) return result;
+
+  std::unordered_map<std::string, const milo_scene::GroupObj*> groups;
+  groups.reserve(character.groups.size());
+  for (const auto& group : character.groups) {
+    groups.emplace(group.name, &group);
+  }
+  std::unordered_set<std::string> resident_meshes;
+  resident_meshes.reserve(character.meshes.size());
+  for (const auto& mesh : character.meshes) {
+    resident_meshes.insert(mesh.name);
+  }
+  std::unordered_set<std::string> lod_groups;
+  lod_groups.reserve(character.root_lods.size());
+  for (const auto& lod : character.root_lods) {
+    if (!lod.group.empty()) lod_groups.insert(lod.group);
+  }
+
+  // Every decoded ancestor of the active LOD is an authored draw container.
+  // Walk to the outermost ancestors so their direct accessory/prop children
+  // remain part of the closure without admitting unrelated ungrouped objects.
+  std::unordered_set<std::string> ancestors{*active};
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    for (const auto& group : character.groups) {
+      const bool owns_ancestor =
+          std::any_of(
+              group.children.begin(), group.children.end(),
+              [&](const std::string& child) {
+                return ancestors.find(child) != ancestors.end();
+              });
+      if (owns_ancestor && ancestors.insert(group.name).second) {
+        changed = true;
       }
     }
-    if (!prefix_matches) continue;
-    const bool child_is_resident =
-        std::any_of(character.groups.begin(), character.groups.end(),
-                    [&](const milo_scene::GroupObj& group) {
-                      return group.name == child;
-                    });
-    if (child_is_resident) return child;
   }
-  return std::nullopt;
+
+  std::unordered_set<std::string> roots = ancestors;
+  for (const auto& group_name : ancestors) {
+    const auto found = groups.find(group_name);
+    if (found == groups.end()) continue;
+    for (const auto& child : found->second->children) {
+      if (ancestors.find(child) != ancestors.end()) {
+        roots.erase(child);
+      }
+    }
+  }
+  if (roots.empty()) roots.insert(*active);
+
+  std::unordered_set<std::string> visited;
+  std::function<void(const std::string&)> collect =
+      [&](const std::string& group_name) {
+        if (!visited.insert(group_name).second) return;
+        const auto found = groups.find(group_name);
+        if (found == groups.end()) return;
+        for (const auto& child : found->second->children) {
+          const auto child_group = groups.find(child);
+          if (child_group != groups.end()) {
+            if (lod_groups.find(child) != lod_groups.end() &&
+                child != *active) {
+              continue;
+            }
+            collect(child);
+          } else if (resident_meshes.find(child) !=
+                     resident_meshes.end()) {
+            result.meshes.insert(child);
+          }
+        }
+      };
+  for (const auto& root : roots) collect(root);
+  result.authoritative = true;
+  return result;
 }
 
 namespace {
@@ -673,31 +880,47 @@ RndMorph decode_rnd_morph_body(const std::string& entry_name,
   RndMorph morph;
   morph.name = entry_name;
   morph.revision = r.i32();
-  if (morph.revision != 3) {
+  if (morph.revision != 3 && morph.revision != 4) {
     throw std::runtime_error("char_mesh: unsupported RndMorph revision");
   }
 
-  // GH1's RndAnimatable revision 0 stores legacy animation-entry and
-  // animation-object vectors instead of the later frame/rate pair.
-  morph.anim_revision = r.i32();
-  if (morph.anim_revision != 0) {
-    throw std::runtime_error("char_mesh: unsupported GH1 RndMorph anim revision");
-  }
-  const uint32_t legacy_entries = r.u32();
-  if (legacy_entries > 4096) {
-    throw std::runtime_error("char_mesh: implausible RndMorph legacy entry count");
-  }
-  for (uint32_t i = 0; i < legacy_entries; ++i) {
-    (void)r.str();
-    (void)r.f32();
-    (void)r.f32();
-  }
-  const uint32_t anim_objects = r.u32();
-  if (anim_objects > 4096) {
-    throw std::runtime_error("char_mesh: implausible RndMorph anim object count");
-  }
-  for (uint32_t i = 0; i < anim_objects; ++i) {
-    morph.anim_objects.push_back(r.str());
+  if (morph.revision == 3) {
+    // GH1's RndAnimatable revision 0 stores legacy animation-entry and
+    // animation-object vectors instead of the later frame/rate pair.
+    morph.anim_revision = r.i32();
+    if (morph.anim_revision != 0) {
+      throw std::runtime_error(
+          "char_mesh: unsupported GH1 RndMorph anim revision");
+    }
+    const uint32_t legacy_entries = r.u32();
+    if (legacy_entries > 4096) {
+      throw std::runtime_error(
+          "char_mesh: implausible RndMorph legacy entry count");
+    }
+    for (uint32_t i = 0; i < legacy_entries; ++i) {
+      (void)r.str();
+      (void)r.f32();
+      (void)r.f32();
+    }
+    const uint32_t anim_objects = r.u32();
+    if (anim_objects > 4096) {
+      throw std::runtime_error(
+          "char_mesh: implausible RndMorph anim object count");
+    }
+    for (uint32_t i = 0; i < anim_objects; ++i) {
+      morph.anim_objects.push_back(r.str());
+    }
+  } else {
+    // GH2 revision 4 adds the native Hmx::Object base and upgrades the
+    // embedded RndAnimatable to revision 4 (frame + rate). The morph payload
+    // that follows is otherwise field-for-field compatible with revision 3.
+    read_object_fields(r);
+    const RndAnimatableFields animatable = read_rnd_animatable(r);
+    if (animatable.version != 4) {
+      throw std::runtime_error(
+          "char_mesh: unsupported GH2 RndMorph anim revision");
+    }
+    morph.anim_revision = animatable.version;
   }
 
   const uint32_t pose_count = r.u32();
@@ -885,6 +1108,10 @@ SourceRndMeshVertLoadPlan source_rndmesh_vert_load_plan(
   plan.reads_legacy_extra_vec2 = mesh_revision < 0x0b;
   plan.reads_bone_indices = mesh_revision > 0x1c;
   plan.reads_post_indices_vec4 = mesh_revision > 0x1d;
+  plan.quantizes_unskinned_color32 =
+      mesh_revision < 0x25 && !is_skinned;
+  plan.preserves_signed_skinned_float_weights =
+      mesh_revision < 0x25 && is_skinned;
   plan.postload_color_to_weights = mesh_revision < 0x25 && is_skinned;
   plan.postload_clears_color = plan.postload_color_to_weights;
   plan.gh2_rev28_color_payload_is_skin_weights =
@@ -3872,7 +4099,10 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
       SkinVertex& v = mesh.verts[i];
       v.px = r.f32(); v.py = r.f32(); v.pz = r.f32();
       v.nx = r.f32(); v.ny = r.f32(); v.nz = r.f32();
-      v.w[0] = r.f32(); v.w[1] = r.f32(); v.w[2] = r.f32(); v.w[3] = r.f32();
+      v.r = r.f32();
+      v.g = r.f32();
+      v.b = r.f32();
+      v.a = r.f32();
       v.u = r.f32(); v.v = r.f32();
     }
 
@@ -3946,6 +4176,15 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
           }
         }
         apply_source_rndmesh_active_bones(mesh, nullptr);
+      }
+    }
+
+    if (mesh.bone_palette.empty()) {
+      for (SkinVertex& vertex : mesh.verts) {
+        vertex.r = milo_scene::source_hmx_color32_channel(vertex.r);
+        vertex.g = milo_scene::source_hmx_color32_channel(vertex.g);
+        vertex.b = milo_scene::source_hmx_color32_channel(vertex.b);
+        vertex.a = milo_scene::source_hmx_color32_channel(vertex.a);
       }
     }
 
@@ -4776,6 +5015,45 @@ EventTrigger decode_event_trigger(const std::string& entry_name,
 }
 
 }  // namespace
+
+CharMeshHide decode_char_mesh_hide(const std::string& entry_name,
+                                   const std::vector<uint8_t>& body) {
+  CharMeshHide out;
+  out.name = entry_name;
+  try {
+    Reader r(body.data(), body.size());
+    const uint32_t combined_revision = r.u32();
+    out.revision =
+        static_cast<int32_t>(combined_revision & 0xffffu);
+    out.alt_revision =
+        static_cast<int32_t>(combined_revision >> 16);
+    if (out.revision < 0 || out.revision > 2) {
+      throw std::runtime_error(
+          "char_mesh: unsupported CharMeshHide revision " +
+          std::to_string(out.revision));
+    }
+    read_object_fields(r);
+    out.flags = r.i32();
+    const uint32_t hide_count = r.u32();
+    if (hide_count > 65536u) {
+      throw std::runtime_error(
+          "char_mesh: implausible CharMeshHide row count");
+    }
+    out.hides.reserve(hide_count);
+    for (uint32_t i = 0; i < hide_count; ++i) {
+      CharMeshHideRow row;
+      row.drawable = r.str();
+      row.flags = r.i32();
+      if (out.revision > 1) row.show = r.u8() != 0;
+      out.hides.push_back(std::move(row));
+    }
+    out.unread_bytes = r.n - r.pos;
+    out.decoded = true;
+  } catch (const std::exception& ex) {
+    out.error = ex.what();
+  }
+  return out;
+}
 
 SourceRndTexLoadPlan source_rndtex_load_plan(
     int32_t revision,
@@ -5647,7 +5925,7 @@ CharDriver decode_driver_body(const std::string& entry_name, Reader& r,
   driver.weight_prop = driver.weight_owner;
   driver.target = r.str();
   driver.clip_milo = r.str();
-  if (r.pos < r.n) driver.enabled = r.u8() != 0;
+  if (r.pos < r.n) driver.realign = r.u8() != 0;
   driver.midi = midi;
   return driver;
 }
@@ -12166,6 +12444,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
       out.dir_entry_bytes.assign(
           begin, begin + static_cast<std::ptrdiff_t>(dir.dir_entry_size));
     }
+    decode_character_root(out);
 
     int mesh_ok = 0, mesh_fail = 0;
     for (const auto& de : dir.entries) {
@@ -12258,6 +12537,35 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
         } else if (de.type == "Object") {
           handled = true;
           out.object_rows.push_back(decode_object_row(de.name, b));
+        } else if (de.type == "OutfitLoader") {
+          handled = true;
+          OutfitLoader outfit_loader =
+              decode_outfit_loader(de.name, b);
+          if (!outfit_loader.decoded) {
+            std::fprintf(
+                stderr, "[char]   OutfitLoader '%s' decode: %s\n",
+                de.name.c_str(), outfit_loader.error.c_str());
+          }
+          out.outfit_loaders.push_back(std::move(outfit_loader));
+        } else if (de.type == "CharWalk") {
+          handled = true;
+          CharWalk char_walk = decode_char_walk(de.name, b);
+          if (!char_walk.decoded) {
+            std::fprintf(stderr, "[char]   CharWalk '%s' decode: %s\n",
+                         de.name.c_str(), char_walk.error.c_str());
+          }
+          out.char_walks.push_back(std::move(char_walk));
+        } else if (de.type == "WorldFx") {
+          handled = true;
+          WorldFx world_fx = decode_world_fx(de.name, b);
+          if (!world_fx.decoded) {
+            std::fprintf(stderr, "[char]   WorldFx '%s' decode: %s\n",
+                         de.name.c_str(), world_fx.error.c_str());
+          }
+          out.world_fxes.push_back(std::move(world_fx));
+        } else if (de.type == "CharMeshHide") {
+          handled = true;
+          out.mesh_hides.push_back(decode_char_mesh_hide(de.name, b));
         } else if (de.type == "Tex") {
           handled = true;
           out.tex_rows.push_back(decode_rnd_tex(de.name, b));
@@ -12355,12 +12663,45 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
     const size_t showing_meshes = static_cast<size_t>(std::count_if(
         out.meshes.begin(), out.meshes.end(),
         [](const SkinnedMesh& mesh) { return mesh.decoded && mesh.showing; }));
+    if (out.root_decoded) {
+      std::fprintf(
+          stderr,
+          "[char-root] %s: type=%s object_type=%s lods=%zu shadow=%s self_shadow=%d sphere_base=%s environment=%s\n",
+          milo_path.c_str(), out.dir_type.c_str(),
+          out.root_object_type.c_str(), out.root_lods.size(),
+          out.root_shadow.c_str(), out.root_self_shadow ? 1 : 0,
+          out.root_sphere_base.c_str(), out.root_environment.c_str());
+    } else {
+      std::fprintf(stderr, "[char-root] %s: decode-failed: %s\n",
+                   milo_path.c_str(), out.root_decode_error.c_str());
+    }
+    const char* mesh_hide_audit =
+        std::getenv("GHOGX_AUDIT_CHAR_MESH_HIDE");
+    if (mesh_hide_audit && *mesh_hide_audit &&
+        std::strcmp(mesh_hide_audit, "0") != 0) {
+      for (const auto& hide : out.mesh_hides) {
+        std::fprintf(
+            stderr,
+            "[char-mesh-hide] %s:%s rev=%d alt=%d flags=0x%08x rows=%zu unread=%zu decoded=%d error=%s\n",
+            milo_path.c_str(), hide.name.c_str(), hide.revision,
+            hide.alt_revision, static_cast<uint32_t>(hide.flags),
+            hide.hides.size(), hide.unread_bytes, hide.decoded ? 1 : 0,
+            hide.error.c_str());
+        for (const auto& row : hide.hides) {
+          std::fprintf(
+              stderr,
+              "[char-mesh-hide-row] owner=%s drawable=%s flags=0x%08x show=%d\n",
+              hide.name.c_str(), row.drawable.c_str(),
+              static_cast<uint32_t>(row.flags), row.show ? 1 : 0);
+        }
+      }
+    }
     std::fprintf(stderr,
                  "[char] %s: %zu meshes (%d ok / %d fail, %zu showing), %zu bones, %zu mat, "
                  "%zu group, %zu morph, %zu upperTwist, %zu foreTwist, %zu neckTwist, %zu ikRod, %zu ikHand, %zu ikMidi, "
                  "%zu servoBone, %zu lookAt, %zu eyes, %zu hair, %zu collide, "
                  "%zu posConstraint, %zu boneOffset, %zu boneTwist, %zu lipServo, %zu animFilter, "
-                 "%zu eventTrigger, %zu object, %zu tex, %zu driver, "
+                 "%zu eventTrigger, %zu object, %zu outfitLoader, %zu charWalk, %zu worldFx, %zu meshHide, %zu tex, %zu driver, "
                  "%zu weightSetter, %zu opaque\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
                  showing_meshes,
@@ -12375,9 +12716,13 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                  out.bone_offsets.size(),
                  out.bone_twists.size(),
                  out.lip_sync_servos.size(), out.anim_filters.size(),
-                 out.event_triggers.size(),
-                 out.object_rows.size(),
-                 out.tex_rows.size(),
+                   out.event_triggers.size(),
+                   out.object_rows.size(),
+                   out.outfit_loaders.size(),
+                   out.char_walks.size(),
+                   out.world_fxes.size(),
+                  out.mesh_hides.size(),
+                  out.tex_rows.size(),
                  out.drivers.size(),
                  out.weight_setters.size(),
                  out.opaque_rows.size());

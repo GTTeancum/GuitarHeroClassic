@@ -10,6 +10,7 @@ from capstone import (
     CS_ARCH_MIPS,
     CS_MODE_LITTLE_ENDIAN,
     CS_MODE_MIPS32,
+    CS_MODE_MIPS64,
     CS_OP_IMM,
     CS_OP_MEM,
     CS_OP_REG,
@@ -28,6 +29,11 @@ def main() -> int:
     parser.add_argument("elf", type=Path)
     parser.add_argument("address", nargs="+", type=parse_int)
     parser.add_argument("--max-results", type=int, default=128)
+    parser.add_argument(
+        "--mips64",
+        action="store_true",
+        help="decode the PS2 Emotion Engine's MIPS III instruction forms",
+    )
     args = parser.parse_args()
     targets = {address & 0xFFFFFFFF for address in args.address}
     if args.max_results < 1 or args.max_results > 4096:
@@ -42,7 +48,11 @@ def main() -> int:
             and int(segment["p_flags"]) & 1
         ]
 
-    disassembler = Cs(CS_ARCH_MIPS, CS_MODE_MIPS32 | CS_MODE_LITTLE_ENDIAN)
+    disassembler = Cs(
+        CS_ARCH_MIPS,
+        (CS_MODE_MIPS64 if args.mips64 else CS_MODE_MIPS32)
+        | CS_MODE_LITTLE_ENDIAN,
+    )
     disassembler.detail = True
     disassembler.skipdata = True
     results = 0
@@ -84,6 +94,12 @@ def main() -> int:
                 if instruction.mnemonic == "addiu" and low & 0x8000:
                     low -= 0x10000
                 address = (high + low) & 0xFFFFFFFF
+            elif (
+                instruction.mnemonic in {"j", "jal"}
+                and len(operands) == 1
+                and operands[0].type == CS_OP_IMM
+            ):
+                address = int(operands[0].imm) & 0xFFFFFFFF
             else:
                 for operand in operands:
                     if (

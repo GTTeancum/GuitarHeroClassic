@@ -1429,6 +1429,24 @@ std::array<float, 3> transform_menu_text_point(
            xfm[11] + local_x * xfm[2] + local_z * xfm[8]}};
 }
 
+bool menu_label_uses_authored_world_transform(const MenuLabel& label) {
+  if (!label.has_world || !std::isfinite(label.world[10])) return false;
+  if (label.has_transform_animated_ancestor) return true;
+  // Some PS2 BandLabels serialize a parent-composed WorldXfm whose Y is in a
+  // panel scene space behind metacam (for example sel_guitar at about -975).
+  // Static text is authored on the menu draw plane, so fall back to LocalXfm
+  // when WorldXfm is not already on that plane.
+  return std::fabs(label.world[10]) < 100.0f;
+}
+
+bool menu_label_uses_black_outfit_button_text(const MenuLabel& label) {
+  const bool helvetica_black =
+      label.font == "helveticablack" ||
+      label.font == "helveticablack.font";
+  return label.type == "BandButton" && helvetica_black &&
+         label.parent == "text_skin.grp";
+}
+
 struct Gh1LabelResource {
   std::string text_object;
   std::array<float, 4> color{{1.0f, 1.0f, 1.0f, 1.0f}};

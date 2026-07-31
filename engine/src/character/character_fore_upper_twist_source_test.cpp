@@ -66,21 +66,20 @@ bool expect_string(const std::string& got, const std::string& want,
   return false;
 }
 
-bool expect_upper_rows(const std::array<float, 16>& world, float weight,
-                       float px, float py, float pz, const char* label) {
-  const float y = 1.0f - weight;
-  const float z = weight;
-  const float len = std::sqrt(y * y + z * z);
+bool expect_rot_x_world(const std::array<float, 16>& world, float angle,
+                        float px, float py, float pz, const char* label) {
+  const float cosine = std::cos(angle);
+  const float sine = std::sin(angle);
   bool ok = true;
   ok &= near(world[0], 1.0f, label);
   ok &= near(world[1], 0.0f, label);
   ok &= near(world[2], 0.0f, label);
   ok &= near(world[4], 0.0f, label);
-  ok &= near(world[5], y / len, label);
-  ok &= near(world[6], z / len, label);
+  ok &= near(world[5], cosine, label);
+  ok &= near(world[6], -sine, label);
   ok &= near(world[8], 0.0f, label);
-  ok &= near(world[9], -z / len, label);
-  ok &= near(world[10], y / len, label);
+  ok &= near(world[9], sine, label);
+  ok &= near(world[10], cosine, label);
   ok &= near(world[12], px, label);
   ok &= near(world[13], py, label);
   ok &= near(world[14], pz, label);
@@ -91,6 +90,7 @@ bool expect_upper_rows(const std::array<float, 16>& world, float weight,
 
 int main() {
   using ghogx::character::CharForeTwist;
+  using ghogx::character::CharUpperTwist;
   using ghogx::character::Character;
   using ghogx::character::Gh1AnimServoForeTwist;
   using ghogx::character::Gh1AnimServoUpperTwist;
@@ -167,9 +167,9 @@ int main() {
              "ForeTwist uses twist2.local.x / hand.local.x");
   ok &= near(fore_out.twist_parent_world[5], std::cos(kPi / 6.0f),
              "ForeTwist parent y.y");
-  ok &= near(fore_out.twist_parent_world[6], -std::sin(kPi / 6.0f),
+  ok &= near(fore_out.twist_parent_world[6], std::sin(kPi / 6.0f),
              "ForeTwist parent y.z");
-  ok &= near(fore_out.twist_parent_world[9], std::sin(kPi / 6.0f),
+  ok &= near(fore_out.twist_parent_world[9], -std::sin(kPi / 6.0f),
              "ForeTwist parent z.y");
   ok &= near(fore_out.twist_parent_world[10], std::cos(kPi / 6.0f),
              "ForeTwist parent z.z");
@@ -177,9 +177,9 @@ int main() {
              "ForeTwist parent preserves hand-parent x");
   ok &= near(fore_out.twist2_world[5], std::cos(kPi / 3.0f),
              "ForeTwist twist2 y.y");
-  ok &= near(fore_out.twist2_world[6], -std::sin(kPi / 3.0f),
+  ok &= near(fore_out.twist2_world[6], std::sin(kPi / 3.0f),
              "ForeTwist twist2 y.z");
-  ok &= near(fore_out.twist2_world[9], std::sin(kPi / 3.0f),
+  ok &= near(fore_out.twist2_world[9], -std::sin(kPi / 3.0f),
              "ForeTwist twist2 z.y");
   ok &= near(fore_out.twist2_world[10], std::cos(kPi / 3.0f),
              "ForeTwist twist2 z.z");
@@ -216,10 +216,12 @@ int main() {
                         source_world, world_row(5, 6, 7),
                         world_row(8, 9, 10), upper_out),
                     true, "UpperTwist applies with source pointers");
-  ok &= expect_upper_rows(upper_out.twist1_world, 0.333f, 5.0f, 6.0f,
-                          7.0f, "UpperTwist first output rows");
-  ok &= expect_upper_rows(upper_out.twist2_world, 0.666f, 8.0f, 9.0f,
-                          10.0f, "UpperTwist second output rows");
+  ok &= expect_rot_x_world(upper_out.twist1_world, -kPi * 0.25f,
+                           1.0f, 2.0f, 3.0f,
+                           "UpperTwist first half-twist output");
+  ok &= expect_rot_x_world(upper_out.twist2_world, -kPi * 0.25f,
+                           1.0f, 2.0f, 3.0f,
+                           "UpperTwist second half-twist output");
 
   const auto gh2_source = trace_local_x_source(kPi / 3.0f);
   ok &= near(source_gh2_trace_local_twist_angle(gh2_source), kPi / 3.0f,
@@ -267,7 +269,7 @@ int main() {
 
   SourceGh2TraceUpperTwistLocalResult gh2_upper_out;
   ok &= expect_bool(source_gh2_trace_upper_twist_poll_local(
-                        true, true, true,
+                        true, true, true, true,
                         trace_local_x_source(kPi * 0.5f, 31.0f, 32.0f,
                                              33.0f),
                         trace_local_x_source(0.0f, 41.0f, 42.0f, 43.0f),
@@ -288,6 +290,27 @@ int main() {
   ok &= near(gh2_upper_out.twist2_local.rot[1][2],
              std::sin(kPi * 0.5f * 0.3330000043f),
              "GH2 trace UpperTwist twist2 inverse sign");
+
+  SourceGh2TraceUpperTwistLocalResult gh2_upper_sibling_out;
+  ok &= expect_bool(source_gh2_trace_upper_twist_poll_local(
+                        true, true, true, false,
+                        trace_local_x_source(kPi * 0.5f, 31.0f, 32.0f,
+                                             33.0f),
+                        trace_local_x_source(0.0f, 41.0f, 42.0f, 43.0f),
+                        gh2_upper_sibling_out),
+                    true, "GH2 trace sibling UpperTwist applies");
+  ok &= expect_bool(gh2_upper_sibling_out.serial_chain, false,
+                    "GH2 trace sibling UpperTwist records branch");
+  ok &= near(gh2_upper_sibling_out.twist1_local.pos[0], 31.0f,
+             "GH2 trace sibling twist1 preserves source pos");
+  ok &= near(gh2_upper_sibling_out.twist2_local.pos[0], 31.0f,
+             "GH2 trace sibling twist2 preserves source pos");
+  ok &= near(gh2_upper_sibling_out.twist1_local.rot[1][1],
+             std::sin(kPi * 0.25f),
+             "GH2 trace sibling twist1 uses half correction");
+  ok &= near(gh2_upper_sibling_out.twist2_local.rot[1][1],
+             std::sin(kPi * 0.25f),
+             "GH2 trace sibling twist2 uses half correction");
 
   auto mesh = [](const std::string& name, const std::string& parent,
                  float x, float roll = 0.0f) {
@@ -347,6 +370,54 @@ int main() {
              "GH1 upper servo does not enter GH2 graph");
   ok &= near(gh2_gate.meshes[6].local.rot[1][2], 0.0f,
              "GH1 fore servo does not enter GH2 graph");
+
+  CharForeTwist native_fore;
+  native_fore.name = "fore.native";
+  native_fore.hand = "hand.mesh";
+  native_fore.twist2 = "foreTwist2.mesh";
+  native_fore.offset_degrees = 90.0f;
+  gh2_gate.fore_twists.push_back(native_fore);
+  CharUpperTwist native_upper;
+  native_upper.name = "upper.native";
+  native_upper.upper_arm = "upperArm.mesh";
+  native_upper.twist1 = "upperTwist1.mesh";
+  native_upper.twist2 = "upperTwist2.mesh";
+  gh2_gate.upper_twists.push_back(native_upper);
+  apply_character_controllers(gh2_gate, 0.0f);
+  ok &= expect_bool(std::fabs(gh2_gate.meshes[6].local.rot[1][2]) > 0.1f,
+                    true, "GH2 fore twist resolves mesh-backed transform");
+  ok &= expect_bool(std::fabs(gh2_gate.meshes[3].local.rot[1][2]) > 0.1f,
+                    true, "GH2 upper twist resolves mesh-backed transform");
+
+  Character live_priority;
+  live_priority.dir_type = "BandCharacter";
+  live_priority.meshes = {
+      mesh("root.mesh", "", 0.0f),
+      mesh("upperArm.mesh", "root.mesh", 1.0f),
+      mesh("upperTwist1.mesh", "root.mesh", 1.0f),
+      mesh("upperTwist2.mesh", "root.mesh", 1.0f),
+  };
+  const float live_upper_rot[3][3] = {
+      {0.0f, 1.0f, 0.0f},
+      {-1.0f, 0.0f, 0.0f},
+      {0.0f, 0.0f, 1.0f},
+  };
+  for (int row = 0; row < 3; ++row)
+    for (int column = 0; column < 3; ++column)
+      live_priority.meshes[1].local.rot[row][column] =
+          live_upper_rot[row][column];
+  live_priority.runtime_pose_output_worlds["upperArm.mesh"] = {
+      1.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 1.0f, 0.0f,
+      1.0f, 0.0f, 0.0f, 1.0f,
+  };
+  live_priority.upper_twists.push_back(native_upper);
+  apply_character_controllers(live_priority, 0.0f);
+  ok &= near(live_priority.meshes[2].local.rot[0][0], 0.0f,
+             "GH2 upper twist rejects stale clip output row");
+  ok &= near(live_priority.meshes[2].local.rot[0][1], 1.0f,
+             "GH2 upper twist reads live resident upper-arm row");
 
   return ok ? 0 : 1;
 }

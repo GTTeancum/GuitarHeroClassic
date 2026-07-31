@@ -1,8 +1,10 @@
 #include "milo_convert.h"
 
 #include "gh1_character_model_package.h"
+#include "gh1_character_manifest.h"
 #include "gh1_character_package.h"
 #include "gh1_venue_camera_conversion.h"
+#include "gh1_venue_placement_conversion.h"
 #include "gh1_venue_script_conversion.h"
 #include "gh2_face_config_patch.h"
 #include "dtb.h"
@@ -11,20 +13,211 @@
 #include "singer_face_track.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <exception>
 #include <iterator>
+#include <map>
+#include <set>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
 int main() {
     try {
-        const auto venue_source =
+        const std::map<std::string, uint32_t> expected_milo_contracts = {
+            {"ACP", 18},
+            {"Cam", 9},
+            {"CamAnim", 0},
+            {"DTB", 0xFFFFFFFFu},
+            {"Environ", 1},
+            {"EnvAnim", 3},
+            {"Flare", 3},
+            {"Font", 7},
+            {"Light", 3},
+            {"LightAnim", 1},
+            {"Mat", 21},
+            {"MatAnim", 5},
+            {"Mesh", 25},
+            {"MeshAnim", 0},
+            {"Morph", 3},
+            {"Movie", 6},
+            {"MultiMesh", 0},
+            {"ParticleSys", 22},
+            {"ParticleSysAnim", 2},
+            {"Tex", 8},
+            {"Text", 15},
+            {"TransAnim", 4},
+            {"VenueCamRecord", 1},
+            {"VenueScript", 1},
+            {"View", 7},
+        };
+        const std::set<std::string> allowed_dispositions = {
+            "retained",
+            "translated",
+            "synthesized",
+            "intentionally_discarded",
+        };
+        const auto& field_contracts =
+            gh::milo_convert::gh1_to_gh2_semantic_field_contracts();
+        std::set<std::pair<std::string, uint32_t>> covered_contracts;
+        std::set<std::tuple<
+            std::string, uint32_t, std::string, std::string, std::string>>
+            unique_rows;
+        for (const auto& row : field_contracts) {
+            if (row.source_type.empty() || row.source_field.empty() ||
+                row.target_type.empty() || row.target_revision.empty() ||
+                row.target_field.empty() || row.rule.empty() ||
+                row.verification.empty() ||
+                allowed_dispositions.find(row.disposition) ==
+                    allowed_dispositions.end()) {
+                std::fprintf(
+                    stderr,
+                    "milo_convert_test: malformed semantic field "
+                    "contract %s/%u/%s\n",
+                    row.source_type.c_str(), row.source_revision,
+                    row.source_field.c_str());
+                return 1;
+            }
+            const auto expected =
+                expected_milo_contracts.find(row.source_type);
+            if (expected == expected_milo_contracts.end() ||
+                expected->second != row.source_revision) {
+                std::fprintf(
+                    stderr,
+                    "milo_convert_test: unexpected semantic field "
+                    "contract %s/%u\n",
+                    row.source_type.c_str(), row.source_revision);
+                return 1;
+            }
+            covered_contracts.emplace(
+                row.source_type, row.source_revision);
+            const auto key = std::make_tuple(
+                row.source_type, row.source_revision, row.source_field,
+                row.target_type, row.target_field);
+            if (!unique_rows.insert(key).second) {
+                std::fprintf(
+                    stderr,
+                    "milo_convert_test: duplicate semantic field "
+                    "contract %s/%u/%s\n",
+                    row.source_type.c_str(), row.source_revision,
+                    row.source_field.c_str());
+                return 1;
+            }
+        }
+        if (covered_contracts.size() != expected_milo_contracts.size()) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: semantic field contract class "
+                "coverage mismatch expected=%zu actual=%zu\n",
+                expected_milo_contracts.size(), covered_contracts.size());
+            return 1;
+        }
+        for (const auto& [type, revision] : expected_milo_contracts) {
+            const auto rows =
+                gh::milo_convert::
+                    gh1_to_gh2_semantic_field_contracts_for(
+                        type, revision);
+            const auto schema =
+                gh::milo_convert::
+                    gh1_serialized_semantic_fields_for(
+                        type, revision);
+            if (rows.empty() || schema.empty()) {
+                std::fprintf(
+                    stderr,
+                    "milo_convert_test: missing semantic field schema "
+                    "%s/%u\n",
+                    type.c_str(), revision);
+                return 1;
+            }
+            const std::set<std::string> expected_fields(
+                schema.begin(), schema.end());
+            std::set<std::string> contracted_fields;
+            for (const auto& row : rows) {
+                if (row.source_field != "<synthesized>")
+                    contracted_fields.insert(row.source_field);
+            }
+            if (contracted_fields != expected_fields) {
+                std::string detail;
+                for (const auto& field : expected_fields) {
+                    if (contracted_fields.find(field) ==
+                        contracted_fields.end()) {
+                        detail = "missing " + field;
+                        break;
+                    }
+                }
+                if (detail.empty()) {
+                    for (const auto& field : contracted_fields) {
+                        if (expected_fields.find(field) ==
+                            expected_fields.end()) {
+                            detail = "extra " + field;
+                            break;
+                        }
+                    }
+                }
+                std::fprintf(
+                    stderr,
+                    "milo_convert_test: semantic field schema mismatch "
+                    "%s/%u: %s\n",
+                    type.c_str(), revision, detail.c_str());
+                return 1;
+            }
+        }
+        const auto seq_field_contracts =
+            gh::milo_convert::
+                gh1_to_gh2_semantic_field_contracts_for(
+                    "DTB", 779);
+        const auto seq_field_schema =
+            gh::milo_convert::
+                gh1_serialized_semantic_fields_for(
+                    "DTB", 779);
+        if (seq_field_contracts.empty() ||
+            seq_field_schema.empty() ||
+            std::any_of(
+                seq_field_contracts.begin(),
+                seq_field_contracts.end(),
+                [](const auto& row) {
+                    return row.source_revision != 779;
+                })) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: DTB/SEQ control-word fallback "
+                "mismatch\n");
+            return 1;
+        }
+
+        const auto track_surface_source =
             gh::dtb::serialize(
                 gh::dtb::parse_dta(
+                    "(metal "
+                    "(track_surface \"track/surfaces/metal.bmp\"))\n"
+                    "(hair_metal "
+                    "(track_surface \"track/surfaces/hair.bmp\"))\n"));
+        const auto track_surfaces =
+            gh::milo_convert::
+                compile_gh1_character_track_surfaces(
+                    track_surface_source);
+        if (track_surfaces.size() != 2 ||
+            track_surfaces[0].authored_name != "metal" ||
+            track_surfaces[0].source_surface !=
+                "track/surfaces/metal.bmp" ||
+            track_surfaces[1].authored_name != "hair_metal" ||
+            track_surfaces[1].source_surface !=
+                "track/surfaces/hair.bmp") {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: GH1 character track surface "
+                "manifest mismatch\n");
+            return 1;
+        }
+
+        auto venue_source_tree =
+            gh::dtb::parse_dta(
+                    "{arena load_section lighting lighting}\n"
+                    "{set $reactorState FALSE}\n"
                     "{func pulse ($target) "
                     "{arena switch_anim $target "
                     "(loop 0 480) (scale 2) (blend 240)}}\n"
@@ -35,6 +228,7 @@ int main() {
                     "(scale 1) (blend 100)}}}\n"
                     "{arena add_handlers "
                     "(intro "
+                    "{set $reactorState TRUE} "
                     "{pulse light.anim} "
                     "{speakers (a.anim b.anim)} "
                     "{speakers {switch $slot "
@@ -48,12 +242,25 @@ int main() {
                     "(state {arena switch_anim fan.view "
                     "(loop 0 100) (scale 1)} "
                     "{arena switch_anim fan.view "
-                    "(scale 0.5) (blend 0)})}\n"));
+                    "(scale 0.5) (blend 0)})}\n");
+        venue_source_tree.trailing_bytes = {0xA5, 0x5A};
+        const auto venue_source =
+            gh::dtb::serialize(venue_source_tree);
         const auto venue_target =
             gh::milo_convert::
                 convert_gh1_venue_script_to_gh2_worlddir(
                     venue_source, "arena");
-        if (venue_target.source_functions != 2 ||
+        if (venue_target.source_roots != 5 ||
+            venue_target.recognized_roots != 5 ||
+            venue_target.unrecognized_roots != 0 ||
+            venue_target.loaded_sections.size() != 1 ||
+            venue_target.loaded_sections.front() !=
+                std::make_pair(
+                    std::string("lighting"),
+                    std::string("lighting")) ||
+            venue_target.initialized_states !=
+                std::vector<std::string>{"reactorState"} ||
+            venue_target.source_functions != 2 ||
             venue_target.handlers != 2 ||
             venue_target.function_calls_inlined != 3 ||
             venue_target.foreach_loops_unrolled != 2 ||
@@ -74,13 +281,19 @@ int main() {
                 std::string::npos ||
             venue_target.dta.find("e.anim") ==
                 std::string::npos ||
+            venue_target.dta.find("(reactorState FALSE)") ==
+                std::string::npos ||
+            venue_target.dta.find("[reactorState]") ==
+                std::string::npos ||
             venue_target.dta.find("switch_anim") !=
                 std::string::npos ||
             venue_target.dta.find("delay_task") !=
                 std::string::npos ||
-            gh::dtb::serialize(
-                gh::dtb::parse(venue_target.bytes)) !=
-                venue_target.bytes) {
+             gh::dtb::serialize(
+                 gh::dtb::parse(venue_target.bytes)) !=
+                venue_target.bytes ||
+            gh::dtb::parse(venue_target.bytes).trailing_bytes !=
+                venue_source_tree.trailing_bytes) {
             std::fprintf(
                 stderr,
                 "milo_convert_test: venue script conversion mismatch\n");
@@ -157,10 +370,15 @@ int main() {
             parsed_camera.keyframes[0].blend != 96.0f ||
             parsed_camera.keyframes[0].world_offset[9] != 1.0f ||
             parsed_camera.keyframes.back().world_offset[9] != 104.0f ||
-            parsed_camera.keyframes.back().screen_offset[0] != -0.25f ||
-            parsed_camera.keyframes.back().screen_offset[1] != 0.2f ||
+            parsed_camera.keyframes.back().screen_offset[0] != 0.5f ||
+            parsed_camera.keyframes.back().screen_offset[1] != 0.4f ||
             parsed_camera.keyframes[0].targets.size() != 1 ||
+            parsed_camera.keyframes[0].targets[0].object != "guitarist0" ||
+            parsed_camera.keyframes[0].targets[0].part !=
+                "bone_head.mesh" ||
             parsed_camera.keyframes[0].parent.object != "arena" ||
+            parsed_camera.keyframes[0].parent.part != "venue.view" ||
+            !parsed_camera.keyframes[0].use_parent_rotation ||
             !parsed_camera.use_depth_of_field ||
             camera_properties.size() < 22 ||
             bad_waypoints == camera_properties.end() ||
@@ -174,6 +392,42 @@ int main() {
             std::fprintf(
                 stderr,
                 "milo_convert_test: venue camera conversion mismatch\n");
+            return 1;
+        }
+        const auto fixed_path_camera_source =
+            gh::dtb::serialize(
+                gh::dtb::parse_dta(
+                    "{set $camedit.TEST "
+                    "({arena switch_cam Cam_test fixed01 "
+                    "(start 0) (end 0) (duration 5000) "
+                    "(singer_in 0 0) (singer_out -0.5 0.4) "
+                    "(offset_in 1 2 3) (offset_out 4 5 6) "
+                    "(near 10) (far 10000) "
+                    "(fov_in 45) (fov_out 60)})}\n"));
+        const auto fixed_path_camera_target =
+            gh::milo_convert::
+                convert_gh1_venue_cameras_to_gh2_camshots(
+                    fixed_path_camera_source, camera_main, camera_paths,
+                    shared_camera_animations);
+        const auto fixed_path_camera =
+            gh::milo_object::parse_cam_shot20(
+                fixed_path_camera_target.main_directory.entries[0]
+                    .body_bytes);
+        if (fixed_path_camera_target.records != 1 ||
+            fixed_path_camera.keyframes.size() != 2 ||
+            fixed_path_camera.keyframes.front().world_offset[9] != 4.0f ||
+            fixed_path_camera.keyframes.back().world_offset[9] != 4.0f ||
+            fixed_path_camera.keyframes.front().screen_offset[0] != -0.5f ||
+            fixed_path_camera.keyframes.back().screen_offset[0] != -0.5f ||
+            fixed_path_camera.keyframes.front().screen_offset[1] != 0.4f ||
+            fixed_path_camera.keyframes.back().screen_offset[1] != 0.4f ||
+            fixed_path_camera.keyframes.front().field_of_view !=
+                60.0f * 0.01745329251994329577f ||
+            fixed_path_camera.keyframes.back().field_of_view !=
+                60.0f * 0.01745329251994329577f) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: fixed-path VenueCam endpoint mismatch\n");
             return 1;
         }
         const auto clean_rnd_objects =
@@ -463,6 +717,265 @@ int main() {
             return 1;
         }
 
+        gh::milo::Directory environment_scope_source;
+        environment_scope_source.dir_version = 10;
+        environment_scope_source.boundaries_exact = true;
+        auto add_environment_scope_entry =
+            [&](const std::string& type, const std::string& name,
+                std::vector<uint8_t> body) {
+                gh::milo::Entry entry;
+                entry.type = type;
+                entry.name = name;
+                entry.body_bytes = std::move(body);
+                entry.terminator_value = 0xDEADDEADu;
+                environment_scope_source.entries.push_back(
+                    std::move(entry));
+            };
+        gh::milo_object::Environ base_environment;
+        base_environment.legacy_drawable.revision = 1;
+        add_environment_scope_entry(
+            "Environ", "base.env",
+            gh::milo_object::serialize_environ(base_environment));
+        gh::milo_object::Environ smoke_environment;
+        smoke_environment.legacy_drawable.revision = 1;
+        add_environment_scope_entry(
+            "Environ", "smoke.env",
+            gh::milo_object::serialize_environ(smoke_environment));
+        gh::milo_object::Mesh rig_mesh;
+        rig_mesh.drawable.revision = 1;
+        add_environment_scope_entry(
+            "Mesh", "rig.mesh",
+            gh::milo_object::serialize_mesh(rig_mesh));
+        gh::milo_object::Mesh smoke_mesh;
+        smoke_mesh.drawable.revision = 1;
+        add_environment_scope_entry(
+            "Mesh", "smoke.mesh",
+            gh::milo_object::serialize_mesh(smoke_mesh));
+        gh::milo_object::View environment_scope_view;
+        environment_scope_view.drawable.revision = 1;
+        environment_scope_view.drawable.objects = {
+            "base.env", "rig.mesh", "smoke.env", "smoke.mesh"};
+        environment_scope_view.children_owner = "scope.view";
+        add_environment_scope_entry(
+            "View", "scope.view",
+            gh::milo_object::serialize_view(environment_scope_view));
+        const auto environment_scope_result =
+            gh::milo_convert::convert_gh1_directory_to_gh2_rnddir(
+                environment_scope_source, "scope", "scope.view");
+        const auto find_environment_scope_entry =
+            [&](const std::string& name) {
+                return std::find_if(
+                    environment_scope_result.directory.entries.begin(),
+                    environment_scope_result.directory.entries.end(),
+                    [&](const gh::milo::Entry& entry) {
+                        return entry.name == name;
+                    });
+            };
+        const auto environment_scope_root_entry =
+            find_environment_scope_entry("scope.view");
+        const auto base_scope_entry =
+            find_environment_scope_entry(
+                "scope.view.__environment_0.grp");
+        const auto smoke_scope_entry =
+            find_environment_scope_entry(
+                "scope.view.__environment_1.grp");
+        const auto environment_draw_only_entry =
+            find_environment_scope_entry(
+                "scope.view.__draw_only.grp");
+        if (environment_scope_root_entry ==
+                environment_scope_result.directory.entries.end() ||
+            base_scope_entry ==
+                environment_scope_result.directory.entries.end() ||
+            smoke_scope_entry ==
+                environment_scope_result.directory.entries.end() ||
+            environment_draw_only_entry ==
+                environment_scope_result.directory.entries.end()) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: View environment scope Group missing\n");
+            return 1;
+        }
+        const auto environment_scope_root =
+            gh::milo_object::parse_group12(
+                environment_scope_root_entry->body_bytes);
+        const auto base_scope =
+            gh::milo_object::parse_group12(
+                base_scope_entry->body_bytes);
+        const auto smoke_scope =
+            gh::milo_object::parse_group12(
+                smoke_scope_entry->body_bytes);
+        const auto environment_draw_only =
+            gh::milo_object::parse_group12(
+                environment_draw_only_entry->body_bytes);
+        if (!environment_scope_result.complete ||
+            environment_scope_root.revision != 13 ||
+            !environment_scope_root.environment.empty() ||
+            environment_scope_root.draw_only !=
+                "scope.view.__draw_only.grp" ||
+            environment_scope_root.objects.size() != 2 ||
+            environment_scope_root.objects[0] !=
+                "scope.view.__environment_0.grp" ||
+            environment_scope_root.objects[1] !=
+                "scope.view.__environment_1.grp" ||
+            base_scope.environment != "base.env" ||
+            base_scope.objects.size() != 1 ||
+            base_scope.objects[0] != "rig.mesh" ||
+            smoke_scope.environment != "smoke.env" ||
+            smoke_scope.objects.size() != 1 ||
+            smoke_scope.objects[0] != "smoke.mesh" ||
+            environment_draw_only.objects !=
+                environment_scope_root.objects) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: ordered View environment scope mismatch\n");
+            return 1;
+        }
+
+        gh::milo::Directory drawable_graph_source;
+        drawable_graph_source.dir_version = 10;
+        drawable_graph_source.boundaries_exact = true;
+        gh::milo_object::Mesh drawable_parent;
+        drawable_parent.drawable.revision = 1;
+        drawable_parent.drawable.objects = {"cable.mesh"};
+        drawable_parent.transformable.parent = "record.mesh";
+        gh::milo::Entry drawable_parent_entry;
+        drawable_parent_entry.type = "Mesh";
+        drawable_parent_entry.name = "record.mesh";
+        drawable_parent_entry.body_bytes =
+            gh::milo_object::serialize_mesh(drawable_parent);
+        drawable_parent_entry.terminator_value = 0xDEADDEADu;
+        drawable_graph_source.entries.push_back(
+            std::move(drawable_parent_entry));
+        gh::milo_object::Mesh drawable_child;
+        drawable_child.drawable.revision = 1;
+        drawable_child.transformable.parent = "record.mesh";
+        gh::milo::Entry drawable_child_entry;
+        drawable_child_entry.type = "Mesh";
+        drawable_child_entry.name = "cable.mesh";
+        drawable_child_entry.body_bytes =
+            gh::milo_object::serialize_mesh(drawable_child);
+        drawable_child_entry.terminator_value = 0xDEADDEADu;
+        drawable_graph_source.entries.push_back(
+            std::move(drawable_child_entry));
+        gh::milo_object::Mesh orphan_drawable;
+        orphan_drawable.drawable.revision = 1;
+        orphan_drawable.transformable.parent = "orphan.mesh";
+        gh::milo::Entry orphan_drawable_entry;
+        orphan_drawable_entry.type = "Mesh";
+        orphan_drawable_entry.name = "orphan.mesh";
+        orphan_drawable_entry.body_bytes =
+            gh::milo_object::serialize_mesh(orphan_drawable);
+        orphan_drawable_entry.terminator_value = 0xDEADDEADu;
+        drawable_graph_source.entries.push_back(
+            std::move(orphan_drawable_entry));
+        gh::milo_object::Mesh nested_drawable;
+        nested_drawable.drawable.revision = 1;
+        nested_drawable.transformable.parent = "nested.mesh";
+        gh::milo::Entry nested_drawable_entry;
+        nested_drawable_entry.type = "Mesh";
+        nested_drawable_entry.name = "nested.mesh";
+        nested_drawable_entry.body_bytes =
+            gh::milo_object::serialize_mesh(nested_drawable);
+        nested_drawable_entry.terminator_value = 0xDEADDEADu;
+        drawable_graph_source.entries.push_back(
+            std::move(nested_drawable_entry));
+        gh::milo_object::View nested_view;
+        nested_view.drawable.revision = 1;
+        nested_view.drawable.objects = {"nested.mesh"};
+        nested_view.children_owner = "nested.view";
+        nested_view.transformable.parent = "nested.view";
+        gh::milo::Entry nested_view_entry;
+        nested_view_entry.type = "View";
+        nested_view_entry.name = "nested.view";
+        nested_view_entry.body_bytes =
+            gh::milo_object::serialize_view(nested_view);
+        nested_view_entry.terminator_value = 0xDEADDEADu;
+        drawable_graph_source.entries.push_back(
+            std::move(nested_view_entry));
+        gh::milo_object::View drawable_graph_view;
+        drawable_graph_view.drawable.revision = 1;
+        drawable_graph_view.drawable.objects = {
+            "record.mesh", "nested.view"};
+        drawable_graph_view.animatable.objects = {"orphan.mesh"};
+        drawable_graph_view.children_owner = "records.view";
+        drawable_graph_view.transformable.parent = "records.view";
+        gh::milo::Entry drawable_graph_view_entry;
+        drawable_graph_view_entry.type = "View";
+        drawable_graph_view_entry.name = "records.view";
+        drawable_graph_view_entry.body_bytes =
+            gh::milo_object::serialize_view(drawable_graph_view);
+        drawable_graph_view_entry.terminator_value = 0xDEADDEADu;
+        drawable_graph_source.entries.push_back(
+            std::move(drawable_graph_view_entry));
+        const auto drawable_graph_result =
+            gh::milo_convert::convert_gh1_directory_to_gh2_rnddir(
+                drawable_graph_source, "records", "records.view");
+        const auto drawable_graph_group_entry =
+            std::find_if(
+                drawable_graph_result.directory.entries.begin(),
+                drawable_graph_result.directory.entries.end(),
+                [](const gh::milo::Entry& entry) {
+                    return entry.name == "records.view";
+                });
+        const auto hidden_group_entry =
+            std::find_if(
+                drawable_graph_result.directory.entries.begin(),
+                drawable_graph_result.directory.entries.end(),
+                [](const gh::milo::Entry& entry) {
+                    return entry.name ==
+                           "__gh1_unreachable_drawables.grp";
+                });
+        const auto draw_only_group_entry =
+            std::find_if(
+                drawable_graph_result.directory.entries.begin(),
+                drawable_graph_result.directory.entries.end(),
+                [](const gh::milo::Entry& entry) {
+                    return entry.name ==
+                           "records.view.__draw_only.grp";
+                });
+        if (drawable_graph_group_entry ==
+                drawable_graph_result.directory.entries.end() ||
+            hidden_group_entry ==
+                drawable_graph_result.directory.entries.end() ||
+            draw_only_group_entry ==
+                drawable_graph_result.directory.entries.end()) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: drawable root Group missing\n");
+            return 1;
+        }
+        const auto drawable_graph_group =
+            gh::milo_object::parse_group12(
+                drawable_graph_group_entry->body_bytes);
+        const auto hidden_group =
+            gh::milo_object::parse_group12(
+                hidden_group_entry->body_bytes);
+        const auto draw_only_group =
+            gh::milo_object::parse_group12(
+                draw_only_group_entry->body_bytes);
+        if (!drawable_graph_result.complete ||
+            drawable_graph_group.revision != 13 ||
+            drawable_graph_group.draw_only !=
+                "records.view.__draw_only.grp" ||
+            drawable_graph_group.objects.size() != 4 ||
+            drawable_graph_group.objects[0] != "orphan.mesh" ||
+            drawable_graph_group.objects[1] != "record.mesh" ||
+            drawable_graph_group.objects[2] != "cable.mesh" ||
+            drawable_graph_group.objects[3] != "nested.view" ||
+            draw_only_group.objects.size() != 3 ||
+            draw_only_group.objects[0] != "record.mesh" ||
+            draw_only_group.objects[1] != "cable.mesh" ||
+            draw_only_group.objects[2] != "nested.view" ||
+            draw_only_group.transformable.parent != "records.view" ||
+            hidden_group.drawable.showing ||
+            hidden_group.objects.size() != 1 ||
+            hidden_group.objects[0] != "orphan.mesh") {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: legacy drawable root mismatch\n");
+            return 1;
+        }
+
         gh::milo::Directory model_source;
         model_source.dir_version = 10;
         model_source.boundaries_exact = true;
@@ -518,10 +1031,22 @@ int main() {
             gh::milo::serialize_directory(model_package.directory);
         const auto parsed_model =
             gh::milo::parse_directory(model_bytes);
+        const auto model_pelvis = std::find_if(
+            model_package.directory.entries.begin(),
+            model_package.directory.entries.end(),
+            [](const gh::milo::Entry& entry) {
+                return entry.name == "bone_pelvis.mesh";
+            });
         if (!model_package.complete ||
             model_package.directory.dir_type != "Character" ||
             model_root.render_directory.object_directory.object_fields.type !=
                 "bassist" ||
+            model_package.native_transform_count != 1 ||
+            model_pelvis == model_package.directory.entries.end() ||
+            model_pelvis->type != "Trans" ||
+            gh::milo_object::parse_trans9(
+                model_pelvis->body_bytes).parent !=
+                pelvis.transformable.parent ||
             model_root.lods.size() != 2 ||
             std::abs(model_root.lods[0].screen_size - 0.01f) >
                 0.000001f ||
@@ -641,8 +1166,48 @@ int main() {
                     std::move(entry));
             };
         append_guitar_mesh("bone_head.mesh", "bone_pelvis.mesh");
+        const auto append_guitar_twist_mesh =
+            [&guitar_input](
+                const char* name, float world_x) {
+                gh::milo_object::Mesh mesh;
+                mesh.geometry_owner = name;
+                mesh.transformable.parent =
+                    "bone_pelvis.mesh";
+                mesh.transformable.local = {
+                    1, 0, 0, 0, 1, 0,
+                    0, 0, 1, world_x, 0, 0};
+                mesh.transformable.world =
+                    mesh.transformable.local;
+                gh::milo::Entry entry;
+                entry.type = "Mesh";
+                entry.name = name;
+                entry.body_bytes =
+                    gh::milo_object::serialize_mesh(mesh);
+                entry.terminator_value = 0xDEADDEADu;
+                guitar_input.source_model.entries.push_back(
+                    std::move(entry));
+            };
+        append_guitar_twist_mesh(
+            "bone_L-upperTwist1.mesh", 1.0f);
+        append_guitar_twist_mesh(
+            "bone_L-upperTwist2.mesh", 3.0f);
+        append_guitar_twist_mesh(
+            "bone_L-upperArm.mesh", 4.0f);
         append_guitar_mesh("L-eye.mesh", "bone_head.mesh");
         append_guitar_mesh("R-eye.mesh", "bone_head.mesh");
+        gh::milo_convert::Gh1CharacterControllerSpec
+            upper_twist;
+        upper_twist.kind =
+            gh::milo_convert::
+                Gh1CharacterControllerKind::UpperTwist;
+        upper_twist.class_name = "AnimServoUpperTwist";
+        upper_twist.name = "upperTwist_L.servo";
+        upper_twist.bones = {
+            "bone_L-upperTwist1.mesh",
+            "bone_L-upperTwist2.mesh",
+            "bone_L-upperArm.mesh"};
+        guitar_input.spec.controllers.push_back(
+            upper_twist);
         guitar_input.spec.eyes.present = true;
         guitar_input.spec.eyes.parent = "bone_head.mesh";
         guitar_input.spec.eyes.constraint = 0.925f;
@@ -683,16 +1248,50 @@ int main() {
             find_guitar_entry("Mesh", "L-eye.mesh");
         const auto* right_eye_mesh_entry =
             find_guitar_entry("Mesh", "R-eye.mesh");
+        const auto* guitar_pelvis_entry =
+            find_guitar_entry("Trans", "bone_pelvis.mesh");
+        const auto* guitar_head_entry =
+            find_guitar_entry("Trans", "bone_head.mesh");
+        const auto* guitar_upper_twist_entry =
+            find_guitar_entry(
+                "CharUpperTwist",
+                "upperTwist_L.servo");
+        const auto* guitar_upper_twist2_entry =
+            find_guitar_entry(
+                "Trans",
+                "bone_L-upperTwist2.mesh");
         if (!guitar_package.complete ||
             guitar_package.directory.dir_type != "BandCharacter" ||
-            guitar_package.directory.entries.size() != 15 ||
+            guitar_package.native_transform_count != 5 ||
+            guitar_package.native_upper_twist_sibling_count != 1 ||
+            guitar_package.directory.entries.size() != 19 ||
             !guitar_outfit_entry || !fret_entry ||
             !left_weight_entry || !right_weight_entry ||
             !left_eye_entry || !right_eye_entry || !eyes_entry ||
-            !left_eye_mesh_entry || !right_eye_mesh_entry) {
+            !left_eye_mesh_entry || !right_eye_mesh_entry ||
+            !guitar_pelvis_entry || !guitar_head_entry ||
+            !guitar_upper_twist_entry ||
+            !guitar_upper_twist2_entry) {
             std::fprintf(
                 stderr,
                 "milo_convert_test: guitarist stock graph missing\n");
+            return 1;
+        }
+        const auto guitar_upper_twist2 =
+            gh::milo_object::parse_trans9(
+                guitar_upper_twist2_entry->body_bytes);
+        if (guitar_upper_twist2.parent !=
+                "bone_pelvis.mesh" ||
+            std::abs(
+                guitar_upper_twist2.local[9] - 3.0f) >
+                0.000001f ||
+            std::abs(
+                guitar_upper_twist2.world[9] - 3.0f) >
+                0.000001f) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: shared GH1/GH2 upper-twist "
+                "sibling graph was not preserved\n");
             return 1;
         }
         const auto guitar_outfit =
@@ -1045,12 +1644,24 @@ int main() {
         };
 
         gh::milo_object::View parent;
+        parent.animatable.objects = {"root.tnm"};
         parent.transformable.children = {"child.lt"};
         parent.transformable.parent = "parent.view";
         parent.children_owner = "parent.view";
         add_source_entry(
             "View", "parent.view",
             gh::milo_object::serialize_view(parent));
+
+        gh::milo_object::TransAnim root_animation;
+        root_animation.animatable.objects = {"child.mnm"};
+        add_source_entry(
+            "TransAnim", "root.tnm",
+            gh::milo_object::serialize_trans_anim(root_animation));
+
+        gh::milo_object::MatAnim child_animation;
+        add_source_entry(
+            "MatAnim", "child.mnm",
+            gh::milo_object::serialize_mat_anim(child_animation));
 
         gh::milo_object::Light child;
         child.transformable.constraint = 3;
@@ -1084,7 +1695,9 @@ int main() {
         };
         const auto* child_target = find_target("child.lt");
         const auto* early_target = find_target("early.lt");
-        if (!graph_result.complete || !child_target || !early_target) {
+        const auto* parent_target = find_target("parent.view");
+        if (!graph_result.complete || !child_target || !early_target ||
+            !parent_target) {
             std::fprintf(
                 stderr, "milo_convert_test: transform graph missing\n");
             return 1;
@@ -1093,10 +1706,16 @@ int main() {
             gh::milo_object::parse_light6(child_target->body_bytes);
         const auto parsed_early =
             gh::milo_object::parse_light6(early_target->body_bytes);
+        const auto parsed_parent =
+            gh::milo_object::parse_group12(
+                parent_target->body_bytes);
         if (parsed_child.transformable.parent != "parent.view" ||
             parsed_child.transformable.constraint != 4 ||
             parsed_early.transformable.parent != "late.view" ||
-            parsed_early.transformable.constraint != 2) {
+            parsed_early.transformable.constraint != 2 ||
+            parsed_parent.objects !=
+                std::vector<std::string>{
+                    "root.tnm", "child.mnm"}) {
             std::fprintf(
                 stderr,
                 "milo_convert_test: transform graph semantics mismatch\n");
@@ -1305,6 +1924,280 @@ int main() {
             std::fprintf(
                 stderr,
                 "milo_convert_test: moving recenter mismatch\n");
+            return 1;
+        }
+
+        auto hand_input = package_input;
+        hand_input.spec.invocation = "TEST_HAND";
+        hand_input.spec.qualified_name =
+            "main::test_hand.cset";
+        hand_input.spec.target_name = "test_hand";
+        hand_input.spec.archetype_rnd =
+            "charsys/test_hand/test_hand.rnd";
+        hand_input.spec.animations.clear();
+        hand_input.spec.recenter_channels.clear();
+        hand_input.spec.recenter_bones.clear();
+        hand_input.clips.clear();
+        const auto add_hand_clip =
+            [&](const char* name, const char* anchor) {
+                auto clip = make_package_clip(name, true);
+                clip.channel_sets[0].channels = {
+                    std::string(anchor) + ".pos"};
+                clip.channel_sets[0].frame_size = 12;
+                clip.channel_sets[0].sample_bytes.resize(24);
+                clip.channel_sets[1].channels.clear();
+                clip.channel_sets[1].frame_size = 0;
+                clip.channel_sets[1].sample_bytes.clear();
+                gh::milo_convert::Gh1AnimationSpec animation;
+                animation.name = name;
+                animation.flags = clip.flags & 0x7fffffffu;
+                animation.play_flags = clip.play_flags;
+                animation.blend_width = clip.blend_width;
+                animation.channels =
+                    clip.channel_sets[0].channels;
+                hand_input.clips.push_back(std::move(clip));
+                hand_input.spec.animations.push_back(
+                    std::move(animation));
+            };
+        add_hand_clip("finger_open", "bone_fret_hand");
+        add_hand_clip("strum_open", "bone_strum_hand");
+        add_hand_clip(
+            "strum_pluck_short", "bone_strum_hand");
+        add_hand_clip(
+            "strum_pluck_down", "bone_strum_hand");
+        add_hand_clip(
+            "strum_down_long", "bone_strum_hand");
+        add_skeleton_mesh("bone_fret_hand.mesh");
+        add_skeleton_mesh("bone_strum_hand.mesh");
+        hand_input.archetype = package_input.archetype;
+        const auto hand_packages =
+            gh::milo_convert::
+                convert_gh1_clip_set_to_gh2_packages(
+                    hand_input);
+        const auto strum_package = std::find_if(
+            hand_packages.begin(), hand_packages.end(),
+            [](const auto& package) {
+                return package.role ==
+                       gh::milo_convert::
+                           Gh2ClipSetRole::GuitarStrum;
+            });
+        std::set<std::string> strum_names;
+        if (strum_package != hand_packages.end()) {
+            for (const auto& entry :
+                 strum_package->directory.entries)
+                if (entry.type == "CharClipSamples")
+                    strum_names.insert(entry.name);
+        }
+        const std::set<std::string> expected_strum_names = {
+            "strum_open",
+            "strum_pluck_short", "strum_pluck_down",
+            "strum_down_long",
+            "strum_short_01", "strum_short_02",
+            "strum_short_03", "strum_short_04",
+            "strum_long_01", "strum_long_02",
+            "strum_long_03", "strum_long_04",
+            "strum_pick_01", "strum_pick_02"};
+        if (hand_packages.size() != 2 ||
+            strum_package == hand_packages.end() ||
+            strum_names != expected_strum_names ||
+            strum_package->source_clips.size() != 4) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: GH1/GH2 strum semantic "
+                "alias contract mismatch\n");
+            return 1;
+        }
+
+        if (gh::milo_convert::
+                convert_gh1_guitar_clip_flags_to_gh2(
+                    0x06FFC0E3u) != 0x00C00003u ||
+            gh::milo_convert::
+                convert_gh1_guitar_clip_flags_to_gh2(
+                    0x00C00842u) != 0x00C00802u ||
+            gh::milo_convert::
+                convert_gh1_guitar_clip_flags_to_gh2(
+                    0x00C02882u) != 0x00C02802u) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: GH1 guitarist family flags leaked "
+                "into GH2 CharClip semantics\n");
+            return 1;
+        }
+        if (gh::milo_convert::
+                convert_gh1_band_clip_flags_to_gh2(
+                    0x00000040u, false) != 0x00001440u ||
+            gh::milo_convert::
+                convert_gh1_band_clip_flags_to_gh2(
+                    0x00000007u, false) != 0x00000007u ||
+            gh::milo_convert::
+                convert_gh1_band_clip_flags_to_gh2(
+                    0x00000006u, true) != 0x00000206u ||
+            gh::milo_convert::
+                convert_gh1_band_clip_flags_to_gh2(
+                    0x00000012u, true) != 0x00000012u) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: GH1 band target-domain promotion "
+                "mismatch\n");
+            return 1;
+        }
+
+        gh::milo::Directory venue_main;
+        venue_main.dir_version = 24;
+        venue_main.dir_type = "RndDir";
+        venue_main.dir_name = "gh1_fixture";
+        venue_main.boundaries_exact = true;
+        gh::milo_object::RndDir8 venue_root;
+        venue_root.transformable.local =
+            {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0};
+        venue_root.transformable.world =
+            venue_root.transformable.local;
+        venue_main.dir_body_bytes =
+            gh::milo_object::serialize_rnd_dir8(venue_root);
+
+        gh::milo::Directory venue_lighting = venue_main;
+        venue_lighting.dir_name = "lighting";
+        auto add_spot =
+            [&](const std::string& name, float x) {
+                gh::milo_object::Mesh28 mesh;
+                mesh.transformable.local =
+                    {2, 0, 0, 0, 3, 0, 0, 0, 4, x, 20, 30};
+                mesh.transformable.world =
+                    mesh.transformable.local;
+                mesh.bsp_nodes.emplace_back();
+                gh::milo::Entry entry;
+                entry.type = "Mesh";
+                entry.name = name;
+                entry.body_bytes =
+                    gh::milo_object::serialize_mesh28(mesh);
+                entry.size = entry.body_bytes.size();
+                entry.terminator_value = 0xDEADDEADu;
+                venue_lighting.entries.push_back(std::move(entry));
+            };
+        add_spot("walk_spot_01.mesh", 10);
+        add_spot("stage_spot_01.mesh", 11);
+        add_spot("stage_spot_02.mesh", 12);
+        add_spot("stage_spot_03.mesh", 13);
+        const auto placement =
+            gh::milo_convert::
+                convert_gh1_venue_spots_to_gh2_waypoints(
+                    "gh1_fixture", {venue_main, venue_lighting});
+        if (placement.waypoints != 4 ||
+            placement.characters_directory.entries.size() != 4 ||
+            placement.records.size() != 4 ||
+            placement.characters_directory.dir_name !=
+                "gh1_fixture_chars") {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: venue placement package mismatch\n");
+            return 1;
+        }
+        const auto placement_bytes =
+            gh::milo::serialize_directory(
+                placement.characters_directory);
+        const auto placement_verify =
+            gh::milo::parse_directory(placement_bytes);
+        if (!placement_verify.boundaries_exact ||
+            gh::milo::serialize_directory(placement_verify) !=
+                placement_bytes) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: venue placement directory "
+                "round trip mismatch\n");
+            return 1;
+        }
+        const std::array<uint32_t, 4> expected_flags =
+            {65, 4, 16, 32};
+        const std::array<float, 4> expected_x =
+            {10, 11, 12, 13};
+        const std::array<std::string, 4> expected_roles = {
+            "guitarist0", "singer", "bassist", "drummer"};
+        const std::array<std::string, 4> expected_helpers = {
+            "walk_spot_01.mesh", "stage_spot_01.mesh",
+            "stage_spot_02.mesh", "stage_spot_03.mesh"};
+        for (size_t index = 0; index < 4; ++index) {
+            const auto waypoint =
+                gh::milo_object::parse_waypoint3(
+                    placement.characters_directory.entries[index]
+                        .body_bytes);
+            const auto& record = placement.records[index];
+            if (waypoint.flags != expected_flags[index] ||
+                waypoint.transformable.local[0] != 1.0f ||
+                waypoint.transformable.local[4] != 1.0f ||
+                waypoint.transformable.local[8] != 1.0f ||
+                waypoint.transformable.local[9] != expected_x[index] ||
+                record.role != expected_roles[index] ||
+                record.source_helper != expected_helpers[index] ||
+                record.target_waypoint !=
+                    placement.characters_directory.entries[index].name ||
+                record.flags != expected_flags[index] ||
+                record.source_world[0] != 2.0f ||
+                record.source_world[4] != 3.0f ||
+                record.source_world[8] != 4.0f ||
+                record.source_world[9] != expected_x[index] ||
+                record.target_transform !=
+                    waypoint.transformable.local ||
+                waypoint.transformable.world !=
+                    waypoint.transformable.local) {
+                std::fprintf(
+                    stderr,
+                    "milo_convert_test: venue placement waypoint mismatch\n");
+                return 1;
+            }
+        }
+        gh::milo_convert::link_gh2_venue_characters_directory(
+            venue_main, "gh1_fixture");
+        const auto linked_root =
+            gh::milo_object::parse_rnd_dir8(
+                venue_main.dir_body_bytes);
+        if (linked_root.object_directory.subdirectories !=
+            std::vector<std::string>(
+                {"gh1_fixture_chars.milo"})) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: venue placement link mismatch\n");
+            return 1;
+        }
+        gh::milo::Entry preview_camera;
+        preview_camera.type = "Cam";
+        preview_camera.name = "fixture_preview.cam";
+        preview_camera.body_bytes =
+            gh::milo_object::serialize_cam12(
+                gh::milo_object::Cam12{});
+        preview_camera.size = preview_camera.body_bytes.size();
+        preview_camera.terminator_value = 0xDEADDEADu;
+        venue_main.entries.push_back(std::move(preview_camera));
+        gh::milo_convert::finalize_gh2_venue_world_directory(
+            venue_main, "gh1_fixture",
+            {{"lighting", "lighting"}, {"crowd", "crowd"}},
+            true);
+        const auto world_root =
+            gh::milo_object::parse_world_dir11(
+                venue_main.dir_body_bytes);
+        if (venue_main.dir_type != "WorldDir" ||
+            world_root.legacy_value != 0 ||
+            world_root.legacy_float != 1.0f ||
+            world_root.fake_hud_filename !=
+                "../../../hud/hud_1p_nocam.milo" ||
+            world_root.panel_directory.camera !=
+                "fixture_preview.cam" ||
+            world_root.panel_directory.test_event != "ui_enter" ||
+            world_root.panel_directory.render_directory.test_event !=
+                "start" ||
+            world_root.panel_directory.render_directory
+                    .object_directory.subdirectories !=
+                std::vector<std::string>(
+                    {"gh1_fixture_chars.milo",
+                     "lighting.milo", "crowd.milo"}) ||
+            world_root.legacy_transform !=
+                std::array<float, 12>{
+                    1, 0, 0, 0, 1, 0,
+                    0, 0, 1, 0, 0, 0} ||
+            gh::milo_object::serialize_world_dir11(world_root) !=
+                venue_main.dir_body_bytes) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: venue WorldDir promotion mismatch\n");
             return 1;
         }
     } catch (const std::exception& ex) {

@@ -116,6 +116,11 @@ struct Gh1CharacterManifest {
     std::vector<Gh1CharacterSpec> characters;
 };
 
+struct Gh1CharacterTrackSurfaceSpec {
+    std::string authored_name;
+    std::string source_surface;
+};
+
 // Compiles the authored GH1 character system, including recursive includes,
 // merges, and macro expansions, into the facts needed by the native package
 // writer. All paths are archive paths supplied by `reader`.
@@ -123,6 +128,13 @@ Gh1CharacterManifest compile_gh1_character_manifest(
     const std::string& dtb_path,
     const std::vector<uint8_t>& dtb_bytes,
     const VirtualAssetReader& reader);
+
+// Recovers the per-character highway bitmap references authored in
+// config/gen/characters.dtb. Destination naming is intentionally left to the
+// GH2 bundle writer so this parser remains a source-format contract.
+std::vector<Gh1CharacterTrackSurfaceSpec>
+compile_gh1_character_track_surfaces(
+    const std::vector<uint8_t>& dtb_bytes);
 
 std::string gh1_character_manifest_tsv(
     const Gh1CharacterManifest& manifest);

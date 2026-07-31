@@ -57,6 +57,16 @@ std::string inferred_reference_type(const std::string& name) {
     return found == types.end() ? std::string() : found->second;
 }
 
+bool is_target_drawable_type(const std::string& type) {
+    return type == "Flare" ||
+           type == "Group" ||
+           type == "Mesh" ||
+           type == "MultiMesh" ||
+           type == "ParticleSys" ||
+           type == "Text" ||
+           type == "View";
+}
+
 void set_identity(std::array<float, 12>& transform) {
     transform = {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0};
 }
@@ -114,6 +124,37 @@ void add_legacy_filter_if_required(
         "Animatable0 scale/range program expanded using retail loader rules");
 }
 
+std::optional<gh::milo_object::LegacyAnimatable>
+legacy_animatable(const gh::milo::Entry& entry) {
+    if (entry.type == "CamAnim")
+        return gh::milo_object::parse_cam_anim(entry.body_bytes).animatable;
+    if (entry.type == "EnvAnim")
+        return gh::milo_object::parse_env_anim(entry.body_bytes).animatable;
+    if (entry.type == "LightAnim")
+        return gh::milo_object::parse_light_anim(entry.body_bytes)
+            .animatable;
+    if (entry.type == "MatAnim")
+        return gh::milo_object::parse_mat_anim(entry.body_bytes).animatable;
+    if (entry.type == "MeshAnim")
+        return gh::milo_object::parse_mesh_anim(entry.body_bytes).animatable;
+    if (entry.type == "Morph")
+        return gh::milo_object::parse_morph(entry.body_bytes).animatable;
+    if (entry.type == "Movie")
+        return gh::milo_object::parse_movie(entry.body_bytes).animatable;
+    if (entry.type == "ParticleSys")
+        return gh::milo_object::parse_particle_sys(entry.body_bytes)
+            .animatable;
+    if (entry.type == "ParticleSysAnim")
+        return gh::milo_object::parse_particle_sys_anim(entry.body_bytes)
+            .animatable;
+    if (entry.type == "TransAnim")
+        return gh::milo_object::parse_trans_anim(entry.body_bytes)
+            .animatable;
+    if (entry.type == "View")
+        return gh::milo_object::parse_view(entry.body_bytes).animatable;
+    return std::nullopt;
+}
+
 std::optional<gh::milo_object::LegacyTransformable>
 legacy_transformable(const gh::milo::Entry& entry) {
     if (entry.type == "Cam")
@@ -131,6 +172,31 @@ legacy_transformable(const gh::milo::Entry& entry) {
         return gh::milo_object::parse_text(entry.body_bytes).transformable;
     if (entry.type == "View")
         return gh::milo_object::parse_view(entry.body_bytes).transformable;
+    return std::nullopt;
+}
+
+std::optional<gh::milo_object::LegacyDrawable>
+legacy_drawable(const gh::milo::Entry& entry) {
+    if (entry.type == "Cam")
+        return gh::milo_object::parse_cam(entry.body_bytes).drawable;
+    if (entry.type == "Environ")
+        return gh::milo_object::parse_environ(entry.body_bytes)
+            .legacy_drawable;
+    if (entry.type == "Flare")
+        return gh::milo_object::parse_flare(entry.body_bytes).drawable;
+    if (entry.type == "Mesh")
+        return gh::milo_object::parse_mesh(entry.body_bytes).drawable;
+    if (entry.type == "MultiMesh")
+        return gh::milo_object::parse_multi_mesh(entry.body_bytes).drawable;
+    if (entry.type == "ParticleSys")
+        return gh::milo_object::parse_particle_sys(entry.body_bytes)
+            .drawable;
+    if (entry.type == "Text")
+        return gh::milo_object::parse_text(entry.body_bytes).drawable;
+    if (entry.type == "TransAnim")
+        return gh::milo_object::parse_trans_anim(entry.body_bytes).drawable;
+    if (entry.type == "View")
+        return gh::milo_object::parse_view(entry.body_bytes).drawable;
     return std::nullopt;
 }
 
@@ -353,7 +419,8 @@ convert_gh1_acg_to_gh2_char_clip_transitions(
 
 Result convert_gh1_directory_to_gh2_rnddir(
     const gh::milo::Directory& source,
-    const std::string& target_directory_name) {
+    const std::string& target_directory_name,
+    const std::string& authored_draw_root) {
     if (source.dir_version != 10 || !source.boundaries_exact)
         throw std::runtime_error(
             "milo convert: source must be an exact GH1 revision-10 directory");
@@ -369,11 +436,13 @@ Result convert_gh1_directory_to_gh2_rnddir(
     result.directory.dir_terminator_value = kObjectTerminator;
 
     std::map<std::string, std::string> source_types;
+    std::map<std::string, const gh::milo::Entry*> source_entries;
     std::set<std::string> target_names;
     for (const auto& entry : source.entries) {
         if (!source_types.emplace(entry.name, entry.type).second)
             throw std::runtime_error(
                 "milo convert: duplicate source object name " + entry.name);
+        source_entries.emplace(entry.name, &entry);
         target_names.insert(entry.name);
     }
 
@@ -424,6 +493,32 @@ Result convert_gh1_directory_to_gh2_rnddir(
         const auto found = source_types.find(name);
         if (found != source_types.end()) return found->second;
         return inferred_reference_type(name);
+    };
+
+    const auto append_drawable_closure =
+        [&](auto&& self, const std::string& name,
+            gh::milo_object::ResolvedViewGraph& graph,
+            std::set<std::string>& visiting) -> void {
+        const std::string type = reference_type(name);
+        if (type.empty())
+            throw std::runtime_error(
+                "View drawable reference type is unresolved: " + name);
+        graph.drawable_objects.push_back({name, type});
+
+        // A nested View becomes a native Group and retains its own authored
+        // drawable graph. Expanding through it here would flatten group
+        // boundaries and duplicate its draw traversal.
+        if (type == "View") return;
+        const auto entry = source_entries.find(name);
+        if (entry == source_entries.end()) return;
+        const auto drawable = legacy_drawable(*entry->second);
+        if (!drawable || drawable->objects.empty()) return;
+        if (!visiting.insert(name).second)
+            throw std::runtime_error(
+                "View drawable graph contains a cycle at " + name);
+        for (const auto& child : drawable->objects)
+            self(self, child, graph, visiting);
+        visiting.erase(name);
     };
 
     for (const auto& entry : source.entries) {
@@ -834,8 +929,10 @@ Result convert_gh1_directory_to_gh2_rnddir(
                     throw std::runtime_error(
                         "View children_owner does not resolve to a View");
                 gh::milo_object::ResolvedViewGraph graph;
-                for (const auto& name :
-                     owner->second.animatable.objects) {
+                std::set<std::string> visiting_animations;
+                const auto append_animation_closure =
+                    [&](auto&& self,
+                        const std::string& name) -> void {
                     const std::string type = reference_type(name);
                     if (type.empty())
                         throw std::runtime_error(
@@ -851,21 +948,156 @@ Result convert_gh1_directory_to_gh2_rnddir(
                                     {split_name, "MatAnim"});
                         }
                     }
-                }
-                for (const auto& name : owner->second.drawable.objects) {
-                    const std::string type = reference_type(name);
-                    if (type.empty())
+                    // A nested View becomes a native Group and retains its
+                    // own authored animation graph.
+                    if (type == "View") return;
+                    const auto source_entry =
+                        source_entries.find(name);
+                    if (source_entry == source_entries.end()) return;
+                    const auto animation =
+                        legacy_animatable(*source_entry->second);
+                    if (!animation || animation->objects.empty())
+                        return;
+                    if (!visiting_animations.insert(name).second)
                         throw std::runtime_error(
-                            "View drawable reference type is unresolved: " +
+                            "View animation graph contains a cycle at " +
                             name);
-                    graph.drawable_objects.push_back({name, type});
+                    for (const auto& child : animation->objects)
+                        self(self, child);
+                    visiting_animations.erase(name);
+                };
+                for (const auto& name :
+                     owner->second.animatable.objects)
+                    append_animation_closure(
+                        append_animation_closure, name);
+                std::set<std::string> visiting_drawables;
+                for (const auto& name : owner->second.drawable.objects)
+                    append_drawable_closure(
+                        append_drawable_closure, name, graph,
+                        visiting_drawables);
+                const auto environment_segments =
+                    gh::milo_object::resolve_view_environment_segments(
+                        graph.drawable_objects);
+                const bool has_multiple_environment_segments =
+                    environment_segments.size() > 1;
+                auto target_graph = graph;
+                if (has_multiple_environment_segments) {
+                    // A GH1 View can switch Environ objects in the middle of
+                    // its ordered Drawable list. A GH2 Group has only one
+                    // environment slot, so the flat target graph cannot
+                    // represent that state sequence.
+                    target_graph.drawable_objects.clear();
                 }
                 auto target =
                     gh::milo_object::convert_view7_to_group12(
-                        source_view, graph);
+                        source_view, target_graph);
                 apply_effective_transform(
                     target.transformable, effective_transforms,
                     entry.name);
+                std::vector<std::string> environment_scope_names;
+                if (has_multiple_environment_segments) {
+                    std::set<std::string> scoped_drawables;
+                    for (const auto& segment : environment_segments) {
+                        for (const auto& object :
+                             segment.drawable_objects) {
+                            scoped_drawables.insert(object.name);
+                        }
+                    }
+                    target.objects.erase(
+                        std::remove_if(
+                            target.objects.begin(), target.objects.end(),
+                            [&](const std::string& name) {
+                                return scoped_drawables.find(name) !=
+                                       scoped_drawables.end();
+                            }),
+                        target.objects.end());
+                    for (size_t segment_index = 0;
+                         segment_index < environment_segments.size();
+                         ++segment_index) {
+                        const std::string scope_name =
+                            entry.name + ".__environment_" +
+                            std::to_string(segment_index) + ".grp";
+                        if (!target_names.insert(scope_name).second)
+                            throw std::runtime_error(
+                                "deterministic View environment Group name "
+                                "collides: " + scope_name);
+                        gh::milo_object::Group12 scope;
+                        set_identity(scope.transformable.local);
+                        set_identity(scope.transformable.world);
+                        scope.transformable.parent = entry.name;
+                        scope.transformable.constraint = 2;
+                        scope.environment =
+                            environment_segments[segment_index].environment;
+                        for (const auto& object :
+                             environment_segments[segment_index]
+                                 .drawable_objects) {
+                            scope.objects.push_back(object.name);
+                        }
+                        result.directory.entries.push_back(make_entry(
+                            "Group", scope_name,
+                            gh::milo_object::serialize_group12(scope)));
+                        environment_scope_names.push_back(scope_name);
+                        target.objects.push_back(scope_name);
+                        add_row(
+                            result, entry.type, entry.name, "Group",
+                            scope_name, "synthesized",
+                            "ordered legacy Environ scope preserved through "
+                            "a native child Group");
+                    }
+                }
+                std::set<std::string> drawable_names;
+                for (const auto& object : graph.drawable_objects)
+                    if (is_target_drawable_type(object.type))
+                        drawable_names.insert(object.name);
+                const bool needs_draw_only =
+                    std::any_of(
+                        graph.animation_objects.begin(),
+                        graph.animation_objects.end(),
+                        [&](const gh::milo_object::ResolvedObjectReference&
+                                object) {
+                            return is_target_drawable_type(object.type) &&
+                                   drawable_names.find(object.name) ==
+                                       drawable_names.end();
+                        });
+                if (needs_draw_only ||
+                    has_multiple_environment_segments) {
+                    const std::string draw_only_name =
+                        entry.name + ".__draw_only.grp";
+                    if (!target_names.insert(draw_only_name).second)
+                        throw std::runtime_error(
+                            "deterministic View draw-only Group name "
+                            "collides: " + draw_only_name);
+                    gh::milo_object::Group12 draw_only;
+                    set_identity(draw_only.transformable.local);
+                    set_identity(draw_only.transformable.world);
+                    draw_only.transformable.parent = entry.name;
+                    draw_only.transformable.constraint = 2;
+                    if (has_multiple_environment_segments) {
+                        draw_only.objects = environment_scope_names;
+                    } else {
+                        for (const auto& object :
+                             graph.drawable_objects) {
+                            if (!is_target_drawable_type(object.type))
+                                continue;
+                            if (std::find(
+                                    draw_only.objects.begin(),
+                                    draw_only.objects.end(),
+                                    object.name) ==
+                                draw_only.objects.end())
+                                draw_only.objects.push_back(object.name);
+                        }
+                    }
+                    result.directory.entries.push_back(make_entry(
+                        "Group", draw_only_name,
+                        gh::milo_object::serialize_group12(draw_only)));
+                    target.revision = 13;
+                    target.draw_only = draw_only_name;
+                    add_row(
+                        result, entry.type, entry.name,
+                        "Group", draw_only_name, "synthesized",
+                        "legacy animation-only drawables separated through "
+                        "native Group draw_only");
+                }
                 result.directory.entries.push_back(make_entry(
                     "Group", entry.name,
                     gh::milo_object::serialize_group12(target)));
@@ -896,6 +1128,89 @@ Result convert_gh1_directory_to_gh2_rnddir(
             add_row(
                 result, entry.type, entry.name, "", "", "blocked",
                 ex.what());
+        }
+    }
+
+    if (!authored_draw_root.empty()) {
+        const auto target_entry =
+            [&](const std::string& name) -> const gh::milo::Entry* {
+            const auto found = std::find_if(
+                result.directory.entries.begin(),
+                result.directory.entries.end(),
+                [&](const gh::milo::Entry& candidate) {
+                    return candidate.name == name;
+                });
+            return found == result.directory.entries.end()
+                       ? nullptr
+                       : &*found;
+        };
+        const auto* root_entry = target_entry(authored_draw_root);
+        if (!root_entry || root_entry->type != "Group") {
+            add_row(
+                result, "ObjectDir", authored_draw_root, "", "",
+                "blocked",
+                "authored legacy draw root did not convert to Group");
+        } else {
+            std::set<std::string> reachable;
+            std::set<std::string> visiting_groups;
+            const auto visit_group =
+                [&](auto&& self, const std::string& name) -> void {
+                if (!visiting_groups.insert(name).second)
+                    throw std::runtime_error(
+                        "target Group draw graph contains a cycle at " +
+                        name);
+                reachable.insert(name);
+                const auto* group_entry = target_entry(name);
+                if (!group_entry || group_entry->type != "Group")
+                    throw std::runtime_error(
+                        "target Group draw reference is unresolved: " +
+                        name);
+                const auto group =
+                    gh::milo_object::parse_group12(
+                        group_entry->body_bytes);
+                const std::vector<std::string>& draw_objects =
+                    group.draw_only.empty()
+                        ? group.objects
+                        : std::vector<std::string>{group.draw_only};
+                for (const auto& object : draw_objects) {
+                    reachable.insert(object);
+                    const auto* object_entry = target_entry(object);
+                    if (object_entry && object_entry->type == "Group")
+                        self(self, object);
+                }
+                visiting_groups.erase(name);
+            };
+            try {
+                visit_group(visit_group, authored_draw_root);
+                gh::milo_object::Group12 hidden;
+                hidden.drawable.showing = false;
+                set_identity(hidden.transformable.local);
+                set_identity(hidden.transformable.world);
+                for (const auto& target : result.directory.entries) {
+                    if (is_target_drawable_type(target.type) &&
+                        reachable.find(target.name) == reachable.end())
+                        hidden.objects.push_back(target.name);
+                }
+                if (!hidden.objects.empty()) {
+                    constexpr const char* kHiddenGroup =
+                        "__gh1_unreachable_drawables.grp";
+                    if (!target_names.insert(kHiddenGroup).second)
+                        throw std::runtime_error(
+                            "reserved hidden-drawable Group name collides");
+                    result.directory.entries.push_back(make_entry(
+                        "Group", kHiddenGroup,
+                        gh::milo_object::serialize_group12(hidden)));
+                    add_row(
+                        result, "ObjectDir", authored_draw_root,
+                        "Group", kHiddenGroup, "synthesized",
+                        "unreachable legacy drawables retained as native "
+                        "objects but removed from RndDir root drawing");
+                }
+            } catch (const std::exception& ex) {
+                add_row(
+                    result, "ObjectDir", authored_draw_root, "", "",
+                    "blocked", ex.what());
+            }
         }
     }
 

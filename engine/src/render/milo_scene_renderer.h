@@ -18,12 +18,15 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 struct IDirect3DDevice9;
+struct IDirect3DIndexBuffer9;
 struct IDirect3DQuery9;
 struct IDirect3DTexture9;
+struct IDirect3DVertexBuffer9;
 
 namespace ghogx::asset {
 struct Image;  // asset/milo_image.h (RGBA8)
@@ -83,6 +86,41 @@ struct OrbitCamera {
   // Compute the eye position from yaw/pitch/distance about the target.
   void eye(float out[3]) const;
 };
+
+// Report whether the submitted transform and the decoded source triangles each
+// reverse the renderer's canonical winding. GH2 uses mirrored transforms
+// together with deliberately reversed triangle order in assets such as
+// cs_wall2.mesh, so the two parities must be combined rather than treating a
+// negative determinant as sufficient on its own.
+bool world_transform_reverses_winding(
+    const std::array<float, 16>& world_transform);
+bool mesh_source_winding_reversed(const milo_scene::MeshObj& mesh);
+uint32_t source_mesh_cull_mode(bool material_cull,
+                               bool debug_highlighted_mesh,
+                               bool world_winding_reversed,
+                               bool source_winding_reversed,
+                               uint32_t authored_cull_mode);
+
+struct SourceTexGenXfm2D {
+  float m00 = 1.0f;
+  float m01 = 0.0f;
+  float m10 = 0.0f;
+  float m11 = 1.0f;
+  float tu = 0.0f;
+  float tv = 0.0f;
+};
+
+// Convert an authored RndMat TexXfm into the centered, V-down texture
+// generator used by retail GH2. Other TexGen modes keep their source matrix.
+SourceTexGenXfm2D source_texgen_xfm_2d(
+    uint8_t tex_gen, float m00, float m01, float m10, float m11,
+    float tu, float tv);
+
+// Retail GH2 PS2 enables its material light channel when the material uses an
+// environment or when it is not prelit. Only a prelit material which opts out
+// of environment lighting bypasses the fixed lighting channel.
+bool source_material_bypasses_fixed_lighting(
+    bool prelit, bool use_environment);
 
 class MiloSceneRenderer {
  public:
@@ -162,6 +200,12 @@ class MiloSceneRenderer {
   void set_clear_depth_on_overlay(bool enabled);
   void set_environment_dynamic_lights(bool enabled);
   void set_world_transform(const std::array<float, 16>& m);
+  // Resolve a scene node through its authored parent chain after applying the
+  // currently sampled TransAnim transforms. UI proxies rendered by a separate
+  // renderer (for example CharsysPanel characters) use this to follow their
+  // live BandPlacer instead of remaining at its bind pose.
+  bool current_scene_node_world(const std::string& name,
+                                std::array<float, 16>& world) const;
   void set_global_tint(float brightness, float alpha);
   void set_additive_blend(bool additive);
   void set_active_spotlights(std::vector<SpotlightState> spots);
@@ -252,6 +296,11 @@ class MiloSceneRenderer {
   };
   void set_mesh_transform_offsets(
       std::map<std::string, MeshTransformSample> offsets);
+  // Update one live transform target without discarding the other sampled
+  // PanelDir animations already installed for this frame. CharsysPanel uses
+  // this for its external character-select door target.
+  void set_mesh_transform_offset(const std::string& mesh_name,
+                                 MeshTransformSample sample);
   void set_transform_parent_overrides(
       std::map<std::string, std::string> parents);
   void set_flare_steps(std::map<std::string, int> steps);
@@ -304,6 +353,8 @@ class MiloSceneRenderer {
   IDirect3DDevice9* dev_ = nullptr;
   milo_scene::Scene scene_;
   std::vector<const milo_scene::MeshObj*> ordered_draw_meshes_;
+  std::unordered_map<const milo_scene::MeshObj*, std::array<float, 16>>
+      base_mesh_worlds_;
   std::unordered_set<std::string> spotlight_template_meshes_;
   // Spotlight::Generate builds these runtime meshes when a Spotlight is
   // loaded. GH2's MILO stores their dimensions/materials, not their vertices.
@@ -313,6 +364,7 @@ class MiloSceneRenderer {
   std::map<std::string, const milo_scene::MatObj*> materials_by_name_;
   std::map<std::string, const milo_scene::MeshObj*> meshes_by_name_;
   std::map<std::string, const milo_scene::GroupObj*> groups_by_name_;
+  std::map<std::string, std::string> authored_parents_;
   OrbitCamera cam_;
   std::array<float, 16> world_transform_ = {1, 0, 0, 0, 0, 1, 0, 0,
                                             0, 0, 1, 0, 0, 0, 0, 1};
@@ -390,6 +442,16 @@ class MiloSceneRenderer {
     bool loop = false;
   };
   std::map<std::string, ActiveMeshAnim> active_mesh_anims_;
+
+  struct StaticMeshBuffers {
+    IDirect3DVertexBuffer9* vertices = nullptr;
+    IDirect3DIndexBuffer9* indices = nullptr;
+    bool wrap = false;
+  };
+  std::unordered_map<const milo_scene::MeshObj*, StaticMeshBuffers>
+      static_mesh_buffers_;
+  std::unordered_map<const milo_scene::MeshObj*, bool>
+      source_mesh_winding_reversed_;
 
   // Texture cache keyed by .tex entry name.
   std::map<std::string, IDirect3DTexture9*> tex_;

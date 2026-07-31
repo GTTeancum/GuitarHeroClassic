@@ -200,6 +200,7 @@ class Interp {
   DataNode bi_set(const Node& c, Env&);
   DataNode bi_compare(const Node& c, Env&, int op);   // == != < > <= >=
   DataNode bi_logic(const Node& c, Env&, int op);     // ! && ||
+  DataNode bi_bitwise(const Node& c, Env&, bool bit_or);  // & |
   DataNode bi_arith(const Node& c, Env&, int op);     // + - * /
   DataNode bi_mod(const Node& c, Env&);
   DataNode bi_minmax(const Node& c, Env&, int op);

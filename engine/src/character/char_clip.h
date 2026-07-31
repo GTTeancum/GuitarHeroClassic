@@ -9,8 +9,10 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -826,6 +828,52 @@ struct SourceCharUtlClipPredictState {
   float last_ang = 0.0f;
 };
 
+struct CharClip;
+
+struct SourceCharWalkScheduleEntry {
+  const CharClip* clip = nullptr;
+  float start_beat = 0.0f;
+  float previous_end_beat = 0.0f;
+};
+
+struct SourceCharWalkPlanPoint {
+  size_t clip_index = 0;
+  float beat = 0.0f;
+  float distance = 0.0f;
+};
+
+struct SourceCharWalkStopCandidate {
+  const CharClip* clip = nullptr;
+  uint32_t flags = 0;
+};
+
+struct SourceCharWalkMotionPlan {
+  std::vector<SourceCharWalkScheduleEntry> schedule;
+  std::vector<SourceCharWalkPlanPoint> points;
+  std::vector<std::array<float, 3>> path;
+  std::array<float, 3> end_position = {};
+  size_t active_point_count = 0;
+  size_t selected_point_index = 0;
+  size_t selected_stop_index = 0;
+  float beat_remainder = 0.0f;
+  float score = 0.0f;
+  bool valid = false;
+};
+
+struct SourceCharWalkForwardPrediction {
+  SourceCharUtlClipPredictState state;
+  size_t clip_index = 0;
+  float beat = 0.0f;
+};
+
+struct SourceCharWalkOffsetRegulation {
+  bool valid = false;
+  bool point_advanced = false;
+  size_t point_index = 0;
+  float offset_speed = 0.0f;
+  std::array<float, 3> position = {};
+};
+
 struct SourceCharUtlInitPlan {
   std::vector<std::string> registered_functions;
   std::vector<std::string> reset_hair_handler_steps;
@@ -974,6 +1022,19 @@ struct ClipChannel {
 
 // All frames of one clip, indexed [frame][channel].
 struct CharClip {
+  struct BeatEvent {
+    float beat = 0.0f;
+    std::string event;
+  };
+  struct TransitionNode {
+    float current_beat = 0.0f;
+    float next_beat = 0.0f;
+  };
+  struct Transition {
+    std::string clip;
+    std::vector<TransitionNode> nodes;
+  };
+
   std::string name;
   std::string source_milo_path;
   std::vector<std::vector<ClipChannel>> frames;  // frames[f][ch]
@@ -1026,10 +1087,20 @@ struct CharClip {
   int fps = 30;        // authored clip playback rate
   float start_frame = 0.0f;
   float end_frame = 0.0f;
+  float start_beat = 0.0f;
+  float end_beat = 0.0f;
+  float beats_per_second = 0.0f;
   uint32_t flags = 0;
   uint32_t default_play_flags = 0;
   float blend_width = 0.0f;
   float range = 0.0f;
+  // GH2 CharClip revision 5 stores enter/exit script symbols before the
+  // frame-event vector. These are executable animation metadata, not labels:
+  // stock crowd clips use enter scripts to dispatch authored set_hand states.
+  std::string legacy_enter_event;
+  std::string legacy_exit_event;
+  std::vector<Transition> transitions;
+  std::vector<BeatEvent> beat_events;
   bool relative = false;
   bool loaded = false;
 
@@ -1046,6 +1117,17 @@ struct CharClipGroup {
   int32_t which = 0;
   int32_t flags = 0;
   bool loaded = false;
+};
+
+// Metadata-only directory inventory used by CharDriver::FindClip(DataNode).
+// It preserves serialized directory order and clip flags without retaining
+// every decoded sample payload in memory.
+struct CharClipCatalogEntry {
+  std::string name;
+  std::string milo_path;
+  uint32_t flags = 0;
+  float start_beat = 0.0f;
+  float end_beat = 0.0f;
 };
 
 struct SourceCharClipGroupLoadPlan {
@@ -1118,14 +1200,32 @@ enum CharPlayFlags : uint32_t {
 // when a new clip is started without kCharPlayNoBlend.
 class CharClipPlayer {
  public:
+  struct CrossedEvent {
+    const CharClip* clip = nullptr;
+    size_t index = 0;
+    float beat = 0.0f;
+    std::string event;
+  };
+
   void clear();
   void play(const CharClip& clip, uint32_t flags = kCharPlayLoop,
             float blend_width = -1.0f, float speed = 1.0f);
-  void set_source_driver_blend_width(float blend_width);
+  void play_source(const CharClip& clip, uint32_t flags, float start_beat,
+                   float delta_start, float blend_width = -1.0f,
+                   float speed = 1.0f);
   void set_source_play_multiple_clips(bool play_multiple_clips);
+  void set_source_realign(bool realign);
+  void set_source_starved_handler(std::function<void()> handler);
+  void set_source_node_loop_resolver(
+      std::function<const CharClip*()> resolver);
+  void set_source_event_handler(
+      std::function<void(const CharClip&, std::string_view)> handler);
   void set_speed(float speed);
   void seek_current_time_seconds(float time_seconds);
   void advance(float dt_seconds);
+  // GH2 retail CharDriver::Poll passes the absolute task frame, task-frame
+  // delta, and real-time delta separately to CharClipDriver::Evaluate.
+  void advance_source(float frame, float dframe, float dt_seconds);
   void apply(Character& character, float weight = 1.0f) const;
   std::vector<ClipChannel> sampled_pose() const;
   std::vector<ClipChannelLayer> sampled_pose_layers(
@@ -1138,21 +1238,83 @@ class CharClipPlayer {
   bool active() const { return !layers_.empty(); }
   const CharClip* current_clip() const;
   float current_time_seconds() const;
+  const CharClip* source_first_playing_clip() const;
+  uint32_t source_first_playing_flags() const;
+  float source_first_playing_time_seconds() const;
+  float source_first_playing_beat() const;
+  const CharClip* source_most_playing_clip() const;
+  float source_current_beat() const;
+  float source_current_d_beat() const;
+  float source_current_blend_fraction() const;
+  size_t source_stack_depth() const { return layers_.size(); }
+  const std::vector<CrossedEvent>& source_crossed_events() const {
+    return crossed_events_;
+  }
+  std::vector<CrossedEvent> take_source_crossed_events();
 
  private:
+  void play_internal(const CharClip& clip, uint32_t flags, float blend_width,
+                     float speed, float start_beat, float delta_start);
+  void poll_source_scheduler(float frame);
+  void emit_source_event(const CharClip* clip, std::string_view event);
+  void exit_source_layers(size_t begin, size_t end);
+
   struct Layer {
     const CharClip* clip = nullptr;
     uint32_t flags = 0;
     float time_seconds = 0.0f;
     float blend_width = 0.0f;
-    float blend_progress = 0.0f;
+    float ramp_in = 0.0f;
+    float beat = 0.0f;
+    float d_beat = 0.0f;
+    float blend_fraction = 1.0f;
+    float advance_beat = 0.0f;
+    float weight = 0.0f;
     float speed = 1.0f;
+    int next_event = -1;
+    float next_event_beat = -1.0e30f;
   };
 
-  float source_driver_blend_width_ = 1.0f;
+  float source_frame_ = 0.0f;
+  float source_old_beat_ = 1.0e30f;
   bool source_play_multiple_clips_ = false;
+  bool source_realign_ = false;
+  std::function<void()> source_starved_handler_;
+  std::function<const CharClip*()> source_node_loop_resolver_;
+  std::function<void(const CharClip&, std::string_view)>
+      source_event_handler_;
   std::vector<Layer> layers_;
+  std::vector<CrossedEvent> crossed_events_;
 };
+
+// GH2 PS2 CharClipDriver::Evaluate/ScaleAdd use this cosine-eased node weight
+// at 0x00198E10 and 0x00198EA4.
+float source_gh2_char_clip_driver_eased_weight(float blend_fraction);
+
+// GH2 PS2's global Random object is a 256-word table seeded with 666 at
+// 0x002D9DA8. Its output path at 0x002D9BE8 supplies constructor range
+// randomization without relying on a host-library RNG.
+struct SourceGh2Ps2RandomState {
+  uint32_t first = 0;
+  uint32_t second = 103;
+  std::array<uint32_t, 256> values = {};
+};
+SourceGh2Ps2RandomState source_gh2_ps2_random_construct(
+    uint32_t seed = 666u);
+uint32_t source_gh2_ps2_random_next(SourceGh2Ps2RandomState& state);
+float source_gh2_ps2_random_unit(SourceGh2Ps2RandomState& state);
+float source_gh2_ps2_random_range(SourceGh2Ps2RandomState& state,
+                                  float minimum, float maximum);
+float source_gh2_char_clip_driver_randomized_beat(
+    const CharClip& clip, float beat, float random_offset);
+bool source_gh2_ps2_char_driver_poll_starved(bool has_first,
+                                             bool first_has_next);
+float source_gh2_ps2_char_driver_play_if_safe_length(
+    float requested_length, bool has_first, float first_end_beat,
+    float first_beat);
+bool source_gh2_ps2_char_driver_play_if_safe_candidate(
+    uint32_t clip_flags, float clip_start_beat, float clip_end_beat,
+    uint32_t safe_flags, float adjusted_length);
 
 struct ClipPlayerLayerSource {
   const CharClipPlayer* player = nullptr;
@@ -1224,6 +1386,10 @@ struct CharacterPoseControllerFrameSources {
   std::vector<CharacterRuntimeIkWeight> fallback_ik_weights;
   std::string midi_fret_target;
   float time_seconds = 0.0f;
+  float current_beat = 0.0f;
+  float delta_beat = 0.0f;
+  float midi_fret_target_beat = 0.0f;
+  float midi_fret_event_beat = 0.0f;
   bool controllers_enabled = true;
   bool midi_fret_target_enabled = false;
 };
@@ -1301,8 +1467,38 @@ CharClipGroup load_clip_group(
     const std::vector<std::string>& milo_paths,
     const std::string& group_name);
 
+std::vector<CharClipCatalogEntry> load_clip_catalog(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& milo_paths);
+
+std::vector<CharClipGroup> load_clip_group_catalog(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& milo_paths);
+
 // Source-backed CharClipGroup::GetClip index step. Mutates group.which.
 std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group);
+
+std::optional<CharClip::TransitionNode>
+source_char_clip_find_first_transition_node(
+    const CharClip& clip,
+    std::string_view next_clip,
+    float current_beat);
+
+std::optional<CharClip::TransitionNode>
+source_char_clip_find_last_transition_node(
+    const CharClip& clip,
+    std::string_view next_clip,
+    float current_beat);
+
+// GH2 retail CharClip::FindNode at 0x00196888. Modes 3 and 4 search the
+// authored transition graph first; when permitted and no row matches, the
+// returned node is synthesized from clip timing and beat-align flags.
+std::optional<CharClip::TransitionNode>
+source_char_clip_find_transition_node(
+    const CharClip& current_clip,
+    const CharClip& next_clip,
+    float current_beat,
+    int mode);
 
 // Source-backed CharClipGroup::NumFlagDuplicates helper. `clip_index` selects
 // the source clip row whose flags are compared against every other row.
@@ -1383,6 +1579,17 @@ struct SourceCharClipDriverRuntimeDumpEvidence {
   bool has_scale_add_statement_body = false;
   bool has_rotate_to_statement_body = false;
   bool safe_to_import_runtime = false;
+  std::string gh2_ps2_constructor_range;
+  std::string gh2_ps2_copy_constructor_range;
+  std::string gh2_ps2_destructor_range;
+  std::string gh2_ps2_evaluate_range;
+  std::string gh2_ps2_scale_add_range;
+  std::string gh2_ps2_align_to_frame_range;
+  std::string gh2_ps2_advance_event_range;
+  std::vector<std::string> gh2_ps2_layout;
+  bool gh2_ps2_evaluate_recovered = false;
+  bool gh2_ps2_scale_add_recovered = false;
+  bool gh2_ps2_align_to_frame_recovered = false;
 };
 
 // Source-backed CharClipDriver constructor play-flag masking.
@@ -1740,6 +1947,9 @@ struct SourceCharDriverRuntimeDumpEvidence {
   std::vector<std::string> pre_load_references;
   std::vector<std::string> post_load_references;
   std::vector<std::string> header_declarations_without_checked_bodies;
+  std::string gh2_ps2_poll_range;
+  std::string gh2_ps2_poll_starved_range;
+  std::vector<std::string> gh2_ps2_layout;
   bool rb3_latest_has_poll_body = false;
   bool rb2_dump_has_poll_range = false;
   bool has_evaluate_flags_statement_body = false;
@@ -1748,6 +1958,7 @@ struct SourceCharDriverRuntimeDumpEvidence {
   bool safe_to_display = false;
   bool safe_to_evaluate_flags = false;
   bool safe_to_import_poll = false;
+  bool gh2_ps2_poll_recovered = false;
 };
 
 struct SourceCharDriverPollDeps {
@@ -2740,6 +2951,40 @@ void source_char_utl_clip_predict(SourceCharUtlClipPredictState& state,
                                   const SourceCharUtlClipPredictFrame& second);
 std::optional<SourceCharUtlClipPredictFrame>
 source_char_walk_facing_sample(const std::vector<ClipChannel>& channels);
+std::optional<SourceCharUtlClipPredictFrame>
+source_char_clip_facing_sample_at_beat(const CharClip& clip, float beat);
+std::optional<float> source_charwalk_find_stop_start_beat(
+    const CharClip& stop_clip, float beat_remainder);
+SourceCharWalkMotionPlan source_charwalk_build_motion_plan(
+    const std::vector<SourceCharWalkScheduleEntry>& initial_schedule,
+    const std::vector<std::array<float, 3>>& path,
+    float target_yaw,
+    float target_radius,
+    const std::vector<SourceCharWalkStopCandidate>& stop_candidates,
+    uint32_t required_stop_flags);
+std::optional<SourceCharWalkForwardPrediction>
+source_charwalk_forward_predict(
+    const SourceCharWalkMotionPlan& plan,
+    size_t clip_index,
+    float beat,
+    float look_ahead,
+    const SourceCharUtlClipPredictState& initial);
+std::optional<std::array<float, 3>> source_charwalk_back_predict(
+    const SourceCharWalkMotionPlan& plan,
+    size_t clip_index,
+    float beat,
+    size_t waypoint_index,
+    float target_yaw);
+SourceCharWalkOffsetRegulation source_charwalk_regulate_offset(
+    const SourceCharWalkMotionPlan& plan,
+    size_t point_index,
+    size_t clip_index,
+    float beat,
+    size_t waypoint_index,
+    const std::array<float, 3>& current_position,
+    const std::array<float, 3>& predicted_position,
+    float frame_delta,
+    float prior_offset_speed);
 SourceCharUtlInitPlan source_char_utl_init_plan();
 
 // Source-backed CharLookAt::SyncLimits helper. Angles are serialized in degrees.
@@ -3215,6 +3460,19 @@ struct SourceCharIKMidiState {
   float anim_frac = 0.0f;
 };
 
+struct SourceGh2CharIKMidiNewSpotResult {
+  float remaining_beats = 0.0f;
+  bool snapped = false;
+  float fraction = 0.0f;
+  float fraction_per_beat = 0.0f;
+};
+
+struct SourceGh2CharIKMidiPollResult {
+  float delta_beat = 0.0f;
+  float fraction = 0.0f;
+  float eased_fraction = 0.0f;
+};
+
 struct SourceCharIKMidiEnterResult {
   bool clear_cur_spot = true;
   bool clear_new_spot = true;
@@ -3389,6 +3647,11 @@ source_char_ik_slider_midi_save_plan();
 SourceCharIKMidiState source_char_ik_midi_default_state();
 SourceCharIKMidiEnterResult source_char_ik_midi_enter(
     SourceCharIKMidiState& state);
+SourceGh2CharIKMidiNewSpotResult source_gh2_char_ik_midi_new_spot(
+    SourceCharIKMidiState& state, const std::string& spot,
+    float remaining_beats);
+SourceGh2CharIKMidiPollResult source_gh2_char_ik_midi_poll(
+    SourceCharIKMidiState& state, float delta_beat);
 void source_char_ik_midi_poll_deps(SourceCharIKMidiPollDeps& deps,
                                    const SourceCharIKMidiState& state);
 SourceCharIKMidiLoadSteps source_char_ik_midi_load_steps(int32_t revision);
@@ -3726,6 +3989,7 @@ bool source_char_ik_hand_elbow_cosine(
     const SourceCharIKHandMeasure& measure,
     float distance_squared,
     float& out_cosine);
+float source_gh2_ps2_char_ik_hand_elbow_cosine(float source_cosine);
 SourceCharIKHandElbowBendRows source_char_ik_hand_elbow_bend_rows(
     float cosine, float sine);
 SourceCharIKHandTargetBlendResult source_char_ik_hand_multi_target_blend(
@@ -3868,9 +4132,10 @@ struct SourceGh2TraceForeTwistLocalResult {
 
 struct SourceGh2TraceUpperTwistLocalResult {
   bool applied = false;
+  bool serial_chain = false;
   float roll_radians = 0.0f;
-  float twist1_factor = 0.6660000086f;
-  float twist2_factor = -0.3330000043f;
+  float twist1_factor = 0.0f;
+  float twist2_factor = 0.0f;
   milo_scene::Xfm twist1_local;
   milo_scene::Xfm twist2_local;
 };
@@ -3936,6 +4201,7 @@ bool source_gh2_trace_upper_twist_poll_local(
     bool has_source,
     bool has_twist1,
     bool has_twist2,
+    bool twist2_parent_is_twist1,
     const milo_scene::Xfm& upper_live_local,
     const milo_scene::Xfm& twist2_bind_local,
     SourceGh2TraceUpperTwistLocalResult& out);
@@ -3983,7 +4249,10 @@ void clear_runtime_trans_worlds(Character& character);
 // spot_neck_fret01..20 and feeds the character's fret.ik object.
 void apply_ik_midi_fret_target(Character& character,
                                const std::string& spot_name,
-                               float time_seconds);
+                               float current_beat,
+                               float delta_beat,
+                               float target_beat,
+                               float event_beat);
 
 // Legacy single-frame helpers kept for --clip screenshot mode.
 std::vector<ClipChannel> load_clip_pose(const std::string& hdr_path,

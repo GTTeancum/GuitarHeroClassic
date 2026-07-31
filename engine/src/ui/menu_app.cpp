@@ -50,6 +50,7 @@
 #include <functional>
 #include <cstring>
 #include <filesystem>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
@@ -1791,20 +1792,32 @@ void rebuild_scene(const std::string& hdr, const std::string& ark, ScreenManager
     if (!panel_showing(panel)) continue;
     add_panel_milo(hdr, ark, mgr, db, panel_file(panel), combined, textures);
   }
-  // PanelDir::CamOverride refers to metacam through a stock subdirectory on
-  // ordinary menu panels. Make that authored camera/environment available to
-  // the combined renderer just as RndDir would after resolving the subdir.
-  if (combined.panel_camera == "meta.cam") {
+  // PanelDir camera/environment references may resolve through the stock
+  // metacam subdirectory rather than objects serialized in the panel itself.
+  // Import the referenced kind only when it is absent from the combined scene,
+  // matching RndDir's external-object lookup without replacing a panel-local
+  // object.  meta_proxy.cam is intentionally still handled by the owning menu
+  // proxy path below; only meta.cam is a direct combined-scene camera.
+  const PanelExternalDependencyPlan external_dependencies =
+      source_panel_external_dependency_plan(
+          combined.panel_camera, combined.panel_environment,
+          combined.find_environ(combined.panel_environment) != nullptr);
+  if (external_dependencies.import_metacam_cameras ||
+      external_dependencies.import_metacam_environment) {
     milo_scene::Scene metacam;
     if (milo_scene::load_scene(hdr, ark, "ui/gen/metacam.milo_ps2", metacam)) {
-      for (auto& camera : metacam.cams)
-        combined.cams.push_back(std::move(camera));
-      for (auto& light : metacam.lights)
-        combined.lights.push_back(std::move(light));
-      for (auto& environment : metacam.environs)
-        combined.environs.push_back(std::move(environment));
-      for (auto& environment_anim : metacam.env_anims)
-        combined.env_anims.push_back(std::move(environment_anim));
+      if (external_dependencies.import_metacam_cameras) {
+        for (auto& camera : metacam.cams)
+          combined.cams.push_back(std::move(camera));
+      }
+      if (external_dependencies.import_metacam_environment) {
+        for (auto& light : metacam.lights)
+          combined.lights.push_back(std::move(light));
+        for (auto& environment : metacam.environs)
+          combined.environs.push_back(std::move(environment));
+        for (auto& environment_anim : metacam.env_anims)
+          combined.env_anims.push_back(std::move(environment_anim));
+      }
     }
   }
   if (screen && screen->name() == Symbol("endgame_screen")) {
@@ -1881,8 +1894,16 @@ struct MenuCharacterPreview {
   std::string outfit;
   std::string placer;
   std::string environment;
+  std::string door_mesh;
+  milo_scene::Xfm door_bind_local;
+  bool has_door_binding = false;
+  std::string ui_anim_milo;
   std::unique_ptr<ghogx::character::CharClip> ui_enter_clip;
   std::unique_ptr<ghogx::character::CharClip> ui_clip;
+  std::unique_ptr<ghogx::character::CharClip> open_door_pose_clip;
+  ghogx::character::CharClipPlayer open_door_pose_player;
+  std::string open_door_pose_milo;
+  std::string logged_door_pose_key;
   // CharDriver::Transfer keeps the old play nodes alive while the selected
   // outfit's ui_loop blends onto the transferred stack. These owners preserve
   // the clip pointers held by clip_player across the character reload.
@@ -1896,9 +1917,63 @@ std::string indexed_runtime_name(const char* stem, int player) {
   return std::string(stem) + "_" + std::to_string(std::max(0, player));
 }
 
+std::string transform_base_name(std::string name) {
+  for (const char* suffix : {".trans", ".mesh"}) {
+    const std::size_t suffix_size = std::strlen(suffix);
+    if (name.size() >= suffix_size &&
+        name.compare(name.size() - suffix_size, suffix_size, suffix) == 0) {
+      name.resize(name.size() - suffix_size);
+      break;
+    }
+  }
+  return name;
+}
+
+bool clip_drives_transform(const ghogx::character::CharClip& clip,
+                           const std::string& transform) {
+  if (!clip.loaded) return false;
+  for (const auto& frame : clip.frames) {
+    for (const auto& channel : frame) {
+      if (transform_base_name(channel.bone_name) == transform) return true;
+    }
+  }
+  return false;
+}
+
+std::unique_ptr<ghogx::character::CharClip>
+load_authored_open_door_pose(const std::string& hdr, const std::string& ark,
+                             const ConfigDb& db, Symbol preferred_character,
+                             std::string& source_milo) {
+  std::vector<CharacterVariant> candidates;
+  if (preferred_character.valid()) {
+    candidates = db.character_variants(preferred_character);
+  }
+  for (Symbol character : db.characters()) {
+    if (character == preferred_character) continue;
+    auto variants = db.character_variants(character);
+    candidates.insert(candidates.end(),
+                      std::make_move_iterator(variants.begin()),
+                      std::make_move_iterator(variants.end()));
+  }
+
+  std::unordered_set<std::string> tried;
+  for (const CharacterVariant& candidate : candidates) {
+    if (candidate.ui_anim_path.empty() ||
+        !tried.insert(candidate.ui_anim_path).second)
+      continue;
+    auto clip = std::make_unique<ghogx::character::CharClip>(
+        ghogx::character::load_clip(hdr, ark, candidate.ui_anim_path,
+                                    "ui_loop"));
+    if (!clip_drives_transform(*clip, "bone_door")) continue;
+    source_milo = candidate.ui_anim_path;
+    return clip;
+  }
+  return {};
+}
+
 std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
     const std::string& hdr, const std::string& ark, ScreenManager& mgr,
-    Object* screen, ghogx::render::Window& window,
+    Object* screen, const ConfigDb& db, ghogx::render::Window& window,
     std::vector<MenuCharacterPreview> previous = {}) {
   std::vector<MenuCharacterPreview> previews;
   if (!screen) return previews;
@@ -1953,6 +2028,22 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
             DataNode::Int(0));
         continue;
       }
+      const Symbol door_symbol = symbol_value(panel->get_property(
+          Symbol(indexed_runtime_name("char_door", player).c_str())));
+      std::string door_mesh = door_symbol.c_str();
+      milo_scene::Xfm door_bind_local;
+      bool has_door_binding = false;
+      if (!door_mesh.empty()) {
+        const auto door = std::find_if(
+            placement_scene.meshes.begin(), placement_scene.meshes.end(),
+            [&](const milo_scene::MeshObj& mesh) {
+              return mesh.name == door_mesh && mesh.decoded;
+            });
+        if (door != placement_scene.meshes.end()) {
+          door_bind_local = door->local;
+          has_door_binding = true;
+        }
+      }
 
       const std::string environment =
           symbol_value(panel->get_property(
@@ -1969,18 +2060,28 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
         if (old != previous.end()) {
           old->placer = placer;
           old->environment = environment;
+          old->door_mesh = door_mesh;
+          old->door_bind_local = door_bind_local;
+          old->has_door_binding = has_door_binding;
           old->renderer->set_world_transform(placement_world);
           previews.push_back(std::move(*old));
           continue;
         }
       }
 
+      const CharacterVariant* variant = db.character_variant(outfit);
       const std::string base = "char/" + std::string(outfit.c_str()) +
                                "/og/gen/" + outfit.c_str();
-      std::string char_milo = base + "_ui.milo_ps2";
+      std::string char_milo =
+          variant && !variant->ui_model_path.empty()
+              ? variant->ui_model_path
+              : base + "_ui.milo_ps2";
       ghogx::character::Character character;
       if (!ghogx::character::load_character(hdr, ark, char_milo, character)) {
-        char_milo = base + ".milo_ps2";
+        char_milo =
+            variant && !variant->model_path.empty()
+                ? variant->model_path
+                : base + ".milo_ps2";
         if (!ghogx::character::load_character(hdr, ark, char_milo, character)) {
           std::fprintf(stderr,
                        "[menu-char] player=%d failed stock character %s\n",
@@ -2000,18 +2101,72 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
       preview.outfit = outfit.c_str();
       preview.placer = placer;
       preview.environment = environment;
+      preview.door_mesh = door_mesh;
+      preview.door_bind_local = door_bind_local;
+      preview.has_door_binding = has_door_binding;
       preview.renderer =
           std::make_unique<ghogx::character::CharRenderer>(window);
       preview.renderer->set_character(std::move(character), textures);
+      if (!preview.renderer->has_drawable_geometry() && variant &&
+          !variant->model_path.empty() &&
+          variant->model_path != char_milo) {
+        ghogx::character::Character full_character;
+        if (ghogx::character::load_character(
+                hdr, ark, variant->model_path, full_character)) {
+          const auto full_texture_names = full_character.texture_names();
+          auto full_textures = asset::load_milo_textures(
+              hdr, ark, variant->model_path, full_texture_names);
+          preview.renderer->set_character(std::move(full_character),
+                                          full_textures);
+          if (preview.renderer->has_drawable_geometry()) {
+            std::fprintf(stderr,
+                         "[menu-char] outfit=%s UI model has no drawable "
+                         "closure; using catalog model=%s\n",
+                         outfit.c_str(), variant->model_path.c_str());
+            char_milo = variant->model_path;
+          }
+        }
+      }
+      if (!preview.renderer->has_drawable_geometry()) {
+        std::fprintf(stderr,
+                     "[menu-char] player=%d outfit=%s has no drawable "
+                     "character geometry\n",
+                     player, outfit.c_str());
+        panel->set_property(
+            Symbol(indexed_runtime_name("char_loaded", player).c_str()),
+            DataNode::Int(0));
+        continue;
+      }
       preview.renderer->set_world_transform(placement_world);
       preview.renderer->set_use_scene_lighting(true);
       std::string ui_anim_owner = outfit.c_str();
       std::string ui_anim_milo =
-          "char/" + ui_anim_owner + "/anims/gen/" + ui_anim_owner +
-          "_ui.milo_ps2";
+          variant && !variant->ui_anim_path.empty()
+              ? variant->ui_anim_path
+              : "char/" + ui_anim_owner + "/anims/gen/" + ui_anim_owner +
+                    "_ui.milo_ps2";
       preview.ui_clip = std::make_unique<ghogx::character::CharClip>(
           ghogx::character::load_clip(hdr, ark, ui_anim_milo, "ui_loop"));
-      if (!preview.ui_clip->loaded && !ui_anim_owner.empty() &&
+      if (!preview.ui_clip->loaded) {
+        const auto catalog = ghogx::character::load_clip_catalog(
+            hdr, ark, {ui_anim_milo});
+        const auto authored_idle = std::find_if(
+            catalog.begin(), catalog.end(), [](const auto& clip) {
+              constexpr std::string_view suffix = "_idle_ui";
+              return clip.name.size() >= suffix.size() &&
+                     clip.name.compare(clip.name.size() - suffix.size(),
+                                       suffix.size(), suffix) == 0;
+            });
+        const auto selected =
+            authored_idle != catalog.end() ? authored_idle : catalog.begin();
+        if (selected != catalog.end()) {
+          preview.ui_clip =
+              std::make_unique<ghogx::character::CharClip>(
+                  ghogx::character::load_clip(
+                      hdr, ark, selected->milo_path, selected->name));
+        }
+      }
+      if (!variant && !preview.ui_clip->loaded && !ui_anim_owner.empty() &&
           ui_anim_owner.back() >= '2' && ui_anim_owner.back() <= '9') {
         // Alternate outfits own geometry/textures but share the base outfit's
         // authored UI animation bank (for example punk2 -> punk1_ui and the
@@ -2032,6 +2187,7 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
             DataNode::Int(0));
         continue;
       }
+      preview.ui_anim_milo = ui_anim_milo;
       const Symbol char_event = symbol_value(panel->get_property(
           Symbol(indexed_runtime_name("char_event", player).c_str())));
       const bool transfer_pending =
@@ -2042,6 +2198,36 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
         preview.ui_enter_clip = std::make_unique<ghogx::character::CharClip>(
             ghogx::character::load_clip(hdr, ark, ui_anim_milo, "ui_enter"));
       }
+      if (preview.has_door_binding &&
+          !clip_drives_transform(*preview.ui_clip, "bone_door")) {
+        const Symbol preferred_character =
+            variant ? variant->character : db.character_for_variant(outfit);
+        preview.open_door_pose_clip = load_authored_open_door_pose(
+            hdr, ark, db, preferred_character, preview.open_door_pose_milo);
+        if (preview.open_door_pose_clip) {
+          preview.open_door_pose_player.play(
+              *preview.open_door_pose_clip,
+              ghogx::character::kCharPlayLoop);
+          std::fprintf(
+              stderr,
+              "[menu-char] door player=%d outfit=%s mode=authored-open-pose "
+              "source=%s clip=ui_loop target=%s\n",
+              player, outfit.c_str(), preview.open_door_pose_milo.c_str(),
+              preview.door_mesh.c_str());
+        } else {
+          std::fprintf(
+              stderr,
+              "[menu-char] door player=%d outfit=%s missing authored open "
+              "pose target=%s\n",
+              player, outfit.c_str(), preview.door_mesh.c_str());
+        }
+      } else if (preview.has_door_binding) {
+        std::fprintf(stderr,
+                     "[menu-char] door player=%d outfit=%s "
+                     "mode=selected-ui-driver source=%s target=%s\n",
+                     player, outfit.c_str(), ui_anim_milo.c_str(),
+                     preview.door_mesh.c_str());
+      }
       auto transfer_source = previous.end();
       if (char_event == Symbol("select") ||
           (transfer_pending && char_event != Symbol("store"))) {
@@ -2049,6 +2235,7 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
             previous.begin(), previous.end(), [&](const auto& candidate) {
               return candidate.player == player &&
                      candidate.panel == panel_name.c_str() &&
+                     candidate.ui_anim_milo == ui_anim_milo &&
                      candidate.clip_player.active();
             });
       }
@@ -2069,6 +2256,19 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
                      "event=%s blend=source-default\n",
                      player, transfer_source->outfit.c_str(), outfit.c_str(),
                      char_event.valid() ? char_event.c_str() : "transfer");
+      } else if ((char_event == Symbol("select") || transfer_pending) &&
+                 std::any_of(previous.begin(), previous.end(),
+                             [&](const auto& candidate) {
+                               return candidate.player == player &&
+                                      candidate.panel == panel_name.c_str() &&
+                                      candidate.clip_player.active();
+                             })) {
+        preview.clip_player.play(*preview.ui_clip,
+                                 ghogx::character::kCharPlayLoop);
+        std::fprintf(stderr,
+                     "[menu-char] driver reset player=%d to=%s "
+                     "reason=ui-animation-route-change\n",
+                     player, outfit.c_str());
       } else if (preview.ui_enter_clip && preview.ui_enter_clip->loaded) {
         preview.clip_player.play(
             *preview.ui_enter_clip,
@@ -2123,6 +2323,126 @@ ghogx::render::MiloSceneRenderer::MeshTransformAnim to_renderer_anim(
     out.scale_keys.push_back(dst);
   }
   return out;
+}
+
+void apply_character_select_door_pose(
+    MenuCharacterPreview& preview,
+    ghogx::render::MiloSceneRenderer& renderer) {
+  if (!preview.has_door_binding || preview.door_mesh.empty()) return;
+
+  const ghogx::character::CharClipPlayer* driver = nullptr;
+  if (const auto* current = preview.clip_player.current_clip();
+      current && clip_drives_transform(*current, "bone_door")) {
+    driver = &preview.clip_player;
+  } else if (preview.open_door_pose_player.active()) {
+    driver = &preview.open_door_pose_player;
+  }
+  if (!driver) return;
+
+  const auto find_character_door_local =
+      [](const ghogx::character::Character& character)
+      -> const milo_scene::Xfm* {
+    for (const auto& bone : character.bones) {
+      if (transform_base_name(bone.name) == "bone_door") return &bone.local;
+    }
+    for (const auto& mesh : character.meshes) {
+      if (transform_base_name(mesh.name) == "bone_door") return &mesh.local;
+    }
+    return nullptr;
+  };
+
+  const milo_scene::Xfm* driver_local = nullptr;
+  ghogx::character::Character fallback_target;
+  if (driver == &preview.clip_player && preview.renderer) {
+    // The selected clip has already been applied to the live character. This
+    // is the same transform CharsysPanel::Poll reads in retail.
+    driver_local = find_character_door_local(preview.renderer->character());
+  } else {
+    // Converted legacy UI packages can omit the stock door channel. Apply an
+    // authored GH2 open-door pose to a normal bone_door target, then feed that
+    // result through the same external-door bridge below.
+    milo_scene::TransObj target_bone;
+    target_bone.name = "bone_door.mesh";
+    if (preview.renderer) {
+      if (const milo_scene::Xfm* selected_bind =
+              find_character_door_local(preview.renderer->character())) {
+        target_bone.local = *selected_bind;
+        target_bone.world_stored = *selected_bind;
+      }
+    }
+    fallback_target.bones.push_back(std::move(target_bone));
+
+    ghogx::character::ClipChannelLayerStack pose_stack;
+    pose_stack.debug_label = "menu_character_select_door_fallback";
+    ghogx::character::CharacterPosePlayerLayerBuildSources player_inputs;
+    player_inputs.main = driver;
+    const auto player_layers =
+        ghogx::character::make_character_pose_player_layer_sources(
+            player_inputs);
+    ghogx::character::append_character_pose_player_layers(pose_stack,
+                                                           player_layers);
+    ghogx::character::CharacterPoseControllerFrameSources controller_sources;
+    controller_sources.pose_stack = &pose_stack;
+    controller_sources.time_seconds = driver->current_time_seconds();
+    controller_sources.controllers_enabled = false;
+    ghogx::character::apply_character_pose_controller_frame(
+        fallback_target, controller_sources);
+    driver_local = &fallback_target.bones.front().local;
+  }
+  if (!driver_local) return;
+
+  const float row0_len = std::max(
+      1.0e-8f,
+      std::sqrt(driver_local->rot[0][0] * driver_local->rot[0][0] +
+                driver_local->rot[0][1] * driver_local->rot[0][1] +
+                driver_local->rot[0][2] * driver_local->rot[0][2]));
+  const float door_z =
+      std::atan2(driver_local->rot[0][1] / row0_len,
+                 driver_local->rot[0][0] / row0_len);
+  milo_scene::Xfm posed = preview.door_bind_local;
+  const auto native_rotation =
+      source_charsys_external_door_rotation(door_z);
+  for (int row = 0; row < 3; ++row) {
+    for (int column = 0; column < 3; ++column) {
+      posed.rot[row][column] =
+          native_rotation[static_cast<std::size_t>(row * 3 + column)];
+    }
+  }
+
+  ghogx::render::MiloSceneRenderer::MeshTransformSample sample;
+  sample.has_translation = true;
+  sample.translation_is_absolute = true;
+  sample.translation = {posed.pos[0], posed.pos[1], posed.pos[2]};
+  sample.has_rotation = true;
+  sample.rotation_is_absolute = true;
+  sample.rotation_xyzw = row_rot_to_quat_xyzw(posed);
+  sample.has_scale = true;
+  sample.scale_is_absolute = true;
+  sample.scale = xfm_row_scales(posed);
+  renderer.set_mesh_transform_offset(preview.door_mesh, std::move(sample));
+
+  const auto* active_clip = driver->current_clip();
+  const char* mode =
+      driver == &preview.clip_player ? "selected-ui-driver"
+                                     : "authored-open-pose";
+  const std::string log_key =
+      std::string(mode) + "|" + (active_clip ? active_clip->name : "");
+  if (log_key != preview.logged_door_pose_key) {
+    preview.logged_door_pose_key = log_key;
+    std::fprintf(
+        stderr,
+        "[menu-char-door] outfit=%s target=%s mode=%s clip=%s "
+        "source=GH2_PS2_CharsysPanel_Poll_0x00142420 "
+        "euler=[1.5707963 0 %.7g] "
+        "local=[%.7g %.7g %.7g %.7g %.7g %.7g %.7g %.7g %.7g "
+        "%.7g %.7g %.7g]\n",
+        preview.outfit.c_str(), preview.door_mesh.c_str(), mode,
+        active_clip ? active_clip->name.c_str() : "", door_z,
+        posed.rot[0][0], posed.rot[0][1], posed.rot[0][2],
+        posed.rot[1][0], posed.rot[1][1], posed.rot[1][2],
+        posed.rot[2][0], posed.rot[2][1], posed.rot[2][2],
+        posed.pos[0], posed.pos[1], posed.pos[2]);
+  }
 }
 
 void apply_loading_source_anims(const std::string& hdr, const std::string& ark,
@@ -2241,11 +2561,16 @@ void do_confirm(ScreenManager& mgr, int player_num = 0) {
     return;
   }
   if (comp_obj) {
+    if (comp_obj->class_name() == Symbol("BandTextEntry")) {
+      // Retail text entry uses Green to commit the current character, not to
+      // submit the whole name. Let the authored screen observe the old length
+      // first so its zoom animation targets old_length + 1.
+      fire_button_down(mgr, screen, panel, Symbol("kPad_X"), player_num);
+      if (mgr.current_screen() == screen)
+        comp_obj->handle_property(Symbol("accept_character"), DataArray());
+      return;
+    }
     comp_obj->handle_property(Symbol("send_select"), DataArray());
-    // BandTextEntry owns this confirm: it emits TEXT_ENTRY_MSG, then the panel
-    // poll starts the authored flush. Letting the same kPad_X bubble to the
-    // high-score screen would skip that entire one-second/7-second sequence.
-    if (comp_obj->class_name() == Symbol("BandTextEntry")) return;
   }
   fire_button_down(mgr, screen, panel, Symbol("kPad_X"), player_num);
   if (mgr.current_screen() != screen) return;
@@ -2270,6 +2595,24 @@ void do_back(ScreenManager& mgr) {
       screen->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
   Object* panel = panel_name.valid() ? mgr.find_object(panel_name) : nullptr;
   if (cancel_focused_slider(mgr, panel)) return;
+  const Symbol component_name =
+      panel ? panel->get_property(Symbol("focus"))
+                  .as_symbol()
+                  .value_or(Symbol())
+            : Symbol();
+  Object* component = component_name.valid()
+                          ? mgr.resolve_object(component_name)
+                          : nullptr;
+  if (component &&
+      component->class_name() == Symbol("BandTextEntry") &&
+      !node_bool(component->handle_property(Symbol("no_text_entered"),
+                                            DataArray()))) {
+    // The authored screen reads the pre-delete length for its transition.
+    fire_button_down(mgr, screen, panel, Symbol("kPad_Tri"));
+    if (mgr.current_screen() == screen)
+      component->handle_property(Symbol("delete_character"), DataArray());
+    return;
+  }
   fire_button_down(mgr, screen, panel, Symbol("kPad_Tri"));
   if (mgr.current_screen() != screen) return;
   mgr.handle_property(Symbol("SCREEN_BACK_MSG"), DataArray());
@@ -2279,6 +2622,27 @@ void do_back(ScreenManager& mgr) {
   screen->handle_property(Symbol("go_back"), DataArray());
   if (mgr.current_screen() != screen) return;
   mgr.go_back();
+}
+
+bool finish_focused_text_entry(ScreenManager& mgr) {
+  Object* screen = mgr.current_screen();
+  if (!screen) return false;
+  const Symbol panel_name =
+      screen->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
+  Object* panel = panel_name.valid() ? mgr.find_object(panel_name) : nullptr;
+  const Symbol component_name =
+      panel ? panel->get_property(Symbol("focus"))
+                  .as_symbol()
+                  .value_or(Symbol())
+            : Symbol();
+  Object* component = component_name.valid()
+                          ? mgr.resolve_object(component_name)
+                          : nullptr;
+  if (!component ||
+      component->class_name() != Symbol("BandTextEntry"))
+    return false;
+  component->handle_property(Symbol("send_select"), DataArray());
+  return true;
 }
 
 // Load ui/eng/gen/locale.dtb into a key->display-string map. The menu's button
@@ -2448,6 +2812,18 @@ uint32_t pack_rgba_color(const std::array<float, 4>& color) {
   return (a << 24) | (r << 16) | (g << 8) | b;
 }
 
+uint32_t modulate_packed_color(
+    uint32_t packed, const std::array<float, 4>& material_color) {
+  const auto channel = [packed](int shift) {
+    return static_cast<float>((packed >> shift) & 0xFFu) / 255.0f;
+  };
+  return pack_rgba_color(
+      {{channel(16) * material_color[0],
+        channel(8) * material_color[1],
+        channel(0) * material_color[2],
+        channel(24) * material_color[3]}});
+}
+
 uint32_t pack_milo_vertex_color(const milo_scene::Vertex& vertex,
                                 const milo_scene::MatObj* mat,
                                 uint32_t fallback) {
@@ -2460,15 +2836,6 @@ uint32_t pack_milo_vertex_color(const milo_scene::Vertex& vertex,
   const float ma = mat ? mat->color[3] : unpack(fallback, 24);
   return pack_rgba_color({{vertex.r * mr, vertex.g * mg, vertex.b * mb,
                            vertex.a * ma}});
-}
-
-bool label_world_on_text_plane(const MenuLabel& label) {
-  // Some PS2 BandLabels serialize a parent-composed WorldXfm whose Y is in a
-  // panel scene space behind metacam (for example sel_guitar at about -975).
-  // Text is authored on the menu draw plane, so use WorldXfm only when it is
-  // already on that plane.
-  return label.has_world && std::isfinite(label.world[10]) &&
-         std::fabs(label.world[10]) < 100.0f;
 }
 
 std::string apply_authored_caps(std::string text, const MenuLabel& label) {
@@ -2749,6 +3116,10 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
         col = kResolvedColSelecting;
       else
         col = foc ? kResolvedColFocused : kResolvedColNormal;
+      if (font.has_material_color())
+        col = modulate_packed_color(col, font.material_color());
+      if (menu_label_uses_black_outfit_button_text(lbl))
+        col = 0xFF000000u;
     } else if ((lbl.type == "BandLabel" || lbl.type == "Text") &&
                lbl.text_tail.valid) {
       // BandLabel and RndText both serialize their source RGBA with their text
@@ -2766,12 +3137,16 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
     float w = 0.0f;
     auto quads = font.layout(disp, &w);
 
-    // Normalized local-X / local-Z axes (X-Z plane) for the menu's slight tilt;
-    // n0/n2 are the original scale magnitudes (used to spot the bind pose).
-    float r0x = lbl.world[0], r0z = lbl.world[2], r2x = lbl.world[6], r2z = lbl.world[8];
-    float n0 = std::sqrt(r0x*r0x + r0z*r0z), n2 = std::sqrt(r2x*r2x + r2z*r2z);
-    if (n0 > 1e-6f) { r0x /= n0; r0z /= n0; }
-    if (n2 > 1e-6f) { r2x /= n2; r2z /= n2; }
+    // n0/n2 identify the legacy main-menu bind-pose box. Other BandButtons
+    // draw their RndText on the complete authored local X/Z plane, including
+    // its depth component; discarding Y breaks cancellation with an animated
+    // ancestor and leaves a false projected rotation.
+    const float n0 = std::sqrt(lbl.world[0] * lbl.world[0] +
+                               lbl.world[1] * lbl.world[1] +
+                               lbl.world[2] * lbl.world[2]);
+    const float n2 = std::sqrt(lbl.world[6] * lbl.world[6] +
+                               lbl.world[7] * lbl.world[7] +
+                               lbl.world[8] * lbl.world[8]);
 
     if (isBtn) {
       // BandButton glyphs always use the uniform kTextScale (the in-MILO button
@@ -2785,6 +3160,22 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
       // Main-menu bind-pose buttons: remap the bind-pose Z to the XEX-measured
       // runtime Z (affine). Other screens use their Z.
       const float az = bindPose ? (kMenuZScale * lbl.world[11] + kMenuZOffset) : lbl.world[11];
+      std::array<float, 12> button_xfm = lbl.world;
+      if (bindPose) {
+        if (n0 > 1.0e-6f) {
+          button_xfm[0] /= n0;
+          button_xfm[1] /= n0;
+          button_xfm[2] /= n0;
+        }
+        if (n2 > 1.0e-6f) {
+          button_xfm[6] /= n2;
+          button_xfm[7] /= n2;
+          button_xfm[8] /= n2;
+        }
+        button_xfm[9] = ax;
+        button_xfm[10] = ay;
+        button_xfm[11] = az;
+      }
       if (bindPose || !lbl.button_tail.valid ||
           lbl.button_tail.text_size <= 0.0f) {
         const float scl = (bindPose ? kMainButtonTextScale : kTextScale) *
@@ -2801,10 +3192,10 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
         }
         emit(quads, [&](float qx, float qy, float u, float v) {
           const float lx = (qx + align_x) * scl;
-          const float lz = -(qy - capH * 0.5f) * scl;
-          TV tv{ax + lx * r0x + lz * r2x, ay,
-                az + lx * r0z + lz * r2z, u, v, col};
-          return tv;
+          const float lz = font.rnd_text_local_z(qy, capH * scl);
+          const auto world =
+              transform_menu_text_point(button_xfm, lx, lz);
+          return TV{world[0], world[1], world[2], u, v, col};
         });
       } else {
         const auto& tail = lbl.button_tail;
@@ -2879,10 +3270,10 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
           emit(line_quads, [&](float qx, float qy, float u, float v) {
             const float lx = (qx / capH) * draw_scale + x_offset;
             const float lz =
-                -((qy - capH * 0.5f) / capH) * draw_scale + line_z;
-            TV tv{ax + lx * r0x + lz * r2x, ay,
-                  az + lx * r0z + lz * r2z, u, v, col};
-            return tv;
+                font.rnd_text_local_z(qy, draw_scale) + line_z;
+            const auto world =
+                transform_menu_text_point(button_xfm, lx, lz);
+            return TV{world[0], world[1], world[2], u, v, col};
           });
         }
       }
@@ -2893,7 +3284,7 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
       // poster instead of at their unparented local offset.
       const auto& xfm =
           ((lbl.type == "BandLabel" || lbl.type == "Text" || isTextEntry) &&
-           label_world_on_text_plane(lbl))
+           menu_label_uses_authored_world_transform(lbl))
               ? lbl.world
               : lbl.local;
       float source_scale = 1.0f;
@@ -2998,7 +3389,7 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
             emit(glyph_quads, [&](float qx, float qy, float u, float v) {
               const float ex = char_x + (qx / capH) * char_scale;
               const float ez =
-                  -((qy - capH * 0.5f) / capH) * char_scale + line_z;
+                  font.rnd_text_local_z(qy, char_scale) + line_z;
               const auto world = transform_menu_text_point(xfm, ex, ez);
               return TV{world[0], world[1], world[2], u, v, char_col};
             });
@@ -3009,7 +3400,7 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
         emit(line_quads, [&](float qx, float qy, float u, float v) {
           const float ex = (qx / capH) * draw_scale + x_offset;
           const float ez =
-              -((qy - capH * 0.5f) / capH) * draw_scale + line_z;
+              font.rnd_text_local_z(qy, draw_scale) + line_z;
           const auto world = transform_menu_text_point(xfm, ex, ez);
           TV tv{world[0], world[1], world[2], u, v, col};
           return tv;
@@ -3070,6 +3461,37 @@ std::vector<LiveMenuAnimationSource> collect_live_menu_animation_sources(
     source.panel = panel;
     source.milo_path = path;
     source.transform_anims = extract_menu_transform_anims(hdr, ark, path);
+    if (std::getenv("GHOGX_LOG_MENU_TRANSFORMS")) {
+      for (const MenuSliderAnim& anim : source.transform_anims) {
+        std::fprintf(
+            stderr,
+            "[menu-transform] source=%s anim=%s target=%s owner=%s "
+            "frames=%.3f..%.3f rot=%zu pos=%zu scale=%zu\n",
+            path.c_str(), anim.name.c_str(), anim.target.c_str(),
+            anim.keys_owner.c_str(), anim.first_frame, anim.last_frame,
+            anim.rotation_keys.size(), anim.translation_keys.size(),
+            anim.scale_keys.size());
+        for (const MenuTransQuatKey& key : anim.rotation_keys) {
+          std::fprintf(stderr,
+                       "[menu-transform]   rot frame=%.3f "
+                       "quat=(%.9f %.9f %.9f %.9f)\n",
+                       key.frame, key.quat_xyzw[0], key.quat_xyzw[1],
+                       key.quat_xyzw[2], key.quat_xyzw[3]);
+        }
+        for (const MenuTransVecKey& key : anim.translation_keys) {
+          std::fprintf(stderr,
+                       "[menu-transform]   pos frame=%.3f "
+                       "value=(%.9f %.9f %.9f)\n",
+                       key.frame, key.value[0], key.value[1], key.value[2]);
+        }
+        for (const MenuTransVecKey& key : anim.scale_keys) {
+          std::fprintf(stderr,
+                       "[menu-transform]   scale frame=%.3f "
+                       "value=(%.9f %.9f %.9f)\n",
+                       key.frame, key.value[0], key.value[1], key.value[2]);
+        }
+      }
+    }
     source.material_anims = extract_menu_material_anims(hdr, ark, path);
     milo_scene::Scene scene;
     if (milo_scene::load_scene(hdr, ark, path, scene))
@@ -5067,6 +5489,46 @@ std::unordered_set<std::string> compute_disabled(ScreenManager& mgr,
   return d;
 }
 
+void annotate_label_transform_hierarchy(
+    std::vector<MenuLabel>& labels, const milo_scene::Scene& hierarchy,
+    const std::vector<MenuSliderAnim>& transform_anims) {
+  std::unordered_map<std::string, std::string> parent_by_name;
+  auto assign_parent = [&](const std::string& child,
+                           const std::string& parent) {
+    if (!child.empty() && !parent.empty() &&
+        parent_by_name.find(child) == parent_by_name.end())
+      parent_by_name.emplace(child, parent);
+  };
+  for (const auto& group : hierarchy.groups) {
+    assign_parent(group.name, group.parent);
+    for (const auto& child : group.children)
+      assign_parent(child, group.name);
+  }
+  for (const auto& trans : hierarchy.transes)
+    assign_parent(trans.name, trans.parent);
+
+  std::unordered_set<std::string> animated_targets;
+  for (const auto& anim : transform_anims)
+    if (anim.valid && !anim.target.empty())
+      animated_targets.insert(anim.target);
+
+  for (auto& label : labels) {
+    label.visibility_ancestors.clear();
+    label.has_transform_animated_ancestor =
+        animated_targets.find(label.name) != animated_targets.end();
+    std::string ancestor = label.parent;
+    std::unordered_set<std::string> visited;
+    while (!ancestor.empty() && visited.insert(ancestor).second) {
+      label.visibility_ancestors.push_back(ancestor);
+      if (animated_targets.find(ancestor) != animated_targets.end())
+        label.has_transform_animated_ancestor = true;
+      const auto parent = parent_by_name.find(ancestor);
+      if (parent == parent_by_name.end()) break;
+      ancestor = parent->second;
+    }
+  }
+}
+
 // All text-bearing objects of the current screen's panels (for focus nav).
 std::vector<MenuLabel> gather_labels(const std::string& hdr, const std::string& ark,
                                      ScreenManager& mgr, Object* screen) {
@@ -5078,39 +5540,20 @@ std::vector<MenuLabel> gather_labels(const std::string& hdr, const std::string& 
     if (file.empty()) continue;
     const std::string milo_path = "ui/gen/" + file + "_ps2";
     auto labels = extract_menu_labels(hdr, ark, milo_path);
-    std::unordered_map<std::string, std::string> parent_by_name;
     milo_scene::Scene hierarchy;
-    if (milo_scene::load_scene(hdr, ark, milo_path, hierarchy)) {
-      auto assign_parent = [&](const std::string& child,
-                               const std::string& parent) {
-        if (!child.empty() && !parent.empty() &&
-            parent_by_name.find(child) == parent_by_name.end())
-          parent_by_name.emplace(child, parent);
-      };
-      for (const auto& group : hierarchy.groups) {
-        assign_parent(group.name, group.parent);
-        for (const auto& child : group.children)
-          assign_parent(child, group.name);
-      }
-      for (const auto& trans : hierarchy.transes)
-        assign_parent(trans.name, trans.parent);
-    }
+    milo_scene::load_scene(hdr, ark, milo_path, hierarchy);
+    annotate_label_transform_hierarchy(
+        labels, hierarchy, extract_menu_transform_anims(hdr, ark, milo_path));
     for (auto& l : labels) {
       l.runtime_owner = pn.c_str();
-      std::string ancestor = l.parent;
-      std::unordered_set<std::string> visited;
-      while (!ancestor.empty() && visited.insert(ancestor).second) {
-        l.visibility_ancestors.push_back(ancestor);
-        const auto parent = parent_by_name.find(ancestor);
-        if (parent == parent_by_name.end()) break;
-        ancestor = parent->second;
-      }
       if (std::getenv("GHOGX_MENU_LABEL_TRACE")) {
         std::fprintf(stderr,
                      "[menu-label] owner=%s file=%s name=%s type=%s font=%s "
                      "button=(valid=%d legacy=%d fit=%d size=%.4f w=%.4f "
                      "h=%.4f align=%d) text=(valid=%d fit=%d size=%.4f "
-                     "w=%.4f h=%.4f align=%d) local=(%.3f %.3f %.3f)\n",
+                     "w=%.4f h=%.4f align=%d) "
+                     "local=(%.3f %.3f %.3f) world=(%.3f %.3f %.3f) "
+                     "animated_ancestor=%d use_world=%d\n",
                      pn.c_str(), file.c_str(), l.name.c_str(), l.type.c_str(),
                      l.font.c_str(), l.button_tail.valid ? 1 : 0,
                      l.button_tail.legacy_layout ? 1 : 0,
@@ -5120,7 +5563,9 @@ std::vector<MenuLabel> gather_labels(const std::string& hdr, const std::string& 
                      l.text_tail.fit_text, l.text_tail.text_size,
                      l.text_tail.width, l.text_tail.height,
                      l.text_tail.alignment, l.local[9], l.local[10],
-                     l.local[11]);
+                     l.local[11], l.world[9], l.world[10], l.world[11],
+                     l.has_transform_animated_ancestor ? 1 : 0,
+                     menu_label_uses_authored_world_transform(l) ? 1 : 0);
       }
       out.push_back(std::move(l));
     }
@@ -5134,15 +5579,158 @@ void set_panel_focus(ScreenManager& mgr, Object* panel, const std::string& next)
   if (!panel || next.empty()) return;
   std::string cur = panel->get_property(Symbol("focus")).as_symbol().value_or(Symbol()).c_str();
   if (cur == next) return;
-  Object* old_focus = cur.empty() ? nullptr : mgr.resolve_object(Symbol(cur.c_str()));
   Object* new_focus = mgr.resolve_object(Symbol(next.c_str()));
   panel->handle_property(Symbol("set_focus"),
                          one_arg(new_focus ? DataNode::Obj(new_focus)
                                            : DataNode::Sym(Symbol(next.c_str()))));
-  mgr.set_global(Symbol("old_focus"), DataNode::Obj(old_focus));
-  mgr.set_global(Symbol("new_focus"), DataNode::Obj(new_focus));
-  mgr.handle_property(Symbol("FOCUS_MSG"), DataArray());
-  panel->handle_property(Symbol("FOCUS_MSG"), DataArray());
+}
+
+int character_outfit_count(ScreenManager& mgr, Symbol character) {
+  Object* provider = mgr.resolve_object(Symbol("character_provider"));
+  if (!provider || !character.valid()) return 0;
+  DataArray args;
+  args.push(DataNode::Sym(character));
+  return std::max(
+      0, provider->handle_property(Symbol("num_outfits"), args)
+             .as_int()
+             .value_or(0));
+}
+
+Symbol character_outfit_at(ScreenManager& mgr, Symbol character, int index) {
+  Object* provider = mgr.resolve_object(Symbol("character_provider"));
+  if (!provider || !character.valid()) return Symbol();
+  DataArray args;
+  args.push(DataNode::Sym(character));
+  args.push(DataNode::Int(std::max(0, index)));
+  return symbol_value(
+      provider->handle_property(Symbol("get_outfit"), args));
+}
+
+std::string character_outfit_label_at(ScreenManager& mgr, Symbol character,
+                                       int index) {
+  Object* provider = mgr.resolve_object(Symbol("character_provider"));
+  if (!provider || !character.valid()) return {};
+  DataArray args;
+  args.push(DataNode::Sym(character));
+  args.push(DataNode::Int(std::max(0, index)));
+  DataNode label =
+      provider->handle_property(Symbol("get_outfit_label"), args);
+  if (auto text = label.as_string()) return std::string(*text);
+  if (auto token = label.as_symbol()) return token->c_str();
+  return {};
+}
+
+std::string character_outfit_blurb_at(ScreenManager& mgr, Symbol character,
+                                      int index) {
+  Object* provider = mgr.resolve_object(Symbol("character_provider"));
+  if (!provider || !character.valid()) return {};
+  DataArray args;
+  args.push(DataNode::Sym(character));
+  args.push(DataNode::Int(std::max(0, index)));
+  DataNode blurb =
+      provider->handle_property(Symbol("get_outfit_blurb"), args);
+  if (auto token = blurb.as_symbol()) return mgr.localize(*token);
+  if (auto text = blurb.as_string()) return std::string(*text);
+  return {};
+}
+
+int selected_character_outfit_index(ScreenManager& mgr, Object* panel,
+                                     Symbol character, int count) {
+  if (!panel || count <= 0) return 0;
+  const Symbol selected =
+      symbol_value(panel->get_property(Symbol("char_outfit")));
+  for (int index = 0; index < count; ++index) {
+    if (character_outfit_at(mgr, character, index) == selected) return index;
+  }
+  return std::clamp(
+      panel->get_property(Symbol("merged_outfit_index"))
+          .as_int()
+          .value_or(0),
+      0, count - 1);
+}
+
+void refresh_character_outfit_window(ScreenManager& mgr, Object* panel) {
+  if (!panel || panel->name() != Symbol("sel_character_panel") ||
+      !node_bool(panel->get_property(Symbol("skin_select")))) {
+    return;
+  }
+  const Symbol character =
+      symbol_value(panel->get_property(Symbol("char_focus")));
+  const int count = character_outfit_count(mgr, character);
+  if (count <= 0) return;
+  const int selected =
+      selected_character_outfit_index(mgr, panel, character, count);
+  panel->set_property(Symbol("merged_outfit_index"),
+                      DataNode::Int(selected));
+  const int window_start = count > 2 ? selected : 0;
+  panel->set_property(Symbol("merged_outfit_window_start"),
+                      DataNode::Int(window_start));
+  for (int row = 0; row < 2; ++row) {
+    Object* button = mgr.resolve_object(
+        Symbol(row == 0 ? "outfit1.btn" : "outfit2.btn"));
+    if (!button) continue;
+    const int index =
+        count > 2 ? (window_start + row) % count : row;
+    if (index >= count) continue;
+    const std::string label =
+        character_outfit_label_at(mgr, character, index);
+    if (!label.empty())
+      button->set_property(Symbol("text"), DataNode::Str(label));
+  }
+  if (auto* panel_dir = dynamic_cast<ObjectDir*>(panel)) {
+    if (Object* description =
+            panel_dir->find_path("sc_char_outfit_blurb.lbl")) {
+      description->set_property(
+          Symbol("text"),
+          DataNode::Str(
+              character_outfit_blurb_at(mgr, character, selected)));
+    }
+  }
+}
+
+bool move_character_outfit_window(ScreenManager& mgr, Object* panel,
+                                  int direction) {
+  if (!panel || panel->name() != Symbol("sel_character_panel") ||
+      !node_bool(panel->get_property(Symbol("skin_select"))) ||
+      direction == 0) {
+    return false;
+  }
+  const Symbol character =
+      symbol_value(panel->get_property(Symbol("char_focus")));
+  const int count = character_outfit_count(mgr, character);
+  if (count <= 1) return true;
+  int selected =
+      selected_character_outfit_index(mgr, panel, character, count);
+  selected = (selected + (direction > 0 ? 1 : -1) + count) % count;
+  const Symbol outfit =
+      character_outfit_at(mgr, character, selected);
+  panel->set_property(Symbol("merged_outfit_index"),
+                      DataNode::Int(selected));
+  panel->set_property(Symbol("char_outfit"), DataNode::Sym(outfit));
+
+  if (count <= 2) {
+    set_panel_focus(mgr, panel,
+                    selected == 0 ? "outfit1.btn" : "outfit2.btn");
+  } else {
+    panel->handle_property(
+        Symbol("set_focus"),
+        one_arg(DataNode::Obj(mgr.resolve_object(Symbol("outfit1.btn")))));
+    if (Object* arrow = mgr.resolve_object(Symbol("cs_arrow.tnm")))
+      arrow->handle_property(Symbol("set_frame"),
+                             one_arg(DataNode::Int(0)));
+    if (Object* chars = mgr.resolve_object(Symbol("char_single"))) {
+      DataArray show;
+      show.push(DataNode::Int(0));
+      show.push(DataNode::Sym(outfit));
+      chars->handle_property(Symbol("show_char"), show);
+      DataArray event;
+      event.push(DataNode::Int(0));
+      event.push(DataNode::Sym(Symbol("select")));
+      chars->handle_property(Symbol("char_event"), event);
+    }
+  }
+  refresh_character_outfit_window(mgr, panel);
+  return true;
 }
 
 bool is_slider_object(Object* obj) {
@@ -5206,6 +5794,19 @@ void focus_move(ScreenManager& mgr, const std::vector<MenuLabel>& labels,
   Symbol fpn = screen->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
   Object* panel = fpn.valid() ? mgr.find_object(fpn) : nullptr;
   if (!panel) return;
+  const Symbol component_name =
+      panel->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
+  Object* component = component_name.valid()
+                          ? mgr.resolve_object(component_name)
+                          : nullptr;
+  if (component &&
+      component->class_name() == Symbol("BandTextEntry")) {
+    DataArray args;
+    args.push(DataNode::Int(dir));
+    component->handle_property(Symbol("scroll_character"), args);
+    return;
+  }
+  if (move_character_outfit_window(mgr, panel, dir)) return;
   std::string cur = panel->get_property(Symbol("focus")).as_symbol().value_or(Symbol()).c_str();
   if (cur == "ss_song.lst" || cur == "credits.lst") {
     const bool song_list = cur == "ss_song.lst";
@@ -5240,6 +5841,14 @@ void focus_move(ScreenManager& mgr, const std::vector<MenuLabel>& labels,
           game->handle_property(Symbol("set_song_index"), one_arg(DataNode::Int(pos)));
       }
     }
+    return;
+  }
+  if (component && component->class_name() == Symbol("UIList")) {
+    component->handle_property(Symbol("scroll"),
+                               one_arg(DataNode::Int(dir)));
+    mgr.set_global(Symbol("component"), DataNode::Obj(component));
+    mgr.handle_property(Symbol("SCROLL_MSG"), DataArray());
+    panel->handle_property(Symbol("SCROLL_MSG"), DataArray());
     return;
   }
   if (adjust_focused_slider(mgr, panel, dir)) return;
@@ -5285,6 +5894,7 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
   if (screen) {
     Symbol fpn = screen->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
     if (Object* fp = fpn.valid() ? mgr.find_object(fpn) : nullptr) {
+      refresh_character_outfit_window(mgr, fp);
       Symbol fc = fp->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
       if (fc.valid()) focused = fc.c_str();
     }
@@ -5359,7 +5969,35 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
                "us_bottom.mesh", "us_top.mesh"})
         foreground_panel_meshes.insert(mesh);
     }
-    auto labels = extract_menu_labels(hdr, ark, "ui/gen/" + file + "_ps2");
+    const std::string milo_path = "ui/gen/" + file + "_ps2";
+    auto labels = extract_menu_labels(hdr, ark, milo_path);
+    milo_scene::Scene label_hierarchy;
+    milo_scene::load_scene(hdr, ark, milo_path, label_hierarchy);
+    annotate_label_transform_hierarchy(
+        labels, label_hierarchy,
+        extract_menu_transform_anims(hdr, ark, milo_path));
+    for (MenuLabel& label : labels) {
+      if (label.type != "BandTextEntry") continue;
+      Object* live = resolve_live_label_object(mgr, label, label.name);
+      const Symbol resource =
+          live ? live->get_property(Symbol("text_resource"))
+                     .as_symbol()
+                     .value_or(Symbol())
+               : Symbol();
+      if (!resource.valid()) continue;
+      const MenuTextStyle style = extract_menu_text_style(
+          hdr, ark, "ui/gen/textentry.milo_ps2", resource.c_str());
+      if (!style.valid) continue;
+      label.font = style.font;
+      label.text_tail.valid = true;
+      label.text_tail.width = style.wrap_width;
+      label.text_tail.height = style.text_size;
+      label.text_tail.leading = style.leading;
+      label.text_tail.alignment = style.alignment;
+      label.text_tail.text_size = style.text_size;
+      label.text_tail.width_bound = style.wrap_width;
+      label.text_tail.color = style.color;
+    }
     for (const auto& label : labels)
       if (label.type == "BandTextEntry") text_entries.push_back(label);
     std::unordered_set<std::string> panel_fonts;
@@ -5944,7 +6582,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   bool guitar_visible =
       rebuild_guitar_display_scene(hdr, ark, mgr, shown, db, guitar_renderer);
   character_previews =
-      rebuild_character_display_scenes(hdr, ark, mgr, shown, *win);
+      rebuild_character_display_scenes(hdr, ark, mgr, shown, db, *win);
   if (!character_previews.empty()) mgr.update(0.0f);
   apply_loading_source_anims(hdr, ark, mgr, shown, renderer);
   rebuild_text(hdr, ark, mgr, shown, renderer, fonts, db, locale);
@@ -5985,6 +6623,11 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
           // visible preview layer, while a GuitarDisplayPanel is active.
           if (!live_guitar_visible) {
             for (auto& character : live_characters) {
+              std::array<float, 16> live_placer{};
+              if (scene_renderer.current_scene_node_world(character.placer,
+                                                          live_placer)) {
+                character.renderer->set_world_transform(live_placer);
+              }
               if (!character.environment.empty())
                 scene_renderer.apply_environment_lighting_state(
                     character.environment);
@@ -6367,10 +7010,35 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         index, loaded_song.c_str(), quickplay ? "quickplay" : "career",
         selected_venue.valid() ? selected_venue.c_str() : "<song-quickplay>",
         encore ? "INTRO_ENCORE" : "INTRO");
+    const Symbol selected_outfit =
+        game_config
+            ? symbol_value(
+                  game_config->get_property(Symbol("character_outfit")))
+            : Symbol();
+    if (const CharacterVariant* variant =
+            db.character_variant(selected_outfit)) {
+      gameplay.set_selected_character_variant(
+          variant->selection.c_str(), variant->model_path,
+          variant->main_anim_path, variant->strum_anim_path,
+          variant->fret_anim_path, variant->highway_surface_path);
+      std::fprintf(
+          stderr,
+          "[flow] selected character handoff: character=%s variant=%s "
+          "source=%s model=%s\n",
+          variant->character.c_str(), variant->selection.c_str(),
+          variant->source_game.c_str(), variant->model_path.c_str());
+    } else {
+      gameplay.set_selected_character_variant({}, {}, {}, {}, {}, {});
+    }
     if (!gameplay.load_song(gameplay_hdr, gameplay_ark, loaded_song,
                             loaded_difficulty)) {
       std::fprintf(stderr, "[flow] gameplay load failed: %s diff=%d\n",
                    loaded_song.c_str(), loaded_difficulty);
+      return false;
+    }
+    if (!gameplay.prepare_world(*win)) {
+      std::fprintf(stderr, "[flow] gameplay world preparation failed: %s\n",
+                   loaded_song.c_str());
       return false;
     }
     song_intro_overlay.reset(hdr, ark, gameplay_hdr, gameplay_ark,
@@ -6733,12 +7401,16 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
 
     // Input (live controller/keyboard) -> focus nav + the real menu scripts.
     bool visual_dirty = false;
-    if (!disable_live_input && win->action_pressed(Action::Down))
+    if (!disable_live_input && win->action_pressed(Action::Down)) {
       focus_move(mgr, cur_labels, cur_disabled, +1, quickplay_song_count(db),
                  credit_count);
-    if (!disable_live_input && win->action_pressed(Action::Up))
+      visual_dirty = true;
+    }
+    if (!disable_live_input && win->action_pressed(Action::Up)) {
       focus_move(mgr, cur_labels, cur_disabled, -1, quickplay_song_count(db),
                  credit_count);
+      visual_dirty = true;
+    }
     const bool pause_start =
         phase == RuntimePhase::Paused && !disable_live_input &&
         win->action_pressed(Action::Start);
@@ -6754,7 +7426,12 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       fire_button_down(mgr, screen, panel, Symbol("kPad_Start"));
       visual_dirty = true;
     }
-    if (!pause_start && !disable_live_input &&
+    const bool text_entry_start =
+        !pause_start && !disable_live_input &&
+        win->action_pressed(Action::Start) &&
+        finish_focused_text_entry(mgr);
+    if (text_entry_start) visual_dirty = true;
+    if (!pause_start && !text_entry_start && !disable_live_input &&
         win->action_pressed(Action::Confirm)) {
       do_confirm(mgr);
       visual_dirty = true;
@@ -6767,13 +7444,15 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     // Scripted auto-nav (headless testing): one action per kNavStep frames.
     if (nav_i < nav.size() && frame == (nav_i + 1) * kNavStep) {
       const std::string& a = nav[nav_i++];
-      if (a == "down")
+      if (a == "down") {
         focus_move(mgr, cur_labels, cur_disabled, +1, quickplay_song_count(db),
                    credit_count);
-      else if (a == "up")
+        visual_dirty = true;
+      } else if (a == "up") {
         focus_move(mgr, cur_labels, cur_disabled, -1, quickplay_song_count(db),
                    credit_count);
-      else if (a == "confirm") {
+        visual_dirty = true;
+      } else if (a == "confirm") {
         do_confirm(mgr);
         visual_dirty = true;
       } else if (a == "confirm2") {
@@ -6891,7 +7570,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       guitar_visible =
       rebuild_guitar_display_scene(hdr, ark, mgr, shown, db, guitar_renderer);
       character_previews =
-          rebuild_character_display_scenes(hdr, ark, mgr, shown, *win);
+          rebuild_character_display_scenes(hdr, ark, mgr, shown, db, *win);
       if (!character_previews.empty()) mgr.update(0.0f);
       apply_loading_source_anims(hdr, ark, mgr, shown, renderer);
       rebuild_text(hdr, ark, mgr, shown, renderer, fonts, db, locale);
@@ -6905,7 +7584,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       guitar_visible =
           rebuild_guitar_display_scene(hdr, ark, mgr, shown, db, guitar_renderer);
       character_previews =
-          rebuild_character_display_scenes(hdr, ark, mgr, shown, *win,
+          rebuild_character_display_scenes(hdr, ark, mgr, shown, db, *win,
                                            std::move(character_previews));
       if (!character_previews.empty()) mgr.update(0.0f);
       apply_loading_source_anims(hdr, ark, mgr, shown, renderer);
@@ -6947,6 +7626,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     {
       character.renderer->update(dt);
       character.clip_player.advance(dt);
+      character.open_door_pose_player.advance(dt);
       if (character.enter_pending_loop && character.ui_enter_clip &&
           character.clip_player.current_time_seconds() >=
               character.ui_enter_clip->duration_seconds()) {
@@ -6971,6 +7651,11 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       controller_sources.controllers_enabled = true;
       ghogx::character::apply_character_pose_controller_frame(
           character.renderer->character(), controller_sources);
+      apply_character_select_door_pose(character, renderer);
+    }
+    if (outgoing_transition_visible) {
+      for (auto& character : outgoing_character_previews)
+        apply_character_select_door_pose(character, outgoing_renderer);
     }
     if (outgoing_transition_visible) {
       draw_menu_layers(outgoing_renderer, outgoing_guitar_renderer,

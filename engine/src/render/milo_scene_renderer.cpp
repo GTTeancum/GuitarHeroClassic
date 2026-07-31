@@ -259,10 +259,6 @@ BlendState blend_state_for(uint8_t blend) {
   }
 }
 
-bool is_authored_invisible_material(const std::string& material) {
-  return material == "invisible.mat" || material == "ray_blocker.mat";
-}
-
 std::string read_env_string_raw(const char* name) {
   char* value = nullptr;
   size_t len = 0;
@@ -1799,59 +1795,15 @@ bool debug_venue_inspector_enabled() {
          env_enabled("GHOGX_DEBUG_VENUE_PICK_AUTHORED");
 }
 
-const char* cull_mode_name(DWORD mode) {
-  switch (mode) {
-    case D3DCULL_NONE:
-      return "none";
-    case D3DCULL_CW:
-      return "cw";
-    case D3DCULL_CCW:
-      return "ccw";
-    default:
-      return "unknown";
-  }
-}
-
-DWORD opposite_cull_mode(DWORD mode) {
-  if (mode == D3DCULL_CW) return D3DCULL_CCW;
-  if (mode == D3DCULL_CCW) return D3DCULL_CW;
-  return mode;
-}
-
-bool is_redoctane_main_hall_reversed_shell(
-    const milo_scene::Scene& scene, const milo_scene::MeshObj& mesh,
-    const milo_scene::MatObj* mat) {
-  if (env_enabled("GHOGX_DISABLE_REDOCTANE_MAIN_HALL_CULL_FIX")) return false;
-  return scene.dir_name == "big_geom" && mesh.name == "main_hall.mesh" &&
-         mesh.material == "wallboard01.mat" && mat &&
-         mat->diffuse_tex == "bottomfloorwall_r.tex";
-}
-
-DWORD venue_mesh_cull_mode(const milo_scene::Scene& scene,
-                           const milo_scene::MeshObj& mesh,
-                           const milo_scene::MatObj* mat,
+DWORD venue_mesh_cull_mode(const milo_scene::MatObj* mat,
+                           const std::array<float, 16>& draw_world,
+                           bool source_winding_reversed,
                            DWORD authored_cull_mode,
                            bool debug_highlighted_mesh) {
-  if (debug_highlighted_mesh) return D3DCULL_NONE;
-  if (mat && !mat->cull) return D3DCULL_NONE;
-  if (is_redoctane_main_hall_reversed_shell(scene, mesh, mat)) {
-    const DWORD flipped = opposite_cull_mode(authored_cull_mode);
-    static std::unordered_set<std::string> logged;
-    const std::string key = scene.dir_name + "|" + mesh.name + "|" +
-                            cull_mode_name(authored_cull_mode) + ">" +
-                            cull_mode_name(flipped);
-    if (logged.insert(key).second) {
-      std::fprintf(
-          stderr,
-          "[milo_scene] venue cull override mesh=%s material=%s diffuse=%s "
-          "source=%s mode=%s->%s reason=redoctane_main_hall_reversed_shell\n",
-          mesh.name.c_str(), mesh.material.c_str(), mat->diffuse_tex.c_str(),
-          scene.dir_name.c_str(), cull_mode_name(authored_cull_mode),
-          cull_mode_name(flipped));
-    }
-    return flipped;
-  }
-  return authored_cull_mode;
+  return static_cast<DWORD>(source_mesh_cull_mode(
+      !mat || mat->cull, debug_highlighted_mesh,
+      world_transform_reverses_winding(draw_world), source_winding_reversed,
+      static_cast<uint32_t>(authored_cull_mode)));
 }
 
 bool debug_pick_culled_by_cull_mode(DWORD cull_mode, bool backfacing) {
@@ -1902,18 +1854,6 @@ bool env_float_pair(const char* name, float out[2]) {
 bool env_float_triplet(const char* name, float out[3]) {
   std::string text;
   return env_string(name, text) && parse_float_triplet(text, out);
-}
-
-bool scene_has_debug_venue_markers(const milo_scene::Scene& scene) {
-  for (const auto& mesh : scene.meshes) {
-    if (mesh.name == "main_hall.mesh" ||
-        mesh.name == "stage_floorm.mesh" ||
-        mesh.name == "bottomfloorrug.mesh" ||
-        mesh.name.find("audience") != std::string::npos) {
-      return true;
-    }
-  }
-  return scene.meshes.size() >= 120 && scene.groups.size() >= 20;
 }
 
 void direction_from_orbit_angles(const OrbitCamera& cam, float out[3]) {
@@ -2703,6 +2643,97 @@ milo_scene::MeshObj make_generated_spotlight_disc(const char* name,
 
 }  // namespace
 
+bool world_transform_reverses_winding(
+    const std::array<float, 16>& world_transform) {
+  return local_basis_determinant(world_transform) < -1.0e-8f;
+}
+
+bool mesh_source_winding_reversed(const milo_scene::MeshObj& mesh) {
+  size_t forward = 0;
+  size_t reversed = 0;
+  for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+    const uint16_t ia = mesh.indices[i + 0];
+    const uint16_t ib = mesh.indices[i + 1];
+    const uint16_t ic = mesh.indices[i + 2];
+    if (ia >= mesh.verts.size() || ib >= mesh.verts.size() ||
+        ic >= mesh.verts.size()) {
+      continue;
+    }
+    const auto& a = mesh.verts[ia];
+    const auto& b = mesh.verts[ib];
+    const auto& c = mesh.verts[ic];
+    const float abx = b.px - a.px;
+    const float aby = b.py - a.py;
+    const float abz = b.pz - a.pz;
+    const float acx = c.px - a.px;
+    const float acy = c.py - a.py;
+    const float acz = c.pz - a.pz;
+    const float cx = aby * acz - abz * acy;
+    const float cy = abz * acx - abx * acz;
+    const float cz = abx * acy - aby * acx;
+    const float nx = a.nx + b.nx + c.nx;
+    const float ny = a.ny + b.ny + c.ny;
+    const float nz = a.nz + b.nz + c.nz;
+    const float cross_len2 = cx * cx + cy * cy + cz * cz;
+    const float normal_len2 = nx * nx + ny * ny + nz * nz;
+    if (cross_len2 <= 1.0e-12f || normal_len2 <= 1.0e-12f) continue;
+    const float alignment = cx * nx + cy * ny + cz * nz;
+    const float epsilon =
+        1.0e-6f * std::sqrt(cross_len2 * normal_len2);
+    if (alignment > epsilon) {
+      ++forward;
+    } else if (alignment < -epsilon) {
+      ++reversed;
+    }
+  }
+  return reversed > forward;
+}
+
+uint32_t source_mesh_cull_mode(bool material_cull,
+                               bool debug_highlighted_mesh,
+                               bool world_winding_reversed,
+                               bool source_winding_reversed,
+                               uint32_t authored_cull_mode) {
+  constexpr uint32_t kCullNone = 1;
+  constexpr uint32_t kCullCw = 2;
+  constexpr uint32_t kCullCcw = 3;
+  if (debug_highlighted_mesh || !material_cull) return kCullNone;
+  if (world_winding_reversed == source_winding_reversed)
+    return authored_cull_mode;
+  if (authored_cull_mode == kCullCw) return kCullCcw;
+  if (authored_cull_mode == kCullCcw) return kCullCw;
+  return authored_cull_mode;
+}
+
+SourceTexGenXfm2D source_texgen_xfm_2d(
+    uint8_t tex_gen, float m00, float m01, float m10, float m11,
+    float tu, float tv) {
+  if (tex_gen != 1) return {m00, m01, m10, m11, tu, tv};
+
+  // Exact kXfm conversion observed in live GH2 PS2 RndMat instances.
+  // Harmonix authors TexXfm around a centered Y-up coordinate system; the
+  // runtime generator stores the equivalent centered V-down transform.
+  const float out_m00 = m00;
+  const float out_m01 = -m01;
+  const float out_m10 = -m10;
+  const float out_m11 = m11;
+  const float centered_u = 0.5f + tu;
+  const float centered_v = 0.5f - tv;
+  const float out_tu =
+      0.5f - (centered_u * out_m00 + centered_v * out_m10);
+  const float out_tv =
+      0.5f - (centered_u * out_m01 + centered_v * out_m11);
+  return {out_m00, out_m01, out_m10, out_m11, out_tu, out_tv};
+}
+
+bool source_material_bypasses_fixed_lighting(
+    bool prelit, bool use_environment) {
+  // GH2 PS2 Ps2Mat::Select at 0x0019D12C..0x0019D154 stores one light
+  // channel when mUseEnviron || !mPreLit. The independent WiiMat::Select
+  // signature identifies that computed value as numLightChannels.
+  return prelit && !use_environment;
+}
+
 MiloSceneRenderer::MaterialUvSamplerDecision choose_material_uv_sampler(
     const MiloSceneRenderer::MaterialUvBounds& final_uv_bounds,
     float scale_u, float scale_v, bool material_tex_anim) {
@@ -2753,6 +2784,11 @@ MiloSceneRenderer::~MiloSceneRenderer() {
   for (auto& [name, state] : flare_visibility_) {
     (void)name;
     if (state.query) state.query->Release();
+  }
+  for (auto& [mesh, buffers] : static_mesh_buffers_) {
+    (void)mesh;
+    if (buffers.vertices) buffers.vertices->Release();
+    if (buffers.indices) buffers.indices->Release();
   }
   for (auto& kv : tex_)
     if (kv.second) kv.second->Release();
@@ -3235,7 +3271,7 @@ void MiloSceneRenderer::trigger_mesh_transform_anim(
 
 void MiloSceneRenderer::update(float dt_seconds) {
   if (dt_seconds <= 0.0f) return;
-  if (debug_venue_inspector_enabled() && scene_has_debug_venue_markers(scene_)) {
+  if (debug_venue_inspector_enabled() && !scene_.meshes.empty()) {
     debug_venue_inspector_states()[this].dt = dt_seconds;
   }
   particle_time_ += dt_seconds;
@@ -3313,6 +3349,13 @@ const milo_scene::MatObj* MiloSceneRenderer::find_material(
 void MiloSceneRenderer::set_scene(
     milo_scene::Scene scene,
     const std::map<std::string, ghogx::asset::Image>& textures) {
+  for (auto& [mesh, buffers] : static_mesh_buffers_) {
+    (void)mesh;
+    if (buffers.vertices) buffers.vertices->Release();
+    if (buffers.indices) buffers.indices->Release();
+  }
+  static_mesh_buffers_.clear();
+  source_mesh_winding_reversed_.clear();
   for (auto& [name, state] : flare_visibility_) {
     (void)name;
     if (state.query) state.query->Release();
@@ -3328,9 +3371,42 @@ void MiloSceneRenderer::set_scene(
   for (const auto& mesh : scene_.meshes) {
     meshes_by_name_.emplace(mesh.name, &mesh);
   }
+  base_mesh_worlds_.clear();
+  base_mesh_worlds_.reserve(scene_.meshes.size());
+  for (const auto& mesh : scene_.meshes) {
+    base_mesh_worlds_.emplace(&mesh, scene_.world_matrix(mesh));
+    source_mesh_winding_reversed_.emplace(
+        &mesh, mesh_source_winding_reversed(mesh));
+  }
   groups_by_name_.clear();
   for (const auto& group : scene_.groups) {
     groups_by_name_.emplace(group.name, &group);
+  }
+  authored_parents_.clear();
+  for (const auto& group : scene_.groups) {
+    if (!group.parent.empty()) {
+      authored_parents_.emplace(group.name, group.parent);
+    }
+  }
+  for (const auto& mesh : scene_.meshes) {
+    if (!mesh.parent.empty()) {
+      authored_parents_.emplace(mesh.name, mesh.parent);
+    }
+  }
+  for (const auto& trans : scene_.transes) {
+    if (!trans.parent.empty()) {
+      authored_parents_.emplace(trans.name, trans.parent);
+    }
+  }
+  for (const auto& placer : scene_.band_placers) {
+    if (!placer.parent.empty()) {
+      authored_parents_.emplace(placer.name, placer.parent);
+    }
+  }
+  for (const auto& group : scene_.groups) {
+    for (const auto& child : group.children) {
+      authored_parents_.emplace(child, group.name);
+    }
   }
   ordered_draw_meshes_.clear();
   ordered_draw_meshes_.reserve(scene_.meshes.size());
@@ -3563,9 +3639,102 @@ void MiloSceneRenderer::set_scene(
   }
 }
 
+void MiloSceneRenderer::set_mesh_transform_offset(
+    const std::string& mesh_name, MeshTransformSample sample) {
+  mesh_transform_offsets_[mesh_name] = sample;
+  if (sample.has_translation)
+    mesh_translation_offsets_[mesh_name] = sample.translation;
+  else
+    mesh_translation_offsets_.erase(mesh_name);
+}
+
 void MiloSceneRenderer::set_transform_parent_overrides(
     std::map<std::string, std::string> parents) {
   transform_parent_overrides_ = std::move(parents);
+}
+
+bool MiloSceneRenderer::current_scene_node_world(
+    const std::string& name, std::array<float, 16>& world) const {
+  SceneNodeXfm node;
+  if (!scene_node_xfm_for(scene_, name, node)) return false;
+
+  auto parent_for = [&](const std::string& target) {
+    SceneNodeXfm value;
+    if (!scene_node_xfm_for(scene_, target, value)) return std::string{};
+    const auto override_it = transform_parent_overrides_.find(target);
+    return override_it == transform_parent_overrides_.end()
+               ? value.parent
+               : override_it->second;
+  };
+  auto target_has_sample = [&](const std::string& target) {
+    return mesh_transform_offsets_.find(target) !=
+               mesh_transform_offsets_.end() ||
+           active_mesh_anims_.find(target) != active_mesh_anims_.end();
+  };
+  auto apply_samples = [&](std::array<float, 16>& local,
+                           const std::string& target) {
+    if (const auto offset = mesh_transform_offsets_.find(target);
+        offset != mesh_transform_offsets_.end()) {
+      apply_mesh_transform_sample(local, offset->second);
+    }
+    if (const auto active = active_mesh_anims_.find(target);
+        active != active_mesh_anims_.end()) {
+      const float frame =
+          active->second.elapsed * active->second.frames_per_second;
+      apply_mesh_transform_sample(
+          local, sample_transform_anim(active->second.anim, frame));
+    }
+  };
+
+  std::vector<std::string> ancestors;
+  for (std::string parent = parent_for(name); !parent.empty();) {
+    ancestors.push_back(parent);
+    const std::string next = parent_for(parent);
+    if (next.empty() || next == parent) break;
+    parent = next;
+    if (ancestors.size() >= 64) return false;
+  }
+  std::reverse(ancestors.begin(), ancestors.end());
+
+  const bool animated =
+      target_has_sample(name) ||
+      std::any_of(ancestors.begin(), ancestors.end(), target_has_sample);
+  if (!animated && transform_parent_overrides_.empty())
+    return scene_node_world_for(scene_, name, world);
+
+  std::vector<std::string> chain = ancestors;
+  chain.push_back(name);
+  std::array<float, 16> anchor_base{};
+  std::array<float, 16> anchor_current{};
+  bool have_anchor = false;
+  for (const std::string& target : chain) {
+    const bool is_requested = target == name;
+    const bool sampled = target_has_sample(target);
+    if (!sampled && !is_requested) continue;
+
+    std::array<float, 16> base_world{};
+    if (!scene_node_world_for(scene_, target, base_world)) return false;
+    std::array<float, 16> current_world = base_world;
+    if (have_anchor) {
+      current_world =
+          mul16(mul16(base_world, affine_inverse16(anchor_base)),
+                anchor_current);
+    }
+    if (sampled) {
+      SceneNodeXfm sampled_node;
+      if (!scene_node_xfm_for(scene_, target, sampled_node)) return false;
+      std::array<float, 16> sampled_local = sampled_node.local;
+      apply_samples(sampled_local, target);
+      current_world =
+          mul16(mul16(sampled_local, affine_inverse16(sampled_node.local)),
+                current_world);
+      anchor_base = base_world;
+      anchor_current = current_world;
+      have_anchor = true;
+    }
+    if (is_requested) world = current_world;
+  }
+  return true;
 }
 
 void MiloSceneRenderer::set_flare_steps(std::map<std::string, int> steps) {
@@ -3840,7 +4009,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
 
   DebugVenueInspectorState* debug_venue = nullptr;
   if (draw_scene && debug_venue_inspector_enabled() &&
-      (scene_has_debug_venue_markers(scene_) ||
+      (!scene_.meshes.empty() ||
        env_enabled("GHOGX_DEBUG_VENUE_FREECAM") ||
        env_enabled("GHOGX_DEBUG_VENUE_PICK_AUTHORED"))) {
     debug_venue = &debug_venue_inspector_states()[this];
@@ -3997,12 +4166,19 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   const bool apply_environment_fog =
       apply_environment_lighting && !env_enabled("GHOGX_DISABLE_ENVIRON_FOG");
   std::string active_authored_light_key;
+  const milo_scene::EnvironObj* active_authored_light_environment = nullptr;
+  bool authored_lights_configured = false;
   auto disable_authored_lights = [&]() {
-    if (active_authored_light_key.empty()) return;
+    if (authored_lights_configured &&
+        active_authored_light_environment == nullptr) {
+      return;
+    }
     for (DWORD i = 0; i < kAuthoredLightSlotCount; ++i) {
       dev_->LightEnable(kAuthoredLightFirstSlot + i, FALSE);
     }
     active_authored_light_key.clear();
+    active_authored_light_environment = nullptr;
+    authored_lights_configured = true;
   };
   auto transform_target_has_sample = [&](const std::string& target) -> bool {
     return mesh_transform_offsets_.find(target) !=
@@ -4059,6 +4235,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       [&](const milo_scene::EnvironObj* env) {
     if (!apply_environment_dynamic_lights || !env || env->lights.empty()) {
       disable_authored_lights();
+      return;
+    }
+    if (authored_lights_configured &&
+        active_authored_light_environment == env) {
       return;
     }
     for (DWORD i = 0; i < kAuthoredLightSlotCount; ++i) {
@@ -4125,18 +4305,25 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       ++enabled;
     }
     active_authored_light_key = enabled == 0 ? std::string{} : env->name;
+    active_authored_light_environment = env;
+    authored_lights_configured = true;
   };
   std::string active_authored_fog_key;
+  const milo_scene::EnvironObj* active_fog_environment = nullptr;
+  bool authored_fog_configured = false;
   auto disable_authored_fog = [&]() {
-    if (active_authored_fog_key.empty()) return;
+    if (authored_fog_configured && active_fog_environment == nullptr) return;
     dev_->SetRenderState(D3DRS_FOGENABLE, FALSE);
     active_authored_fog_key.clear();
+    active_fog_environment = nullptr;
+    authored_fog_configured = true;
   };
   auto configure_authored_fog = [&](const milo_scene::EnvironObj* env) {
     if (!apply_environment_fog || !env) {
       disable_authored_fog();
       return;
     }
+    if (authored_fog_configured && active_fog_environment == env) return;
     std::array<float, 4> fog_color = {
         env->fog_color[0], env->fog_color[1], env->fog_color[2],
         env->fog_color[3]};
@@ -4172,7 +4359,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
     active_authored_fog_key = env->name;
+    active_fog_environment = env;
+    authored_fog_configured = true;
   };
+  const milo_scene::EnvironObj* active_approx_light_environment = nullptr;
+  bool approx_lights_configured = false;
   auto draw_mesh_with_world = [&](const milo_scene::MeshObj& m,
                                    const std::array<float, 16>& w,
                                    const std::string* material_override = nullptr,
@@ -4208,7 +4399,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     // remain valid transform/editor helpers, but the platform renderer has no
     // draw state to submit for them.
     if (material.empty() && !force_debug_draw) return;
-    if (is_authored_invisible_material(material) && !force_debug_draw) return;
     const bool debug_spotlight_solid =
         spotlight_state && env_enabled("GHOGX_DEBUG_SPOTLIGHT_SOLID");
     const bool debug_highlighted_mesh =
@@ -4298,11 +4488,31 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       ma = c[3];
     }
     const milo_scene::EnvironObj* mesh_env = nullptr;
+    std::string mesh_env_name;
     if (apply_environment_lighting && mat_obj && mat_obj->use_environ) {
       std::string env_name = default_environment_;
       const auto env_it = mesh_environments_.find(m.name);
       if (env_it != mesh_environments_.end()) env_name = env_it->second;
+      mesh_env_name = env_name;
       mesh_env = env_name.empty() ? nullptr : scene_.find_environ(env_name);
+    }
+    if (mat_obj && mat_obj->use_environ &&
+        env_enabled("GHOGX_LOG_MESH_ENV_BINDING")) {
+      static std::unordered_set<std::string> logged_mesh_environment_bindings;
+      const std::string key =
+          m.name + "|" + material + "|" + mesh_env_name + "|" +
+          (mesh_env ? "found" : "missing");
+      if (logged_mesh_environment_bindings.insert(key).second) {
+        std::fprintf(
+            stderr,
+            "[milo_scene] Mesh environment binding: mesh=%s material=%s "
+            "default=%s selected=%s decoded=%d lighting_enabled=%d\n",
+            m.name.c_str(), material.c_str(),
+            default_environment_.empty() ? "(none)"
+                                         : default_environment_.c_str(),
+            mesh_env_name.empty() ? "(none)" : mesh_env_name.c_str(),
+            mesh_env ? 1 : 0, apply_environment_lighting ? 1 : 0);
+      }
     }
     std::array<float, 4> mesh_env_color = {1.0f, 1.0f, 1.0f, 1.0f};
     bool has_mesh_env_color = false;
@@ -4357,8 +4567,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
     d3d_state.render(D3DRS_AMBIENT, mesh_ambient);
-    install_approx_scene_lights(dev_, approx_directional_lights,
-                                mesh_env == nullptr);
+    if (!approx_lights_configured ||
+        active_approx_light_environment != mesh_env) {
+      install_approx_scene_lights(dev_, approx_directional_lights,
+                                  mesh_env == nullptr);
+      active_approx_light_environment = mesh_env;
+      approx_lights_configured = true;
+    }
     configure_authored_fog(mesh_env);
     configure_authored_lights(mesh_env);
     if (mesh_env && env_enabled("GHOGX_LOG_ENVIRON_LIGHTING")) {
@@ -4420,6 +4635,20 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         tv = uv_m21;
       }
     }
+    if (mat_obj) {
+      const SourceTexGenXfm2D tex_gen_xfm = source_texgen_xfm_2d(
+          mat_obj->tex_gen, uv_m00, uv_m01, uv_m10, uv_m11, uv_m20, uv_m21);
+      uv_m00 = tex_gen_xfm.m00;
+      uv_m01 = tex_gen_xfm.m01;
+      uv_m10 = tex_gen_xfm.m10;
+      uv_m11 = tex_gen_xfm.m11;
+      uv_m20 = tex_gen_xfm.tu;
+      uv_m21 = tex_gen_xfm.tv;
+      su = std::hypot(uv_m00, uv_m01);
+      sv = std::hypot(uv_m10, uv_m11);
+      tu = uv_m20;
+      tv = uv_m21;
+    }
     if (spotlight_state) {
       mr *= spotlight_state->r;
       mg *= spotlight_state->g;
@@ -4440,22 +4669,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     const bool prelit_material =
         mat_obj && mat_obj->prelit && !env_enabled("GHOGX_DISABLE_PRELIT_MATERIALS");
-    // RndMat::mPreLit is renderer state, not a diagnostic hint.  The recovered
-    // WiiMat::Select path selects its light-channel count from the material and
-    // WiiMesh submits the authored vertex colours with the mesh.  Do not run
-    // that already-lit diffuse stream through our approximation lights again.
-    const bool prelit_lighting_bypass = prelit_material;
-    if (prelit_lighting_bypass && has_mesh_env_color) {
-      // Prelit materials bypass D3D fixed lighting below. Preserve the authored
-      // Mat.use_environ route by folding current Environ/EnvAnim colour into
-      // the same diffuse path that vertex and material colours use. Harmonix
-      // RndEnviron::SetAmbientColor copies only red/green/blue; ambient alpha
-      // is not a material-opacity channel (Battle's stage.env authors it as
-      // zero while its stage and floor remain visible).
-      mr *= std::clamp(mesh_env_color[0], 0.0f, 4.0f);
-      mg *= std::clamp(mesh_env_color[1], 0.0f, 4.0f);
-      mb *= std::clamp(mesh_env_color[2], 0.0f, 4.0f);
-    }
+    // Native keeps an environment light channel active for prelit materials
+    // which opt into RndEnviron. Their baked vertex colors are the light
+    // channel's material input, not a reason to suppress authored ambient and
+    // approximate/dynamic lights. Only prelit + !use_environ bypasses.
+    const bool prelit_lighting_bypass =
+        source_material_bypasses_fixed_lighting(
+            prelit_material, mat_obj && mat_obj->use_environ);
     (void)has_mesh_env_color;
     if (debug_spotlight_solid) {
       texture = nullptr;
@@ -4487,10 +4707,22 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       material_z_mode = kZModeTransparent;
     }
     const BlendState blend_state = blend_state_for(material_blend);
+    const auto source_winding_it = source_mesh_winding_reversed_.find(&m);
+    const bool source_winding_reversed =
+        source_winding_it != source_mesh_winding_reversed_.end() &&
+        source_winding_it->second;
     const DWORD mesh_cull_mode =
-        venue_mesh_cull_mode(scene_, m, mat_obj, authored_cull_mode,
-                             debug_highlighted_mesh);
+        venue_mesh_cull_mode(mat_obj, w, source_winding_reversed,
+                             authored_cull_mode, debug_highlighted_mesh);
     d3d_state.render(D3DRS_CULLMODE, mesh_cull_mode);
+    const bool alpha_test =
+        mat_obj && mat_obj->has_render_state && mat_obj->alpha_cut &&
+        !debug_highlighted_mesh;
+    const DWORD alpha_ref = static_cast<DWORD>(
+        std::clamp(mat_obj ? mat_obj->alpha_threshold : 0, 0, 255));
+    d3d_state.render(D3DRS_ALPHATESTENABLE, alpha_test ? TRUE : FALSE);
+    d3d_state.render(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+    d3d_state.render(D3DRS_ALPHAREF, alpha_ref);
     if (material_blend == kBlendAdd && ma < 0.999f) {
       // ONE/ONE additive blending ignores vertex alpha, so treat Mat alpha as
       // authored emissive intensity for fading glows/beams.
@@ -4542,6 +4774,69 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     if (const auto blend_it = mesh_anim_blends_.find(m.name);
         blend_it != mesh_anim_blends_.end() && std::isfinite(blend_it->second)) {
       mesh_anim_blend = std::clamp(blend_it->second, 0.0f, 1.0f);
+    }
+    const std::vector<std::array<float, 3>>* position_override = nullptr;
+    if (const auto pos_it = mesh_position_overrides_.find(m.name);
+        pos_it != mesh_position_overrides_.end() && !pos_it->second.empty()) {
+      position_override = &pos_it->second;
+    }
+    const std::vector<std::array<float, 3>>* normal_override = nullptr;
+    if (const auto normal_it = mesh_normal_overrides_.find(m.name);
+        normal_it != mesh_normal_overrides_.end() &&
+        !normal_it->second.empty()) {
+      normal_override = &normal_it->second;
+    }
+    const bool static_buffer_eligible =
+        !material_override && !spotlight_state && !force_debug_draw &&
+        !debug_highlighted_mesh && m.bones.empty() && !material_tex_anim &&
+        !position_override && !normal_override && !texcoord_override &&
+        !color_override &&
+        mesh_anim_blends_.find(m.name) == mesh_anim_blends_.end() &&
+        material_colors_.find(material) == material_colors_.end() &&
+        material_alpha_.find(material) == material_alpha_.end() &&
+        material_alpha_overrides_.find(material) ==
+            material_alpha_overrides_.end() &&
+        material_textures_.find(material) == material_textures_.end() &&
+        !(prelit_lighting_bypass && has_mesh_env_color) &&
+        global_brightness_ == 1.0f && global_alpha_ == 1.0f;
+    if (static_buffer_eligible) {
+      const auto cached = static_mesh_buffers_.find(&m);
+      if (cached != static_mesh_buffers_.end()) {
+        if (texture) {
+          d3d_state.texture(0, texture);
+          d3d_state.sampler(
+              0, D3DSAMP_ADDRESSU,
+              cached->second.wrap ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
+          d3d_state.sampler(
+              0, D3DSAMP_ADDRESSV,
+              cached->second.wrap ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
+          d3d_state.texture_stage(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+          d3d_state.texture_stage(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+        } else {
+          d3d_state.texture(0, nullptr);
+          d3d_state.sampler(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+          d3d_state.sampler(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+          d3d_state.texture_stage(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+          d3d_state.texture_stage(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+        }
+        const bool disable_mesh_lighting =
+            debug_spotlight_solid || prelit_lighting_bypass;
+        DWORD prev_lighting = TRUE;
+        if (disable_mesh_lighting) {
+          dev_->GetRenderState(D3DRS_LIGHTING, &prev_lighting);
+          d3d_state.render(D3DRS_LIGHTING, FALSE);
+        }
+        dev_->SetStreamSource(0, cached->second.vertices, 0, sizeof(SVtx));
+        dev_->SetIndices(cached->second.indices);
+        dev_->DrawIndexedPrimitive(
+            D3DPT_TRIANGLELIST, 0, 0,
+            static_cast<UINT>(m.vertex_count), 0,
+            static_cast<UINT>(m.face_count));
+        if (disable_mesh_lighting) {
+          d3d_state.render(D3DRS_LIGHTING, prev_lighting);
+        }
+        return;
+      }
     }
     float base_min_u = std::numeric_limits<float>::infinity();
     float base_min_v = std::numeric_limits<float>::infinity();
@@ -4642,17 +4937,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
 
-    const std::vector<std::array<float, 3>>* position_override = nullptr;
-    if (const auto pos_it = mesh_position_overrides_.find(m.name);
-        pos_it != mesh_position_overrides_.end() && !pos_it->second.empty()) {
-      position_override = &pos_it->second;
-    }
-    const std::vector<std::array<float, 3>>* normal_override = nullptr;
-    if (const auto normal_it = mesh_normal_overrides_.find(m.name);
-        normal_it != mesh_normal_overrides_.end() &&
-        !normal_it->second.empty()) {
-      normal_override = &normal_it->second;
-    }
     std::vector<std::array<float, 16>> skin_mats;
     if (!m.bones.empty()) {
       const std::array<float, 16> inv_mesh_world = affine_inverse16(w);
@@ -4775,10 +5059,58 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       s.v = vv + uv_m21;
     }
 
-    dev_->DrawIndexedPrimitiveUP(
-        D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m.vertex_count),
-        static_cast<UINT>(m.face_count), m.indices.data(), D3DFMT_INDEX16,
-        vb.data(), sizeof(SVtx));
+    bool submitted_static_buffers = false;
+    if (static_buffer_eligible) {
+      StaticMeshBuffers buffers;
+      const UINT vertex_bytes =
+          static_cast<UINT>(vb.size() * sizeof(SVtx));
+      const UINT index_bytes =
+          static_cast<UINT>(m.indices.size() * sizeof(uint16_t));
+      if (SUCCEEDED(dev_->CreateVertexBuffer(
+              vertex_bytes, D3DUSAGE_WRITEONLY, kFVF, D3DPOOL_MANAGED,
+              &buffers.vertices, nullptr)) &&
+          SUCCEEDED(dev_->CreateIndexBuffer(
+              index_bytes, D3DUSAGE_WRITEONLY, D3DFMT_INDEX16,
+              D3DPOOL_MANAGED, &buffers.indices, nullptr))) {
+        void* vertex_data = nullptr;
+        void* index_data = nullptr;
+        if (SUCCEEDED(buffers.vertices->Lock(
+                0, vertex_bytes, &vertex_data, 0)) &&
+            SUCCEEDED(buffers.indices->Lock(
+                0, index_bytes, &index_data, 0))) {
+          std::memcpy(vertex_data, vb.data(), vertex_bytes);
+          std::memcpy(index_data, m.indices.data(), index_bytes);
+          buffers.vertices->Unlock();
+          buffers.indices->Unlock();
+          buffers.wrap = tiled;
+          auto [cached, inserted] =
+              static_mesh_buffers_.emplace(&m, buffers);
+          if (inserted) {
+            dev_->SetStreamSource(0, cached->second.vertices, 0,
+                                  sizeof(SVtx));
+            dev_->SetIndices(cached->second.indices);
+            dev_->DrawIndexedPrimitive(
+                D3DPT_TRIANGLELIST, 0, 0,
+                static_cast<UINT>(m.vertex_count), 0,
+                static_cast<UINT>(m.face_count));
+            submitted_static_buffers = true;
+          }
+        } else {
+          if (vertex_data) buffers.vertices->Unlock();
+          if (index_data) buffers.indices->Unlock();
+        }
+      }
+      if (!submitted_static_buffers) {
+        if (buffers.vertices) buffers.vertices->Release();
+        if (buffers.indices) buffers.indices->Release();
+      }
+    }
+    if (!submitted_static_buffers) {
+      dev_->DrawIndexedPrimitiveUP(
+          D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m.vertex_count),
+          static_cast<UINT>(m.face_count), m.indices.data(), D3DFMT_INDEX16,
+          vb.data(), sizeof(SVtx));
+    }
     if (disable_mesh_lighting) {
       d3d_state.render(D3DRS_LIGHTING, prev_lighting);
     }
@@ -5198,17 +5530,15 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         mesh_matches_env_spec("GHOGX_SKIP_VENUE_MESH", m.name);
     const bool spotlight_template_mesh =
         spotlight_template_meshes.find(m.name) != spotlight_template_meshes.end();
-    const bool material_invisible = is_authored_invisible_material(m.material);
     const auto* pick_mat = find_material(m.material);
-    const DWORD pick_cull_mode =
-        venue_mesh_cull_mode(scene_, m, pick_mat, authored_cull_mode, false);
-    const bool cull_enabled = pick_cull_mode != D3DCULL_NONE;
+    const bool material_zero_alpha =
+        pick_mat && pick_mat->color[3] <= 0.001f;
     const bool source_showing =
         m.showing || legacy_environment_drawables_.find(m.name) !=
                          legacy_environment_drawables_.end();
     const bool would_reach_draw =
         m.decoded && source_showing && !hidden_by_runtime && !hidden_by_debug_skip &&
-        !spotlight_template_mesh && !material_invisible;
+        !spotlight_template_mesh && !material_zero_alpha;
     const bool debug_source_highlighted =
         debug_venue && !debug_venue->highlight_mesh.empty() &&
         m.name == debug_venue->highlight_mesh;
@@ -5234,25 +5564,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       return "Unknown";
     };
     auto parent_for = [&](const std::string& name) -> std::string {
-      for (const auto& group : scene_.groups) {
-        if (group.name == name && !group.parent.empty()) return group.parent;
-      }
-      for (const auto& mesh : scene_.meshes) {
-        if (mesh.name == name && !mesh.parent.empty()) return mesh.parent;
-      }
-      for (const auto& trans : scene_.transes) {
-        if (trans.name == name && !trans.parent.empty()) return trans.parent;
-      }
-      for (const auto& placer : scene_.band_placers) {
-        if (placer.name == name && !placer.parent.empty()) return placer.parent;
-      }
-      for (const auto& group : scene_.groups) {
-        if (std::find(group.children.begin(), group.children.end(), name) !=
-            group.children.end()) {
-          return group.name;
-        }
-      }
-      return {};
+      const auto it = authored_parents_.find(name);
+      return it == authored_parents_.end() ? std::string{} : it->second;
     };
     auto constraint_for = [&](const std::string& name) -> uint32_t {
       if (m.name == name) return m.constraint;
@@ -5359,14 +5672,19 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
                               std::array<float, 16>& world) -> bool {
       if (composed_world_for(name, world)) return true;
       if (m.name == name) {
-        world = scene_.world_matrix(m);
+        const auto cached = base_mesh_worlds_.find(&m);
+        world = cached != base_mesh_worlds_.end()
+                    ? cached->second
+                    : scene_.world_matrix(m);
         return true;
       }
-      for (const auto& mesh : scene_.meshes) {
-        if (mesh.name == name) {
-          world = scene_.world_matrix(mesh);
-          return true;
-        }
+      const auto mesh_it = meshes_by_name_.find(name);
+      if (mesh_it != meshes_by_name_.end() && mesh_it->second) {
+        const auto cached = base_mesh_worlds_.find(mesh_it->second);
+        world = cached != base_mesh_worlds_.end()
+                    ? cached->second
+                    : scene_.world_matrix(*mesh_it->second);
+        return true;
       }
       for (const auto& group : scene_.groups) {
         if (group.name == name) {
@@ -5427,7 +5745,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
                       std::array<float, 16> ignored{};
                       return world_override_for(target, ignored);
                     });
-    auto world = scene_.world_matrix(m);
+    const auto cached_base_world = base_mesh_worlds_.find(&m);
+    auto world = cached_base_world != base_mesh_worlds_.end()
+                     ? cached_base_world->second
+                     : scene_.world_matrix(m);
     bool recomposed_animated_chain = false;
     if (chain_has_transform_sample || chain_has_world_override) {
       std::vector<std::string> chain;
@@ -5517,6 +5838,14 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       apply_face_camera_yaw(world, m, eye);
     }
     auto draw_world = mul16(world, world_transform_);
+    const auto source_winding_it = source_mesh_winding_reversed_.find(&m);
+    const bool source_winding_reversed =
+        source_winding_it != source_mesh_winding_reversed_.end() &&
+        source_winding_it->second;
+    const DWORD pick_cull_mode =
+        venue_mesh_cull_mode(pick_mat, draw_world, source_winding_reversed,
+                             authored_cull_mode, false);
+    const bool cull_enabled = pick_cull_mode != D3DCULL_NONE;
     if (chain_has_transform_sample &&
         env_mesh_filter_matches("GHOGX_LOG_MESH_ANIM_WORLD", m.name)) {
       static std::unordered_map<std::string, size_t> logged_mesh_world_rows;
@@ -5565,7 +5894,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       pick_mesh_state.hidden_by_filter =
           hidden_by_runtime || hidden_by_debug_skip;
       pick_mesh_state.source_showing = m.showing;
-      pick_mesh_state.material_invisible = material_invisible;
+      pick_mesh_state.material_invisible = material_zero_alpha;
       pick_mesh_state.spotlight_template = spotlight_template_mesh;
       pick_mesh_state.cull_enabled = cull_enabled;
       pick_mesh_state.cull_mode = pick_cull_mode;
@@ -5637,6 +5966,18 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       float max_y = -std::numeric_limits<float>::infinity();
       size_t in_front = 0;
       size_t on_screen = 0;
+      const bool log_projected_vertices =
+          env_mesh_filter_matches("GHOGX_LOG_PROJECTED_MESH_VERTICES", m.name);
+      static std::unordered_map<std::string, size_t>
+          logged_projected_vertex_mesh_samples;
+      const size_t projected_vertex_sample =
+          log_projected_vertices
+              ? ++logged_projected_vertex_mesh_samples[m.name]
+              : 0;
+      const bool emit_projected_vertices =
+          log_projected_vertices &&
+          should_log_mesh_anim_sample(projected_vertex_sample);
+      size_t projected_vertex_index = 0;
       for (const auto& v : m.verts) {
         const float x =
             v.px * wvp[0] + v.py * wvp[4] + v.pz * wvp[8] + wvp[12];
@@ -5644,10 +5985,24 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
             v.px * wvp[1] + v.py * wvp[5] + v.pz * wvp[9] + wvp[13];
         const float w =
             v.px * wvp[3] + v.py * wvp[7] + v.pz * wvp[11] + wvp[15];
-        if (w <= 0.001f) continue;
+        if (w <= 0.001f) {
+          ++projected_vertex_index;
+          continue;
+        }
         ++in_front;
         const float nx = x / w;
         const float ny = y / w;
+        if (emit_projected_vertices) {
+          std::fprintf(
+              stderr,
+              "[milo_scene] projected_vertex mesh=%s sample=%zu index=%zu "
+              "local=(%.6f %.6f %.6f) uv=(%.6f %.6f) "
+              "ndc=(%.6f %.6f) w=%.6f\n",
+              m.name.c_str(), projected_vertex_sample,
+              projected_vertex_index, v.px, v.py, v.pz, v.u, v.v, nx, ny,
+              w);
+        }
+        ++projected_vertex_index;
         min_x = std::min(min_x, nx);
         max_x = std::max(max_x, nx);
         min_y = std::min(min_y, ny);
@@ -5683,6 +6038,21 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           const float dy = draw_world[13] - eye[1];
           const float dz = draw_world[14] - eye[2];
           hit.distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+          if (env_mesh_filter_matches("GHOGX_LOG_PROJECTED_MESH", m.name)) {
+            static std::unordered_map<std::string, size_t>
+                logged_projected_mesh_samples;
+            const size_t sample = ++logged_projected_mesh_samples[m.name];
+            if (should_log_mesh_anim_sample(sample)) {
+              std::fprintf(
+                  stderr,
+                  "[milo_scene] projected_mesh mesh=%s material=%s sample=%zu "
+                  "area=%.6f verts=%zu/%zu on_screen=%zu "
+                  "ndc=(%.6f %.6f)..(%.6f %.6f) distance=%.6f\n",
+                  hit.name.c_str(), hit.material.c_str(), sample,
+                  hit.clipped_area, hit.in_front, hit.verts, hit.on_screen,
+                  hit.min_x, hit.min_y, hit.max_x, hit.max_y, hit.distance);
+            }
+          }
           projected_camera_mesh_hits.push_back(std::move(hit));
         }
       }

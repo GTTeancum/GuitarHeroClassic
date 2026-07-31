@@ -16,6 +16,8 @@
 //                                      load splash + gameplay from explicit ARK paths
 //   ghogx_app --song <shortname>      which song to play (default: shoutatthedevil)
 //   ghogx_app --difficulty <0-3>      chart difficulty (default: 1 = Medium)
+//   ghogx_app --require-native-assets disable GH1 raw-layout compatibility
+//                                      loaders and require converted GH2 paths
 //   ghogx_app --diagnostic-song-start <sec>
 //                                      seek deterministic capture to a song time
 //   ghogx_app --diagnostic-autoplay    chart-driven native validation input
@@ -155,6 +157,34 @@ class ScopedTimerResolution {
  private:
   bool active_ = false;
 };
+
+void wait_for_frame_deadline(
+    std::chrono::steady_clock::time_point deadline) {
+  // Windows sleep_for commonly returns one scheduler quantum late even with a
+  // 1 ms timer period. Sleep most of the interval, then hold the final
+  // millisecond locally so the 60 Hz presentation clock is not asset- or
+  // render-path dependent.
+  constexpr auto kSpinWindow = std::chrono::milliseconds(1);
+  const auto now = std::chrono::steady_clock::now();
+  if (now + kSpinWindow < deadline) {
+    std::this_thread::sleep_until(deadline - kSpinWindow);
+  }
+  while (std::chrono::steady_clock::now() < deadline) {
+  }
+}
+
+void wait_for_next_frame_deadline(
+    std::chrono::steady_clock::time_point& deadline,
+    std::chrono::steady_clock::duration interval) {
+  deadline += interval;
+  const auto now = std::chrono::steady_clock::now();
+  // Recover a single late frame on the next under-budget frame instead of
+  // permanently adding its overrun to every later deadline. Resynchronize
+  // after a full-frame stall so loading/debugger pauses do not cause a long
+  // unpaced catch-up burst.
+  if (now > deadline + interval) deadline = now;
+  wait_for_frame_deadline(deadline);
+}
 
 bool set_render_aspect_preset(const char* text, RenderSize& out) {
   if (!text) return false;
@@ -447,6 +477,13 @@ class AppEngine : public ghogx::Engine {
           if (diagnostic_song_start_ > 0.0) {
             gameplay_.seek_for_diagnostic_capture(diagnostic_song_start_);
           }
+          if (!gameplay_.prepare_world(*win_)) {
+            std::fprintf(stderr,
+                         "[ghogx] gameplay world preparation failed\n");
+            started_ = false;
+            return;
+          }
+          ensure_hud_loaded();
           state_ = AppState::Playing;
           std::fprintf(stderr, "[ghogx] -> Playing\n");
         } else {
@@ -970,7 +1007,7 @@ class AppEngine : public ghogx::Engine {
   }
 
   // Force-load the song and skip directly to Playing state (for --auto-start).
-  void force_start_song() {
+  bool force_start_song() {
     if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
       song_intro_overlay_.reset(hdr_path_, ark_path_, song_name_);
       reset_hud_load();
@@ -978,9 +1015,16 @@ class AppEngine : public ghogx::Engine {
       if (diagnostic_song_start_ > 0.0) {
         gameplay_.seek_for_diagnostic_capture(diagnostic_song_start_);
       }
+      if (!gameplay_.prepare_world(*win_)) {
+        std::fprintf(stderr, "[ghogx] gameplay world preparation failed\n");
+        return false;
+      }
+      ensure_hud_loaded();
       state_ = AppState::Playing;
       started_ = true;
+      return true;
     }
+    return false;
   }
 
   void reset_hud_load() {
@@ -1268,39 +1312,6 @@ std::string insert_gen_dir_for_anim(std::string path) {
     return path;
   }
   return dir + "/gen" + path.substr(slash);
-}
-
-std::vector<std::string> facefx_viseme_milo_candidates(
-    const std::string& character_milo,
-    const ghogx::character::Character& character) {
-  std::vector<std::string> out;
-  auto add = [&](std::string p) {
-    if (p.empty()) return;
-    p = normalize_milo_path(p);
-    if (std::find(out.begin(), out.end(), p) == out.end()) out.push_back(p);
-  };
-
-  std::string char_dir = character_milo;
-  std::replace(char_dir.begin(), char_dir.end(), '\\', '/');
-  const size_t slash = char_dir.find_last_of('/');
-  char_dir = slash == std::string::npos ? std::string() : char_dir.substr(0, slash);
-
-  for (const auto& servo : character.lip_sync_servos) {
-    if (servo.viseme_milo.empty()) continue;
-    std::string rel = servo.viseme_milo;
-    std::replace(rel.begin(), rel.end(), '\\', '/');
-    std::string resolved =
-        (!char_dir.empty() && rel.rfind("/", 0) != 0 &&
-         rel.find(':') == std::string::npos)
-            ? char_dir + "/" + rel
-            : rel;
-    resolved = normalize_milo_path(resolved);
-    add(resolved);
-    add(replace_suffix(resolved, ".milo", ".milo_ps2"));
-    add(insert_gen_dir_for_anim(resolved));
-    add(insert_gen_dir_for_anim(replace_suffix(resolved, ".milo", ".milo_ps2")));
-  }
-  return out;
 }
 
 std::vector<std::string> driver_milo_candidates(
@@ -1676,6 +1687,7 @@ int run_scene_mode(const std::string& hdr, const std::string& ark,
   using clock = std::chrono::steady_clock;
   auto last = clock::now();
   const auto target_frame = std::chrono::duration<double>(1.0 / 60.0);
+  auto frame_deadline = clock::now();
   uint64_t frame = 0;
   if (!screenshot_path.empty() && max_frames == 0)
     max_frames = screenshot_frame + 3;
@@ -1717,8 +1729,9 @@ int run_scene_mode(const std::string& hdr, const std::string& ark,
     ++frame;
     if (max_frames && frame >= static_cast<uint64_t>(max_frames)) break;
 
-    auto spent = clock::now() - now;
-    if (spent < target_frame) std::this_thread::sleep_for(target_frame - spent);
+    wait_for_next_frame_deadline(
+        frame_deadline,
+        std::chrono::duration_cast<clock::duration>(target_frame));
   }
   std::fprintf(stderr, "[scene3d] exited after %llu frames\n",
                (unsigned long long)frame);
@@ -1790,6 +1803,7 @@ int run_hud_test_mode(const std::string& hdr, const std::string& ark,
 
   using clock = std::chrono::steady_clock;
   const auto target_frame = std::chrono::duration<double>(1.0 / 60.0);
+  auto frame_deadline = clock::now();
   uint64_t frame = 0;
   if (!screenshot_path.empty() && max_frames == 0) max_frames = screenshot_frame + 3;
 
@@ -1885,8 +1899,6 @@ int run_hud_test_mode(const std::string& hdr, const std::string& ark,
       }
     }
 
-    auto now = clock::now();
-
     if (ref_highway_ready) {
       ref_gameplay.draw(*win);
       st.anim_seconds = static_cast<float>(std::max(0.0, ref_gameplay.song_time()));
@@ -1908,8 +1920,9 @@ int run_hud_test_mode(const std::string& hdr, const std::string& ark,
     if (max_frames && frame >= static_cast<uint64_t>(max_frames)) break;
     for (size_t i = 0; i < prev_keys.size(); ++i)
       prev_keys[i] = win->key_down(static_cast<int>(i));
-    auto spent = clock::now() - now;
-    if (spent < target_frame) std::this_thread::sleep_for(target_frame - spent);
+    wait_for_next_frame_deadline(
+        frame_deadline,
+        std::chrono::duration_cast<clock::duration>(target_frame));
   }
   std::fprintf(stderr, "[hud-test] exited after %llu frames\n", (unsigned long long)frame);
   return 0;
@@ -1989,10 +2002,11 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& two_player_select_event = "animate",
                   float fixed_dt = 0.0f,
                   bool character_controllers = true,
-                  bool reference_base = false,
-                  const std::string& midi_fret_target = "",
-                  const ViewerClipStackOptions& clip_stack_options = {},
-                  const RenderSize& render_size = RenderSize{}) {
+                   bool reference_base = false,
+                   const std::string& midi_fret_target = "",
+                   const ViewerClipStackOptions& clip_stack_options = {},
+                   const ScreenshotSequence& screenshot_sequence = {},
+                   const RenderSize& render_size = RenderSize{}) {
   ghogx::character::Character character;
   if (!ghogx::character::load_character(hdr, ark, milo_path, character)) {
     std::fprintf(stderr, "[char] failed to load %s\n", milo_path.c_str());
@@ -2009,7 +2023,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   dump_facefx_lip_sync_servos(character);
   dump_face_asset_inventory(character);
   const std::vector<std::string> facefx_viseme_milos =
-      facefx_viseme_milo_candidates(milo_path, character);
+      ghogx::character::facefx_viseme_milo_candidates(
+          milo_path, character.lip_sync_servos);
   const std::vector<ghogx::character::CharDriver> character_drivers =
       character.drivers;
   std::unordered_map<std::string, float> character_weights;
@@ -2162,6 +2177,15 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     if (colon != std::string::npos) {
       std::string clip_milo = spec.substr(0, colon);
       std::string clip_name = spec.substr(colon + 1);
+      if (clip_milo.size() >= 4 &&
+          clip_milo.substr(clip_milo.size() - 4) == ".acp") {
+        clip = ghogx::character::load_acp_clip(hdr, ark, clip_milo);
+        if (clip.loaded &&
+            (clip_name.empty() || clip.name == clip_name)) {
+          return clip;
+        }
+        return ghogx::character::CharClip{};
+      }
       clip = ghogx::character::load_clip(hdr, ark, clip_milo, clip_name);
       if (clip.loaded) return clip;
 
@@ -2308,24 +2332,14 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   }
   if (resolved_face_clip_arg.empty()) {
     face_base_clip = load_first_clip(facefx_viseme_milos, "neutral");
-    if (!face_base_clip.loaded && !base_dir.empty() && !stem.empty()) {
-      face_base_clip = load_clip_spec(
-          base_dir + "/anims/gen/" + stem + "_viseme.milo_ps2:neutral");
-    }
   } else if (resolved_face_clip_arg != "none") {
     if (resolved_face_clip_arg.find(":neutral") == std::string::npos) {
       face_base_clip = load_first_clip(facefx_viseme_milos, "neutral");
-      if (!face_base_clip.loaded && !base_dir.empty() && !stem.empty()) {
-        face_base_clip = load_clip_spec(
-            base_dir + "/anims/gen/" + stem + "_viseme.milo_ps2:neutral");
-      }
     }
     face_clip = load_clip_spec(resolved_face_clip_arg);
   }
-  facefx_viseme_clip = load_first_clip(facefx_viseme_milos, "visemes");
-  if (!facefx_viseme_clip.loaded && !base_dir.empty() && !stem.empty()) {
-    facefx_viseme_clip = load_clip_spec(
-        base_dir + "/anims/gen/" + stem + "_viseme.milo_ps2:visemes");
+  if (resolved_face_clip_arg != "none") {
+    facefx_viseme_clip = load_first_clip(facefx_viseme_milos, "visemes");
   }
   keep_face_channels_only(face_base_clip);
   keep_face_channels_only(face_clip);
@@ -2430,9 +2444,13 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   using clock = std::chrono::steady_clock;
   auto last = clock::now();
   const auto target_frame = std::chrono::duration<double>(1.0 / 60.0);
+  auto frame_deadline = clock::now();
   uint64_t frame = 0;
   if (!screenshot_path.empty() && max_frames == 0)
     max_frames = screenshot_frame + 3;
+  if (!screenshot_sequence.empty() && max_frames == 0)
+    max_frames =
+        static_cast<int>(screenshot_sequence.rbegin()->first + 3);
   if (fixed_dt > 0.0f) {
     std::fprintf(stderr, "[char] fixed dt enabled: %.6f\n", fixed_dt);
   }
@@ -2663,6 +2681,15 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
         controller_hand_weights ? &*controller_hand_weights : nullptr;
     controller_sources.fallback_ik_weights = std::move(fallback_ik_weights);
     controller_sources.time_seconds = static_cast<float>(pose_time);
+    // The standalone character diagnostic has no song tempo map. Model its
+    // explicit --midi-fret-target message at 120 BPM with the stock
+    // player*_fret_pos 0.22-beat destination window. Gameplay supplies the
+    // authored parser event and tempo-derived beat values below.
+    controller_sources.current_beat =
+        static_cast<float>(pose_time * 2.0);
+    controller_sources.delta_beat = dt * 2.0f;
+    controller_sources.midi_fret_event_beat = -1.0e30f;
+    controller_sources.midi_fret_target_beat = 0.22f;
     controller_sources.controllers_enabled = character_controllers;
     controller_sources.midi_fret_target = midi_fret_target;
     controller_sources.midi_fret_target_enabled =
@@ -2693,13 +2720,21 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       std::fprintf(stderr, "[char] screenshot -> %s (frame %llu)\n",
                    screenshot_path.c_str(), (unsigned long long)frame);
     }
+    const auto sequence_it = screenshot_sequence.find(frame);
+    if (sequence_it != screenshot_sequence.end()) {
+      win->save_screenshot(sequence_it->second.c_str());
+      std::fprintf(stderr, "[char] screenshot -> %s (frame %llu)\n",
+                   sequence_it->second.c_str(),
+                   static_cast<unsigned long long>(frame));
+    }
     win->present();
 
     ++frame;
     if (max_frames && frame >= static_cast<uint64_t>(max_frames)) break;
 
-    auto spent = clock::now() - now;
-    if (spent < target_frame) std::this_thread::sleep_for(target_frame - spent);
+    wait_for_next_frame_deadline(
+        frame_deadline,
+        std::chrono::duration_cast<clock::duration>(target_frame));
   }
   std::fprintf(stderr, "[char] exited after %llu frames\n", (unsigned long long)frame);
   return 0;
@@ -2817,6 +2852,7 @@ int main(int argc, char** argv) {
   std::string song_name = "shoutatthedevil";
   int difficulty = 0;  // Easy
   bool auto_start = false;  // skip splash/title, load song immediately
+  bool require_native_assets = false;
   std::string screenshot_path;
   int screenshot_frame = 30;
   std::string screenshot_sequence_dir;
@@ -3041,6 +3077,8 @@ int main(int argc, char** argv) {
       diagnostic_star_power_active = true;
     } else if (std::strcmp(argv[i], "--auto-start") == 0) {
       auto_start = true;
+    } else if (std::strcmp(argv[i], "--require-native-assets") == 0) {
+      require_native_assets = true;
     } else if (std::strcmp(argv[i], "--show-window") == 0) {
       show_window = true;
     } else if (std::strcmp(argv[i], "--mute-audio") == 0) {
@@ -3168,11 +3206,18 @@ int main(int argc, char** argv) {
     return 2;
   }
   if (!screenshot_sequence.empty() &&
-      (!scene_milo.empty() || !char_milo.empty() || hud_test)) {
+      (!scene_milo.empty() || hud_test)) {
     std::fprintf(stderr,
                  "[ghogx] --screenshot-dir/--screenshot-frames are not "
-                 "available in scene, character, or HUD modes\n");
+                 "available in scene or HUD modes\n");
     return 2;
+  }
+
+  if (require_native_assets) {
+    _putenv_s("GHOGX_REQUIRE_NATIVE_ASSETS", "1");
+    std::fprintf(stderr,
+                 "[ghogx] native-only asset gate enabled: GH1 raw-layout "
+                 "compatibility loaders disabled\n");
   }
   const bool capture_enabled = !screenshot_path.empty() || !screenshot_sequence.empty();
   if (sparse_screenshots && !capture_enabled) {
@@ -3313,7 +3358,7 @@ int main(int argc, char** argv) {
                          char_offset, char_2p_select_placer_player,
                          char_2p_select_event, fixed_dt,
                          character_controllers, char_reference_base, midi_fret_target,
-                         viewer_clip_stack, render_size);
+                         viewer_clip_stack, screenshot_sequence, render_size);
   }
 
   // --hud-test: dedicated in-song HUD overlay preview (own window + loop).
@@ -3521,7 +3566,10 @@ int main(int argc, char** argv) {
   engine.set_sparse_screenshots(sparse_screenshots);
   if (auto_start && !hdr.empty()) {
     // Skip splash + title, load song immediately for diagnostic/dev runs.
-    engine.force_start_song();
+    if (!engine.force_start_song()) {
+      std::fprintf(stderr, "[ghogx] auto-start song load failed\n");
+      return 3;
+    }
   }
 
   if (!seq.slides.empty()) {
@@ -3534,6 +3582,7 @@ int main(int argc, char** argv) {
   using clock = std::chrono::steady_clock;
   auto last = clock::now();
   const auto target_frame = std::chrono::duration<double>(1.0 / 60.0);
+  auto frame_deadline = clock::now();
 
   std::fprintf(stderr, "[ghogx] entering main loop%s\n",
                max_frames ? " (bounded)" : " (Esc or close to quit)");
@@ -3543,6 +3592,10 @@ int main(int argc, char** argv) {
 
   bool diagnostic_camera_cycle_shot_dispatched = false;
   bool diagnostic_camera_iterate_shot_dispatched = false;
+  const auto loop_wall_start = clock::now();
+  constexpr uint64_t kPerformanceWarmupFrames = 30;
+  std::optional<clock::time_point> steady_wall_start;
+  uint64_t steady_start_frame = 0;
   while (!win->should_close()) {
     win->pump();
     if (win->should_close()) break;
@@ -3582,17 +3635,61 @@ int main(int argc, char** argv) {
     }
 
     engine.tick(dt);
+    if (!steady_wall_start &&
+        engine.frame_count() >= kPerformanceWarmupFrames) {
+      steady_wall_start = clock::now();
+      steady_start_frame = engine.frame_count();
+    }
 
     if (max_frames && engine.frame_count() >= static_cast<uint64_t>(max_frames)) {
       break;
     }
 
-    auto spent = clock::now() - now;
-    if (spent < target_frame) {
-      std::this_thread::sleep_for(target_frame - spent);
-    }
+    wait_for_next_frame_deadline(
+        frame_deadline,
+        std::chrono::duration_cast<clock::duration>(target_frame));
   }
 
+  const double loop_wall_seconds =
+      std::chrono::duration<double>(clock::now() - loop_wall_start).count();
+  const double average_fps =
+      loop_wall_seconds > 0.0
+          ? static_cast<double>(engine.frame_count()) / loop_wall_seconds
+          : 0.0;
+  const double average_frame_ms =
+      engine.frame_count() > 0
+          ? loop_wall_seconds * 1000.0 /
+                static_cast<double>(engine.frame_count())
+          : 0.0;
+  const uint64_t steady_frames =
+      steady_wall_start && engine.frame_count() > steady_start_frame
+          ? engine.frame_count() - steady_start_frame
+          : 0;
+  const double steady_wall_seconds =
+      steady_wall_start
+          ? std::chrono::duration<double>(clock::now() - *steady_wall_start)
+                .count()
+          : 0.0;
+  const double steady_average_fps =
+      steady_wall_seconds > 0.0
+          ? static_cast<double>(steady_frames) / steady_wall_seconds
+          : 0.0;
+  const double steady_average_frame_ms =
+      steady_frames > 0
+          ? steady_wall_seconds * 1000.0 /
+                static_cast<double>(steady_frames)
+          : 0.0;
+  std::fprintf(stderr,
+               "[ghogx] loop performance: frames=%llu wall=%.3fs "
+               "average_fps=%.3f average_frame_ms=%.3f "
+               "warmup=%llu steady_frames=%llu steady_wall=%.3fs "
+               "steady_fps=%.3f steady_frame_ms=%.3f\n",
+               static_cast<unsigned long long>(engine.frame_count()),
+               loop_wall_seconds, average_fps, average_frame_ms,
+               static_cast<unsigned long long>(kPerformanceWarmupFrames),
+               static_cast<unsigned long long>(steady_frames),
+               steady_wall_seconds, steady_average_fps,
+               steady_average_frame_ms);
   std::fprintf(stderr, "[ghogx] exited after %llu frames, %.2fs engine time\n",
                static_cast<unsigned long long>(engine.frame_count()), engine.time());
   engine.log_profile_summary();

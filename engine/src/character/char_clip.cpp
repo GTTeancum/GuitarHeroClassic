@@ -48,6 +48,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
+#include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -2456,6 +2458,10 @@ struct CharClipMetadata {
   float range = 0.0f;
   bool gh2_unknown_bool = false;
   std::string relative;
+  std::string legacy_enter_event;
+  std::string legacy_exit_event;
+  std::vector<CharClip::Transition> transitions;
+  std::vector<CharClip::BeatEvent> beat_events;
   size_t samples_offset = SIZE_MAX;
 };
 
@@ -2499,24 +2505,32 @@ CharClipMetadata read_char_clip_metadata(const uint8_t* d, size_t n) {
       node_count = c.u32();
     }
     if (node_count > 10000u) return CharClipMetadata{};
+    out.transitions.reserve(node_count);
     for (uint32_t i = 0; i < node_count; ++i) {
-      (void)c.str();
+      CharClip::Transition transition;
+      transition.clip = c.str();
       const uint32_t value_count = c.u32();
       if (value_count > 100000u) return CharClipMetadata{};
-      const size_t bytes = static_cast<size_t>(value_count) * 8u;
-      c.skip(bytes);
+      transition.nodes.reserve(value_count);
+      for (uint32_t j = 0; j < value_count; ++j) {
+        transition.nodes.push_back({c.f32(), c.f32()});
+      }
+      out.transitions.push_back(std::move(transition));
     }
 
     if (out.clip_version < 7) {
-      (void)c.str();
-      (void)c.str();
+      out.legacy_enter_event = c.str();
+      out.legacy_exit_event = c.str();
     }
 
     const uint32_t event_count = c.u32();
     if (event_count > 10000u) return CharClipMetadata{};
+    out.beat_events.reserve(event_count);
     for (uint32_t i = 0; i < event_count; ++i) {
-      (void)c.f32();
-      (void)c.str();
+      CharClip::BeatEvent event;
+      event.beat = c.f32();
+      event.event = c.str();
+      out.beat_events.push_back(std::move(event));
     }
 
     out.samples_offset = c.pos;
@@ -3261,6 +3275,68 @@ void remember_missing_clip_milo(const std::string& hdr_path,
   missing_clip_milo_cache().insert(key);
 }
 
+struct LoadedClipMilo {
+  std::string resolved_path;
+  std::vector<uint8_t> payload;
+  gh::milo::Directory directory;
+};
+
+std::mutex& loaded_clip_milo_cache_mutex() {
+  static std::mutex mutex;
+  return mutex;
+}
+
+std::string& loaded_clip_milo_cache_key() {
+  static std::string key;
+  return key;
+}
+
+std::shared_ptr<const LoadedClipMilo>& loaded_clip_milo_cache_value() {
+  static std::shared_ptr<const LoadedClipMilo> value;
+  return value;
+}
+
+std::shared_ptr<const LoadedClipMilo> load_clip_milo(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path) {
+  if (clip_milo_missing_cached(hdr_path, milo_path)) return {};
+  const std::string key =
+      hdr_path + "\n" + ark_path + "\n" + milo_path;
+  {
+    std::lock_guard<std::mutex> lock(loaded_clip_milo_cache_mutex());
+    if (loaded_clip_milo_cache_key() == key) {
+      return loaded_clip_milo_cache_value();
+    }
+  }
+
+  auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+  std::string resolved_path = milo_path;
+  auto entry = ark.find(resolved_path);
+  if (!entry) {
+    resolved_path = "../../system/run/" + milo_path;
+    entry = ark.find(resolved_path);
+  }
+  if (!entry) {
+    remember_missing_clip_milo(hdr_path, milo_path);
+    std::fprintf(stderr, "[clip] milo not in ARK: %s\n",
+                 milo_path.c_str());
+    return {};
+  }
+
+  auto loaded = std::make_shared<LoadedClipMilo>();
+  loaded->resolved_path = std::move(resolved_path);
+  const auto bytes = ark.read_entry(*entry, {ark_path});
+  const auto header = gh::milo::parse_header(bytes);
+  loaded->payload = gh::milo::inflate_payload(bytes, header);
+  loaded->directory = gh::milo::parse_directory(loaded->payload);
+  {
+    std::lock_guard<std::mutex> lock(loaded_clip_milo_cache_mutex());
+    loaded_clip_milo_cache_key() = key;
+    loaded_clip_milo_cache_value() = loaded;
+  }
+  return loaded;
+}
+
 bool debug_ik_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -3271,6 +3347,36 @@ bool debug_ik_enabled() {
   return enabled;
 #else
   const char* value = std::getenv("GHOGX_DEBUG_IK");
+  return value && value[0];
+#endif
+}
+
+bool debug_twist_contract_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_DEBUG_TWIST_CONTRACT") == 0 && value &&
+      value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_TWIST_CONTRACT");
+  return value && value[0];
+#endif
+}
+
+bool debug_arm_contract_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_DEBUG_ARM_CONTRACT") == 0 && value &&
+      value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_ARM_CONTRACT");
   return value && value[0];
 #endif
 }
@@ -3451,7 +3557,7 @@ void log_character_controller_graph_once(const Character& character) {
     std::fprintf(stderr,
                  "[chargraph]   driver %s version=%d "
                  "weightableVersion=%d target=%s clipMilo=%s "
-                 "weight=%.3f weightOwner=%s weightProp=%s enabled=%d "
+                 "weight=%.3f weightOwner=%s weightProp=%s realign=%d "
                  "midi=%d midiVersion=%d midiUnreadBytes=%zu "
                  "midiParser=%s midiFlagParser=%s "
                  "midiBlendOverridePct=%.3f\n",
@@ -3459,7 +3565,7 @@ void log_character_controller_graph_once(const Character& character) {
                  driver.weightable_version, driver.target.c_str(),
                  driver.clip_milo.c_str(), driver.weight,
                  driver.weight_owner.c_str(), driver.weight_prop.c_str(),
-                 driver.enabled ? 1 : 0, driver.midi ? 1 : 0,
+                 driver.realign ? 1 : 0, driver.midi ? 1 : 0,
                  driver.midi_version, driver.midi_unread_bytes,
                  driver.midi_parser.empty() ? "<none>"
                                             : driver.midi_parser.c_str(),
@@ -3872,24 +3978,12 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
     return result;
   }
   try {
-    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
-    std::string resolved_milo_path = milo_path;
-    auto entry = ark.find(resolved_milo_path);
-    if (!entry) {
-      resolved_milo_path = "../../system/run/" + milo_path;
-      entry = ark.find(resolved_milo_path);
-    }
-    if (!entry) {
-      remember_missing_clip_milo(hdr_path, milo_path);
-      std::fprintf(stderr, "[clip] milo not in ARK: %s\n",
-                   milo_path.c_str());
-      return result;
-    }
-    result.source_milo_path = resolved_milo_path;
-    auto bytes = ark.read_entry(*entry, {ark_path});
-    auto hdr = gh::milo::parse_header(bytes);
-    auto payload = gh::milo::inflate_payload(bytes, hdr);
-    auto dir = gh::milo::parse_directory(payload);
+    const auto loaded =
+        load_clip_milo(hdr_path, ark_path, milo_path);
+    if (!loaded) return result;
+    result.source_milo_path = loaded->resolved_path;
+    const auto& payload = loaded->payload;
+    const auto& dir = loaded->directory;
 
     for (const auto& de : dir.entries) {
       if (de.type != "CharBone") continue;
@@ -3946,6 +4040,13 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
         result.default_play_flags = metadata.play_flags;
         result.blend_width = metadata.blend_width;
         result.range = metadata.range;
+        result.start_beat = metadata.start_beat;
+        result.end_beat = metadata.end_beat;
+        result.beats_per_second = metadata.beats_per_sec;
+        result.legacy_enter_event = metadata.legacy_enter_event;
+        result.legacy_exit_event = metadata.legacy_exit_event;
+        result.transitions = metadata.transitions;
+        result.beat_events = metadata.beat_events;
         if (!metadata.relative.empty()) result.relative = true;
       } else {
         result.default_play_flags = kCharPlayLoop;
@@ -3956,13 +4057,20 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
         std::fprintf(stderr,
                      "[clip] '%s' from %s: %zu frames, %zu channels/frame, %zu output bones "
                      "flags=0x%08x playFlags=0x%08x blend=%.3f range=%.3f "
-                     "relative=%s\n",
+                     "transitions=%zu events=%zu enter=%s exit=%s relative=%s\n",
                      clip_name.c_str(), result.source_milo_path.c_str(),
                      result.frames.size(),
                      result.frames.empty() ? 0 : result.frames[0].size(),
                      result.output_bones.size(), result.flags,
                      result.default_play_flags, result.blend_width,
-                     result.range,
+                     result.range, result.transitions.size(),
+                     result.beat_events.size(),
+                     result.legacy_enter_event.empty()
+                         ? "<none>"
+                         : result.legacy_enter_event.c_str(),
+                     result.legacy_exit_event.empty()
+                         ? "<none>"
+                         : result.legacy_exit_event.c_str(),
                      metadata.relative.empty() ? "<none>"
                                                : metadata.relative.c_str());
         if (debug_clip_enabled() && metadata.valid &&
@@ -4087,6 +4195,21 @@ CharClip load_acp_clip(const std::string& hdr_path,
         metadata.valid ? metadata.play_flags : kCharPlayLoop;
     result.blend_width = metadata.valid ? metadata.blend_width : 0.0f;
     result.range = metadata.valid ? metadata.range : 0.0f;
+    result.start_beat = metadata.valid ? metadata.start_beat : 0.0f;
+    result.end_beat = metadata.valid ? metadata.end_beat : 0.0f;
+    result.beats_per_second =
+        metadata.valid ? metadata.beats_per_sec : 0.0f;
+    result.legacy_enter_event =
+        metadata.valid ? metadata.legacy_enter_event : std::string{};
+    result.legacy_exit_event =
+        metadata.valid ? metadata.legacy_exit_event : std::string{};
+    result.transitions =
+        metadata.valid
+            ? metadata.transitions
+            : std::vector<CharClip::Transition>{};
+    result.beat_events =
+        metadata.valid ? metadata.beat_events
+                       : std::vector<CharClip::BeatEvent>{};
     result.relative = metadata.valid && !metadata.relative.empty();
     result.loaded = !result.frames.empty();
     if (result.loaded) {
@@ -4181,6 +4304,109 @@ CharClipGroup load_clip_group(
   return group;
 }
 
+std::vector<CharClipCatalogEntry> load_clip_catalog(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& milo_paths) {
+  (void)ark_path;
+  std::vector<CharClipCatalogEntry> result;
+  std::unordered_set<std::string> seen;
+  for (const auto& milo_path : milo_paths) {
+    try {
+      const auto loaded = load_clip_milo(hdr_path, ark_path, milo_path);
+      if (!loaded) continue;
+      for (const auto& entry : loaded->directory.entries) {
+        if (entry.type != "CharClipSamples" ||
+            entry.offset + entry.size > loaded->payload.size() ||
+            !seen.insert(entry.name).second) {
+          continue;
+        }
+        const auto metadata = read_char_clip_metadata(
+            loaded->payload.data() + entry.offset,
+            static_cast<size_t>(entry.size));
+        result.push_back(
+            {entry.name, loaded->resolved_path,
+             metadata.valid ? metadata.flags : 0u,
+             metadata.valid ? metadata.start_beat : 0.0f,
+             metadata.valid ? metadata.end_beat : 0.0f});
+      }
+    } catch (const std::exception& ex) {
+      std::fprintf(stderr, "[clip-catalog-source] milo=%s error=%s\n",
+                   milo_path.c_str(), ex.what());
+    }
+  }
+  std::fprintf(stderr, "[clip-catalog-source] milos=%zu clips=%zu\n",
+               milo_paths.size(), result.size());
+  return result;
+}
+
+std::vector<CharClipGroup> load_clip_group_catalog(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& milo_paths) {
+  std::vector<CharClipGroup> result;
+  std::unordered_set<std::string> seen;
+  for (const auto& milo_path : milo_paths) {
+    try {
+      const auto loaded = load_clip_milo(hdr_path, ark_path, milo_path);
+      if (!loaded) continue;
+      for (const auto& entry : loaded->directory.entries) {
+        if (entry.type != "CharClipGroup" ||
+            entry.offset + entry.size > loaded->payload.size() ||
+            !seen.insert(entry.name).second) {
+          continue;
+        }
+        const uint8_t* body = loaded->payload.data() + entry.offset;
+        const size_t size = static_cast<size_t>(entry.size);
+        size_t pos = 0;
+        if (size < 4) throw std::runtime_error("short CharClipGroup");
+        CharClipGroup group;
+        group.name = entry.name;
+        group.milo_path = loaded->resolved_path;
+        std::memcpy(&group.version, body + pos, 4);
+        pos += 4;
+        if (group.version > 2) {
+          throw std::runtime_error("unexpected CharClipGroup version");
+        }
+        if (pos + 4 > size) throw std::runtime_error("short object fields");
+        pos += 4;
+        (void)read_len_string(body, size, pos);
+        if (pos >= size) {
+          throw std::runtime_error("short object tree terminator");
+        }
+        ++pos;
+        if (pos + 4 > size) {
+          throw std::runtime_error("short clip vector count");
+        }
+        uint32_t count = 0;
+        std::memcpy(&count, body + pos, 4);
+        pos += 4;
+        group.clips.reserve(count);
+        for (uint32_t i = 0; i < count; ++i) {
+          group.clips.push_back(read_len_string(body, size, pos));
+        }
+        if (pos + 4 > size) {
+          throw std::runtime_error("short CharClipGroup which");
+        }
+        std::memcpy(&group.which, body + pos, 4);
+        pos += 4;
+        if (group.version > 1) {
+          if (pos + 4 > size) {
+            throw std::runtime_error("short CharClipGroup flags");
+          }
+          std::memcpy(&group.flags, body + pos, 4);
+        }
+        group.loaded = true;
+        result.push_back(std::move(group));
+      }
+    } catch (const std::exception& ex) {
+      std::fprintf(stderr, "[clip-group-catalog-source] milo=%s error=%s\n",
+                   milo_path.c_str(), ex.what());
+    }
+  }
+  std::fprintf(stderr, "[clip-group-catalog-source] milos=%zu groups=%zu\n",
+               milo_paths.size(), result.size());
+  return result;
+}
+
 std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group) {
   if (group.clips.empty()) return std::nullopt;
   const int32_t before = group.which;
@@ -4196,6 +4422,82 @@ std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group) {
                group.name.c_str(), before, group.which, index,
                group.clips[index].c_str());
   return index;
+}
+
+std::optional<CharClip::TransitionNode>
+source_char_clip_find_first_transition_node(
+    const CharClip& clip,
+    std::string_view next_clip,
+    float current_beat) {
+  for (const auto& transition : clip.transitions) {
+    if (transition.clip != next_clip) continue;
+    for (const auto& node : transition.nodes) {
+      if (current_beat <= node.current_beat) return node;
+    }
+    return std::nullopt;
+  }
+  return std::nullopt;
+}
+
+std::optional<CharClip::TransitionNode>
+source_char_clip_find_last_transition_node(
+    const CharClip& clip,
+    std::string_view next_clip,
+    float current_beat) {
+  for (const auto& transition : clip.transitions) {
+    if (transition.clip != next_clip) continue;
+    for (size_t i = transition.nodes.size(); i > 0; --i) {
+      if (current_beat <= transition.nodes[i - 1].current_beat) {
+        return transition.nodes[i - 1];
+      }
+    }
+    return std::nullopt;
+  }
+  return std::nullopt;
+}
+
+std::optional<CharClip::TransitionNode>
+source_char_clip_find_transition_node(
+    const CharClip& current_clip,
+    const CharClip& next_clip,
+    float current_beat,
+    int mode) {
+  // GH2's jump table at 0x00417810 maps mode 2 to a hard null, mode 3 to the
+  // forward scan, and mode 4 to the reverse scan. Other modes proceed directly
+  // to the synthesized alignment node.
+  if (mode == 2) return std::nullopt;
+  if (mode == 3) {
+    const auto node = source_char_clip_find_first_transition_node(
+        current_clip, next_clip.name, current_beat);
+    if (node) return node;
+  } else if (mode == 4) {
+    const auto node = source_char_clip_find_last_transition_node(
+        current_clip, next_clip.name, current_beat);
+    if (node) return node;
+  }
+
+  CharClip::TransitionNode node;
+  node.current_beat = current_beat;
+  if (mode == 4) {
+    node.current_beat =
+        std::max(node.current_beat,
+                 current_clip.end_beat - next_clip.range * 0.5f);
+  }
+  node.next_beat = next_clip.start_beat;
+
+  const float beat_align =
+      static_cast<float>(
+          (next_clip.default_play_flags & 0x0000f000u) >> 12u);
+  if (beat_align > 0.0f) {
+    float current_phase = std::fmod(node.current_beat, beat_align);
+    float next_phase = std::fmod(node.next_beat, beat_align);
+    if (current_phase < 0.0f) current_phase += beat_align;
+    if (next_phase < 0.0f) next_phase += beat_align;
+    const float phase_delta = current_phase - next_phase;
+    node.next_beat += phase_delta;
+    if (phase_delta < 0.0f) node.next_beat += beat_align;
+  }
+  return node;
 }
 
 std::vector<std::string> load_clip_group_names(
@@ -4434,6 +4736,25 @@ source_char_clip_driver_runtime_dump_evidence() {
                                        "Debug TheDebug",
                                        "const char * kAssertStr",
                                        "const char * gNullStr"};
+  evidence.gh2_ps2_constructor_range = "0x00198660 -> 0x00198968";
+  evidence.gh2_ps2_copy_constructor_range = "0x00198968 -> 0x00198A48";
+  evidence.gh2_ps2_destructor_range = "0x00198A48 -> 0x00198AC8";
+  evidence.gh2_ps2_evaluate_range = "0x00198B00 -> 0x00198E78";
+  evidence.gh2_ps2_scale_add_range = "0x00198E78 -> 0x00198F38";
+  evidence.gh2_ps2_align_to_frame_range = "0x00198F38 -> 0x00199000";
+  evidence.gh2_ps2_advance_event_range = "0x00199000 -> 0x00199084";
+  evidence.gh2_ps2_layout = {
+      "0x00 play flags",       "0x04 blend width",
+      "0x08 time scale",       "0x0C ramp in",
+      "0x10 beat",             "0x14 delta beat",
+      "0x18 blend fraction",   "0x1C advance beat",
+      "0x20 weight",           "0x24 clip",
+      "0x28 next driver",      "0x2C clip event owner",
+      "0x30 next event beat",  "0x34 next event index",
+      "0x38 copied opaque word"};
+  evidence.gh2_ps2_evaluate_recovered = true;
+  evidence.gh2_ps2_scale_add_recovered = true;
+  evidence.gh2_ps2_align_to_frame_recovered = true;
   return evidence;
 }
 
@@ -4986,6 +5307,21 @@ source_char_driver_runtime_dump_evidence() {
       "Handle",       "SyncProperty", "Save",      "Copy",
       "Load",         "Poll",         "Replace",   "EvaluateFlags",
       "Display",      "FindClip",     "FirstClip", "FirstPlayingClip"};
+  evidence.gh2_ps2_poll_range = "0x00171830 -> 0x00171C64";
+  evidence.gh2_ps2_poll_starved_range =
+      "0x001710B8 -> 0x001710DC";
+  evidence.gh2_ps2_layout = {
+      "+0x1C character",
+      "+0x20 bones owner",
+      "+0x30 clip directory",
+      "+0x38 first clip driver",
+      "+0x3C starved event symbol",
+      "+0x40 last DataNode",
+      "+0x48 old beat",
+      "+0x4C realign",
+      "+0x50 beat scale",
+  };
+  evidence.gh2_ps2_poll_recovered = true;
   return evidence;
 }
 
@@ -5841,21 +6177,6 @@ static int find_bone_index(const Character& character, const std::string& name) 
   return -1;
 }
 
-[[maybe_unused]] static bool is_eye_mesh_name(const std::string& name) {
-  std::string lower = name;
-  std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return (char)std::tolower(c); });
-  return lower.rfind("eye-", 0) == 0 ||
-         lower.rfind("l-eye.", 0) == 0 ||
-         lower.rfind("r-eye.", 0) == 0 ||
-         lower.find("_eyel") != std::string::npos ||
-         lower.find("_eyer") != std::string::npos ||
-         lower.find("eye_l") != std::string::npos ||
-         lower.find("eye_r") != std::string::npos ||
-         lower.find("eyel.") != std::string::npos ||
-         lower.find("eyer.") != std::string::npos;
-}
-
 static std::array<float, 16> mat4_mul(const std::array<float, 16>& a,
                                       const std::array<float, 16>& b);
 
@@ -5980,6 +6301,60 @@ static void dump_arm_pose(const Character& character, const char* tag) {
   dump("bone_R-hand");
 }
 
+static void dump_arm_mesh_pose(const Character& character, const char* tag) {
+  if (!debug_arm_pose_enabled()) return;
+  const std::string char_filter =
+      debug_arm_pose_filter_env("GHOGX_DEBUG_ARM_POSE_CHAR");
+  if (!char_filter.empty() && char_filter != character.dir_name) return;
+  const std::string required_transform =
+      debug_arm_pose_filter_env("GHOGX_DEBUG_ARM_POSE_REQUIRE");
+  if (!required_transform.empty()) {
+    const bool has_required_bone = std::any_of(
+        character.bones.begin(), character.bones.end(), [&](const auto& bone) {
+          return bone.name == required_transform ||
+                 channel_matches_bone(bone.name, required_transform);
+        });
+    const bool has_required_mesh = std::any_of(
+        character.meshes.begin(), character.meshes.end(), [&](const auto& mesh) {
+          return mesh.name == required_transform ||
+                 channel_matches_bone(mesh.name, required_transform);
+        });
+    if (!has_required_bone && !has_required_mesh) return;
+  }
+
+  static constexpr const char* kNames[] = {
+      "bone_pos_gutbass.mesh",
+      "bone_pos_guitar.mesh",
+      "bone_L-clavicle.mesh", "bone_L-upperArm.mesh",
+      "bone_L-upperTwist1.mesh", "bone_L-upperTwist2.mesh",
+      "bone_L-foreArm.mesh", "bone_L-foreTwist1.mesh",
+      "bone_L-foreTwist2.mesh", "bone_L-hand.mesh",
+      "bone_R-clavicle.mesh", "bone_R-upperArm.mesh",
+      "bone_R-upperTwist1.mesh", "bone_R-upperTwist2.mesh",
+      "bone_R-foreArm.mesh", "bone_R-foreTwist1.mesh",
+      "bone_R-foreTwist2.mesh", "bone_R-hand.mesh",
+      "guitar.mesh"};
+  for (const char* name : kNames) {
+    const auto found = std::find_if(
+        character.meshes.begin(), character.meshes.end(),
+        [&](const auto& mesh) { return mesh.name == name; });
+    if (found == character.meshes.end()) continue;
+    const auto world = character.bone_world_local_chain(found->name);
+    std::fprintf(
+        stderr,
+        "[armmesh] char=%s tag=%s bone=%s "
+        "local=[%.6f %.6f %.6f|%.6f %.6f %.6f|%.6f %.6f %.6f] "
+        "localPos=(%.6f %.6f %.6f) worldPos=(%.6f %.6f %.6f)\n",
+        character.dir_name.c_str(), tag, name, found->local.rot[0][0],
+        found->local.rot[0][1], found->local.rot[0][2],
+        found->local.rot[1][0], found->local.rot[1][1],
+        found->local.rot[1][2], found->local.rot[2][0],
+        found->local.rot[2][1], found->local.rot[2][2],
+        found->local.pos[0], found->local.pos[1], found->local.pos[2],
+        world[12], world[13], world[14]);
+  }
+}
+
 static bool transform_local_chain_world_depth(
     const Character& character, const std::string& name,
     std::array<float, 16>& out, int depth) {
@@ -5989,18 +6364,11 @@ static bool transform_local_chain_world_depth(
     out = runtime_it->second;
     return true;
   }
-  const auto pose_it = character.runtime_pose_output_worlds.find(name);
-  if (pose_it != character.runtime_pose_output_worlds.end()) {
-    out = pose_it->second;
-    return true;
-  }
-  for (const auto& [pose_name, pose_world] :
-       character.runtime_pose_output_worlds) {
-    if (channel_matches_bone(pose_name, name)) {
-      out = pose_world;
-      return true;
-    }
-  }
+  // Pollables read RndTransformable::WorldXfm after earlier pollables have
+  // written the resident transform. A CharClip output-world snapshot is only
+  // a fallback for channels that have no resident Trans/Mesh object; letting
+  // that cache win here hid CharIKHand's live upper-arm write from the
+  // following CharUpperTwist poll.
   for (const auto& b : character.bones) {
     if (b.name == name || channel_matches_bone(b.name, name)) {
       out = character.bone_world_local_chain(b.name);
@@ -6034,6 +6402,18 @@ static bool transform_local_chain_world_depth(
       }
     }
     return true;
+  }
+  const auto pose_it = character.runtime_pose_output_worlds.find(name);
+  if (pose_it != character.runtime_pose_output_worlds.end()) {
+    out = pose_it->second;
+    return true;
+  }
+  for (const auto& [pose_name, pose_world] :
+       character.runtime_pose_output_worlds) {
+    if (channel_matches_bone(pose_name, name)) {
+      out = pose_world;
+      return true;
+    }
   }
   return false;
 }
@@ -6176,14 +6556,6 @@ static Vec3 rotate_vec_by_quat(Vec3 v, const float q_in[4]) {
       v.x * rot[0][1] + v.y * rot[1][1] + v.z * rot[2][1],
       v.x * rot[0][2] + v.y * rot[1][2] + v.z * rot[2][2],
   };
-}
-
-static void source_look_at_rows(std::array<float, 16>& m) {
-  const Vec3 x = mat_row(m, 0);
-  const Vec3 z = vnorm(vcross(x, mat_row(m, 1)), {0.0f, 0.0f, 1.0f});
-  const Vec3 y = vcross(z, x);
-  set_mat_row(m, 1, y);
-  set_mat_row(m, 2, z);
 }
 
 static void normalize_mat3_rows(std::array<float, 16>& m);
@@ -6432,6 +6804,14 @@ bool source_char_ik_hand_elbow_cosine(
       measure.inv_2ab * (distance_squared - measure.a2_plus_b2);
   out_cosine = std::clamp(out_cosine, -1.0f, 1.0f);
   return true;
+}
+
+float source_gh2_ps2_char_ik_hand_elbow_cosine(float source_cosine) {
+  // GH2 PS2 SLUS_214.47 0x0017A1AC..0x0017A1EC materializes
+  // -0.985/+0.985 (0xBF7C28F6/0x3F7C28F6) and clamps the IKElbow cosine
+  // before sqrt. This is narrower than the later RB3 source helper's [-1,1]
+  // clamp and is shared by every revision-2 GH2 CharIKHand row.
+  return std::clamp(source_cosine, -0.985f, 0.985f);
 }
 
 SourceCharIKHandElbowBendRows source_char_ik_hand_elbow_bend_rows(
@@ -6996,7 +7376,11 @@ static void set_local_from_world(milo_scene::Xfm& local,
 static std::array<float, 16> rotation_about_x_world(float angle) {
   const float ca = std::cos(angle);
   const float sa = std::sin(angle);
-  return {1, 0, 0, 0, 0, ca, -sa, 0, 0, sa, ca, 0, 0, 0, 0, 1};
+  // Hmx::Matrix3::RotateAboutX stores rows as
+  //   (1,0,0), (0,c,s), (0,-s,c).
+  // Character transforms use the same row-vector convention, so preserve the
+  // source signs before left-multiplying the live parent world matrix.
+  return {1, 0, 0, 0, 0, ca, sa, 0, 0, -sa, ca, 0, 0, 0, 0, 1};
 }
 
 static std::array<float, 16> source_matrix_multiply_rotation(
@@ -7375,29 +7759,17 @@ bool source_char_upper_twist_poll_world(
     return false;
   }
 
-  float q[4] = {};
-  quat_from_vec_to_vec(mat_row(source_parent_world, 0),
-                       mat_row(source_world, 0), q);
-  const Vec3 rotated_parent_y =
-      rotate_vec_by_quat(mat_row(source_parent_world, 1), q);
-
-  auto make_output = [&](const std::array<float, 16>& current_world,
-                         float weight) {
-    std::array<float, 16> output = source_world;
-    set_mat_row(output, 0, mat_row(source_world, 0));
-    set_mat_row(output, 1,
-                vadd(vscale(rotated_parent_y, 1.0f - weight),
-                     vscale(mat_row(source_world, 1), weight)));
-    output[12] = current_world[12];
-    output[13] = current_world[13];
-    output[14] = current_world[14];
-    output[15] = 1.0f;
-    source_look_at_rows(output);
-    return output;
-  };
-
-  out.twist1_world = make_output(twist1_current_world, 0.333f);
-  out.twist2_world = make_output(twist2_current_world, 0.666f);
+  (void)twist1_current_world;
+  (void)twist2_current_world;
+  milo_scene::Xfm source_local;
+  set_local_from_world(source_local, source_world, source_parent_world);
+  const float roll = source_gh2_trace_local_twist_angle(source_local);
+  milo_scene::Xfm half_twist_local;
+  source_gh2_trace_write_x_twist(half_twist_local, source_local, roll * 0.5f);
+  const std::array<float, 16> half_twist_world =
+      mat4_mul(source_xfm_to_mat4(half_twist_local), source_parent_world);
+  out.twist1_world = half_twist_world;
+  out.twist2_world = half_twist_world;
   out.applied = true;
   return true;
 }
@@ -7492,6 +7864,7 @@ bool source_gh2_trace_upper_twist_poll_local(
     bool has_source,
     bool has_twist1,
     bool has_twist2,
+    bool twist2_parent_is_twist1,
     const milo_scene::Xfm& upper_live_local,
     const milo_scene::Xfm& twist2_bind_local,
     SourceGh2TraceUpperTwistLocalResult& out) {
@@ -7500,10 +7873,29 @@ bool source_gh2_trace_upper_twist_poll_local(
 
   const float roll = source_gh2_trace_local_twist_angle(upper_live_local);
   out.roll_radians = roll;
-  source_gh2_trace_write_x_twist(
-      out.twist1_local, upper_live_local, roll * out.twist1_factor);
-  source_gh2_trace_write_x_twist(
-      out.twist2_local, twist2_bind_local, roll * out.twist2_factor);
+  out.serial_chain = twist2_parent_is_twist1;
+  if (twist2_parent_is_twist1) {
+    // SLUS 0x00182454 selects this branch from the actual transform-parent
+    // pointer.  In native row convention the two corrections are +2/3 on the
+    // source-based first helper and -1/3 on the authored child basis.
+    out.twist1_factor = 0.6660000086f;
+    out.twist2_factor = -0.3330000043f;
+    source_gh2_trace_write_x_twist(
+        out.twist1_local, upper_live_local, roll * out.twist1_factor);
+    source_gh2_trace_write_x_twist(
+        out.twist2_local, twist2_bind_local, roll * out.twist2_factor);
+  } else {
+    // The PS2 fallback beginning at SLUS 0x00182670 composes the same
+    // half-twist correction with the live source basis for both sibling
+    // outputs.  Stock GH2 band-role packages and every converted GH1
+    // upper-twist graph use this authored sibling form.
+    out.twist1_factor = 0.5f;
+    out.twist2_factor = 0.5f;
+    source_gh2_trace_write_x_twist(
+        out.twist1_local, upper_live_local, roll * out.twist1_factor);
+    source_gh2_trace_write_x_twist(
+        out.twist2_local, upper_live_local, roll * out.twist2_factor);
+  }
   out.applied = true;
   return true;
 }
@@ -7925,6 +8317,106 @@ static void log_debug_xfm_row_short(const char* tag, const char* name,
                local.rot[2][0], local.rot[2][1], local.rot[2][2]);
 }
 
+static unsigned long long next_debug_twist_contract_event() {
+  static unsigned long long event = 0;
+  return ++event;
+}
+
+static unsigned long long next_debug_arm_contract_event() {
+  static unsigned long long event = 0;
+  return ++event;
+}
+
+static unsigned long long next_debug_target_contract_event() {
+  static unsigned long long event = 0;
+  return ++event;
+}
+
+static void log_debug_twist_contract_row(
+    unsigned long long event, const char* kind, const char* owner,
+    const char* controller, const char* branch, const char* row,
+    const char* name, float source_angle, float applied_angle,
+    float offset_degrees, float factor, const milo_scene::Xfm& local) {
+  std::fprintf(
+      stderr,
+      "[twist-contract]\tevent=%llu\tkind=%s\towner=%s\tcontroller=%s"
+      "\tbranch=%s\trow=%s\tname=%s\tsource_angle=%.9g"
+      "\tapplied_angle=%.9g\toffset_degrees=%.9g\tfactor=%.9g"
+      "\tpos_x=%.9g\tpos_y=%.9g\tpos_z=%.9g"
+      "\tr00=%.9g\tr01=%.9g\tr02=%.9g"
+      "\tr10=%.9g\tr11=%.9g\tr12=%.9g"
+      "\tr20=%.9g\tr21=%.9g\tr22=%.9g\n",
+      event, kind, owner, controller, branch, row, name, source_angle,
+      applied_angle, offset_degrees, factor, local.pos[0], local.pos[1],
+      local.pos[2], local.rot[0][0], local.rot[0][1], local.rot[0][2],
+      local.rot[1][0], local.rot[1][1], local.rot[1][2], local.rot[2][0],
+      local.rot[2][1], local.rot[2][2]);
+}
+
+static void log_debug_arm_contract_header(
+    unsigned long long event, const char* kind, const char* owner,
+    const char* controller, const char* hand, const char* target,
+    float solver_weight, float target_blend_weight, float upper_length,
+    float fore_length, float target_distance, float elbow_cosine,
+    bool orientation, bool stretch) {
+  std::fprintf(
+      stderr,
+      "[arm-contract]\tevent=%llu\tkind=%s\towner=%s\tcontroller=%s"
+      "\thand=%s\ttarget=%s\tsolver_weight=%.9g"
+      "\ttarget_blend_weight=%.9g\tupper_length=%.9g"
+      "\tfore_length=%.9g\ttarget_distance=%.9g"
+      "\telbow_cosine=%.9g\torientation=%d\tstretch=%d\n",
+      event, kind, owner, controller, hand, target, solver_weight,
+      target_blend_weight, upper_length, fore_length, target_distance,
+      elbow_cosine, orientation ? 1 : 0, stretch ? 1 : 0);
+}
+
+static void log_debug_arm_contract_world_row(
+    unsigned long long event, const char* row, const char* name,
+    const std::array<float, 16>& world) {
+  std::fprintf(
+      stderr,
+      "[arm-contract-row]\tevent=%llu\trow=%s\tname=%s"
+      "\tpos_x=%.9g\tpos_y=%.9g\tpos_z=%.9g"
+      "\tr00=%.9g\tr01=%.9g\tr02=%.9g"
+      "\tr10=%.9g\tr11=%.9g\tr12=%.9g"
+      "\tr20=%.9g\tr21=%.9g\tr22=%.9g\n",
+      event, row, name, world[12], world[13], world[14], world[0], world[1],
+      world[2], world[4], world[5], world[6], world[8], world[9], world[10]);
+}
+
+static void log_debug_target_contract_header(
+    unsigned long long event, const char* kind, const char* owner,
+    const char* controller, const char* target, const char* target_parent,
+    const char* spot, float event_beat, float current_beat,
+    float target_beat, float delta_beat, float remaining_beats,
+    float fraction, float fraction_per_beat, float weight) {
+  std::fprintf(
+      stderr,
+      "[target-contract]\tevent=%llu\tkind=%s\towner=%s\tcontroller=%s"
+      "\ttarget=%s\ttarget_parent=%s\tspot=%s\tevent_beat=%.9g"
+      "\tcurrent_beat=%.9g\ttarget_beat=%.9g\tdelta_beat=%.9g"
+      "\tremaining_beats=%.9g\tfraction=%.9g"
+      "\tfraction_per_beat=%.9g\tweight=%.9g\n",
+      event, kind, owner, controller, target, target_parent, spot,
+      event_beat, current_beat, target_beat, delta_beat, remaining_beats,
+      fraction, fraction_per_beat, weight);
+}
+
+static void log_debug_target_contract_world_row(
+    unsigned long long event, const char* row, const char* name,
+    const std::array<float, 16>& world) {
+  std::fprintf(
+      stderr,
+      "[target-contract-row]\tevent=%llu\trow=%s\tname=%s"
+      "\tpos_x=%.9g\tpos_y=%.9g\tpos_z=%.9g"
+      "\tr00=%.9g\tr01=%.9g\tr02=%.9g"
+      "\tr10=%.9g\tr11=%.9g\tr12=%.9g"
+      "\tr20=%.9g\tr21=%.9g\tr22=%.9g\n",
+      event, row, name, world[12], world[13], world[14], world[0], world[1],
+      world[2], world[4], world[5], world[6], world[8], world[9], world[10]);
+}
+
 static void log_debug_world_row(const char* tag, const char* name,
                                 const std::array<float, 16>& world) {
   const Vec3 wp = mat_pos(world);
@@ -7936,62 +8428,121 @@ static void log_debug_world_row(const char* tag, const char* name,
                world[4], world[5], world[6], world[8], world[9], world[10]);
 }
 
+struct MutableCharacterTransform {
+  std::string name;
+  std::string parent;
+  milo_scene::Xfm* local = nullptr;
+  const milo_scene::Xfm* bind_local = nullptr;
+};
+
+static bool resolve_mutable_character_transform(
+    Character& character, const std::string& requested,
+    MutableCharacterTransform& out) {
+  for (size_t index = 0; index < character.bones.size(); ++index) {
+    auto& bone = character.bones[index];
+    if (bone.name != requested &&
+        !channel_matches_bone(bone.name, requested)) {
+      continue;
+    }
+    const milo_scene::Xfm* bind =
+        index < character.bind_bone_local.size()
+            ? &character.bind_bone_local[index]
+            : nullptr;
+    out = {bone.name, bone.parent, &bone.local, bind};
+    return true;
+  }
+  for (size_t index = 0; index < character.meshes.size(); ++index) {
+    auto& mesh = character.meshes[index];
+    if (mesh.name != requested &&
+        !channel_matches_bone(mesh.name, requested)) {
+      continue;
+    }
+    const milo_scene::Xfm* bind =
+        index < character.bind_mesh_local.size()
+            ? &character.bind_mesh_local[index]
+            : nullptr;
+    out = {mesh.name, mesh.parent, &mesh.local, bind};
+    return true;
+  }
+  return false;
+}
+
 static bool apply_source_fore_twist(Character& character,
                                     const std::vector<milo_scene::Xfm>& bind_bones,
                                     const CharForeTwist& ft) {
   (void)bind_bones;
-  const int hand_i = find_bone_index(character, ft.hand);
-  const int twist2_i = find_bone_index(character, ft.twist2);
-  if (hand_i < 0 || twist2_i < 0) return false;
-  auto& hand = character.bones[static_cast<size_t>(hand_i)];
-  auto& twist2 = character.bones[static_cast<size_t>(twist2_i)];
-  if (hand.parent.empty() || twist2.parent.empty()) return false;
-  const int parent_i = find_bone_index(character, hand.parent);
-  const int twist1_i = find_bone_index(character, twist2.parent);
-  if (parent_i < 0 || twist1_i < 0) return false;
-  auto& forearm = character.bones[static_cast<size_t>(parent_i)];
-  auto& twist1 = character.bones[static_cast<size_t>(twist1_i)];
-  if (twist1.parent.empty()) return false;
-  const int twist1_parent_i = find_bone_index(character, twist1.parent);
-  if (twist1_parent_i < 0) return false;
-  const float hand_local_x = hand.local.pos[0];
-  if (std::fabs(hand_local_x) <= 1.0e-6f) return false;
-
-  std::array<float, 16> hand_parent_world{};
-  std::array<float, 16> hand_world{};
-  std::array<float, 16> twist1_parent_world{};
-  if (!transform_local_chain_world(character, hand.parent, hand_parent_world) ||
-      !transform_local_chain_world(character, hand.name, hand_world) ||
-      !transform_local_chain_world(character, twist1.parent,
-                                   twist1_parent_world)) {
+  MutableCharacterTransform hand;
+  MutableCharacterTransform twist2;
+  MutableCharacterTransform forearm;
+  MutableCharacterTransform twist1;
+  if (!resolve_mutable_character_transform(character, ft.hand, hand) ||
+      !resolve_mutable_character_transform(character, ft.twist2, twist2) ||
+      hand.parent.empty() || twist2.parent.empty() ||
+      !resolve_mutable_character_transform(character, hand.parent, forearm) ||
+      !resolve_mutable_character_transform(character, twist2.parent, twist1) ||
+      !hand.local || !twist2.local || !forearm.local || !twist1.local) {
     return false;
   }
 
-  SourceCharForeTwistPollWorldResult twist_result;
-  if (!source_char_fore_twist_poll_world(
-          ft, true, true, true, true, hand_parent_world, hand_world,
-          hand_local_x, twist2.local.pos[0], twist_result)) {
+  const milo_scene::Xfm twist2_bind =
+      twist2.bind_local ? *twist2.bind_local : *twist2.local;
+  SourceGh2TraceForeTwistLocalResult twist_result;
+  if (!source_gh2_trace_fore_twist_poll_local(
+          ft, true, true, true, true, *hand.local, *forearm.local,
+          twist2_bind, twist_result)) {
     return false;
   }
-  set_local_from_world(twist1.local, twist_result.twist_parent_world,
-                       twist1_parent_world);
-  set_local_from_world(twist2.local, twist_result.twist2_world,
-                       twist_result.twist_parent_world);
+  *twist1.local = twist_result.twist1_local;
+  *twist2.local = twist_result.twist2_local;
+
+  if (debug_twist_contract_enabled()) {
+    const unsigned long long event = next_debug_twist_contract_event();
+    const float source_angle =
+        source_gh2_trace_local_twist_angle(*hand.local);
+    log_debug_twist_contract_row(
+        event, "fore", character.dir_name.c_str(), ft.name.c_str(),
+        "third", "hand_input", hand.name.c_str(), source_angle,
+        twist_result.roll_radians, ft.offset_degrees,
+        -0.3333333134651184f, *hand.local);
+    log_debug_twist_contract_row(
+        event, "fore", character.dir_name.c_str(), ft.name.c_str(),
+        "third", "forearm_input", forearm.name.c_str(), source_angle,
+        twist_result.roll_radians, ft.offset_degrees,
+        -0.3333333134651184f, *forearm.local);
+    log_debug_twist_contract_row(
+        event, "fore", character.dir_name.c_str(), ft.name.c_str(),
+        "third", "twist2_bind_input", twist2.name.c_str(), source_angle,
+        twist_result.roll_radians, ft.offset_degrees,
+        -0.3333333134651184f, twist2_bind);
+    log_debug_twist_contract_row(
+        event, "fore", character.dir_name.c_str(), ft.name.c_str(),
+        "third", "twist1_output", twist1.name.c_str(), source_angle,
+        twist_result.roll_radians, ft.offset_degrees,
+        -0.3333333134651184f, *twist1.local);
+    log_debug_twist_contract_row(
+        event, "fore", character.dir_name.c_str(), ft.name.c_str(),
+        "third", "twist2_output", twist2.name.c_str(), source_angle,
+        twist_result.roll_radians, ft.offset_degrees,
+        -0.3333333134651184f, *twist2.local);
+  }
 
   if (debug_ik_enabled()) {
     std::fprintf(stderr,
-                 "[twist-fore-source] %s hand=%s fore=%s twist1=%s "
-                 "twist2=%s offset=%.3f bias=%.3f angle=%.5f applied=%.5f "
-                 "ratio=%.5f\n",
-                 ft.name.c_str(), ft.hand.c_str(), forearm.name.c_str(),
-                 twist1.name.c_str(), ft.twist2.c_str(), ft.offset_degrees,
-                 ft.bias_degrees, twist_result.source_angle_radians,
-                 twist_result.applied_rotation_radians,
-                 twist_result.twist2_position_ratio);
-    log_debug_xfm_row_short("twist-fore-source", twist1.name.c_str(),
-                            twist1.local);
-    log_debug_xfm_row_short("twist-fore-source", twist2.name.c_str(),
-                            twist2.local);
+                 "[twist-fore-gh2-trace] owner=%s controller=%s hand=%s "
+                 "fore=%s twist1=%s "
+                 "twist2=%s offset=%.3f bias=%.3f roll=%.5f\n",
+                 character.dir_name.c_str(), ft.name.c_str(), ft.hand.c_str(),
+                 forearm.name.c_str(), twist1.name.c_str(), ft.twist2.c_str(),
+                 ft.offset_degrees, ft.bias_degrees,
+                 twist_result.roll_radians);
+    const std::string twist1_debug_name =
+        character.dir_name + ":" + twist1.name;
+    const std::string twist2_debug_name =
+        character.dir_name + ":" + twist2.name;
+    log_debug_xfm_row_short("twist-fore-gh2-trace",
+                            twist1_debug_name.c_str(), *twist1.local);
+    log_debug_xfm_row_short("twist-fore-gh2-trace",
+                            twist2_debug_name.c_str(), *twist2.local);
   }
   return true;
 }
@@ -8057,12 +8608,13 @@ static bool apply_gh1_anim_servo_fore_twist(
   if (debug_ik_enabled()) {
     std::fprintf(
         stderr,
-        "[gh1-fore-twist] %s fore=%s twist1=%s twist2=%s hand=%s "
+        "[gh1-fore-twist] owner=%s controller=%s fore=%s twist1=%s "
+        "twist2=%s hand=%s "
         "offset=%.3f angle=%.5f applied=%.5f ratio=%.5f\n",
-        servo.name.c_str(), servo.fore_arm.c_str(), servo.twist1.c_str(),
-        servo.twist2.c_str(), servo.hand.c_str(), servo.offset_degrees,
-        result.source_angle_radians, result.applied_rotation_radians,
-        result.twist2_position_ratio);
+        character.dir_name.c_str(), servo.name.c_str(),
+        servo.fore_arm.c_str(), servo.twist1.c_str(), servo.twist2.c_str(),
+        servo.hand.c_str(), servo.offset_degrees, result.source_angle_radians,
+        result.applied_rotation_radians, result.twist2_position_ratio);
   }
   return true;
 }
@@ -8127,9 +8679,11 @@ static bool apply_gh1_anim_servo_upper_twist(
                        twist2_parent_world);
   if (debug_ik_enabled()) {
     std::fprintf(stderr,
-                 "[gh1-upper-twist] %s twist1=%s twist2=%s upper=%s\n",
-                 servo.name.c_str(), servo.twist1.c_str(),
-                 servo.twist2.c_str(), servo.upper_arm.c_str());
+                 "[gh1-upper-twist] owner=%s controller=%s twist1=%s "
+                 "twist2=%s upper=%s\n",
+                 character.dir_name.c_str(), servo.name.c_str(),
+                 servo.twist1.c_str(), servo.twist2.c_str(),
+                 servo.upper_arm.c_str());
   }
   return true;
 }
@@ -8143,69 +8697,78 @@ static void apply_source_upper_twists(
     Character& character, const std::vector<milo_scene::Xfm>& bind_bones) {
   (void)bind_bones;
   for (const auto& ut : character.upper_twists) {
-    const int upper_i = find_bone_index(character, ut.upper_arm);
-    const int twist1_i = find_bone_index(character, ut.twist1);
-    const int twist2_i = find_bone_index(character, ut.twist2);
-    if (upper_i < 0 || twist1_i < 0 || twist2_i < 0) continue;
-    auto& upper = character.bones[static_cast<size_t>(upper_i)];
-    auto& twist1 = character.bones[static_cast<size_t>(twist1_i)];
-    auto& twist2 = character.bones[static_cast<size_t>(twist2_i)];
-    if (upper.parent.empty()) continue;
-    if (twist1.parent.empty() || twist2.parent.empty()) continue;
-
-    std::array<float, 16> source_parent_world{};
-    std::array<float, 16> source_world{};
-    std::array<float, 16> twist1_world{};
-    std::array<float, 16> twist2_world_before_twist1{};
-    std::array<float, 16> twist1_parent_world{};
-    if (!transform_local_chain_world(character, upper.parent,
-                                     source_parent_world) ||
-        !transform_local_chain_world(character, upper.name, source_world) ||
-        !transform_local_chain_world(character, twist1.name, twist1_world) ||
-        !transform_local_chain_world(character, twist2.name,
-                                     twist2_world_before_twist1) ||
-        !transform_local_chain_world(character, twist1.parent,
-                                     twist1_parent_world)) {
+    MutableCharacterTransform upper;
+    MutableCharacterTransform twist1;
+    MutableCharacterTransform twist2;
+    if (!resolve_mutable_character_transform(character, ut.upper_arm,
+                                             upper) ||
+        !resolve_mutable_character_transform(character, ut.twist1, twist1) ||
+        !resolve_mutable_character_transform(character, ut.twist2, twist2) ||
+        !upper.local || !twist1.local || !twist2.local) {
       continue;
     }
 
-    SourceCharUpperTwistPollWorldResult twist_result;
-    if (!source_char_upper_twist_poll_world(
-            true, true, true, true, source_parent_world, source_world,
-            twist1_world, twist2_world_before_twist1, twist_result)) {
+    const milo_scene::Xfm twist2_bind =
+        twist2.bind_local ? *twist2.bind_local : *twist2.local;
+    const bool serial_chain =
+        twist2.parent == twist1.name ||
+        channel_matches_bone(twist2.parent, twist1.name) ||
+        channel_matches_bone(twist1.name, twist2.parent);
+    SourceGh2TraceUpperTwistLocalResult twist_result;
+    if (!source_gh2_trace_upper_twist_poll_local(
+            true, true, true, serial_chain, *upper.local, twist2_bind,
+            twist_result)) {
       continue;
     }
-
-    set_local_from_world(twist1.local, twist_result.twist1_world,
-                         twist1_parent_world);
-    std::array<float, 16> twist2_world_after_twist1{};
-    if (!transform_local_chain_world(character, twist2.name,
-                                     twist2_world_after_twist1)) {
-      continue;
+    *twist1.local = twist_result.twist1_local;
+    *twist2.local = twist_result.twist2_local;
+    if (debug_twist_contract_enabled()) {
+      const unsigned long long event = next_debug_twist_contract_event();
+      const char* branch =
+          twist_result.serial_chain ? "serial" : "sibling";
+      log_debug_twist_contract_row(
+          event, "upper", character.dir_name.c_str(), ut.name.c_str(),
+          branch, "upper_input", upper.name.c_str(),
+          twist_result.roll_radians,
+          twist_result.roll_radians * twist_result.twist1_factor, 0.0f,
+          twist_result.twist1_factor, *upper.local);
+      log_debug_twist_contract_row(
+          event, "upper", character.dir_name.c_str(), ut.name.c_str(),
+          branch, "twist2_bind_input", twist2.name.c_str(),
+          twist_result.roll_radians,
+          twist_result.roll_radians * twist_result.twist2_factor, 0.0f,
+          twist_result.twist2_factor, twist2_bind);
+      log_debug_twist_contract_row(
+          event, "upper", character.dir_name.c_str(), ut.name.c_str(),
+          branch, "twist1_output", twist1.name.c_str(),
+          twist_result.roll_radians,
+          twist_result.roll_radians * twist_result.twist1_factor, 0.0f,
+          twist_result.twist1_factor, *twist1.local);
+      log_debug_twist_contract_row(
+          event, "upper", character.dir_name.c_str(), ut.name.c_str(),
+          branch, "twist2_output", twist2.name.c_str(),
+          twist_result.roll_radians,
+          twist_result.roll_radians * twist_result.twist2_factor, 0.0f,
+          twist_result.twist2_factor, *twist2.local);
     }
-    SourceCharUpperTwistPollWorldResult sequenced_twist_result;
-    if (!source_char_upper_twist_poll_world(
-            true, true, true, true, source_parent_world, source_world,
-            twist1_world, twist2_world_after_twist1,
-            sequenced_twist_result)) {
-      continue;
-    }
-    std::array<float, 16> twist2_parent_world{};
-    if (!transform_local_chain_world(character, twist2.parent,
-                                     twist2_parent_world)) {
-      continue;
-    }
-    set_local_from_world(twist2.local, sequenced_twist_result.twist2_world,
-                         twist2_parent_world);
     if (debug_ik_enabled()) {
       std::fprintf(stderr,
-                   "[twist-upper-source] %s upper=%s twist1=%s twist2=%s\n",
-                   ut.name.c_str(), ut.upper_arm.c_str(), ut.twist1.c_str(),
-                   ut.twist2.c_str());
-      log_debug_xfm_row_short("twist-upper-source", twist1.name.c_str(),
-                              twist1.local);
-      log_debug_xfm_row_short("twist-upper-source", twist2.name.c_str(),
-                              twist2.local);
+                   "[twist-upper-gh2-trace] owner=%s controller=%s upper=%s "
+                   "twist1=%s "
+                   "twist2=%s branch=%s roll=%.5f factors=(%.3f,%.3f)\n",
+                   character.dir_name.c_str(), ut.name.c_str(),
+                   ut.upper_arm.c_str(), ut.twist1.c_str(), ut.twist2.c_str(),
+                   twist_result.serial_chain ? "serial" : "sibling",
+                   twist_result.roll_radians, twist_result.twist1_factor,
+                   twist_result.twist2_factor);
+      const std::string twist1_debug_name =
+          character.dir_name + ":" + twist1.name;
+      const std::string twist2_debug_name =
+          character.dir_name + ":" + twist2.name;
+      log_debug_xfm_row_short("twist-upper-gh2-trace",
+                              twist1_debug_name.c_str(), *twist1.local);
+      log_debug_xfm_row_short("twist-upper-gh2-trace",
+                              twist2_debug_name.c_str(), *twist2.local);
     }
   }
   apply_gh1_anim_servo_upper_twists(character);
@@ -8972,6 +9535,45 @@ SourceCharIKMidiEnterResult source_char_ik_midi_enter(
   return result;
 }
 
+SourceGh2CharIKMidiNewSpotResult source_gh2_char_ik_midi_new_spot(
+    SourceCharIKMidiState& state, const std::string& spot,
+    float remaining_beats) {
+  SourceGh2CharIKMidiNewSpotResult result;
+  result.remaining_beats = remaining_beats;
+  state.cur_spot = spot;
+  if (remaining_beats <= 0.0f) {
+    state.frac = 1.0f;
+    state.frac_per_beat = 0.0f;
+    result.snapped = true;
+  } else {
+    state.frac = 0.0f;
+    state.frac_per_beat = 1.0f / remaining_beats;
+  }
+  result.fraction = state.frac;
+  result.fraction_per_beat = state.frac_per_beat;
+  return result;
+}
+
+SourceGh2CharIKMidiPollResult source_gh2_char_ik_midi_poll(
+    SourceCharIKMidiState& state, float delta_beat) {
+  SourceGh2CharIKMidiPollResult result;
+  result.delta_beat = delta_beat;
+  state.frac = std::clamp(
+      state.frac + delta_beat * state.frac_per_beat, 0.0f, 1.0f);
+  // SLUS_214.47 0x0017B730..0x0017B774 uses the literal single-
+  // precision pi/pi-over-two constants and the source sine helper:
+  // 0.5 - 0.5 * sin(pi * fraction + pi/2).
+  constexpr float kSourcePi = 3.1415927410125732421875f;
+  constexpr float kSourceHalfPi = 1.57079637050628662109375f;
+  result.fraction = state.frac;
+  result.eased_fraction =
+      std::clamp(0.5f -
+                     0.5f *
+                         std::sin(kSourcePi * state.frac + kSourceHalfPi),
+                 0.0f, 1.0f);
+  return result;
+}
+
 void source_char_ik_midi_poll_deps(SourceCharIKMidiPollDeps& deps,
                                    const SourceCharIKMidiState& state) {
   deps.change.push_back(state.bone);
@@ -9193,34 +9795,6 @@ static float effective_ik_hand_target_blend_weight(const Character& character,
   return effective_ik_hand_solver_weight(character, ik);
 }
 
-struct MutableCharacterTransform {
-  std::string name;
-  std::string parent;
-  milo_scene::Xfm* local = nullptr;
-};
-
-static bool resolve_mutable_character_transform(
-    Character& character, const std::string& requested,
-    MutableCharacterTransform& out) {
-  for (auto& bone : character.bones) {
-    if (bone.name != requested &&
-        !channel_matches_bone(bone.name, requested)) {
-      continue;
-    }
-    out = {bone.name, bone.parent, &bone.local};
-    return true;
-  }
-  for (auto& mesh : character.meshes) {
-    if (mesh.name != requested &&
-        !channel_matches_bone(mesh.name, requested)) {
-      continue;
-    }
-    out = {mesh.name, mesh.parent, &mesh.local};
-    return true;
-  }
-  return false;
-}
-
 static bool apply_gh1_anim_servo_ik(Character& character,
                                     const CharIKHand& ik) {
   // GH1 SLUS_212.24 0x00184198 is AnimServoIK::Poll. Its setup path at
@@ -9288,8 +9862,8 @@ static bool apply_gh1_anim_servo_ik(Character& character,
   if (!source_char_ik_hand_elbow_cosine(measure, dist2, cos_elbow)) {
     return false;
   }
-  // AnimServoIK::Poll clamps this older servo to +/-0.985 before sqrt; the
-  // later CharIKHand path uses its own full [-1,1] source contract.
+  // GH1 AnimServoIK and GH2 PS2 CharIKHand both clamp to +/-0.985 before
+  // sqrt. Later RB3 source broadens this helper to [-1, 1].
   cos_elbow = std::clamp(cos_elbow, -0.985f, 0.985f);
   const float sin_elbow =
       std::sqrt(std::max(0.0f, 1.0f - cos_elbow * cos_elbow));
@@ -9333,6 +9907,38 @@ static bool apply_gh1_anim_servo_ik(Character& character,
   normalize_mat3_rows(solved_world);
   character.runtime_world_overrides[hand.name] = solved_world;
 
+  if (debug_arm_contract_enabled()) {
+    std::array<float, 16> upper_world_post{};
+    std::array<float, 16> fore_world_post{};
+    std::array<float, 16> hand_world_post{};
+    if (transform_local_chain_world(character, upper.name, upper_world_post) &&
+        transform_local_chain_world(character, fore.name, fore_world_post) &&
+        transform_local_chain_world(character, hand.name, hand_world_post)) {
+      const unsigned long long event = next_debug_arm_contract_event();
+      log_debug_arm_contract_header(
+          event, "gh1_animservoik",
+          character.dir_name.empty() ? "<anonymous-gh1>"
+                                     : character.dir_name.c_str(),
+          ik.name.c_str(), hand.name.c_str(), ik.target.c_str(), 1.0f, 1.0f,
+          upperarm_len, forearm_len, std::sqrt(dist2), cos_elbow,
+          ik.orientation, ik.stretch);
+      log_debug_arm_contract_world_row(event, "upper_input",
+                                       upper.name.c_str(), upper_world);
+      log_debug_arm_contract_world_row(event, "fore_input", fore.name.c_str(),
+                                       fore_world);
+      log_debug_arm_contract_world_row(event, "hand_input", hand.name.c_str(),
+                                       hand_world);
+      log_debug_arm_contract_world_row(event, "target", ik.target.c_str(),
+                                       target_world);
+      log_debug_arm_contract_world_row(event, "upper_output",
+                                       upper.name.c_str(), upper_world_post);
+      log_debug_arm_contract_world_row(event, "fore_output",
+                                       fore.name.c_str(), fore_world_post);
+      log_debug_arm_contract_world_row(event, "hand_output",
+                                       hand.name.c_str(), hand_world_post);
+    }
+  }
+
   if (debug_ik_enabled()) {
     const float final_error =
         vlen(vsub(mat_pos(solved_world), mat_pos(target_world)));
@@ -9354,39 +9960,42 @@ static bool apply_source_ik_hand(Character& character, const CharIKHand& ik) {
   // Bounded single-target slice of ihatecompvir's CharIKHand::Poll/IKElbow
   // dataflow. PullShoulder is a real source function but its body is not in the
   // available ihatecompvir C++, so the remaining branches stay fenced.
-    const int hand_i = find_bone_index(character, ik.hand);
+    MutableCharacterTransform hand;
+    MutableCharacterTransform fore;
+    MutableCharacterTransform upper;
+    const bool hand_found =
+        resolve_mutable_character_transform(character, ik.hand, hand);
+    const bool fore_found =
+        hand_found && !hand.parent.empty() &&
+        resolve_mutable_character_transform(character, hand.parent, fore);
+    const bool upper_found =
+        fore_found && !fore.parent.empty() &&
+        resolve_mutable_character_transform(character, fore.parent, upper);
     const float solver_weight =
         effective_ik_hand_solver_weight(character, ik);
     const float target_blend_weight =
         effective_ik_hand_target_blend_weight(character, ik);
-    if (hand_i < 0 || solver_weight <= 0.0f) {
+    if (!hand_found || !fore_found || !upper_found || !hand.local ||
+        !fore.local || !upper.local || solver_weight <= 0.0f) {
       if (debug_ik_enabled()) {
         std::fprintf(stderr,
                      "[ik-source] %s skipped hand=%s solveWeight=%.3f "
                      "targetBlend=%.5f hand_found=%d\n",
                      ik.name.c_str(), ik.hand.c_str(), solver_weight,
-                     target_blend_weight, hand_i >= 0 ? 1 : 0);
+                     target_blend_weight, hand_found ? 1 : 0);
       }
       return false;
     }
-    auto& hand = character.bones[(size_t)hand_i];
-    if (hand.parent.empty()) return false;
-    const int fore_i = find_bone_index(character, hand.parent);
-    if (fore_i < 0) return false;
-    auto& fore = character.bones[(size_t)fore_i];
-    if (fore.parent.empty()) return false;
-    const int upper_i = find_bone_index(character, fore.parent);
-    if (upper_i < 0) return false;
-    auto& upper = character.bones[(size_t)upper_i];
     if (upper.parent.empty()) return false;
 
     std::array<float, 16> target_world{};
     if (!transform_local_chain_world(character, ik.target, target_world))
       return false;
 
-    const milo_scene::Xfm upper_local0 = upper.local;
-    const milo_scene::Xfm fore_local0 = fore.local;
+    const milo_scene::Xfm upper_local0 = *upper.local;
+    const milo_scene::Xfm fore_local0 = *fore.local;
     const auto upper_world0 = character.bone_world_local_chain(upper.name);
+    const auto fore_world0 = character.bone_world_local_chain(fore.name);
     const auto hand_world = character.bone_world_local_chain(hand.name);
     const Vec3 shoulder = mat_pos(upper_world0);
     const Vec3 raw_target = mat_pos(target_world);
@@ -9412,9 +10021,9 @@ static bool apply_source_ik_hand(Character& character, const CharIKHand& ik) {
     if (source_char_ik_hand_update_measure_lengths(
             ik.scalable, measure_state.hand_changed)) {
       const float hand_local_len =
-          vlen({hand.local.pos[0], hand.local.pos[1], hand.local.pos[2]});
+          vlen({hand.local->pos[0], hand.local->pos[1], hand.local->pos[2]});
       const float parent_local_len =
-          vlen({fore.local.pos[0], fore.local.pos[1], fore.local.pos[2]});
+          vlen({fore.local->pos[0], fore.local->pos[1], fore.local->pos[2]});
       const SourceCharIKHandMeasure measured =
           source_char_ik_hand_measure_lengths(true, hand_local_len,
                                               parent_local_len);
@@ -9430,8 +10039,8 @@ static bool apply_source_ik_hand(Character& character, const CharIKHand& ik) {
     source_measure.aa_plus_bb = measure_state.aa_plus_bb;
     const float reach_sum = std::max(0.001f, source_measure.aa_plus_bb);
     const float upper_len = std::max(
-        0.001f, vlen({fore.local.pos[0], fore.local.pos[1],
-                      fore.local.pos[2]}));
+        0.001f, vlen({fore.local->pos[0], fore.local->pos[1],
+                      fore.local->pos[2]}));
     const float fore_len = std::max(0.001f, reach_sum - upper_len);
     const Vec3 to_target = vsub(target, shoulder);
     const float raw_dist = vlen(to_target);
@@ -9443,17 +10052,19 @@ static bool apply_source_ik_hand(Character& character, const CharIKHand& ik) {
                                           cos_elbow)) {
       return false;
     }
+    cos_elbow =
+        source_gh2_ps2_char_ik_hand_elbow_cosine(cos_elbow);
     const float sin_elbow =
         std::sqrt(std::max(0.0f, 1.0f - cos_elbow * cos_elbow));
 
-    milo_scene::Xfm solved_fore = fore.local;
+    milo_scene::Xfm solved_fore = *fore.local;
     write_source_elbow_z_bend(solved_fore, fore_local0, cos_elbow, sin_elbow);
     for (int r = 0; r < 3; ++r)
       for (int c = 0; c < 3; ++c)
-        fore.local.rot[r][c] =
+        fore.local->rot[r][c] =
             fore_local0.rot[r][c] * (1.0f - solver_weight) +
             solved_fore.rot[r][c] * solver_weight;
-    normalize_xfm_rows(fore.local);
+    normalize_xfm_rows(*fore.local);
 
     const auto upper_world_after_bend =
         character.bone_world_local_chain(upper.name);
@@ -9471,7 +10082,7 @@ static bool apply_source_ik_hand(Character& character, const CharIKHand& ik) {
     quat_to_rot(swing_quat, swing_rot);
     // CharIKHand::IKElbow calls MakeRotQuat/MakeRotMatrix and writes
     // Multiply(ma0, trans2->LocalXfm().m, trans2->DirtyLocalXfm().m).
-    pre_multiply_local_rot(upper.local, upper_local0, swing_rot,
+    pre_multiply_local_rot(*upper.local, upper_local0, swing_rot,
                            solver_weight);
 
     const auto hand_world_before_final =
@@ -9505,6 +10116,37 @@ static bool apply_source_ik_hand(Character& character, const CharIKHand& ik) {
       // authored local row available to later source controllers and exposes
       // the live hand world row through the transient Trans bridge.
       character.runtime_world_overrides[hand.name] = solved_world;
+    }
+
+    if (debug_arm_contract_enabled()) {
+      const auto upper_world_post =
+          character.bone_world_local_chain(upper.name);
+      const auto fore_world_post =
+          character.bone_world_local_chain(fore.name);
+      const auto hand_world_post =
+          character.bone_world_local_chain(hand.name);
+      const unsigned long long event = next_debug_arm_contract_event();
+      log_debug_arm_contract_header(
+          event, "gh2_charikhand",
+          character.dir_name.empty() ? "<anonymous-gh1>"
+                                     : character.dir_name.c_str(),
+          ik.name.c_str(), hand.name.c_str(), ik.target.c_str(),
+          solver_weight, target_blend_weight, upper_len, fore_len, raw_dist,
+          cos_elbow, ik.orientation, ik.stretch);
+      log_debug_arm_contract_world_row(event, "upper_input",
+                                       upper.name.c_str(), upper_world0);
+      log_debug_arm_contract_world_row(event, "fore_input", fore.name.c_str(),
+                                       fore_world0);
+      log_debug_arm_contract_world_row(event, "hand_input", hand.name.c_str(),
+                                       hand_world);
+      log_debug_arm_contract_world_row(event, "target", ik.target.c_str(),
+                                       target_world);
+      log_debug_arm_contract_world_row(event, "upper_output",
+                                       upper.name.c_str(), upper_world_post);
+      log_debug_arm_contract_world_row(event, "fore_output",
+                                       fore.name.c_str(), fore_world_post);
+      log_debug_arm_contract_world_row(event, "hand_output",
+                                       hand.name.c_str(), hand_world_post);
     }
 
     if (debug_ik_enabled()) {
@@ -9570,18 +10212,18 @@ static bool apply_source_ik_hand(Character& character, const CharIKHand& ik) {
                    ik.name.c_str(), pre_final_error,
                    hand_world_before_final[12], hand_world_before_final[13],
                    hand_world_before_final[14]);
-      log_debug_xfm_row("ik-source-row", upper.name.c_str(), upper.local,
+      log_debug_xfm_row("ik-source-row", upper.name.c_str(), *upper.local,
                         upper_world_post);
       log_debug_xfm_row_short("ik-source-row", upper.name.c_str(),
-                              upper.local);
-      log_debug_xfm_row("ik-source-row", fore.name.c_str(), fore.local,
+                              *upper.local);
+      log_debug_xfm_row("ik-source-row", fore.name.c_str(), *fore.local,
                         fore_world_post);
       log_debug_xfm_row_short("ik-source-row", fore.name.c_str(),
-                              fore.local);
-      log_debug_xfm_row("ik-source-row", hand.name.c_str(), hand.local,
+                              *fore.local);
+      log_debug_xfm_row("ik-source-row", hand.name.c_str(), *hand.local,
                         hand_world_post);
       log_debug_xfm_row_short("ik-source-row", hand.name.c_str(),
-                              hand.local);
+                              *hand.local);
       log_debug_world_row("ik-source-target", ik.target.c_str(), target_world);
     }
 
@@ -9595,37 +10237,19 @@ static bool source_hand_matches_fore_twist(const CharIKHand& ik,
          channel_matches_bone(ft.hand, ik.hand);
 }
 
-static int source_ik_hand_role_rank(const CharIKHand& ik) {
-  const auto contains = [](const std::string& value, const char* needle) {
-    return value.find(needle) != std::string::npos;
-  };
-  if (ik.name == "left_hand.ik" || ik.weight_prop == "left.weight" ||
-      contains(ik.hand, "bone_L-hand") || contains(ik.target, "bone_fret")) {
-    return 0;
-  }
-  if (ik.name == "right_hand.ik" || ik.weight_prop == "right.weight" ||
-      contains(ik.hand, "bone_R-hand") || contains(ik.target, "bone_strum")) {
-    return 1;
-  }
-  return 2;
-}
-
 static void apply_source_ik_hands_and_fore_twists(
     Character& character, const std::vector<milo_scene::Xfm>& bind_bones) {
   // CharForeTwist::PollDeps says it reads mHand and writes mTwist2 plus the
-  // twist parent. Accepted active-song PS2 traces poll instrument performers as
-  // fret/left first and strum/right second, with unknown rows preserving the
-  // decoded MILO order.
-  std::vector<size_t> ik_indices(character.ik_hands.size());
-  for (size_t i = 0; i < ik_indices.size(); ++i) ik_indices[i] = i;
-  std::stable_sort(ik_indices.begin(), ik_indices.end(),
-                   [&](size_t a, size_t b) {
-                     return source_ik_hand_role_rank(character.ik_hands[a]) <
-                            source_ik_hand_role_rank(character.ik_hands[b]);
-                   });
+  // twist parent. Character::SyncObjects runs CharPollableSorter::Sort, whose
+  // recovered seed pass visits the directory poll vector from the final row to
+  // the first. The packed instrument packages serialize the two independent
+  // CharIKHand rows in the opposite order observed by the accepted active-song
+  // PS2 poll trace, so replay that source reverse seed instead of classifying
+  // a controller from its name, hand, target, or weight property.
 
   std::vector<bool> fore_applied(character.fore_twists.size(), false);
-  for (const size_t ik_index : ik_indices) {
+  for (size_t reverse = character.ik_hands.size(); reverse-- > 0;) {
+    const size_t ik_index = reverse;
     const CharIKHand& ik = character.ik_hands[ik_index];
     apply_source_ik_hand(character, ik);
     for (size_t ft_index = 0; ft_index < character.fore_twists.size();
@@ -10208,6 +10832,7 @@ enum class Gh2PoseTargetKind {
   Missing,
   Bone,
   Mesh,
+  AttachedPropTransform,
 };
 
 struct Gh2PoseTarget {
@@ -10235,6 +10860,20 @@ static Gh2PoseTarget resolve_gh2_pose_target(Character& character,
   for (size_t i = 0; i < character.meshes.size(); ++i) {
     if (character.meshes[i].name != mesh_name) continue;
     return {Gh2PoseTargetKind::Mesh, i, &character.meshes[i].local, mesh_name};
+  }
+  // Instruments and characters share one ObjectDir in retail. The renderer
+  // imports instrument-only Trans/Mesh rows as transform proxies so character
+  // drivers can resolve that same namespace without duplicating prop geometry.
+  // Treat those rows as resident AcquirePose targets, after the character's
+  // own objects and with the same .trans-before-.mesh lookup order.
+  for (const std::string* candidate : {&trans_name, &mesh_name}) {
+    const auto it =
+        character.attached_prop_transform_proxies.find(*candidate);
+    if (it == character.attached_prop_transform_proxies.end()) continue;
+    const size_t index = static_cast<size_t>(
+        std::distance(character.attached_prop_transform_proxies.begin(), it));
+    return {Gh2PoseTargetKind::AttachedPropTransform, index,
+            &it->second.local, it->first};
   }
   return {};
 }
@@ -10411,13 +11050,44 @@ static void apply_gh2_typed_pose(const PendingPose& pose, float frame_weight,
 }
 
 static void dump_charbone_output_map(
-    const Character& character, const std::vector<OutputPoseNode>& nodes,
+    Character& character, const std::vector<OutputPoseNode>& nodes,
     const std::unordered_map<std::string, size_t>& by_key,
     const std::vector<bool>& node_driven, bool live_writes_enabled) {
   if (!charbone_output_compare_enabled()) return;
   for (size_t i = 0; i < nodes.size(); ++i) {
     const auto& node = nodes[i];
     if (!output_map_interesting_bone(node.key)) continue;
+    const Gh2PoseTarget resolved =
+        resolve_gh2_pose_target(character, node.key);
+    if (resolved.kind == Gh2PoseTargetKind::AttachedPropTransform &&
+        resolved.local != nullptr) {
+      std::array<float, 16> target_world{};
+      const bool has_target_world = transform_local_chain_world(
+          character, resolved.resolved_name, target_world);
+      const auto proxy_it =
+          character.attached_prop_transform_proxies.find(
+              resolved.resolved_name);
+      const std::string parent =
+          proxy_it != character.attached_prop_transform_proxies.end()
+              ? proxy_it->second.parent
+              : std::string{};
+      std::fprintf(
+          stderr,
+          "[out-map] %-18s output=%-24s parent=%-18s driven=%d "
+          "live=%d target=%-24s targetKind=attached-prop "
+          "targetParent=%-24s outLocal=(%.3f %.3f %.3f) "
+          "targetLocal=(%.3f %.3f %.3f) targetWorld=(%.3f %.3f %.3f) "
+          "targetWorldValid=%d\n",
+          node.key.c_str(), node.name.c_str(), node.parent_key.c_str(),
+          node_driven[i] ? 1 : 0, live_writes_enabled ? 1 : 0,
+          resolved.resolved_name.c_str(), parent.c_str(),
+          node.current_local.pos[0], node.current_local.pos[1],
+          node.current_local.pos[2], resolved.local->pos[0],
+          resolved.local->pos[1], resolved.local->pos[2],
+          target_world[12], target_world[13], target_world[14],
+          has_target_world ? 1 : 0);
+      continue;
+    }
     const int target_i = find_bone_index(character, node.key);
     if (target_i < 0 ||
         static_cast<size_t>(target_i) >= character.bones.size()) {
@@ -10887,13 +11557,35 @@ static std::array<float, 16> blend_world_rows(
     const std::array<float, 16>& a, const std::array<float, 16>& b,
     float weight) {
   weight = std::clamp(weight, 0.0f, 1.0f);
-  std::array<float, 16> out{};
-  for (size_t i = 0; i < out.size(); ++i) {
-    out[i] = a[i] * (1.0f - weight) + b[i] * weight;
+
+  // Harmonix Transform interpolation linearly blends the translation and
+  // delegates Matrix3 interpolation to quaternion sign-corrected normalized
+  // lerp (`math/Rot.cpp::Interp`). Do not linearly blend/renormalize matrix
+  // rows: that produces a different rotation whenever both endpoints move.
+  milo_scene::Xfm a_xfm{};
+  milo_scene::Xfm b_xfm{};
+  milo_scene::Xfm out_xfm{};
+  mat4_to_xfm(a, a_xfm);
+  mat4_to_xfm(b, b_xfm);
+
+  float a_quat[4] = {};
+  float b_quat[4] = {};
+  xfm_rotation_quat(a_xfm, a_quat);
+  xfm_rotation_quat(b_xfm, b_quat);
+  float dot = 0.0f;
+  for (int i = 0; i < 4; ++i) dot += a_quat[i] * b_quat[i];
+  const float sign = dot < 0.0f ? -1.0f : 1.0f;
+  float blended_quat[4] = {};
+  for (int i = 0; i < 4; ++i) {
+    blended_quat[i] =
+        a_quat[i] * (1.0f - weight) + b_quat[i] * weight * sign;
   }
-  out[15] = 1.0f;
-  normalize_mat3_rows(out);
-  return out;
+  quat_to_rot(blended_quat, out_xfm.rot);
+  for (int i = 0; i < 3; ++i) {
+    out_xfm.pos[i] =
+        a_xfm.pos[i] * (1.0f - weight) + b_xfm.pos[i] * weight;
+  }
+  return source_xfm_to_mat4(out_xfm);
 }
 
 static AttachedPropTransformProxy* find_attached_prop_transform_proxy(
@@ -10915,50 +11607,137 @@ static bool runtime_fret_driver_publishes(
                    key) != character.runtime_fret_driver_outputs.end();
 }
 
+struct RuntimeIKMidiFrame {
+  float remaining_beats = 0.0f;
+  float fraction = 0.0f;
+  float fraction_per_beat = 0.0f;
+  float eased_fraction = 0.0f;
+  std::array<float, 16> offset_world{};
+  std::array<float, 16> desired_world{};
+};
+
+static RuntimeIKMidiFrame source_gh2_runtime_ik_midi_frame(
+    RuntimeIKMidiState& state, const std::string& spot_name,
+    float event_beat, float current_beat, float target_beat,
+    float delta_beat, const std::array<float, 16>& target_world,
+    const std::array<float, 16>& spot_world) {
+  const bool new_event =
+      !state.initialized || state.active_spot != spot_name ||
+      state.active_event_beat != event_beat;
+  if (new_event) {
+    state.initialized = true;
+    state.active_spot = spot_name;
+    state.active_event_beat = event_beat;
+    state.target_beat = target_beat;
+    state.spot_relative_xfm =
+        mat4_mul(target_world, affine_inverse(spot_world));
+
+    SourceCharIKMidiState source_state;
+    const auto new_spot = source_gh2_char_ik_midi_new_spot(
+        source_state, spot_name, target_beat - current_beat);
+    state.fraction = new_spot.fraction;
+    state.fraction_per_beat = new_spot.fraction_per_beat;
+  }
+
+  SourceCharIKMidiState source_state;
+  source_state.cur_spot = spot_name;
+  source_state.frac = state.fraction;
+  source_state.frac_per_beat = state.fraction_per_beat;
+  const auto poll = source_gh2_char_ik_midi_poll(source_state, delta_beat);
+  state.fraction = poll.fraction;
+  state.fraction_per_beat = source_state.frac_per_beat;
+
+  RuntimeIKMidiFrame frame;
+  frame.remaining_beats = state.target_beat - current_beat;
+  frame.fraction = state.fraction;
+  frame.fraction_per_beat = state.fraction_per_beat;
+  frame.eased_fraction = poll.eased_fraction;
+  frame.offset_world = mat4_mul(state.spot_relative_xfm, spot_world);
+  frame.desired_world =
+      blend_world_rows(frame.offset_world, spot_world, frame.eased_fraction);
+  return frame;
+}
+
 void apply_ik_midi_fret_target(Character& character,
                                const std::string& spot_name,
-                               float time_seconds) {
+                               float current_beat,
+                               float delta_beat,
+                               float target_beat,
+                               float event_beat) {
   if (spot_name.empty()) return;
   std::array<float, 16> spot_world{};
   if (!transform_local_chain_world(character, spot_name, spot_world)) return;
 
-  const float blend_seconds =
-      std::clamp(env_float_or("GHOGX_IKMIDI_BLEND_SECONDS", 0.08f), 0.0f,
-                 0.22f);
   for (const auto& ik : character.ik_midis) {
     if (ik.bone.empty()) continue;
-    const int bone_i = find_bone_index(character, ik.bone);
-    if (bone_i < 0 ||
-        static_cast<size_t>(bone_i) >= character.bones.size()) {
-      continue;
-    }
-    auto& bone = character.bones[static_cast<size_t>(bone_i)];
-    RuntimeIKMidiState& state = character.runtime_ik_midi_states[ik.name];
-    if (!state.initialized || state.active_spot != spot_name) {
-      state.initialized = true;
-      state.active_spot = spot_name;
-      state.spot_start_time_seconds = time_seconds;
-      state.start_world = character.bone_world_local_chain(bone.name);
+    const Gh2PoseTarget target =
+        resolve_gh2_pose_target(character, strip_transform_suffix(ik.bone));
+    if (target.local == nullptr) continue;
+    std::string target_parent;
+    if (target.kind == Gh2PoseTargetKind::Bone &&
+        target.index < character.bones.size()) {
+      target_parent = character.bones[target.index].parent;
+    } else if (target.kind == Gh2PoseTargetKind::Mesh &&
+               target.index < character.meshes.size()) {
+      target_parent = character.meshes[target.index].parent;
+    } else if (target.kind == Gh2PoseTargetKind::AttachedPropTransform) {
+      const auto proxy =
+          character.attached_prop_transform_proxies.find(target.resolved_name);
+      if (proxy != character.attached_prop_transform_proxies.end()) {
+        target_parent = proxy->second.parent;
+      }
     }
 
-    const float age = std::max(0.0f, time_seconds - state.spot_start_time_seconds);
-    const float weight = blend_seconds > 0.0f ? age / blend_seconds : 1.0f;
-    const auto desired_world =
-        blend_world_rows(state.start_world, spot_world, weight);
+    std::array<float, 16> target_world{};
+    if (!transform_local_chain_world(character, target.resolved_name,
+                                     target_world)) {
+      continue;
+    }
+    RuntimeIKMidiState& state = character.runtime_ik_midi_states[ik.name];
+    const RuntimeIKMidiFrame frame = source_gh2_runtime_ik_midi_frame(
+        state, spot_name, event_beat, current_beat, target_beat, delta_beat,
+        target_world, spot_world);
+
     std::array<float, 16> parent_world =
         {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-    if (!bone.parent.empty()) {
-      parent_world = character.bone_world_local_chain(bone.parent);
+    if (!target_parent.empty()) {
+      transform_local_chain_world(character, target_parent, parent_world);
     }
-    set_local_from_world(bone.local, desired_world, parent_world);
+    set_local_from_world(*target.local, frame.desired_world, parent_world);
+    std::array<float, 16> output_world{};
+    transform_local_chain_world(character, target.resolved_name, output_world);
+    if (debug_arm_contract_enabled()) {
+      const unsigned long long event = next_debug_target_contract_event();
+      const char* owner = character.dir_name.empty()
+                              ? "<anonymous-gh1>"
+                              : character.dir_name.c_str();
+      log_debug_target_contract_header(
+          event, "gh2_charikmidi", owner, ik.name.c_str(),
+          target.resolved_name.c_str(), target_parent.c_str(),
+          spot_name.c_str(), event_beat, current_beat, target_beat, delta_beat,
+          frame.remaining_beats, frame.fraction, frame.fraction_per_beat,
+          frame.eased_fraction);
+      log_debug_target_contract_world_row(
+          event, "start", target.resolved_name.c_str(), frame.offset_world);
+      log_debug_target_contract_world_row(event, "spot", spot_name.c_str(),
+                                          spot_world);
+      log_debug_target_contract_world_row(
+          event, "desired", target.resolved_name.c_str(),
+          frame.desired_world);
+      log_debug_target_contract_world_row(
+          event, "output", target.resolved_name.c_str(), output_world);
+    }
     if (debug_ik_enabled()) {
-      std::fprintf(stderr,
-                   "[ikmidi] %s bone=%s spot=%s age=%.3f blend=%.3f "
-                   "weight=%.3f "
-                   "target=[%.3f %.3f %.3f]\n",
-                   ik.name.c_str(), bone.name.c_str(), spot_name.c_str(),
-                   age, blend_seconds, std::clamp(weight, 0.0f, 1.0f),
-                   desired_world[12], desired_world[13], desired_world[14]);
+      std::fprintf(
+          stderr,
+          "[ikmidi] %s bone=%s spot=%s eventBeat=%.3f beat=%.3f "
+          "targetBeat=%.3f deltaBeat=%.5f frac=%.3f rate=%.3f "
+          "weight=%.3f target=[%.3f %.3f %.3f]\n",
+          ik.name.c_str(), target.resolved_name.c_str(), spot_name.c_str(),
+          event_beat, current_beat, target_beat, delta_beat, frame.fraction,
+          frame.fraction_per_beat, frame.eased_fraction,
+          frame.desired_world[12], frame.desired_world[13],
+          frame.desired_world[14]);
     }
   }
 
@@ -10996,37 +11775,60 @@ void apply_ik_midi_fret_target(Character& character,
       continue;
     }
 
+    std::array<float, 16> target_world{};
+    if (!transform_local_chain_world(character, target_parent->name,
+                                     target_world)) {
+      continue;
+    }
     RuntimeIKMidiState& state =
         character.runtime_ik_midi_states["legacy::" + hand.name];
-    if (!state.initialized || state.active_spot != spot_name) {
-      state.initialized = true;
-      state.active_spot = spot_name;
-      state.spot_start_time_seconds = time_seconds;
-      transform_local_chain_world(character, target_parent->name,
-                                  state.start_world);
-    }
+    const RuntimeIKMidiFrame frame = source_gh2_runtime_ik_midi_frame(
+        state, spot_name, event_beat, current_beat, target_beat, delta_beat,
+        target_world, spot_world);
 
-    const float age =
-        std::max(0.0f, time_seconds - state.spot_start_time_seconds);
-    const float weight = blend_seconds > 0.0f ? age / blend_seconds : 1.0f;
-    const auto desired_world =
-        blend_world_rows(state.start_world, spot_world, weight);
     std::array<float, 16> parent_world =
         {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
     if (!target_parent->parent.empty()) {
       transform_local_chain_world(character, target_parent->parent,
                                   parent_world);
     }
-    set_local_from_world(target_parent->local, desired_world, parent_world);
+    set_local_from_world(target_parent->local, frame.desired_world,
+                         parent_world);
+    std::array<float, 16> output_world{};
+    transform_local_chain_world(character, target_parent->name, output_world);
+    if (debug_arm_contract_enabled()) {
+      const unsigned long long event = next_debug_target_contract_event();
+      const char* owner = character.dir_name.empty()
+                              ? "<anonymous-gh1>"
+                              : character.dir_name.c_str();
+      log_debug_target_contract_header(
+          event, "gh1_animservoik_route", owner, hand.name.c_str(),
+          target_parent->name.c_str(), target_parent->parent.c_str(),
+          spot_name.c_str(), event_beat, current_beat, target_beat, delta_beat,
+          frame.remaining_beats, frame.fraction, frame.fraction_per_beat,
+          frame.eased_fraction);
+      log_debug_target_contract_world_row(
+          event, "start", target_parent->name.c_str(), frame.offset_world);
+      log_debug_target_contract_world_row(event, "spot", spot_name.c_str(),
+                                          spot_world);
+      log_debug_target_contract_world_row(
+          event, "desired", target_parent->name.c_str(),
+          frame.desired_world);
+      log_debug_target_contract_world_row(
+          event, "output", target_parent->name.c_str(), output_world);
+    }
     if (debug_ik_enabled()) {
       std::fprintf(
           stderr,
           "[ikmidi-gh1] %s driver_dest=%s target_parent=%s spot=%s "
-          "age=%.3f blend=%.3f weight=%.3f target=[%.3f %.3f %.3f]\n",
+          "eventBeat=%.3f beat=%.3f targetBeat=%.3f deltaBeat=%.5f "
+          "frac=%.3f rate=%.3f weight=%.3f "
+          "target=[%.3f %.3f %.3f]\n",
           hand.name.c_str(), hand.target.c_str(), target_parent->name.c_str(),
-          spot_name.c_str(), age, blend_seconds,
-          std::clamp(weight, 0.0f, 1.0f), desired_world[12],
-          desired_world[13], desired_world[14]);
+          spot_name.c_str(), event_beat, current_beat, target_beat, delta_beat,
+          frame.fraction, frame.fraction_per_beat, frame.eased_fraction,
+          frame.desired_world[12], frame.desired_world[13],
+          frame.desired_world[14]);
     }
   }
 }
@@ -11540,6 +12342,36 @@ float clip_frame_float_at_time(const CharClip& clip, float seconds,
                     static_cast<float>(clip.frames.size() - 1));
 }
 
+bool clip_has_source_beat_timing(const CharClip& clip) {
+  return std::isfinite(clip.start_beat) && std::isfinite(clip.end_beat) &&
+         std::isfinite(clip.beats_per_second) &&
+         clip.beats_per_second > 0.0f &&
+         clip.end_beat >= clip.start_beat;
+}
+
+float clip_seconds_at_source_beat(const CharClip& clip, float beat) {
+  if (!clip_has_source_beat_timing(clip)) return 0.0f;
+  return (beat - clip.start_beat) / clip.beats_per_second;
+}
+
+float clip_frame_float_at_source_beat(const CharClip& clip, float beat) {
+  if (!clip_has_source_beat_timing(clip)) return 0.0f;
+  const float rate = clip.fps > 0 ? static_cast<float>(clip.fps) : 30.0f;
+  const float frame =
+      (beat - clip.start_beat) * rate / clip.beats_per_second;
+  return std::clamp(frame, 0.0f,
+                    static_cast<float>(clip.frames.size() - 1));
+}
+
+float positive_remainder(float value, float period) {
+  if (!std::isfinite(value) || !std::isfinite(period) || period == 0.0f) {
+    return 0.0f;
+  }
+  float remainder = std::fmod(value, period);
+  if (remainder < 0.0f) remainder += period;
+  return remainder;
+}
+
 const ClipChannel* matching_channel(const std::vector<ClipChannel>& frame,
                                     const ClipChannel& needle) {
   for (const auto& ch : frame) {
@@ -11819,6 +12651,488 @@ void dump_lane_mixer_layers(const std::vector<ClipChannelLayer>& layers) {
 
 }  // namespace
 
+std::optional<SourceCharUtlClipPredictFrame>
+source_char_clip_facing_sample_at_beat(const CharClip& clip, float beat) {
+  if (clip.frames.empty() || clip.fps <= 0 ||
+      clip.beats_per_second <= 0.0f) {
+    return std::nullopt;
+  }
+  const float frame =
+      (beat - clip.start_beat) *
+      static_cast<float>(clip.fps) / clip.beats_per_second;
+  return source_char_walk_facing_sample(interpolate_frame(clip, frame));
+}
+
+std::optional<float> source_charwalk_find_stop_start_beat(
+    const CharClip& stop_clip, float beat_remainder) {
+  if (!std::isfinite(stop_clip.end_beat) ||
+      !std::isfinite(beat_remainder)) {
+    return std::nullopt;
+  }
+  float start_beat =
+      std::floor((stop_clip.end_beat - 2.2f) - beat_remainder) +
+      beat_remainder;
+  auto previous =
+      source_char_clip_facing_sample_at_beat(stop_clip, stop_clip.end_beat);
+  auto current =
+      source_char_clip_facing_sample_at_beat(stop_clip, start_beat);
+  if (!previous || !current) return std::nullopt;
+
+  SourceCharUtlClipPredictState prediction;
+  source_char_utl_clip_predict(prediction, *previous, *current);
+  auto distance_squared = [&]() {
+    return prediction.pos[0] * prediction.pos[0] +
+           prediction.pos[1] * prediction.pos[1] +
+           prediction.pos[2] * prediction.pos[2];
+  };
+  // Retail keeps subtracting one authored beat until the reverse prediction
+  // reaches six units. The bound only rejects malformed/no-motion data that
+  // would otherwise make the source loop non-terminating.
+  for (size_t step = 0; distance_squared() < 36.0f; ++step) {
+    if (step >= 4096) return std::nullopt;
+    start_beat -= 1.0f;
+    previous = current;
+    current =
+        source_char_clip_facing_sample_at_beat(stop_clip, start_beat);
+    if (!current) return std::nullopt;
+    source_char_utl_clip_predict(prediction, *previous, *current);
+  }
+  return start_beat;
+}
+
+SourceCharWalkMotionPlan source_charwalk_build_motion_plan(
+    const std::vector<SourceCharWalkScheduleEntry>& initial_schedule,
+    const std::vector<std::array<float, 3>>& path,
+    float target_yaw,
+    float target_radius,
+    const std::vector<SourceCharWalkStopCandidate>& stop_candidates,
+    uint32_t required_stop_flags) {
+  SourceCharWalkMotionPlan result;
+  result.schedule = initial_schedule;
+  result.path = path;
+  if (initial_schedule.size() < 2 || path.size() < 2 ||
+      !initial_schedule[1].clip || stop_candidates.empty()) {
+    return result;
+  }
+
+  auto subtract = [](const std::array<float, 3>& lhs,
+                     const std::array<float, 3>& rhs) {
+    return std::array<float, 3>{
+        lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]};
+  };
+  auto length_squared = [](const std::array<float, 3>& value) {
+    return value[0] * value[0] + value[1] * value[1] +
+           value[2] * value[2];
+  };
+  auto length = [&](const std::array<float, 3>& value) {
+    return std::sqrt(length_squared(value));
+  };
+  auto predict_delta =
+      [&](const CharClip& clip, float first_beat, float second_beat)
+      -> std::optional<SourceCharUtlClipPredictState> {
+    const auto first =
+        source_char_clip_facing_sample_at_beat(clip, first_beat);
+    const auto second =
+        source_char_clip_facing_sample_at_beat(clip, second_beat);
+    if (!first || !second) return std::nullopt;
+    SourceCharUtlClipPredictState prediction;
+    source_char_utl_clip_predict(prediction, *first, *second);
+    return prediction;
+  };
+
+  float path_distance = 0.0f;
+  for (size_t index = 1; index < path.size(); ++index) {
+    path_distance += length(subtract(path[index], path[index - 1]));
+  }
+  if (!(path_distance > 0.0f) || !std::isfinite(path_distance)) {
+    return result;
+  }
+
+  const CharClip& walk = *initial_schedule[1].clip;
+  result.beat_remainder = walk.range * 0.5f;
+  const auto repeat_node = source_char_clip_find_transition_node(
+      walk, walk, initial_schedule[1].start_beat, 4);
+  if (!repeat_node) return result;
+  const SourceCharWalkScheduleEntry repeat_entry = {
+      &walk, repeat_node->next_beat, repeat_node->current_beat};
+  const float repeat_boundary =
+      repeat_entry.previous_end_beat + result.beat_remainder;
+
+  size_t clip_index = 1;
+  float point_beat =
+      std::floor(initial_schedule[1].start_beat) +
+      result.beat_remainder;
+  float sample_beat =
+      initial_schedule[1].start_beat + result.beat_remainder;
+  float cumulative_distance = 0.0f;
+  for (size_t step = 0; step < 4096; ++step) {
+    auto prediction =
+        predict_delta(*result.schedule[clip_index].clip,
+                      sample_beat, point_beat);
+    if (!prediction) return SourceCharWalkMotionPlan{};
+    cumulative_distance += length(prediction->pos);
+    result.points.push_back(
+        {clip_index, point_beat, cumulative_distance});
+    if (cumulative_distance > path_distance) break;
+
+    float next_beat = point_beat + 1.0f;
+    if (repeat_boundary <= next_beat) {
+      prediction =
+          predict_delta(*result.schedule[clip_index].clip,
+                        point_beat, repeat_boundary);
+      if (!prediction) return SourceCharWalkMotionPlan{};
+      cumulative_distance += length(prediction->pos);
+      ++clip_index;
+      if (clip_index == result.schedule.size()) {
+        result.schedule.push_back(repeat_entry);
+      }
+      const float overrun = next_beat - repeat_boundary;
+      sample_beat =
+          result.schedule[clip_index].start_beat +
+          result.beat_remainder;
+      point_beat = sample_beat + overrun;
+    } else {
+      sample_beat = point_beat;
+      point_beat = next_beat;
+    }
+  }
+  if (result.points.empty() ||
+      result.points.back().distance <= path_distance) {
+    return SourceCharWalkMotionPlan{};
+  }
+
+  // Retail removes the final point from the active count but deliberately
+  // retains its row as the first stop-alignment sentinel.
+  result.active_point_count = result.points.size() - 1;
+  const float final_segment =
+      length(subtract(path.back(), path[path.size() - 2]));
+  const float prior_path_distance = path_distance - final_segment;
+  const float final_segment_squared = final_segment * final_segment;
+  const float radius = std::max(0.0f, target_radius);
+  const CharClip* final_walk = result.schedule.back().clip;
+  if (!final_walk) return SourceCharWalkMotionPlan{};
+
+  auto source_round = [](float value) {
+    return static_cast<int>(
+        value >= 0.0f ? value + 0.5f : value - 0.5f);
+  };
+  auto radius_error = [&](float distance) {
+    return std::max(0.0f, std::fabs(distance) - radius);
+  };
+  constexpr float kRadiansToDegrees =
+      57.2957795130823208768f;
+  float best_score = std::numeric_limits<float>::max();
+  bool found = false;
+  std::array<float, 3> best_stop_start = {};
+  float best_path_delta = 0.0f;
+  float best_stop_start_beat = 0.0f;
+
+  for (size_t candidate_index = 0;
+       candidate_index < stop_candidates.size(); ++candidate_index) {
+    const auto& candidate = stop_candidates[candidate_index];
+    if (!candidate.clip ||
+        (candidate.flags & required_stop_flags) !=
+            required_stop_flags) {
+      continue;
+    }
+    const auto stop_start = source_charwalk_find_stop_start_beat(
+        *candidate.clip, result.beat_remainder);
+    if (!stop_start) continue;
+    const auto stop_end = source_char_clip_facing_sample_at_beat(
+        *candidate.clip, candidate.clip->end_beat);
+    const auto stop_begin = source_char_clip_facing_sample_at_beat(
+        *candidate.clip, *stop_start);
+    if (!stop_end || !stop_begin) continue;
+
+    SourceCharUtlClipPredictState stop_prediction;
+    stop_prediction.pos = path.back();
+    stop_prediction.ang = target_yaw;
+    source_char_utl_clip_predict(
+        stop_prediction, *stop_end, *stop_begin);
+    const auto from_penultimate =
+        subtract(stop_prediction.pos, path[path.size() - 2]);
+    if (final_segment_squared <= length_squared(from_penultimate)) {
+      continue;
+    }
+
+    const float stored_stop_start =
+        *stop_start - result.beat_remainder;
+    size_t point_index = result.active_point_count;
+    const int stop_parity = source_round(stored_stop_start);
+    const int point_parity = source_round(
+        result.points[point_index].beat - result.beat_remainder);
+    if (((stop_parity ^ point_parity) & 1) != 0) {
+      if (point_index == 0) continue;
+      --point_index;
+    }
+
+    const float stop_path_distance =
+        prior_path_distance + length(from_penultimate);
+    while (point_index >= 2 &&
+           stop_path_distance <= result.points[point_index].distance) {
+      point_index -= 2;
+    }
+
+    const auto walk_step = predict_delta(
+        *final_walk, result.points[point_index].beat - 1.0f,
+        result.points[point_index].beat);
+    if (!walk_step) continue;
+    const float walk_heading =
+        -std::atan2(walk_step->pos[0], walk_step->pos[1]);
+    const float stop_heading =
+        -std::atan2(from_penultimate[0], from_penultimate[1]);
+    const float angle_error = std::fabs(std::remainder(
+        walk_step->ang - walk_heading + stop_heading -
+            stop_prediction.ang,
+        6.28318530717958647692f));
+
+    float chosen_delta =
+        result.points[point_index].distance - stop_path_distance;
+    float chosen_error = radius_error(chosen_delta);
+    const size_t later_index = point_index + 2;
+    if (later_index <= result.active_point_count) {
+      const float later_delta =
+          result.points[later_index].distance - stop_path_distance;
+      const float later_error = radius_error(later_delta);
+      if (later_error < chosen_error) {
+        point_index = later_index;
+        chosen_delta = later_delta;
+        chosen_error = later_error;
+      }
+    }
+    const float score =
+        std::max(chosen_error - 3.0f, 0.0f) * 5.0f +
+        angle_error * kRadiansToDegrees;
+    if (!(score < best_score)) continue;
+
+    found = true;
+    best_score = score;
+    result.selected_point_index = point_index;
+    result.selected_stop_index = candidate_index;
+    best_stop_start = stop_prediction.pos;
+    best_path_delta = chosen_delta;
+    best_stop_start_beat = stored_stop_start;
+  }
+  if (!found) return SourceCharWalkMotionPlan{};
+
+  result.end_position = path.back();
+  result.path.back() = best_stop_start;
+  auto final_direction =
+      subtract(result.path.back(), result.path[result.path.size() - 2]);
+  const float direction_length = length(final_direction);
+  if (!(direction_length > 0.0f)) return SourceCharWalkMotionPlan{};
+  for (float& component : final_direction) {
+    component /= direction_length;
+  }
+  best_path_delta =
+      std::clamp(best_path_delta, -radius, radius);
+  for (size_t axis = 0; axis < 3; ++axis) {
+    result.path.back()[axis] +=
+        final_direction[axis] * best_path_delta;
+    result.end_position[axis] +=
+        final_direction[axis] * best_path_delta;
+  }
+
+  const auto& selected_point =
+      result.points[result.selected_point_index];
+  if (selected_point.clip_index >= result.schedule.size()) {
+    return SourceCharWalkMotionPlan{};
+  }
+  result.schedule.resize(selected_point.clip_index + 1);
+  result.schedule.push_back(
+      {stop_candidates[result.selected_stop_index].clip,
+       best_stop_start_beat,
+       selected_point.beat - result.beat_remainder});
+  // The initial count includes the first overshoot sentinel. Retail's stop
+  // chooser replaces mLastPoint with the selected stop-alignment point.
+  result.active_point_count = result.selected_point_index;
+  result.score = best_score;
+  result.valid = true;
+  return result;
+}
+
+std::optional<SourceCharWalkForwardPrediction>
+source_charwalk_forward_predict(
+    const SourceCharWalkMotionPlan& plan,
+    size_t clip_index,
+    float beat,
+    float look_ahead,
+    const SourceCharUtlClipPredictState& initial) {
+  if (!plan.valid || clip_index >= plan.schedule.size() ||
+      !plan.schedule[clip_index].clip ||
+      !std::isfinite(beat) || !std::isfinite(look_ahead)) {
+    return std::nullopt;
+  }
+  SourceCharWalkForwardPrediction result;
+  result.state = initial;
+  result.clip_index = clip_index;
+  result.beat = beat + look_ahead;
+  float sample_beat = beat;
+
+  auto predict = [&](const CharClip& clip, float first_beat,
+                     float second_beat) {
+    const auto first =
+        source_char_clip_facing_sample_at_beat(clip, first_beat);
+    const auto second =
+        source_char_clip_facing_sample_at_beat(clip, second_beat);
+    if (!first || !second) return false;
+    source_char_utl_clip_predict(
+        result.state, *first, *second);
+    return true;
+  };
+
+  while (result.clip_index + 1 < plan.schedule.size()) {
+    const auto& next = plan.schedule[result.clip_index + 1];
+    const float boundary =
+        next.previous_end_beat + plan.beat_remainder;
+    if (!(boundary < result.beat)) break;
+    if (!predict(*plan.schedule[result.clip_index].clip,
+                 sample_beat, boundary)) {
+      return std::nullopt;
+    }
+    ++result.clip_index;
+    if (!plan.schedule[result.clip_index].clip) {
+      return std::nullopt;
+    }
+    sample_beat =
+        plan.schedule[result.clip_index].start_beat +
+        plan.beat_remainder;
+    result.beat =
+        sample_beat + (result.beat - boundary);
+  }
+  if (!predict(*plan.schedule[result.clip_index].clip,
+               sample_beat, result.beat)) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::array<float, 3>> source_charwalk_back_predict(
+    const SourceCharWalkMotionPlan& plan,
+    size_t clip_index,
+    float beat,
+    size_t waypoint_index,
+    float target_yaw) {
+  if (!plan.valid || plan.path.size() < 2 ||
+      clip_index >= plan.schedule.size()) {
+    return std::nullopt;
+  }
+  if (waypoint_index < plan.path.size() - 1) {
+    return plan.path[waypoint_index];
+  }
+
+  const size_t last_index = plan.schedule.size() - 1;
+  if (!plan.schedule[last_index].clip) return std::nullopt;
+  SourceCharUtlClipPredictState prediction;
+  prediction.pos = plan.end_position;
+  prediction.ang = target_yaw;
+  float current_beat =
+      plan.schedule[last_index].clip->end_beat;
+
+  auto predict = [&](const CharClip& clip, float first_beat,
+                     float second_beat) {
+    const auto first =
+        source_char_clip_facing_sample_at_beat(clip, first_beat);
+    const auto second =
+        source_char_clip_facing_sample_at_beat(clip, second_beat);
+    if (!first || !second) return false;
+    source_char_utl_clip_predict(
+        prediction, *first, *second);
+    return true;
+  };
+
+  for (size_t index = last_index; index > clip_index; --index) {
+    const auto& entry = plan.schedule[index];
+    if (!entry.clip ||
+        !predict(*entry.clip, current_beat,
+                 entry.start_beat + plan.beat_remainder)) {
+      return std::nullopt;
+    }
+    current_beat =
+        entry.previous_end_beat + plan.beat_remainder;
+  }
+  const auto& entry = plan.schedule[clip_index];
+  if (!entry.clip || !predict(*entry.clip, current_beat, beat)) {
+    return std::nullopt;
+  }
+  return prediction.pos;
+}
+
+SourceCharWalkOffsetRegulation source_charwalk_regulate_offset(
+    const SourceCharWalkMotionPlan& plan,
+    size_t point_index,
+    size_t clip_index,
+    float beat,
+    size_t waypoint_index,
+    const std::array<float, 3>& current_position,
+    const std::array<float, 3>& predicted_position,
+    float frame_delta,
+    float prior_offset_speed) {
+  SourceCharWalkOffsetRegulation result;
+  result.point_index = point_index;
+  result.offset_speed = prior_offset_speed;
+  result.position = current_position;
+  if (!plan.valid || plan.path.size() < 2 || plan.points.empty() ||
+      plan.active_point_count >= plan.points.size() ||
+      point_index > plan.active_point_count ||
+      clip_index >= plan.schedule.size() || !std::isfinite(beat) ||
+      !std::isfinite(frame_delta) ||
+      !std::isfinite(prior_offset_speed)) {
+    return result;
+  }
+
+  auto distance = [](const std::array<float, 3>& lhs,
+                     const std::array<float, 3>& rhs) {
+    const float dx = lhs[0] - rhs[0];
+    const float dy = lhs[1] - rhs[1];
+    const float dz = lhs[2] - rhs[2];
+    return std::sqrt(dx * dx + dy * dy + dz * dz);
+  };
+
+  waypoint_index =
+      std::clamp<size_t>(waypoint_index, 1, plan.path.size() - 1);
+  if (point_index < plan.active_point_count) {
+    const auto& point = plan.points[point_index];
+    if (point.clip_index < clip_index ||
+        (point.clip_index == clip_index && point.beat < beat)) {
+      const float estimated_distance =
+          plan.points[plan.active_point_count].distance -
+          point.distance;
+      float real_distance =
+          distance(current_position, plan.path[waypoint_index]);
+      for (size_t index = waypoint_index + 1;
+           index < plan.path.size(); ++index) {
+        real_distance += distance(plan.path[index - 1],
+                                  plan.path[index]);
+      }
+      const size_t points_left =
+          plan.active_point_count - point_index;
+      const float beats_left = static_cast<float>(
+          std::min<size_t>(points_left, 2));
+      result.offset_speed =
+          (real_distance - estimated_distance) / beats_left;
+      ++result.point_index;
+      result.point_advanced = true;
+    }
+  }
+
+  if (result.offset_speed != 0.0f) {
+    const float delta_length =
+        distance(predicted_position, current_position);
+    if (delta_length > 0.0f) {
+      const float scale =
+          frame_delta * result.offset_speed / delta_length;
+      for (size_t axis = 0; axis < 3; ++axis) {
+        result.position[axis] +=
+            (predicted_position[axis] - current_position[axis]) *
+            scale;
+      }
+    }
+  }
+  result.valid = true;
+  return result;
+}
+
 std::vector<ClipChannel> blend_channel_layers(
     const std::vector<ClipChannelLayer>& layers) {
   dump_lane_mixer_layers(layers);
@@ -12080,6 +13394,7 @@ CharacterPoseStackFrameResult apply_character_pose_stack_frame(
     Character& character,
     const ClipChannelLayerStack* stack) {
   CharacterPoseStackFrameResult result;
+  dump_arm_mesh_pose(character, "pose-stack-pre");
   clear_runtime_trans_worlds(character);
   if (stack != nullptr && !stack->layers.empty()) {
     apply_clip_layer_stack(*stack, character);
@@ -12114,6 +13429,7 @@ CharacterPoseStackFrameResult apply_character_pose_stack_frame(
                    layer_names.c_str());
     }
   }
+  dump_arm_mesh_pose(character, "pose-stack-post");
   return result;
 }
 
@@ -12151,17 +13467,120 @@ CharacterPoseControllerFrameResult apply_character_pose_controller_frame(
 
   if (sources.midi_fret_target_enabled && !sources.midi_fret_target.empty()) {
     apply_ik_midi_fret_target(character, sources.midi_fret_target,
-                              sources.time_seconds);
+                              sources.current_beat, sources.delta_beat,
+                              sources.midi_fret_target_beat,
+                              sources.midi_fret_event_beat);
     result.applied_midi_fret_target = true;
   }
 
   apply_character_controllers(character, sources.time_seconds);
+  dump_arm_mesh_pose(character, "controllers-post");
   result.applied_controllers = true;
   return result;
 }
 
+SourceGh2Ps2RandomState source_gh2_ps2_random_construct(uint32_t seed) {
+  SourceGh2Ps2RandomState state;
+  for (uint32_t& value : state.values) {
+    const uint32_t first = seed * 0x41C64E6Du;
+    seed = first + 0x3039u;
+    const uint32_t second = seed * 0x41C64E6Du;
+    const uint32_t old_high = seed >> 16u;
+    seed = second + 0x3039u;
+    value = old_high | (seed & 0x7FFF0000u);
+  }
+  return state;
+}
+
+uint32_t source_gh2_ps2_random_next(SourceGh2Ps2RandomState& state) {
+  const uint32_t value =
+      state.values[state.first] ^ state.values[state.second];
+  state.values[state.first] = value;
+  state.first = (state.first + 1u) % 249u;
+  state.second = (state.second + 1u) % 249u;
+  return value;
+}
+
+float source_gh2_ps2_random_unit(SourceGh2Ps2RandomState& state) {
+  return static_cast<float>(source_gh2_ps2_random_next(state) & 0xFFFFu) *
+         (1.0f / 65536.0f);
+}
+
+float source_gh2_ps2_random_range(SourceGh2Ps2RandomState& state,
+                                  float minimum, float maximum) {
+  return minimum +
+         source_gh2_ps2_random_unit(state) * (maximum - minimum);
+}
+
+float source_gh2_char_clip_driver_randomized_beat(
+    const CharClip& clip, float beat, float random_offset) {
+  const float half_span =
+      ((clip.end_beat + clip.start_beat) * 0.5f) - clip.start_beat;
+  if (half_span == 0.0f) return clip.start_beat;
+  float phase =
+      std::fmod((beat + random_offset) - clip.start_beat, half_span);
+  if (phase < 0.0f) phase += half_span;
+  return clip.start_beat + phase;
+}
+
+bool source_gh2_ps2_char_driver_poll_starved(bool has_first,
+                                             bool first_has_next) {
+  return !has_first || !first_has_next;
+}
+
+float source_gh2_ps2_char_driver_play_if_safe_length(
+    float requested_length, bool has_first, float first_end_beat,
+    float first_beat) {
+  return has_first
+             ? requested_length - (first_end_beat - first_beat)
+             : requested_length;
+}
+
+bool source_gh2_ps2_char_driver_play_if_safe_candidate(
+    uint32_t clip_flags, float clip_start_beat, float clip_end_beat,
+    uint32_t safe_flags, float adjusted_length) {
+  if ((clip_flags & safe_flags) == 0) return true;
+  return clip_end_beat - clip_start_beat < adjusted_length;
+}
+
+namespace {
+
+SourceGh2Ps2RandomState& source_gh2_ps2_global_random() {
+  // GH2's static initializer at 0x002D9DA8 passes seed 0x29A (666) to the
+  // global 0x005235D8 Random instance.
+  static SourceGh2Ps2RandomState state =
+      source_gh2_ps2_random_construct(666u);
+  return state;
+}
+
+}  // namespace
+
+float source_gh2_char_clip_driver_eased_weight(float blend_fraction) {
+  constexpr float kPi = 3.14159265358979323846f;
+  return 0.5f - 0.5f * std::cos(kPi * blend_fraction);
+}
+
 void CharClipPlayer::clear() {
+  exit_source_layers(0, layers_.size());
   layers_.clear();
+  crossed_events_.clear();
+  source_frame_ = 0.0f;
+  source_old_beat_ = 1.0e30f;
+}
+
+void CharClipPlayer::emit_source_event(const CharClip* clip,
+                                       std::string_view event) {
+  if (!clip || event.empty() || !source_event_handler_) return;
+  source_event_handler_(*clip, event);
+}
+
+void CharClipPlayer::exit_source_layers(size_t begin, size_t end) {
+  end = std::min(end, layers_.size());
+  begin = std::min(begin, end);
+  for (size_t i = end; i > begin; --i) {
+    const CharClip* clip = layers_[i - 1].clip;
+    if (clip) emit_source_event(clip, clip->legacy_exit_event);
+  }
 }
 
 const CharClip* CharClipPlayer::current_clip() const {
@@ -12172,13 +13591,99 @@ float CharClipPlayer::current_time_seconds() const {
   return layers_.empty() ? 0.0f : layers_.back().time_seconds;
 }
 
+const CharClip* CharClipPlayer::source_first_playing_clip() const {
+  if (layers_.empty()) return nullptr;
+  for (size_t i = layers_.size(); i > 0; --i) {
+    if (layers_[i - 1].blend_fraction != 0.0f) {
+      return layers_[i - 1].clip;
+    }
+  }
+  return nullptr;
+}
+
+uint32_t CharClipPlayer::source_first_playing_flags() const {
+  const CharClip* clip = source_first_playing_clip();
+  return clip ? clip->flags : 0u;
+}
+
+float CharClipPlayer::source_first_playing_time_seconds() const {
+  if (layers_.empty()) return 0.0f;
+  for (size_t i = layers_.size(); i > 0; --i) {
+    if (layers_[i - 1].blend_fraction != 0.0f) {
+      return layers_[i - 1].time_seconds;
+    }
+  }
+  return 0.0f;
+}
+
+float CharClipPlayer::source_first_playing_beat() const {
+  if (layers_.empty()) return 0.0f;
+  for (size_t i = layers_.size(); i > 0; --i) {
+    if (layers_[i - 1].blend_fraction != 0.0f) {
+      return layers_[i - 1].beat;
+    }
+  }
+  return 0.0f;
+}
+
+const CharClip* CharClipPlayer::source_most_playing_clip() const {
+  if (layers_.empty()) return nullptr;
+  const CharClip* best = layers_.back().clip;
+  float best_weight = 0.0f;
+  float remaining = 1.0f;
+  for (size_t i = layers_.size(); i > 0; --i) {
+    const Layer& layer = layers_[i - 1];
+    const float eased =
+        source_gh2_char_clip_driver_eased_weight(layer.blend_fraction);
+    const float contribution = remaining * eased;
+    if (best_weight < contribution) {
+      best_weight = contribution;
+      best = layer.clip;
+    }
+    remaining *= 1.0f - eased;
+  }
+  return best;
+}
+
+float CharClipPlayer::source_current_beat() const {
+  return layers_.empty() ? 0.0f : layers_.back().beat;
+}
+
+float CharClipPlayer::source_current_d_beat() const {
+  return layers_.empty() ? 0.0f : layers_.back().d_beat;
+}
+
+float CharClipPlayer::source_current_blend_fraction() const {
+  return layers_.empty() ? 0.0f : layers_.back().blend_fraction;
+}
+
+std::vector<CharClipPlayer::CrossedEvent>
+CharClipPlayer::take_source_crossed_events() {
+  std::vector<CrossedEvent> result;
+  result.swap(crossed_events_);
+  return result;
+}
+
 void CharClipPlayer::play(const CharClip& clip, uint32_t flags,
                           float blend_width, float speed) {
+  constexpr float kSourceDefaultStart = 1.0e30f;
+  play_internal(clip, flags, blend_width, speed, kSourceDefaultStart, 0.0f);
+}
+
+void CharClipPlayer::play_source(const CharClip& clip, uint32_t flags,
+                                 float start_beat, float delta_start,
+                                 float blend_width, float speed) {
+  play_internal(clip, flags, blend_width, speed, start_beat, delta_start);
+}
+
+void CharClipPlayer::play_internal(const CharClip& clip, uint32_t flags,
+                                   float blend_width, float speed,
+                                   float start_beat, float delta_start) {
   if (!clip.loaded || clip.frames.empty()) return;
+  constexpr float kSourceDefaultStart = 1.0e30f;
   const uint32_t play_flags = char_clip_driver_masked_play_flags(clip, flags);
   const float resolved_blend =
-      source_char_driver_resolve_blend_width(blend_width,
-                                             source_driver_blend_width_);
+      blend_width == -1.0f ? clip.blend_width : blend_width;
   bool clip_already_playing = false;
   if (source_play_multiple_clips_) {
     for (const Layer& layer : layers_) {
@@ -12192,33 +13697,96 @@ void CharClipPlayer::play(const CharClip& clip, uint32_t flags,
                                             clip_already_playing)) {
     return;
   }
-  const bool no_blend =
-      play_mode(clip, play_flags) == kCharPlayNoBlend ||
-      resolved_blend <= 0.0f || layers_.empty();
+
+  // CharClipDriver's constructor discards only zero-fraction nodes at the
+  // front of the inherited stack. A zero blend width is still a real
+  // transition node: Evaluate advances it to one on its first active tick.
+  while (!layers_.empty() && layers_.back().blend_fraction == 0.0f) {
+    const CharClip* exiting = layers_.back().clip;
+    if (exiting) emit_source_event(exiting, exiting->legacy_exit_event);
+    layers_.pop_back();
+  }
 
   Layer next;
   next.clip = &clip;
   next.flags = play_flags;
-  next.blend_width = no_blend ? 0.0f : resolved_blend;
+  next.blend_width = resolved_blend;
   next.speed = speed;
-
-  if (no_blend) {
-    layers_.clear();
-  } else if (layers_.size() > 1) {
-    Layer prev = layers_.back();
-    layers_.clear();
-    layers_.push_back(prev);
+  if (!clip.beat_events.empty()) {
+    next.next_event = 0;
+    next.next_event_beat = clip.beat_events.front().beat;
   }
-  layers_.push_back(next);
-}
 
-void CharClipPlayer::set_source_driver_blend_width(float blend_width) {
-  if (!std::isfinite(blend_width)) blend_width = 1.0f;
-  source_driver_blend_width_ = std::max(0.0f, blend_width);
+  if (start_beat == kSourceDefaultStart) {
+    const uint32_t mode = play_mode(clip, play_flags);
+    if (mode == kCharPlayNoBlend) {
+      exit_source_layers(0, layers_.size());
+      layers_.clear();
+    }
+    if (!layers_.empty()) {
+      const Layer& outgoing = layers_.back();
+      const auto transition =
+          outgoing.clip
+              ? source_char_clip_find_transition_node(
+                    *outgoing.clip, clip, outgoing.beat,
+                    static_cast<int>(mode))
+              : std::nullopt;
+      if (transition) {
+        next.beat = transition->next_beat;
+        next.ramp_in = transition->current_beat - outgoing.beat;
+        next.blend_fraction = 0.0f;
+      } else {
+        next.beat = clip.start_beat;
+        next.ramp_in = 0.0f;
+        next.blend_fraction = 1.0f;
+      }
+    } else {
+      next.beat = clip.start_beat;
+      next.ramp_in = 0.0f;
+      next.blend_fraction = 1.0f;
+    }
+  } else {
+    next.beat = start_beat;
+    next.ramp_in = delta_start;
+    next.blend_fraction = 0.0f;
+  }
+
+  if (play_mode(clip, play_flags) == kCharPlayDirty) {
+    next.blend_fraction = 0.000001f;
+  }
+  if (next.blend_fraction == 1.0f && clip.range > 0.0f) {
+    const float random_offset =
+        source_gh2_ps2_random_range(source_gh2_ps2_global_random(), 0.0f,
+                                    clip.range);
+    next.beat = source_gh2_char_clip_driver_randomized_beat(
+        clip, next.beat, random_offset);
+  }
+  next.time_seconds = clip_seconds_at_source_beat(clip, next.beat);
+  layers_.push_back(next);
+  emit_source_event(&clip, clip.legacy_enter_event);
 }
 
 void CharClipPlayer::set_source_play_multiple_clips(bool play_multiple_clips) {
   source_play_multiple_clips_ = play_multiple_clips;
+}
+
+void CharClipPlayer::set_source_realign(bool realign) {
+  source_realign_ = realign;
+}
+
+void CharClipPlayer::set_source_starved_handler(
+    std::function<void()> handler) {
+  source_starved_handler_ = std::move(handler);
+}
+
+void CharClipPlayer::set_source_node_loop_resolver(
+    std::function<const CharClip*()> resolver) {
+  source_node_loop_resolver_ = std::move(resolver);
+}
+
+void CharClipPlayer::set_source_event_handler(
+    std::function<void(const CharClip&, std::string_view)> handler) {
+  source_event_handler_ = std::move(handler);
 }
 
 void CharClipPlayer::set_speed(float speed) {
@@ -12238,47 +13806,221 @@ void CharClipPlayer::seek_current_time_seconds(float time_seconds) {
       duration > 0.0f
           ? std::clamp(time_seconds, 0.0f, duration)
           : std::max(0.0f, time_seconds);
+  if (clip_has_source_beat_timing(*current.clip)) {
+    current.beat = current.clip->start_beat +
+                   current.time_seconds *
+                       current.clip->beats_per_second;
+  }
 }
 
 void CharClipPlayer::advance(float dt_seconds) {
   if (layers_.empty()) return;
-  for (auto& layer : layers_) {
-    if (!layer.clip) continue;
-    layer.time_seconds += dt_seconds * layer.speed;
-    const float duration = layer.clip->duration_seconds();
-    if (duration > 0.0f) {
-      if (play_flags_loop(*layer.clip, layer.flags)) {
-        layer.time_seconds = std::fmod(layer.time_seconds, duration);
-        if (layer.time_seconds < 0.0f) layer.time_seconds += duration;
+  if (!std::isfinite(dt_seconds)) dt_seconds = 0.0f;
+  const CharClip* head = current_clip();
+  const float task_rate =
+      head && clip_has_source_beat_timing(*head)
+          ? head->beats_per_second
+          : 1.0f;
+  const float dframe = dt_seconds * task_rate;
+  source_frame_ += dframe;
+  advance_source(source_frame_, dframe, dt_seconds);
+}
+
+void CharClipPlayer::advance_source(float frame, float dframe,
+                                    float dt_seconds) {
+  if (layers_.empty()) return;
+  if (!std::isfinite(frame)) frame = source_frame_;
+  if (!std::isfinite(dframe)) dframe = 0.0f;
+  if (!std::isfinite(dt_seconds)) dt_seconds = 0.0f;
+  source_frame_ = frame;
+  poll_source_scheduler(frame);
+
+  size_t index = 0;
+  while (index < layers_.size()) {
+    Layer& layer = layers_[index];
+    if (!layer.clip) {
+      ++index;
+      continue;
+    }
+    const bool user_time = (layer.flags & kCharPlayUserTime) != 0;
+    const bool real_time = (layer.flags & kCharPlayRealTime) != 0;
+    if (index > 0) {
+      layer.ramp_in -= layers_[index - 1].advance_beat;
+    } else {
+      layer.ramp_in -= real_time ? dt_seconds : dframe;
+    }
+
+    if (!(layer.ramp_in < 0.0f)) {
+      layer.advance_beat = 0.0f;
+      layer.d_beat = 0.0f;
+    } else {
+      const float old_beat = layer.beat;
+      if (!user_time) {
+        const float delta =
+            real_time
+                ? dt_seconds * layer.clip->beats_per_second
+                : dframe;
+        layer.d_beat = layer.speed * delta;
+      }
+      layer.beat += layer.d_beat;
+
+      const float align_period =
+          static_cast<float>((layer.flags & 0x0000f000u) >> 12u);
+      float align = 0.0f;
+      if (align_period != 0.0f && layer.speed == 1.0f &&
+          (layer.flags & 0xF0u) != kCharPlayLoop) {
+        align = positive_remainder(frame - layer.beat, align_period);
+        if (align > align_period * 0.5f) align -= align_period;
+      }
+      layer.beat += align;
+      layer.advance_beat = layer.d_beat + align;
+
+      if (layer.next_event >= 0 && !layer.clip->beat_events.empty()) {
+        const int first_event = layer.next_event;
+        while (old_beat < layer.next_event_beat &&
+               layer.next_event_beat < layer.beat) {
+          const size_t crossed_index =
+              static_cast<size_t>(layer.next_event);
+          const auto& crossed = layer.clip->beat_events[crossed_index];
+          crossed_events_.push_back(
+              {layer.clip, crossed_index, crossed.beat, crossed.event});
+          emit_source_event(layer.clip, crossed.event);
+          ++layer.next_event;
+          if (layer.next_event >=
+              static_cast<int>(layer.clip->beat_events.size())) {
+            layer.next_event = 0;
+          }
+          layer.next_event_beat =
+              layer.clip->beat_events[
+                  static_cast<size_t>(layer.next_event)].beat;
+          if (layer.next_event == first_event) break;
+        }
+      }
+
+      if (layer.blend_fraction < 1.0f) {
+        if (layer.blend_width == 0.0f) {
+          layer.blend_fraction = 1.0f;
+        } else {
+          const float blend_delta =
+              user_time ? dframe : layer.d_beat;
+          layer.blend_fraction += blend_delta / layer.blend_width;
+        }
+        if (layer.blend_fraction > 1.0f) {
+          layer.blend_fraction = 1.0f;
+        }
+      }
+    }
+
+    if ((layer.flags & 0xF0u) == kCharPlayLoop) {
+      const float overrun = layer.beat - layer.clip->end_beat;
+      if (overrun > 0.0f) {
+        layer.beat = layer.clip->start_beat + overrun;
+      }
+    }
+
+    if (clip_has_source_beat_timing(*layer.clip)) {
+      layer.time_seconds =
+          clip_seconds_at_source_beat(*layer.clip, layer.beat);
+    } else if (!user_time && layer.ramp_in < 0.0f) {
+      layer.time_seconds += dt_seconds * layer.speed;
+      const float duration = layer.clip->duration_seconds();
+      if (duration > 0.0f &&
+          (layer.flags & 0xF0u) == kCharPlayLoop) {
+        layer.time_seconds =
+            positive_remainder(layer.time_seconds, duration);
       } else {
-        layer.time_seconds = std::clamp(layer.time_seconds, 0.0f, duration);
+        layer.time_seconds =
+            std::clamp(layer.time_seconds, 0.0f, duration);
+      }
+    }
+
+    if (index > 0 && layer.blend_fraction == 1.0f) {
+      exit_source_layers(0, index);
+      layers_.erase(layers_.begin(), layers_.begin() +
+                                         static_cast<std::ptrdiff_t>(index));
+      index = 1;
+      continue;
+    }
+    ++index;
+  }
+}
+
+void CharClipPlayer::poll_source_scheduler(float frame) {
+  if (layers_.empty()) return;
+  constexpr float kSourceDefaultStart = 1.0e30f;
+  const uint32_t original_loop_mode = layers_.back().flags & 0xF0u;
+
+  if (source_realign_ && frame > 0.0f) {
+    if (source_old_beat_ == kSourceDefaultStart) {
+      source_old_beat_ = frame;
+    }
+    const float old_floor = std::floor(source_old_beat_);
+    const float frame_floor = std::floor(frame);
+    if (old_floor != frame_floor) {
+      size_t first_playing = layers_.size();
+      for (size_t i = layers_.size(); i > 0; --i) {
+        if (layers_[i - 1].blend_fraction != 0.0f) {
+          first_playing = i - 1;
+          break;
+        }
+      }
+      if (first_playing < layers_.size()) {
+        const int first_align =
+            static_cast<int>((layers_[first_playing].flags & 0xF000u) >>
+                             12u);
+        int max_align = first_align;
+        for (size_t i = 0; i < first_playing; ++i) {
+          max_align =
+              std::max(max_align,
+                       static_cast<int>((layers_[i].flags & 0xF000u) >>
+                                        12u));
+        }
+        const int max_mask = max_align - 1;
+        const int beat_difference =
+            static_cast<int>(frame_floor) ^
+            (static_cast<int>(old_floor) + 1);
+        if (max_mask > 0 && (beat_difference & max_mask) != 0) {
+          for (Layer& layer : layers_) layer.flags &= ~0xF000u;
+          const int first_mask = first_align - 1;
+          if (first_mask > 0 && (beat_difference & first_mask) != 0) {
+            const CharClip* replay = layers_[first_playing].clip;
+            const float speed = layers_[first_playing].speed;
+            if (replay) {
+              play_internal(*replay, 0x38u, -1.0f, speed,
+                            kSourceDefaultStart, 0.0f);
+            }
+          }
+        }
       }
     }
   }
-  Layer& current = layers_.back();
-  if (current.blend_width > 0.0f) {
-    current.blend_progress += std::max(0.0f, dt_seconds);
-    if (current.blend_progress >= current.blend_width && layers_.size() > 1) {
-      if (current.clip && !play_flags_loop(*current.clip, current.flags)) {
-        current.blend_width = 0.0f;
-        current.blend_progress = 0.0f;
-      } else {
-        Layer keep = current;
-        keep.blend_width = 0.0f;
-        keep.blend_progress = 0.0f;
-        layers_.clear();
-        layers_.push_back(keep);
-      }
+  source_old_beat_ = frame;
+
+  auto poll_starved = [this]() {
+    return source_gh2_ps2_char_driver_poll_starved(
+        !layers_.empty(), layers_.size() > 1);
+  };
+  if (poll_starved() && source_starved_handler_) {
+    source_starved_handler_();
+  }
+  if (poll_starved() && original_loop_mode == kCharPlayGraphLoop &&
+      !layers_.empty()) {
+    const CharClip* replay = layers_.back().clip;
+    const uint32_t flags = (layers_.back().flags & ~0xF0u) | kCharPlayLast;
+    const float speed = layers_.back().speed;
+    if (replay) {
+      play_internal(*replay, flags, -1.0f, speed, kSourceDefaultStart, 0.0f);
     }
   }
-  if (layers_.size() > 1) {
-    const Layer& exit_current = layers_.back();
-    if (exit_current.clip &&
-        !play_flags_loop(*exit_current.clip, exit_current.flags)) {
-      const float duration = exit_current.clip->duration_seconds();
-      if (duration > 0.0f && exit_current.time_seconds >= duration) {
-        layers_.pop_back();
-      }
+  if (poll_starved() && original_loop_mode == kCharPlayNodeLoop &&
+      !layers_.empty()) {
+    // Retail re-evaluates the saved DataNode at CharDriver+0x40. Without a
+    // decoded owner-side resolver there is no factual replacement clip.
+    const CharClip* replay =
+        source_node_loop_resolver_ ? source_node_loop_resolver_() : nullptr;
+    const float speed = layers_.back().speed;
+    if (replay) {
+      play_internal(*replay, 0x44u, -1.0f, speed, kSourceDefaultStart, 0.0f);
     }
   }
 }
@@ -12335,7 +14077,10 @@ std::vector<ClipChannelLayer> CharClipPlayer::sampled_pose_layers(
     const Layer& layer = layers_.back();
     if (!layer.clip) return out;
     const float frame =
-        clip_frame_float_at_time(*layer.clip, layer.time_seconds, layer.flags);
+        clip_has_source_beat_timing(*layer.clip)
+            ? clip_frame_float_at_source_beat(*layer.clip, layer.beat)
+            : clip_frame_float_at_time(*layer.clip, layer.time_seconds,
+                                       layer.flags);
     const int f0 = std::clamp(static_cast<int>(std::floor(frame)), 0,
                               static_cast<int>(layer.clip->frames.size()) - 1);
     const int f1 = std::min(f0 + 1,
@@ -12361,13 +14106,16 @@ std::vector<ClipChannelLayer> CharClipPlayer::sampled_pose_layers(
     auto layer_debug = [](const Layer& layer) {
       if (!layer.clip) return std::string("<null>");
       const float ff =
-          clip_frame_float_at_time(*layer.clip, layer.time_seconds,
-                                   layer.flags);
+          clip_has_source_beat_timing(*layer.clip)
+              ? clip_frame_float_at_source_beat(*layer.clip, layer.beat)
+              : clip_frame_float_at_time(*layer.clip, layer.time_seconds,
+                                         layer.flags);
       char detail[384];
       std::snprintf(detail, sizeof(detail),
-                    "%s@%.3f;t=%.3f;flags=0x%08x;bw=%.3f;bp=%.3f",
+                    "%s@%.3f;t=%.3f;beat=%.3f;flags=0x%08x;bw=%.3f;bf=%.3f",
                     layer.clip->name.c_str(), ff, layer.time_seconds,
-                    layer.flags, layer.blend_width, layer.blend_progress);
+                    layer.beat, layer.flags, layer.blend_width,
+                    layer.blend_fraction);
       return std::string(detail);
     };
     const Layer& prev = layers_[layers_.size() - 2];
@@ -12388,35 +14136,38 @@ std::vector<ClipChannelLayer> CharClipPlayer::sampled_pose_layers(
 
 std::vector<ClipChannel> CharClipPlayer::sampled_pose() const {
   if (layers_.empty()) return {};
-  const Layer& current = layers_.back();
-  const float current_weight = current_blend_weight();
+  std::vector<float> contributions(layers_.size(), 0.0f);
+  float remaining = 1.0f;
+  for (size_t i = layers_.size(); i > 0; --i) {
+    const float eased = source_gh2_char_clip_driver_eased_weight(
+        layers_[i - 1].blend_fraction);
+    contributions[i - 1] = remaining * eased;
+    remaining -= contributions[i - 1];
+  }
 
-  if (layers_.size() > 1) {
-    const Layer& previous = layers_[layers_.size() - 2];
-    if (previous.clip) {
-      const float ff = clip_frame_float_at_time(*previous.clip,
-                                                previous.time_seconds,
-                                                previous.flags);
-      const auto previous_frame = interpolate_frame(*previous.clip, ff);
-      if (current.clip) {
-        const float current_ff = clip_frame_float_at_time(*current.clip,
-                                                          current.time_seconds,
-                                                          current.flags);
-        const auto current_frame = interpolate_frame(*current.clip, current_ff);
-        return blend_channel_sets(previous_frame, current_frame,
-                                  current_weight);
-      }
-      return previous_frame;
+  std::vector<ClipChannel> result;
+  float accumulated = 0.0f;
+  for (size_t i = 0; i < layers_.size(); ++i) {
+    const Layer& layer = layers_[i];
+    if (!layer.clip || contributions[i] <= 0.0f) continue;
+    const float frame =
+        clip_has_source_beat_timing(*layer.clip)
+            ? clip_frame_float_at_source_beat(*layer.clip, layer.beat)
+            : clip_frame_float_at_time(*layer.clip, layer.time_seconds,
+                                       layer.flags);
+    const auto sampled = interpolate_frame(*layer.clip, frame);
+    if (result.empty()) {
+      result = sampled;
+      accumulated = contributions[i];
+      continue;
     }
+    const float combined = accumulated + contributions[i];
+    const float incoming_weight =
+        combined > 0.0f ? contributions[i] / combined : 0.0f;
+    result = blend_channel_sets(std::move(result), sampled, incoming_weight);
+    accumulated = combined;
   }
-
-  if (current.clip) {
-    const float ff = clip_frame_float_at_time(*current.clip,
-                                              current.time_seconds,
-                                              current.flags);
-    return interpolate_frame(*current.clip, ff);
-  }
-  return {};
+  return result;
 }
 
 bool CharClipPlayer::sampled_pose_relative() const {
@@ -12426,36 +14177,32 @@ bool CharClipPlayer::sampled_pose_relative() const {
 
 float CharClipPlayer::current_blend_weight() const {
   if (layers_.empty()) return 0.0f;
-  const Layer& current = layers_.back();
-  if (current.blend_width <= 0.0f) return 1.0f;
-  return std::clamp(current.blend_progress / current.blend_width, 0.0f,
-                    1.0f);
+  return source_gh2_char_clip_driver_eased_weight(
+      layers_.back().blend_fraction);
 }
 
 float CharClipPlayer::evaluate_flags(uint32_t flags) const {
   if (layers_.empty()) return 0.0f;
-  const Layer& current = layers_.back();
-  const float current_flag =
-      current.clip ? source_char_driver_evaluate_flags_from_clip_flags(
-                         current.clip->flags, flags)
-                   : 0.0f;
-  if (layers_.size() <= 1) return current_flag;
-
-  const Layer& previous = layers_[layers_.size() - 2];
-  const float previous_flag =
-      previous.clip ? source_char_driver_evaluate_flags_from_clip_flags(
-                          previous.clip->flags, flags)
-                    : 0.0f;
-  const float current_weight = current_blend_weight();
-  return std::clamp(previous_flag * (1.0f - current_weight) +
-                        current_flag * current_weight,
-                    0.0f, 1.0f);
+  float result = 0.0f;
+  float remaining = 1.0f;
+  for (size_t i = layers_.size(); i > 0; --i) {
+    const Layer& layer = layers_[i - 1];
+    const float eased =
+        source_gh2_char_clip_driver_eased_weight(layer.blend_fraction);
+    const float contribution = remaining * eased;
+    if (layer.clip) {
+      result += contribution *
+                source_char_driver_evaluate_flags_from_clip_flags(
+                    layer.clip->flags, flags);
+    }
+    remaining -= contribution;
+  }
+  return std::clamp(result, 0.0f, 1.0f);
 }
 
 bool CharClipPlayer::source_starved() const {
-  if (layers_.empty()) return source_char_driver_starved(false, false, 0);
-  return source_char_driver_starved(true, layers_.size() > 1,
-                                    layers_.back().flags);
+  return source_gh2_ps2_char_driver_poll_starved(
+      !layers_.empty(), layers_.size() > 1);
 }
 
 // Legacy single-frame entry point (frame 0).

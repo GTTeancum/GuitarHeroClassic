@@ -65,11 +65,16 @@ bool audit_one(const gh::ark::ArkV3Reader& ark, const std::string& hdr_path,
           ghogx::character::load_acp_clip(hdr_path, ark_path, resolved);
       std::printf(
           "[clip-audit-acp] path=%s clip=%s accepted=%d frames=%zu "
-          "channels0=%zu flags=0x%08x playFlags=0x%08x\n",
+          "channels0=%zu flags=0x%08x playFlags=0x%08x events=%zu "
+          "enter=%s exit=%s\n",
           resolved.c_str(), clip.name.c_str(), clip.loaded ? 1 : 0,
           clip.frames.size(),
           clip.frames.empty() ? 0 : clip.frames.front().size(), clip.flags,
-          clip.default_play_flags);
+          clip.default_play_flags, clip.beat_events.size(),
+          clip.legacy_enter_event.empty() ? "<none>"
+                                          : clip.legacy_enter_event.c_str(),
+          clip.legacy_exit_event.empty() ? "<none>"
+                                         : clip.legacy_exit_event.c_str());
       if (!clip.frames.empty()) {
         for (const auto& channel : clip.frames.front()) {
           const char* type =
@@ -168,7 +173,10 @@ bool audit_one(const gh::ark::ArkV3Reader& ark, const std::string& hdr_path,
       std::printf("[clip-audit] milo=%s clip=%s bodyBytes=%llu "
                   "accepted=%d frames=%zu channels0=%zu outputBones=%zu "
                   "rawPos=%d rawScale=%d rawQuat=%d rawRotX=%d rawRotY=%d "
-                  "rawRotZ=%d rawDX=%d rawDY=%d rawDZ=%d extendedTyped=%d\n",
+                  "rawRotZ=%d rawDX=%d rawDY=%d rawDZ=%d extendedTyped=%d "
+                  "startBeat=%.6f endBeat=%.6f beatsPerSecond=%.6f "
+                  "flags=0x%08x playFlags=0x%08x blend=%.6f "
+                  "transitions=%zu events=%zu enter=%s exit=%s\n",
                   resolved.c_str(), de.name.c_str(),
                   static_cast<unsigned long long>(de.size),
                   accepted ? 1 : 0, clip.frames.size(), channels,
@@ -177,7 +185,16 @@ bool audit_one(const gh::ark::ArkV3Reader& ark, const std::string& hdr_path,
                   clip.raw_channel_counts.rotx, clip.raw_channel_counts.roty,
                   clip.raw_channel_counts.rotz, clip.raw_channel_counts.dx,
                   clip.raw_channel_counts.dy, clip.raw_channel_counts.dz,
-                  extended_typed);
+                  extended_typed, clip.start_beat, clip.end_beat,
+                  clip.beats_per_second, clip.flags,
+                  clip.default_play_flags, clip.blend_width,
+                  clip.transitions.size(), clip.beat_events.size(),
+                  clip.legacy_enter_event.empty()
+                      ? "<none>"
+                      : clip.legacy_enter_event.c_str(),
+                  clip.legacy_exit_event.empty()
+                      ? "<none>"
+                      : clip.legacy_exit_event.c_str());
     }
     return true;
   } catch (const std::exception& ex) {

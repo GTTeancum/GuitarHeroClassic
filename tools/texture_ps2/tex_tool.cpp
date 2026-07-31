@@ -61,6 +61,28 @@ int main(int argc, char** argv) {
             std::printf("height     : %u\n", bm.height);
             std::printf("bpl        : %u\n", bm.bpl);
             std::printf("payload    : %zu bytes\n", bm.raw.size());
+            const auto rgba = gh::tex::decode_to_rgba(bm);
+            uint8_t alpha_min = 0xFF;
+            uint8_t alpha_max = 0;
+            uint64_t alpha_zero = 0;
+            uint64_t alpha_partial = 0;
+            uint64_t alpha_opaque = 0;
+            for (size_t i = 3; i < rgba.size(); i += 4) {
+                const uint8_t alpha = rgba[i];
+                if (alpha < alpha_min) alpha_min = alpha;
+                if (alpha > alpha_max) alpha_max = alpha;
+                if (alpha == 0)
+                    ++alpha_zero;
+                else if (alpha == 0xFF)
+                    ++alpha_opaque;
+                else
+                    ++alpha_partial;
+            }
+            std::printf("alpha      : min=%u max=%u zero=%llu partial=%llu opaque=%llu\n",
+                        alpha_min, alpha_max,
+                        static_cast<unsigned long long>(alpha_zero),
+                        static_cast<unsigned long long>(alpha_partial),
+                        static_cast<unsigned long long>(alpha_opaque));
             return 0;
         }
         if (sub == "decode") {

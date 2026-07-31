@@ -2095,6 +2095,16 @@ Community metadata Rosetta:
   `bone_fret_hand.mesh` is the child target consumed by the hand IK pass.
   Authored destination helpers exist as `spot_neck_fret01.mesh` through
   `spot_neck_fret20.mesh` under `bone_pos_guitar.mesh`.
+- The GH2 PS2 timing path is beat-based, not seconds-based. The
+  `player*_fret_pos` parser keeps dense MIDI pitches 40..59, applies
+  `(inverted TRUE) (min_gap 0.22)` through `MidiParser::FixGap`, and dispatches
+  the mapped spot before its original note-on beat. `CharIKMidi::NewSpot`
+  stores `fraction=0, rate=1/remaining_beats` for a future destination or
+  `fraction=1, rate=0` when late. `Poll` advances by `DeltaBeat` and uses
+  `0.5 - 0.5 * sin(pi*fraction + pi/2)` before publishing the instrument-owned
+  `bone_fret.mesh` target. Native contract logs record every scheduling scalar
+  and full-float input/output matrix; screenshots are not the acceptance
+  oracle for this path.
 - 2026-06-20 accepted GH2DXu/GHDX parser evidence supersedes the earlier
   "do not move `bone_fret.mesh`" native no-op conclusion. In
   `GuitarHeroOGX-trace360/analysis/ps2_trace/external/Guitar-Hero-II-Deluxe/_ark/config/midi_parsers.dta`,
@@ -2494,6 +2504,17 @@ Useful environment flags:
   `twist-fore-source`, and `twist-upper-source` rows and no longer show the
   earlier boxy upper-arm collapse. Keep this as sampled proof only; it is not
   all-frame/all-character signoff.
+- 2026-07-27 exact-target correction: stock GH2 and converted GH1 character
+  graphs can place skeleton transforms in zero-geometry `RndMesh` records.
+  `CharIKHand`, `CharForeTwist`, and `CharUpperTwist` therefore resolve their
+  mutable targets across both bone and mesh transform tables. This is required
+  by stock GH2 rows and does not introduce a GH1 compatibility controller.
+  Static analysis of `SLUS_214.47` identifies `CharIKHand::Poll` at
+  `0x0017A080`; instructions at `0x0017A1AC..0x0017A1EC` load
+  `0xBF7C28F6`/`0x3F7C28F6`, proving the target elbow-cosine clamp is
+  `[-0.985, 0.985]`, not the later RB3 helper's `[-1, 1]`. With that exact
+  clamp, converted Alterna's left and right post-controller upper-arm matrices
+  match the raw GH1 path to six decimal places at the same intro sample.
 - 2026-07-14 in-game proof after the same source elbow-row correction:
   `engine/out/visual_proofs/ik_elbow_source_row_ingame_20260714/` captures
   Trogdor Expert in `small2` through the real gameplay renderer with
@@ -2539,10 +2560,11 @@ Useful environment flags:
   `engine/out/native_song_20260614/psychobilly_f900_twist_interleave.log`
   followed decoded `right_hand.ik -> foreTwist_R.ik -> left_hand.ik ->
   foreTwist_L.ik` order for rockabill1. That was useful for proving the
-  per-hand IK/foretwist interleave, but the later accepted active-song traces
-  supersede decoded side order for instrument performers: the stable cadence is
+  per-hand IK/foretwist interleave. The later accepted active-song traces show
   fret/left first, then strum/right, with each hand followed by its matching
-  foretwist.
+  foretwist. This is now reproduced from the recovered
+  `CharPollableSorter::Sort` reverse directory seed rather than by classifying
+  controller, hand, target, or weight-property names.
 - Cross-character validation
   `engine/out/native_song_20260614/shoutatthedevil_f1300_glam1_twist_interleave.log`
   shows the same in-song per-hand interleave for glam1, with decoded
@@ -2705,10 +2727,10 @@ Useful environment flags:
   applied the incoming clip at partial weight onto already-mutated locals,
   which is not equivalent to PS2 lane accumulation. Validation:
   `engine/out/native_song_20260614/shout_f1300_descriptor_blend.bmp`.
-- In-game arm/neck proof can diverge from the standalone viewer because
-  gameplay runs the source-style performer stack, clip transitions, hand
-  overlays, IK rows, and release/attach state together. A viewer frame mostly
-  proves decode and skinning for one sampled pose. Native transition mixing now
+- In-game arm/neck proof supersedes the retired single-pose viewer checkpoints
+  because gameplay runs the source-style performer stack, clip transitions,
+  hand overlays, IK rows, and release/attach state together. Those old frames
+  mostly proved decode and skinning for one sampled pose. Native transition mixing now
   treats rows that exist on only one side of a transition as weighted rows
   through the neutral channel value: incoming-only rows fade in from neutral,
   and outgoing-only rows fade out to neutral. This is bounded to transition set
@@ -2789,12 +2811,14 @@ Useful environment flags:
   IK/twist; the hand clips should not replace that destination graph. If an
   overlay clip is applied by itself, native still falls back to its own output
   records for clip-viewer/debug coverage.
-- Native active `CharClipGroup normal` changes now use a scheduler-like blend
-  window (`GHOGX_CHAR_DRIVER_BLEND_SECONDS`, default `0.25`) instead of hard
-  `kCharPlayNoBlend` restarts. Accepted PS2 lower-body traces show the same
-  `bone.servo` target receiving multiple `clip_output_00168320` calls with
-  fractional `f20` weights in one active window, so hard group overwrites are
-  not a faithful runtime model.
+- Native active `CharClipGroup normal` changes now use the decoded target
+  clip's `blend_width` instead of either hard `kCharPlayNoBlend` restarts or
+  the former `GHOGX_CHAR_DRIVER_BLEND_SECONDS=0.25` approximation. GH2 PS2
+  `CharClipDriver` construction at `0x00198660` loads this field, and
+  `ScaleAdd` at `0x00198E78` applies the exact cosine-eased contribution.
+  Accepted PS2 lower-body traces show the same `bone.servo` target receiving
+  multiple `clip_output_00168320` calls with fractional weights in one active
+  window, so hard group overwrites are not a faithful runtime model.
 - Native active `CharClipGroup normal` selection now keeps the group as a graph
   rather than cycling the binary list in file order. The DTA criteria define
   transition error/distance limits and the PS2 driver traces show scheduler
@@ -2811,19 +2835,20 @@ Useful environment flags:
   idle, active, strum, and fret players one after another. Validation:
   `engine/out/native_song_20260614/shout_f1300_lane_mixer_guitar_close.bmp`
   and `shout_f1300_lane_mixer_guitar_fullbody.bmp`.
-- Right/left hand playback now treats `strum_open` and `finger_open` as the
+- Right/left hand playback treats `strum_open` and `finger_open` as the
   baseline clips inside the hand `CharClipPlayer`s. Note events push strum or
-  fret clips through the same player with
-  `GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS` (default `0.08`) and then return to
-  open, instead of layering permanent open clips with direct note-frame writes.
-  This follows the accepted hand-driver scheduler model where `left_hand.drv`
-  / `right_hand.drv` rotate a live `+0x38` scheduler/blend pointer. Validation:
+  fret clips through the same player and then return to open, instead of
+  layering permanent open clips with direct note-frame writes. Each transition
+  now consumes the decoded clip `blend_width` (stock GH2 hand clips commonly
+  author `0.24`) and exact driver stack math. The former global
+  `GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS=0.08` override was an empirical
+  one-off and has been removed. This follows the accepted hand-driver scheduler
+  model where `left_hand.drv` / `right_hand.drv` rotate a live scheduler/blend
+  pointer. Validation:
   `engine/out/native_song_20260614/shout_f1300_hand_driver_scheduler.bmp`.
-- 2026-06-21 left-hand blend guard: the native default for
-  `GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS` is `0.08`. Do not copy the `0.24`
-  hand-cue max-gap window into the blend timer; doing so keeps Jordan-speed
-  fret notes in long transitions and makes the fretting hand look static or
-  mushy. Native validation:
+- The 2026-06-21 `0.08` hand-blend captures remain useful visual observations,
+  but they are not a target-format contract and no longer select runtime
+  behavior:
   `analysis/native_validation/ghdx_jordan_left_hand_blend008_20260621_123919/ghdx_jordan_left_hand_blend008.mp4`
   and
   `analysis/native_validation/ghdx_jordan_left_hand_close_blend008_20260621_124110/ghdx_jordan_left_hand_close_blend008.mp4`.
@@ -5462,6 +5487,25 @@ Viewer hand-overlay validation:
 - This shared contract applies to GH1 and GH2 character assets while retaining
   their decoded revision semantics. There are no character-, mesh-, clip-,
   song-, venue-, or pose-specific offsets in the publisher.
+- Attached instruments participate in that same typed namespace. Retail puts
+  the character and instrument in one `ObjectDir`; native imports
+  instrument-only transforms as `attached_prop_transform_proxies`. Typed
+  target acquisition therefore continues after character `.trans`/`.mesh`
+  lookup into attached-prop `.trans`/`.mesh` lookup. A live proxy also precedes
+  `runtime_pose_output_worlds` during world-chain resolution because that map is
+  only a fallback snapshot for a channel without a resident transform.
+- The former omission was measurable rather than a visual inference: converted
+  GH1 `bone_fret_hand` and `bone_strum_hand` output rows failed acquisition,
+  then both IK destinations collapsed near world origin after the first
+  gameplay frame. The shared-ObjectDir correction has focused publisher and
+  stale-cache regressions plus a hidden, input-free strict-native gameplay
+  matrix across all eight GH1 guitarists. Its 224 targets are finite and
+  non-origin; all 176 full-weight solves stay within 1.7035 world units. The
+  apparent Hair Metal transition outlier is independently accounted by the
+  packed source: `hair_intro_03.acp` authors its first
+  `bone_pos_guitar` position at
+  `(-311.78289795, 174.30110168, -152.40872192)`. Evidence is under
+  `proofs/gh1-native-conversion-parity/instrument-hand-parity/shared-objectdir-hand-targets/`.
 
 ## 2026-07-26 GH1 revision-10 pose and weighted-mesh closure
 
@@ -5529,10 +5573,10 @@ Viewer hand-overlay validation:
   records and revision semantics are not shared.
 - Fore twist runs after hand IK and distributes recovered hand-relative roll
   through the two packed twist refs while retaining the authored second-twist
-  arm-position ratio. Upper twist distributes animated upper-arm orientation
-  through the two packed sibling refs while retaining authored positions.
-  Controller cadence remains hand/fore, hair, upper, then remaining
-  constraints.
+  arm-position ratio. Fresh bounded GH1 disassembly supersedes the earlier
+  upper interpretation: upper twist applies the same source-based half-twist
+  row to both packed sibling refs. Controller cadence remains hand/fore, hair,
+  upper, then remaining constraints.
 - Read-only retail PCSX2 memory contains the same four live `.servo` objects
   and ordered bone strings. Static GH1 ELF xrefs identify fore initialization
   at `0x001838EC`/`0x00183900`, its poll body at
@@ -5542,3 +5586,146 @@ Viewer hand-overlay validation:
   deployment contract is recorded in
   `.codex/analysis/gh1-character-runtime-format-contract.md` and
   `.codex/current-evidence/gh1-arm-twist-reopen/FINAL_PROOF_MANIFEST.md`.
+
+## 2026-07-27 rejected twist proof and native-Trans correction
+
+- The prior visual signoff was invalid. Converted characters could still form
+  wedges between shoulder and wrist because transform lookup preferred
+  `runtime_pose_output_worlds`, the pre-controller CharClip snapshot, over the
+  live resident object graph. `CharIKHand` changed the upper arm first;
+  `CharUpperTwist` then read the stale upper-arm row.
+- Source-shaped polling requires the live `RndTransformable::WorldXfm`.
+  Transform lookup now keeps explicit runtime overrides first, resolves the
+  resident bone/mesh object next, and uses the pose-output snapshot only for a
+  channel with no resident object. A regression fixture supplies deliberately
+  different live and cached upper-arm rows and proves that `CharUpperTwist`
+  consumes the live row.
+- A second independent defect drew every authored LOD group for revision-24
+  converted packages. `Character9` supplies a counted sequence of
+  `(screen_size, group_ref)` rows, so renderer selection now consumes those
+  decoded root references rather than directory revision or
+  `top.view`/`lodN` spellings.
+- The same root body supplies the exact shadow-group reference. The ordinary
+  character pass walks that decoded Group/View graph and excludes only its
+  reachable meshes. The old `shadow*` mesh-name classifier and attached-prop
+  shadow-name skip are removed. Stock GH2 Character9 and converted GH1
+  Character9/BandCharacter1 roots share the `milo_object` parser used by the
+  offline converter.
+- Offline conversion now mirrors recovered target source. When
+  `Character::SyncObjects` finds exact `bone_pelvis.mesh`, it calls
+  `ConvertBonesToTranses(this, false)`. Recovered `ShouldStrip` selects
+  case-insensitive `bone_` and `exo_` prefixes and case-sensitive `spot_`.
+  The converter decodes each selected Mesh28 and emits a Trans9 with the same
+  object metadata, transforms, constraint, target, preserve-scale state,
+  parent, name, and references. Direct GH1 compatibility can still consume the
+  revision-10 mesh skeleton, but a converted GH2 package is no longer a
+  zero-bone compatibility package.
+- Fresh input-free package views load 63-78 native transforms for each of the
+  eight selectable guitarists and 28-34 for male singer, female singer,
+  bassist, drummer, and keyboardist. All eight guitarist stand poses and all
+  five active role poses retain continuous upper-arm/twist chains. Proof is
+  under
+  `proofs/gh1-native-conversion-parity/instrument-hand-parity/arm-twist-isolation/native-trans-overlay-fixed/`.
+- Raw and converted `bassist_idle@f60` agree in leaving both hands down;
+  `bassist_active_medium@f60` agrees in placing both hands on the authored
+  bass. This is a source-timed clip-selection requirement, not a skeleton,
+  attachment-offset, or character-specific correction.
+
+## 2026-07-27 GH2 PS2 dual-branch upper-twist correction
+
+- The preceding native-Trans checkpoint is superseded for arm-twist signoff.
+  The user correctly identified continuing noodle/pinch deformation across
+  characters with twist bones.
+- A new object-level comparison found that the conversion pass had changed the
+  authored graph incorrectly. GH1 `AnimServoUpperTwist` stores twist1, twist2,
+  and upperArm as siblings. Stock GH2 PS2 `metal_drummer.milo_ps2` does the
+  same; stock selectable `metal1.milo_ps2` instead parents twist2 beneath
+  twist1. GH2 supports both forms. The converter now preserves the source
+  hierarchy and validates that all three GH1 transforms share one non-null
+  parent. The complete audit proves 26/26 upper-twist controllers satisfy that
+  contract.
+- Retail GH2 PS2 `CharUpperTwist::Poll` is
+  `SLUS_214.47:0x001823C8..0x00182958`. It resolves the source at object
+  `+0x24`, twist2 at `+0x18`, and twist1 at `+0x0C`, then compares
+  `twist2.parent` with twist1 at `0x00182454..0x00182460`.
+- The serial branch uses the stored `-0.6660000086` and
+  `+0.3330000043` factors. In native row convention this remains the accepted
+  source-based `+0.666` correction for twist1 and authored-child `-0.333`
+  correction for twist2.
+- The non-chain branch begins at `0x00182670`, loads exact `-0.5`, and composes
+  that same half-twist correction with the live source local basis for both
+  sibling outputs. Runtime now selects these formulas solely from the resolved
+  parent relationship. It does not inspect character, side, mesh, pose, or
+  package names.
+- The later ihatecompvir/RB3 world-space interpolation routine remains useful
+  provenance for the later engine family, but it is not the GH2 PS2
+  `0x001823C8` implementation and is no longer used for native GH2 twist
+  publication.
+- Focused source, contract, and converter tests pass, as do all 54
+  character/gameplay regressions. A stock GH2 Metal1 capture logs
+  `branch=serial factors=(0.666,-0.333)` and remains visually intact. A
+  converted GH1 Metal Drummer capture logs
+  `branch=sibling factors=(0.500,0.500)` and no longer gains the controller-on
+  shoulder fold. Fresh input-free captures cover all eight selectable GH1
+  guitarists and all five GH1 band-role packages under
+  `proofs/gh1-native-conversion-parity/instrument-hand-parity/`
+  `arm-twist-isolation/gh2-ps2-dual-branch-final/`.
+
+## 2026-07-29 all-guitarist attachment-transform matrix
+
+- Hidden, input-free diagnostics evaluate one packed GH1 stand ACP and its
+  converted native `CharClipSamples` at exact frame 60 for every selectable
+  GH1 guitarist.
+- The character-owned `bone_pos_guitar.mesh` world matrix is identical at the
+  logged six-decimal precision for Alterna, Classic, Hair Metal, Hip Hop,
+  Metal, Nu Metal, and Punk. Grim has one component delta of `0.000001`.
+- The raw diagnostics use the packed GH1 Xplorer and the native diagnostics
+  use the authoritative GH2 Xplorer. Their instrument-internal anchor
+  matrices are intentionally outside this comparison; the conversion
+  contract proved here is the animated character attachment transform.
+- No character, instrument, bone, pose, or venue offset is involved.
+  Machine-readable results and all sixteen transcripts are under
+  `proofs/gh1-native-conversion-parity/instrument-hand-parity/`
+  `all-guitarist-attachment-matrix/`.
+
+## 2026-07-29 owner-tagged strict-native gameplay trace
+
+- Twist diagnostics now identify the owning decoded Character on every
+  controller header and output transform. This is necessary because each
+  package uses the same serialized bone/controller names; an unqualified
+  `upperTwist_L.servo` line cannot prove which performer executed it.
+- The current strict-native main-gameplay matrix focuses Classic, both
+  singers, bassist, drummer, and keyboardist in turn. Every subject produces
+  150 upper-twist controller rows and 1,200 finite `pos/r0/r1/r2` output rows.
+  Every source-authored GH1 sibling graph selects
+  `branch=sibling factors=(0.500,0.500)`, with nonzero measured roll motion.
+  Classic also produces 150 owner-qualified forearm-twist rows.
+- The matrix fails on a missing subject row or any nonfinite angle/transform
+  component. Videos are secondary review aids; controller logs and
+  `twist_stats.tsv` are the acceptance authority.
+- The obsolete separate `ghogx_viewer` executable has been removed. Current
+  proof comes from `ghogx_app.exe` with the native-only gate enabled:
+  `proofs/gh1-native-conversion-parity/instrument-hand-parity/`
+  `arm-twist-isolation/strict-native-gameplay-current/`.
+
+## 2026-07-29 matched retail/native numeric twist differential
+
+- GH1 `SLUS_212.24:0x001878A8..0x00187C3C` loads exact `-0.5` at
+  `0x001878FC`, exact `pi/2` at `0x00187908..0x00187910`, and scales the
+  extracted upper-arm roll at `0x00187914`. This is the same half-twist
+  construction used by GH2's sibling branch at `0x00182670`; GH1 upper twist
+  is not a one-third/two-third interpolation.
+- GH1 and GH2 fore-twist polls both use exact `0x3EAAAA9F` for the one-third
+  correction. GH1 stores its controller offset in radians; GH2 stores degrees
+  and converts with `pi/180` during the poll.
+- `GHOGX_DEBUG_TWIST_CONTRACT=1` emits a tab-delimited exact-float ledger
+  containing each live source, authored basis, parameter, and output. It is
+  diagnostic only and does not alter controller behavior.
+- Eight hidden, input-free, strict-native lineups cover all 13 converted GH1
+  performers. An independent log-only verifier recomputes 6,000 events:
+  4,800 upper sibling, zero upper serial substitutions, and 1,200 fore. All
+  pass at `5e-6`, with maximum transform delta `1.28159703e-7`.
+- The raw revision-10 compatibility helper now uses the same recovered GH1
+  half-twist formula. Evidence and the independent verifier are under
+  `proofs/gh1-native-conversion-parity/`
+  `matched-retail-twist-differential/`.

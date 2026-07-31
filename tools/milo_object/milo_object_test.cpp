@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <stdexcept>
 
 int main() {
     gh::milo_object::Morph morph;
@@ -951,6 +952,19 @@ int main() {
             std::fprintf(stderr, "milo_object_test: Group12 mismatch\n");
             return 1;
         }
+        group12.revision = 13;
+        group12.draw_only = "stage.mesh";
+        const auto group13_bytes =
+            gh::milo_object::serialize_group12(group12);
+        const auto parsed_group13 =
+            gh::milo_object::parse_group12(group13_bytes);
+        if (gh::milo_object::serialize_group12(parsed_group13) !=
+                group13_bytes ||
+            parsed_group13.revision != 13 ||
+            parsed_group13.draw_only != "stage.mesh") {
+            std::fprintf(stderr, "milo_object_test: Group13 mismatch\n");
+            return 1;
+        }
         gh::milo_object::View source_view;
         source_view.transformable.revision = 8;
         source_view.drawable.revision = 1;
@@ -978,6 +992,44 @@ int main() {
             converted_group.drawable.revision != 3) {
             std::fprintf(
                 stderr, "milo_object_test: View7->Group12 mismatch\n");
+            return 1;
+        }
+        gh::milo_object::ResolvedViewGraph scoped_view_graph;
+        scoped_view_graph.drawable_objects = {
+            {"base.env", "Environ"},
+            {"rig.mesh", "Mesh"},
+            {"smoke.env", "Environ"},
+            {"smoke_a.mesh", "Mesh"},
+            {"smoke_b.mesh", "Mesh"},
+            {"smoke.env", "Environ"},
+            {"smoke_b.mesh", "Mesh"},
+            {"shot.cam", "Cam"},
+        };
+        const auto environment_segments =
+            gh::milo_object::resolve_view_environment_segments(
+                scoped_view_graph.drawable_objects);
+        bool rejected_flat_environment_conversion = false;
+        try {
+            (void)gh::milo_object::convert_view7_to_group12(
+                source_view, scoped_view_graph);
+        } catch (const std::runtime_error&) {
+            rejected_flat_environment_conversion = true;
+        }
+        if (environment_segments.size() != 2 ||
+            environment_segments[0].environment != "base.env" ||
+            environment_segments[0].drawable_objects.size() != 1 ||
+            environment_segments[0].drawable_objects[0].name !=
+                "rig.mesh" ||
+            environment_segments[1].environment != "smoke.env" ||
+            environment_segments[1].drawable_objects.size() != 2 ||
+            environment_segments[1].drawable_objects[0].name !=
+                "smoke_a.mesh" ||
+            environment_segments[1].drawable_objects[1].name !=
+                "smoke_b.mesh" ||
+            !rejected_flat_environment_conversion) {
+            std::fprintf(
+                stderr,
+                "milo_object_test: ordered View environment scope mismatch\n");
             return 1;
         }
         gh::milo_object::ObjectDir16 object_dir16;
@@ -1481,6 +1533,32 @@ int main() {
             std::fprintf(
                 stderr,
                 "milo_object_test: ParticleSys bounce conversion mismatch\n");
+            return 1;
+        }
+        gh::milo_object::Waypoint3 waypoint;
+        waypoint.flags = 4;
+        waypoint.transformable.local =
+            {1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 20, 30};
+        waypoint.transformable.world =
+            waypoint.transformable.local;
+        waypoint.connections = {"walk_center.way"};
+        const auto waypoint_bytes =
+            gh::milo_object::serialize_waypoint3(waypoint);
+        const auto parsed_waypoint =
+            gh::milo_object::parse_waypoint3(waypoint_bytes);
+        if (gh::milo_object::serialize_waypoint3(parsed_waypoint) !=
+                waypoint_bytes ||
+            parsed_waypoint.revision != 3 ||
+            parsed_waypoint.transformable.revision != 9 ||
+            parsed_waypoint.legacy_drawable.revision != 3 ||
+            parsed_waypoint.flags != 4 ||
+            parsed_waypoint.connections.size() != 1 ||
+            parsed_waypoint.transformable.local[9] != 10.0f ||
+            gh::milo_object::round_trip_gh2_object_body(
+                "Waypoint", waypoint_bytes, 24) != waypoint_bytes) {
+            std::fprintf(
+                stderr,
+                "milo_object_test: Waypoint3 mismatch\n");
             return 1;
         }
         gh::milo_object::ParticleSys27 preserved_particles27;

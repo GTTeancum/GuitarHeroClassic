@@ -66,7 +66,7 @@ void usage() {
         "  groups --milo-path <p> [--name <g>]\n"
         "                                     print decoded Group children/order\n"
         "  notes --song <shortname> [--difficulty <0-3>]\n"
-        "        [--filter hopo|star|final|sustain] [--from S] [--to S] [--limit N]\n"
+        "        [--filter hopo|star|final|sustain|event|lighter] [--from S] [--to S] [--limit N]\n"
         "                                     print parsed chart note flags/timing\n"
         "  list [--filter <substr>]           enumerate ARK entry paths\n"
         "\n"
@@ -422,6 +422,32 @@ int run_notes(const Args& a, const gh::ark::ArkV3Reader& ark) {
     std::transform(filter.begin(), filter.end(), filter.begin(),
                    [](unsigned char c) { return std::tolower(c); });
 
+    if (filter == "event" || filter == "lighter") {
+        int shown = 0;
+        std::printf(
+            "\nevents song=%s count=%zu tpb=%u duration=%.3fs "
+            "window=%.3f..%.3f\n",
+            a.song.c_str(), chart.text_events.size(),
+            chart.ticks_per_beat, chart.duration_sec(), from_sec, to_sec);
+        std::printf("  %-8s %-9s %s\n", "tick", "sec", "text");
+        for (const auto& event : chart.text_events) {
+            const double at = chart.tick_to_sec(event.tick);
+            if (at < from_sec || at > to_sec) continue;
+            if (filter == "lighter" &&
+                event.text.find("crowd_lighters_") ==
+                    std::string::npos) {
+                continue;
+            }
+            std::printf("  %-8u %-9.3f %s\n", event.tick, at,
+                        event.text.c_str());
+            if (++shown >= limit) break;
+        }
+        std::printf("\n%d event%s shown%s\n", shown,
+                    shown == 1 ? "" : "s",
+                    filter == "lighter" ? " (lighter)" : "");
+        return 0;
+    }
+
     std::printf("\nnotes song=%s difficulty=%d count=%zu tpb=%u duration=%.3fs window=%.3f..%.3f\n",
                 a.song.c_str(), diff, notes.size(), chart.ticks_per_beat,
                 chart.duration_sec(), from_sec, to_sec);
@@ -495,8 +521,9 @@ int run_mesh(const Args& a) {
                 scene.dir_name.c_str(), scene.dir_type.c_str(),
                 scene.meshes.size(), scene.transes.size(), scene.mats.size());
     std::printf("%s\n", std::string(96, '-').c_str());
-    std::printf("  %-26s %7s %7s  %-16s  %s\n", "mesh", "verts", "faces",
-                "material", "bbox (min..max xyz)");
+    std::printf("  %-26s %7s %7s %4s  %-16s  %-22s  %-25s  %s\n", "mesh",
+                "verts", "faces", "show", "material", "parent",
+                "stored world xyz", "bbox (min..max xyz)");
 
     int shown = 0, ok = 0, fail = 0;
     for (const auto& m : scene.meshes) {
@@ -504,13 +531,23 @@ int run_mesh(const Args& a) {
         ++shown;
         if (m.decoded) ++ok; else ++fail;
         if (m.decoded) {
-            std::printf("  %-26s %7u %7u  %-16s  [%.2f %.2f %.2f]..[%.2f %.2f %.2f]\n",
+            std::printf("  %-26s %7u %7u %4u  %-16s  %-22s  "
+                        "[%7.2f %7.2f %7.2f]  "
+                        "[%.2f %.2f %.2f]..[%.2f %.2f %.2f]\n",
                         m.name.substr(0, 26).c_str(), m.vertex_count, m.face_count,
-                        m.material.substr(0, 16).c_str(),
+                        m.showing ? 1u : 0u, m.material.substr(0, 16).c_str(),
+                        m.parent.substr(0, 22).c_str(),
+                        m.world_stored.pos[0], m.world_stored.pos[1],
+                        m.world_stored.pos[2],
                         m.bb_min[0], m.bb_min[1], m.bb_min[2],
                         m.bb_max[0], m.bb_max[1], m.bb_max[2]);
             if (!a.name.empty()) {
                 std::printf("      parent=%s\n", m.parent.c_str());
+                std::printf(
+                    "      constraint=%u target=%s preserve_scale=%u\n",
+                    static_cast<unsigned>(m.constraint),
+                    m.target.empty() ? "(none)" : m.target.c_str(),
+                    m.preserve_scale ? 1u : 0u);
                 std::printf("      local pos=[%.4f %.4f %.4f]\n",
                             m.local.pos[0], m.local.pos[1], m.local.pos[2]);
                 std::printf("      local row0=[%.4f %.4f %.4f]\n",
@@ -555,7 +592,7 @@ int run_mesh(const Args& a) {
                     }
                     std::printf("      raw uv range u=[%.4f %.4f] v=[%.4f %.4f]\n",
                                 min_u, max_u, min_v, max_v);
-                    const std::size_t rows = std::min<std::size_t>(m.verts.size(), 16);
+                    const std::size_t rows = m.verts.size();
                     for (std::size_t vi = 0; vi < rows; ++vi) {
                         const auto& v = m.verts[vi];
                         std::printf(
@@ -564,8 +601,7 @@ int run_mesh(const Args& a) {
                             vi, v.px, v.py, v.pz, v.u, v.v,
                             v.r, v.g, v.b, v.a);
                     }
-                    const std::size_t face_rows =
-                        std::min<std::size_t>(m.indices.size() / 3, 32);
+                    const std::size_t face_rows = m.indices.size() / 3;
                     for (std::size_t fi = 0; fi < face_rows; ++fi) {
                         const std::size_t ii = fi * 3;
                         std::printf("      f%-2zu idx=[%u %u %u]\n", fi,
@@ -656,15 +692,34 @@ int run_mesh(const Args& a) {
         for (const auto& env : scene.environs) {
             std::printf(
                 "    %s decoded=%u lights=%zu color_a=(%.3f %.3f %.3f %.3f) "
-                "range=(%.3f %.3f %.3f) fog=%u color_b=(%.3f %.3f %.3f %.3f)\n",
+                "range=(%.3f %.3f %.3f) fog=%u color_b=(%.3f %.3f %.3f %.3f) "
+                "legacy_draw=%u refs=%zu\n",
                 env.name.c_str(), env.decoded ? 1u : 0u, env.lights.size(),
                 env.color_a[0], env.color_a[1], env.color_a[2],
                 env.color_a[3], env.range_a, env.range_b, env.range,
                 env.fog_enabled ? 1u : 0u, env.color_b[0], env.color_b[1],
-                env.color_b[2], env.color_b[3]);
+                env.color_b[2], env.color_b[3],
+                env.legacy_drawable_showing ? 1u : 0u,
+                env.legacy_drawable_refs.size());
+            if (!env.legacy_drawable_refs.empty()) {
+                std::printf("      legacy_drawables:");
+                for (const auto& ref : env.legacy_drawable_refs) {
+                    std::printf(" %s", ref.c_str());
+                }
+                std::printf("\n");
+            }
             for (std::size_t i = 0; i < env.lights.size(); ++i)
                 std::printf("      %3zu  %s\n", i, env.lights[i].c_str());
         }
+    }
+    if (scene.panel_dir_config_valid) {
+        std::printf(
+            "\n  PanelDir config: environment=%s camera=%s enter_event=%s\n",
+            scene.panel_environment.empty() ? "(none)"
+                                            : scene.panel_environment.c_str(),
+            scene.panel_camera.empty() ? "(none)" : scene.panel_camera.c_str(),
+            scene.panel_enter_event.empty() ? "(none)"
+                                            : scene.panel_enter_event.c_str());
     }
     if (!scene.groups.empty()) {
         std::printf("\n  groups (%zu):\n", scene.groups.size());
@@ -766,12 +821,18 @@ int run_groups(const Args& a) {
     for (const auto& g : scene.groups) {
         if (!a.name.empty() && g.name != a.name) continue;
         ++shown;
-        std::printf("  %-26s decoded=%d showing=%d draw=%.3f children=%zu parent=%s env=%s draw_only=%s\n",
+        std::printf("  %-26s decoded=%d showing=%d draw=%.3f children=%zu anim_children=%zu parent=%s env=%s draw_only=%s\n",
                     g.name.substr(0, 26).c_str(), g.decoded ? 1 : 0,
                     g.showing ? 1 : 0, g.draw_order, g.children.size(),
+                    g.anim_children.size(),
                     g.parent.c_str(), g.environment_ref.c_str(),
                     g.draw_only.empty() ? "<none>" : g.draw_only.c_str());
         if (g.has_transform) {
+            std::printf(
+                "      constraint=%u target=%s preserve_scale=%u\n",
+                static_cast<unsigned>(g.constraint),
+                g.target.empty() ? "(none)" : g.target.c_str(),
+                g.preserve_scale ? 1u : 0u);
             std::printf("      local pos=[%.4f %.4f %.4f]\n",
                         g.local.pos[0], g.local.pos[1], g.local.pos[2]);
             std::printf("      world pos=[%.4f %.4f %.4f]\n",
@@ -780,6 +841,10 @@ int run_groups(const Args& a) {
         }
         for (std::size_t i = 0; i < g.children.size(); ++i) {
             std::printf("      %3zu  %s\n", i, g.children[i].c_str());
+        }
+        for (std::size_t i = 0; i < g.anim_children.size(); ++i) {
+            std::printf("      anim %3zu  %s\n", i,
+                        g.anim_children[i].c_str());
         }
     }
     std::printf("\n%d group%s shown\n", shown, shown == 1 ? "" : "s");

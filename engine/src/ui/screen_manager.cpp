@@ -751,7 +751,19 @@ std::string ScreenManager::localize(Symbol token) {
   if (it != locale_.end()) return it->second;
   const std::string ps2_key = std::string(token.c_str()) + "_ps2";
   it = locale_.find(Symbol(ps2_key.c_str()).id());
-  return it == locale_.end() ? std::string(token.c_str()) : it->second;
+  if (it != locale_.end()) return it->second;
+
+  // GH2's originally single-outfit characters have no *_outfit_blurb entry
+  // because retail never opened the outfit picker for them. Preserve that
+  // source absence as an empty description; a character biography is not
+  // canonical outfit copy.
+  const std::string key = token.c_str();
+  constexpr std::string_view suffix = "_outfit_blurb";
+  if (key.size() > suffix.size() &&
+      key.compare(key.size() - suffix.size(), suffix.size(), suffix) == 0) {
+    return {};
+  }
+  return key;
 }
 void ScreenManager::on_unhandled(const std::string& what) {
   if (unhandled_seen_.emplace(what, true).second) unhandled_.push_back(what);

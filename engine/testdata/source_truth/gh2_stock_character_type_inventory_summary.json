@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "generated_by": "tools/re_anim_audit.py --character-classes",
+  "source": {
+    "disc": "GH2 USA SLUS-21447",
+    "redump_md5": "317968cd573b183f3c697bb94e8c8ee6",
+    "main_hdr_sha256": "027176E241DE0BC28AF347403E9732E47260ED14A0FB322BB65FCC20D23FD4FD",
+    "main_0_ark_sha256": "8CADFB195D6783A7A95A72F3A4DBB56695A364452BBE96881F4166A437520D21"
+  },
+  "characters": 24,
+  "types": {
+    "AnimFilter": 208,
+    "CharDriver": 25,
+    "CharDriverMidi": 38,
+    "CharEyes": 19,
+    "CharForeTwist": 38,
+    "CharHair": 28,
+    "CharIKHand": 38,
+    "CharIKMidi": 19,
+    "CharIKRod": 2,
+    "CharLookAt": 38,
+    "CharPosConstraint": 1,
+    "CharServoBone": 24,
+    "CharUpperTwist": 48,
+    "CharWalk": 19,
+    "CharWeightSetter": 38,
+    "EventTrigger": 208,
+    "FaceFxLipSyncServo": 17,
+    "Group": 291,
+    "Mat": 214,
+    "Mesh": 3140,
+    "Morph": 212,
+    "Object": 17,
+    "OutfitLoader": 20,
+    "Tex": 159,
+    "Trans": 1861,
+    "WorldFx": 87
+  },
+  "failures": []
+}

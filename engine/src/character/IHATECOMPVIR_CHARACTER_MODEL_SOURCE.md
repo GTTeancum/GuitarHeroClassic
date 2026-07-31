@@ -182,7 +182,7 @@ source proves there is no usable runtime class/body to port from that file.
 | `CharIKFoot.cpp` | `ghogx_character_ik_foot_source_test` | `fenced-runtime-gap` |
 | `CharIKHand.cpp` | `ghogx_character_ik_hand_source_test` | `ported-visible-source` |
 | `CharIKHead.cpp` | `ghogx_character_ik_head_source_test` | `fenced-runtime-gap` |
-| `CharIKMidi.cpp` | `ghogx_character_ik_midi_source_test` | `fenced-runtime-gap` |
+| `CharIKMidi.cpp` | `ghogx_character_ik_midi_source_test` | `ported-gh2-ps2-runtime` |
 | `CharIKRod.cpp` | `ghogx_character_ik_rod_source_test` | `fenced-runtime-gap` |
 | `CharIKScale.cpp` | `ghogx_character_ik_scale_source_test` | `fenced-runtime-gap` |
 | `CharIKSliderMidi.cpp` | `ghogx_character_ik_slider_midi_source_test` | `fenced-runtime-gap` |
@@ -261,9 +261,9 @@ character model playback.
 | `DisplayIKMidi.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `rb2-dump-diagnostic-only` |
 | `OutfitLoader.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `rb2-dump-bodyless-runtime-gap` |
 
-`CharWalk` and `OutfitLoader` are live stock GH2 character row families, but
-the reviewable ihatecompvir evidence for both is RB2 dump-only and not enough
-to port a serialized loader. `CharWalk::Load` is named at range
+`CharWalk` and `OutfitLoader` are live stock GH2 character row families. The
+reviewable ihatecompvir evidence for both remains RB2 dump-only and is not by
+itself enough to port a serialized loader. `CharWalk::Load` is named at range
 `0x8039BCA4 -> 0x8039BD64` and only exposes `Debug TheDebug` plus static
 `gRev` references; `CharWalk::Save` is empty. The remaining dump ranges are
 `CharWalk::Poll`
@@ -280,8 +280,99 @@ Those rows map runtime names and locals without the full statement body.
 (`0x803AC728 -> 0x803AC8F0`). It maps category/file-path loop locals without
 proving the load layout.
 
-Native keeps both rows opaque until a reviewable
-loader body or direct original-game trace proves the serialized behavior.
+Supplemental direct GH2 retail evidence closes the serialized layouts without
+pretending that the missing runtime bodies are present. Every stock
+`CharWalk1` body is revision 1 plus the complete standalone `ObjectFields0`
+row and has no residual bytes. `SLUS_214.47` OutfitLoader save at `0x0018AEC8`
+and load at `0x0018B170` establish revision/Object fields, `FilePath`, `u16`
+category count, selected/shown bytes, `u16` outfit counts, and
+hide/desire/exclude bytes. Native now decodes and round-trips both row families.
+It does not claim the unrecovered `CharWalk::Poll` movement algorithm or
+OutfitLoader runtime switching behavior from those format facts.
+
+GH2 retail static analysis supplements the bodyless RB2 CharWalk map without
+conflating live behavior with serialization. `SLUS_214.47` registers CharWalk
+through the factory path at `0x003431B0` (allocation size `0xCB0`) and exposes
+constructor `0x00184600`, `SetName` `0x001849A0`, `Enter` `0x00184A00`,
+`Poll` `0x00184B10`, `Save` `0x00187488`, `Copy` `0x001874D8`, `Load`
+`0x00187528`, `Handle` `0x00187580`, and `SyncProperty` `0x00187640`.
+The live Poll path reaches the owning character driver, so it remains
+separate from the empty serialized tail. A bounded retail decompilation now
+recovers the outer state machine: `Poll` is
+`0x00184B10..0x00184CC8`, the start/setup body is
+`0x00184CC8..0x00184FD0`, prediction and regulation continue through
+`0x0018592C`, and the walk/turn/stop chooser and plan bodies continue through
+`0x00187278`. Those accesses corroborate the ihatecompvir `0xCB0` layout and
+the exact `None=0`, `Going=1`, `Stopping=2` state enum. Native now keeps that
+state distinct from its turn/walk/stop clip phase. Stock target type data is
+also live: `BandCharacter/guitarist` supplies the five walk delays, waypoint
+mask, and maximum wait, while `CharWalk/guitarist` supplies path radius.
+Serialized `walk_turn`, `walk_walk`, and `walk_stop` `CharClipGroup` rows
+supply the clips. The adjacent GH2 retail scheduler is
+now recovered from `BandCharacter::Poll` and its timed task: disabled delay
+rows use `1e30`, enabled rows alone consume `RandomFloat`, normal requests use
+`kWalkSpot` (`0x40`) for at most `max_walk_wait`, and the local-direction
+threshold/turn/walk/final flag tuple is implemented exactly. Retail
+`Waypoint::FindNearest` at `0x00190770` is minimum squared distance among
+source-order nodes sharing any requested flag. `0x00190E98` scans possible
+destinations in the mutable global registry; `0x00190D30` performs
+source-order DFS over decoded connection rows, rejects blocked intermediate
+nodes, and moves a successful destination to the registry tail. Native
+`source_charwalk_find_route` and the live GH2-native path implement this
+graph contract. GH2 retail `CharClip::FindNode` at
+`0x00196888..0x00196A70` is also typed: modes 3/4 use the authored first/last
+transition-node scans before a timing/beat-align synthesized node. The
+adjacent turn scorer is implemented as well: source `FirstPlaying` skips a
+zero-weight driver head, current-to-turn uses mode 3, turn-to-walk uses the
+last authored node, `bone_facing` root/heading prediction rejects candidates
+that increase remaining squared distance, and the strict minimum wrapped
+angular error wins with authored order breaking ties. Native playback uses
+the recovered turn-start, turn-exit, and walk-start beats.
+`RegulateWalk`'s geometric corridor is typed too: waypoint-plane crossing,
+segment projection, path-radius confinement, and the signed
+`-asin(crossZ/(max(5,lenA)*max(5,lenB))) * Character[0x23C]` correction are
+covered by focused tests. `0x00161918` proves that `+0x23C` is one of the
+owning Character's TaskMgr time deltas, also consumed by the clip driver; it
+is not `CharServoBone::mMoveSelf`.
+
+The plan feed and final stop candidate are now typed too. `0x00186F80`
+extends the turn/walk schedule through the walk clip's authored
+self-transition and records one-beat cumulative-distance PlanPoints.
+`0x00186350` reverse-predicts source-order flag-matching stop clips, aligns
+integer beat parity, searches points in two-beat steps, scores radius error
+plus heading error, applies decoded waypoint-radius displacement, trims the
+schedule, and appends the winning stop. Native ForwardPredict carries beat
+overrun across schedule boundaries; BackPredict uses authored intermediate
+waypoints and reverse prediction from the final target; live playback now
+feeds both into the signed corridor controller.
+
+The later plan-distance term is now recovered from
+`0x001856F8..0x001858F4` too. The GH2 layout places `mCurPoint` at `+0x6C`,
+`mLastPoint` at `+0x70`, PlanPoints at `+0x74`, `mOffsetSpeed` at
+`+0xC74`, and the beat remainder at `+0xC78`. Passing an authored PlanPoint
+recomputes offset speed as
+`(realRemainingDistance-estimatedRemainingDistance) /
+min(mLastPoint-mCurPoint,2)`, then advances the point cursor. Each frame moves
+the character toward ForwardPredict by the normalized
+`frameDelta*mOffsetSpeed` amount. The stop chooser's `0x00186934` store sets
+`mLastPoint` to the selected alignment point, not the earlier overshoot
+sentinel count. Native now implements and focused-tests that point cursor,
+distance correction, and selected-point replacement. The remaining live
+boundary is complete `CharClipDriver` ownership across the full character
+matrix plus matched retail comparison. The hidden, input-free, native-only
+Arena proof now completes a three-waypoint route through an authored turn,
+four repeated walks, a stop clip, and destination handoff. Evidence:
+`proofs/gh1-native-conversion-parity/charwalk-motion-plan-complete/`.
+Evidence:
+`proofs/gh1-native-conversion-parity/charwalk-runtime-contract/` and
+`proofs/gh1-native-conversion-parity/native-charwalk-controller/`.
+
+GH2's `actually_walking` script symbol is independently registered at
+`0x0010CD64`. Dispatch at `0x0010CD88` loads `Character+0x248` and calls
+`CharWalk` body `0x00184FD0`; that body requires `mState > 0`, a most-playing
+driver, and equality between its clip and
+`mClips[min(mCurNode-2,last)]`. The native camera bridge now mirrors both the
+active-state and current-walk-clip sides of that predicate.
 
 ## Source Coverage Matrix
 
@@ -320,7 +411,8 @@ loader body or direct original-game trace proves the serialized behavior.
 | Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `ChunkStream.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows, cached bitmap headers, and source-backed payload byte boundaries; texture upload stays on the existing PS2 image asset path. |
 | Rnd utility animation rows | `rb3-latest` `AnimFilter.cpp` / `Anim.cpp` | Decode/log stock `AnimFilter` rows and mirror the source-visible filter math/bookkeeping as passive contracts; no trigger or animation runtime hookup. |
 | Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
-| Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Native records opaque row names, types, sizes, and byte prefixes, but does not decode or run them unless the exact source load path is present. |
+| WorldFx directory wrapper and live gate | MiloEditor/ihatecompvir `RndDir`, `ObjectDir`, `RndTransformable`, `RndDrawable`, and `RndAnimatable` readers; GH2 retail static trace at `SLUS_214.47:0x002725D0`, `0x002726B8`, `0x002728E0`, and `0x00272BC8` | Native parses revision-1 WorldFx as the inherited revision-8 RndDir contract, resolves and renders its proxy directory, and keeps the retail start/stop running gate distinct from serialized drawable visibility. |
+| Formerly fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`; supplemental GH2 retail OutfitLoader save/load trace and exact packed round trips | Native decodes the complete serialized CharWalk1 and OutfitLoader1 rows. The unrecovered live walk/switching algorithms remain fenced; current performer/crowd package sweeps contain zero opaque rows. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
 | Hair wind dependency | `rb3-latest/src/system/rndobj/Wind.cpp` / `Wind.h`, `CharHair.cpp` `mWind` row | Native helper ports `RndWind` defaults, load/copy/owner/loop-rate rows, handlers, and prop-sync contracts; stock GH2 character `CharHair` revision 2 rows do not read `mWind`, and native does not synthesize wind force without `SelfGetWind` body evidence. |
 | Fur material row boundary | `rb3-latest/src/system/rndobj/Fur.cpp` / `Fur.h`, RB2 dump `rndobj/Fur.cpp` | Native helper mirrors `RndFur` save/load/copy/handler/empty prop-sync rows and the RB2 dump member layout as format evidence only; stock GH2 character inventory has no `Fur` rows and native does not change renderer, material, or hair physics from this row. |
@@ -331,10 +423,10 @@ loader body or direct original-game trace proves the serialized behavior.
 | Waypoint clip/path diagnostics | `rb3-latest` `Waypoint.cpp` / `Waypoint.h` | Native helper ports source defaults/load/copy, prop sync, handlers, and `ShapeDeltaBox` / `ShapeDeltaAng` / `Constrain` math for diagnostics; no live camera/path behavior is invented. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
 | Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve and `PollDeps` order without adding an unproven frame-cadence write. |
-| Hand/head/foot IK, IK MIDI, slider MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKFoot.cpp` / `CharIKFoot.h`, `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKSliderMidi.cpp` / `CharIKSliderMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK foot helpers port source helper-target setup, FSM, load gates, and delegation plan without inventing row hookup; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields and now expose source Enter/PollDeps/copy/handler/prop-sync plans while fencing the absent `Poll` / `NewSpot` bodies; IK slider MIDI helpers port source defaults, dependency publication, setup reset, load gates, and copy flow without inventing the absent `Poll` / `SetFraction` bodies; IK fingers helpers port source defaults, left/right finger transform names, setup completeness, visible SetFinger/ReleaseFinger state writes, load gates, and copy flow without promoting the incomplete `Poll` / `MeasureLengths` path. |
+| Hand/head/foot IK, IK MIDI, slider MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKFoot.cpp` / `CharIKFoot.h`, GH2 PS2 `SLUS_214.47` `CharIKMidi::NewSpot` / `Poll`, `rb3-latest` `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKSliderMidi.cpp` / `CharIKSliderMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK foot helpers port source helper-target setup, FSM, load gates, and delegation plan without inventing row hookup; IK MIDI rows decode/log `mBone` and revision-gated legacy/anim-blend fields, while the exact GH2 PS2 runtime uses parser-provided destination beats, `DeltaBeat`, source fraction/rate branches, source half-cosine easing, and the resolved shared character/instrument transform graph; IK slider MIDI helpers port source defaults, dependency publication, setup reset, load gates, and copy flow without inventing the absent `Poll` / `SetFraction` bodies; IK fingers helpers port source defaults, left/right finger transform names, setup completeness, visible SetFinger/ReleaseFinger state writes, load gates, and copy flow without promoting the incomplete `Poll` / `MeasureLengths` path. |
 | IK scale controller | `rb3-latest` `CharIKScale.cpp` / `CharIKScale.h` | Native helper ports constructor defaults, source poll gate, capture-before/after scale rows, and dependency publication; the checked source `Poll` body has no implemented scale write. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
-| Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Handler and prop-sync row plans now mirror the visible source rows. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
+| Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h`; GH2 retail `0x00169E40..0x0016A0F8` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Handler and prop-sync row plans mirror the visible source rows. Zero-argument cycling and the retail flagged `GetClip(int)` cyclic scan/promotion are both recovered; native CharWalk carries serialized `mWhich` and uses the flagged path for `walk_walk`. |
 | Clip set preview/editor container | `rb3-latest` `CharClipSet.cpp` / `CharClipSet.h` | Native helper ports reset/default state, group randomize/sort dispatch, load/pre/post-load, pre/post-save preview handling, handler rows, preview character decisions, frame helpers, and BPM update; it does not promote clip playback runtime. |
 | Clip display/task graph diagnostics | `rb3-latest` `CharClipDisplay.cpp` / `CharClipDisplay.h`, `CharTaskMgr.cpp` / `CharTaskMgr.h` | Native helper ports display init, source lookup, text width plus em, bounded start/end bookkeeping, line spacing, and task-graph toggle registration. This is diagnostic/editor-only and does not change runtime clip playback. |
 | Clip editor/collision/graph diagnostics | `rb3-latest` `ClipCollide.cpp` / `ClipCollide.h`, `ClipGraphGen.cpp` / `ClipGraphGen.h`, `ClipDistMap.h`, `ClipCompressor.cpp`, `FileMerger.cpp` / `FileMerger.h` | Native helper ports source-visible editor defaults, transition-generation gates, list/test call plans, and merger row defaults only; no live collision, transition graph execution, compression, or file merging behavior is promoted. |
@@ -3471,7 +3563,18 @@ note, and all report `unreadBytes=0`.
     (`0x803B4BC0 -> 0x803B4C7C`), and `OnWaypointLast`
     (`0x803B4C9C -> 0x803B4D90`) with locals, but not statement bodies. Native
     `source_waypoint_registered_command_dump_evidence` records those dump-only
-    facts and keeps both commands out of promoted runtime behavior.
+    facts. Separate GH2 retail evidence at `SLUS_214.47:0x00190660` registers the same
+    commands and maps `waypoint_find` to `0x00191020` and `waypoint_last` to
+    `0x00191160`. The latter scans the global registry and transfers the
+    selected list node to its end. The character type-script host now promotes
+    that bounded find/last contract through
+    `CharacterTypeScriptWaypointRegistry`.
+    GH2 retail `0x00190770` separately closes `FindNearest` as a
+    construction-order scan selecting the minimum squared world-position
+    distance among nodes with any overlapping requested flag.
+    `0x00190E98`/`0x00190D30` close live route selection as source-order DFS
+    over `mConnections`, with blocked intermediate flags and successful
+    destination rotation to the registry tail.
   - `Waypoint::Load` accepts source revisions through 5. Native
     `source_waypoint_load_plan` records the same row order: `Hmx::Object`, a
     legacy drawable for revisions below 5, `RndTransformable`, `mFlags`,
@@ -3495,9 +3598,9 @@ note, and all report `unreadBytes=0`.
   - `Constrain` applies strict radius correction only when
     `mStrictRadiusDelta > 0` and strict angle correction only when
     `mStrictAngDelta > 0`, writing the adjusted transform rows.
-  - Native helpers are source-only deterministic diagnostics for decoded
-    waypoint semantics. They do not create live camera, navigation, or path
-    behavior.
+  - Native deterministic helpers retain the format semantics, and the
+    GH2-native CharWalk path now consumes exact revision-3 connection rows for
+    live navigation. Raw GH1 compatibility remains isolated.
 
 ## Bone Offset Authorities
 
@@ -3727,11 +3830,26 @@ note, and all report `unreadBytes=0`.
     `Hmx::Object`, then `mBone`. Revisions below 3 read a legacy spot vector;
     revisions 2 and 3 read a legacy string; revisions above 4 read
     `mAnimBlender` and `mMaxAnimBlend`.
-  - Native GHOGX decodes/logs the same source-gated fields as passive row
-    inventory and enforces the source revision range. The viewer/gameplay
-    fret-target helper remains diagnostic application glue until
-    `CharIKMidi::NewSpot` / `Poll` bodies are available from ihatecompvir
-    source.
+  - Native GHOGX keeps the same source-gated fields as passive row inventory and enforces the source revision range before consuming any revision-gated payload.
+  - The GH2 PS2 `CharIKMidi::NewSpot` and `Poll` runtime contract is now recovered
+    directly from `SLUS_214.47`: `NewSpot` receives the mapped event's absolute
+    destination beat minus `TheTaskMgr.Beat()`. Nonpositive duration stores
+    fraction `1` and rate `0`; positive duration stores fraction `0` and rate
+    `1 / remaining_beats`. `Poll` adds `TheTaskMgr.DeltaBeat() * rate`, clamps
+    the fraction, and uses the PS2 half-cosine expression
+    `0.5 - 0.5 * sin(pi * fraction + pi/2)`.
+  - The paired parser contract is also source-backed. `player*_fret_pos` is
+    `(inverted TRUE)` with `(min_gap 0.22)` and no realtime-gap flag.
+    `MidiParser::FixGap` adjusts event ends in beats; it does not filter dense
+    notes. `DataEventList::Invert` turns the adjusted preceding end into the
+    next target's dispatch beat and retains the original note-on beat as its
+    transition destination.
+  - Runtime target resolution uses the serialized `CharIKMidi::bone` reference
+    in the shared character/instrument object graph. This matters because stock
+    `fret.ik` points at instrument-owned `bone_fret.mesh`, not a character bone.
+    Both raw-GH1 compatibility and converted-GH2-native routes emit full-float
+    target ledgers containing event/current/target/delta beats, fraction/rate,
+    easing weight, and source/spot/desired/applied matrices.
   - Native `source_char_ik_midi_*` helpers record the checked source
     constructor/`Enter` state reset, load gates, `PollDeps`, copy-member list,
     `new_spot` handler row, and prop sync rows. `Enter` clears current/new
@@ -4047,6 +4165,19 @@ note, and all report `unreadBytes=0`.
     and scalable hands remeasure each poll. Runtime hand IK now keeps that
     per-controller cache and feeds the cosine helper from the cached source
     fields without pre-clamping target distance.
+  - The later RB3 `ClampEq(-1, 1)` row is not the exact GH2 PS2 target
+    constant. Static analysis of `SLUS_214.47` locates `CharIKHand::Poll` at
+    `0x0017A080`; `0x0017A1AC..0x0017A1EC` materializes
+    `0xBF7C28F6`/`0x3F7C28F6`, or `-0.985`/`+0.985`, around the elbow-cosine
+    branch. Native uses that recovered target clamp after the shared source
+    scalar helper. This is a versioned GH2 contract, not an asset-specific
+    correction.
+  - `CharIKHand`, `CharForeTwist`, and `CharUpperTwist` references are mutable
+    `Trans` targets, not bone-table-only keys. Stock GH2 controller inventory
+    includes `.mesh` references, while converted GH1 revision-10 skeletons are
+    zero-geometry `RndMesh` transform graphs. Native resolves both bone and
+    mesh records through one transform namespace before applying the same GH2
+    controller code.
   - Native `write_source_elbow_z_bend` now mirrors the visible
     `CharIKHand::IKElbow` in the handwritten C++ row writes:
     `DirtyLocalXfm().m.Set(0, 0, 0, -sqrted, 0, 0, sqrted, 0, 1)`.
@@ -4562,18 +4693,24 @@ note, and all report `unreadBytes=0`.
     source loops over `mClips`, assigns each clip to a local pointer, increments
     that local pointer, and leaves the `LockAndDelete` call commented out. This
     is not active cleanup behavior.
-  - `CharClipGroup.h` still declares `GetClip(int)`, `HasClip`,
-    `SetClipFlags`, `Randomize`, `RandomizeIndex`, `Copy`, and `Replace`, but
-    the checked `CharClipGroup.cpp` snapshot does not expose those bodies.
-    Source-backed runtime group selection is therefore limited to the concrete
-    zero-argument `GetClip()` cycling path and the visible helpers above.
+  - `CharClipGroup.h` declares `GetClip(int)`, but the checked
+    `CharClipGroup.cpp` snapshot does not expose that body. GH2 retail fills
+    the gap directly at `0x00169E40..0x0016A0F8`: it scans cyclically from
+    `mWhich + 1`, accepts the first clip satisfying
+    `(clip->mFlags & required) == required`, promotes that entry into the next
+    cyclic slot, updates `mWhich`, and returns it. Native CharWalk now carries
+    the serialized group index and applies this exact selection/promotion to
+    its authored `walk_walk` group. `HasClip`, `SetClipFlags`, `Randomize`,
+    `RandomizeIndex`, `Copy`, and `Replace` remain bodyless in the checked
+    snapshot.
   - Gameplay routes authored `CharClipGroup` resolution through the shared
     character helper so the same source-backed reader feeds both WorldCrowd and
     performer sync group lookup.
   - The older native graph/stance continuity chooser is not source behavior and
     is removed from guitarist0 `normal` group selection. Runtime still does not
     claim the full `CharDriver::PlayGroup` or `CharDriverMidi` scheduling path;
-    this slice ports only the concrete `GetClip()` group advance.
+    this slice ports the concrete zero-argument group advance plus the
+    retail-recovered flagged advance used by CharWalk.
 - `rb3-latest/src/system/char` exposes source files for `CharClip`,
   `CharClipDriver`, `CharDriver`, `CharBones`, `CharBonesSamples`,
   `CharBonesMeshes`, and related clip runtime classes. The previous local note
@@ -5444,21 +5581,26 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
 
 ## Remaining Stock Type Boundary
 
-The refreshed stock type inventory at
+The historical stock type inventory at
 `engine/out/source_truth_controller_inventory_20260710/stock_character_type_inventory_latest.log`
-still reports undecoded non-mesh rows in stock character MILOs. These are
-bounded as follows:
+recorded the formerly undecoded non-mesh rows in stock character MILOs. Their
+current boundaries are:
 
 - `CharWalk`: 19 stock rows. The RB2 dump includes `CharWalk.cpp` and maps
   runtime functions such as `Poll`, `ForwardPredict`, `BackPredict`, and
   `RegulateWalk`, but `CharWalk::Load` at `0x8039BCA4 -> 0x8039BD64` only
-  exposes `Debug TheDebug` and `gRev` references, not a field read order.
-  Native does not decode or run these rows.
+  exposes `Debug TheDebug` and `gRev` references. Packed-body round trips prove
+  that revision 1 contains only the complete `ObjectFields0` row. Native
+  decodes that exact row with zero residual bytes but does not invent the
+  missing walk/runtime algorithm.
 - `OutfitLoader`: 20 stock rows. The RB2 dump exposes loader/change-outfit
   runtime surfaces and a `Save` loop over categories, but `OutfitLoader::Load`
   at `0x803AC8F4 -> 0x803AC950` is an empty/bodyless dump row and
-  `OutfitLoader::PostLoad` is also empty. Native does not treat these rows as
-  character mesh or controller data.
+  `OutfitLoader::PostLoad` is also empty. Direct GH2 retail save/load traces at
+  `SLUS_214.47:0x0018AEC8` and `0x0018B170` prove the complete revision-1
+  serialized contract. Native decodes its Object fields, directory, category
+  selected/shown state, and every outfit hide/desire/exclude state without
+  promoting an unproven live switching algorithm.
 - `CharPollGroup`: zero stock rows in the focused 24-character base-MILO type
   inventory. ihatecompvir source is sufficient to decode and poll a future
   verified row, but the current GH2 stock base-character data does not justify
@@ -5481,10 +5623,20 @@ bounded as follows:
   but does not change texture upload or material binding; native texture
   payloads are already handled by the PS2 texture asset path
   (`asset/milo_image.*`) keyed from material diffuse texture names.
-- `WorldFx`: 99 stock rows. The available ihatecompvir evidence is only
-  `DirLoader::FixClassName`/symbol references for `WorldFx`; there is no
-  checked `WorldFx::Load` source body. Native keeps these rows as inventory
-  evidence only.
+- `WorldFx`: the current complete stock sweep finds 87 rows across 17 of the
+  24 base performer packages plus one row in each of 13 crowd packages, for
+  100 decoded rows and zero failures. ihatecompvir still exposes no checked
+  `WorldFx::Load` body, so no class-specific field sequence was invented.
+  Instead, all observed revision-1 bodies are exactly accounted for by the
+  inherited revision-8 `RndDir` reader and writer, including its
+  `ObjectDir`, transformable, drawable, and animatable bases, with zero
+  residual bytes. Retail `SLUS_214.47` static analysis separately proves the
+  live behavior: `WorldFx::Poll` at `0x002725D0` gates on word `+0x98`,
+  `Start` at `0x002726B8` sets it, `Stop` at `0x002728E0` clears it, and the
+  handler at `0x00272BC8` dispatches exact `start`/`stop` messages. Native now
+  decodes, resolves, attaches, updates, and draws these proxy directories
+  through one shared crowd/performer path. Serialized `showing` is not treated
+  as the live running gate.
 - `Light` / `RndLight`: zero stock rows in the focused 24-character base-MILO
   type inventory. The native RndLight helpers remain source-backed converter
   and glTFMilo context, not a missing live character-model lighting path.
@@ -5512,19 +5664,30 @@ the source-backed decoder table declines it. The record is limited to entry
 name, class symbol, body byte count, and first/last byte prefixes. This is for
 stock-audit evidence only and is not a class-specific loader, controller, mesh,
 or material behavior path.
-Fresh proof at
+The historical pre-decoder proof at
 `engine/out/source_truth_opaque_rows_20260712/stock_character_opaque_type_inventory.log`
 records 138 opaque stock rows across the 24-character base set: 19 `CharWalk`,
 20 `OutfitLoader`, and 99 `WorldFx`, all tagged
-`note=no-source-loader-body`.
-The same boundary was rechecked against the current local stock asset set at
+`note=no-source-loader-body`. That log remains historical evidence for the
+exact package list it scanned, but both its WorldFx classification and its
+99-row coverage count are superseded by the current 100-row performer/crowd
+sweep, exact inherited-directory parse, and retail live-state trace above.
+The same historical boundary was rechecked at
 `engine/out/source_truth_object_inventory_20260712/stock_character_type_inventory.log`:
-24 base character MILOs were scanned, the opaque rows are still exactly 19
-`CharWalk`, 20 `OutfitLoader`, and 99 `WorldFx`, and the source-backed nearby
+24 base character MILOs were scanned, with exactly 19 `CharWalk`, 20
+`OutfitLoader`, and 99 `WorldFx` rows, and the source-backed nearby
 controller rows remain visible as 31 `CharHair`, 38 `CharIKHand`, 39
 `CharForeTwist`, 48 `CharUpperTwist`, and zero `CharIKFoot` rows. These counts
-are stock evidence, not permission to import a runtime body that ihatecompvir's
-checked sources do not expose.
+are stock evidence; they do not authorize a fabricated class-specific load
+body. WorldFx promotion is limited to the fully consumed inherited RndDir body
+and the separately proven retail runtime gate.
+
+The current 2026-07-28 decoder sweep supersedes that opaque classification.
+All 24 base performer packages report 20/20 OutfitLoader1, 19/19 CharWalk1,
+and 87/87 WorldFx1 rows decoded with zero failures and zero opaque rows.
+Thirteen explicit crowd packages add 13/13 WorldFx1 rows with zero failures
+and zero opaque rows. The 37-package combined character/crowd set therefore
+has no residual opaque object family.
 
 The local stock-asset audit log at
 `analysis/ihatecompvir_source_truth_20260710/stock_hair_bone_inventory.log`

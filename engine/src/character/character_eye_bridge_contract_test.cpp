@@ -221,13 +221,21 @@ int main() {
                  "source_gh2_post_multiply_local_rotation(pivot.local,rotation)",
                  "live path writes the current exact pivot local rotation");
   ok &= missing(live_stock_eyes, "is_eye_mesh_name(",
-                "live eye controller must not infer eye side from a name");
+                 "live eye controller must not infer eye side from a name");
+  ok &= contains(renderer_c,
+                 "for(constauto&eyes:character.eyes)",
+                 "renderer discovers eye-controlled surfaces from decoded CharEyes");
+  ok &= contains(renderer_c,
+                 "constautofound=lookats.find(lookat_ref);",
+                 "renderer resolves each decoded CharEyes look-at reference");
+  ok &= contains(renderer_c,
+                 "meshes.insert(found->second->source);",
+                 "renderer classifies the exact decoded CharLookAt source mesh");
   ok &= contains(controller_frame,
                  "apply_source_gh2_char_eyes_and_lookats(character,time_seconds)",
                  "controller frame runs the decoded GH2 eye path");
-  ok &= contains(compact(function_body(char_clip, "is_eye_mesh_name")),
-                 "lower.find(\"_eyel\")!=std::string::npos",
-                 "alternate PS2 eye mesh spellings remain available for diagnostics");
+  ok &= missing(char_clip, "is_eye_mesh_name",
+                "eye mesh spelling is not a runtime or diagnostic contract");
   ok &= contains(parse_animation,
                  "if(version!=1200&&version!=1500)",
                  "song FaceFX animations accept traced v1200 and v1500 FACE archives");

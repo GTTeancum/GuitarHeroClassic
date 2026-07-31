@@ -122,6 +122,8 @@ bool MenuFont::load(const std::string& hdr_path, const std::string& ark_path,
                     const std::string& milo_path,
                     const std::string& font_entry_name) {
   std::string atlas_entry_name;
+  material_color_ = {{1.0f, 1.0f, 1.0f, 1.0f}};
+  has_material_color_ = false;
   try {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
     auto entry = ark.find(milo_path);
@@ -150,7 +152,7 @@ bool MenuFont::load(const std::string& hdr_path, const std::string& ark_path,
     std::vector<uint8_t> body(payload.begin() + fe->offset,
                               payload.begin() + fe->offset + fe->size);
     if (!parse_font(body)) return false;
-    if (!font_entry_name.empty() && !material_name_.empty()) {
+    if (!material_name_.empty()) {
       for (const auto& e : dir.entries) {
         if (e.type != "Mat" || e.name != material_name_ ||
             e.offset + e.size > payload.size())
@@ -159,7 +161,13 @@ bool MenuFont::load(const std::string& hdr_path, const std::string& ark_path,
                                       payload.begin() + e.offset + e.size);
         const auto mat =
             milo_scene::decode_mat(e.name, mat_body);
-        if (mat.decoded) atlas_entry_name = mat.diffuse_tex;
+        if (mat.decoded) {
+          atlas_entry_name = mat.diffuse_tex;
+          for (std::size_t channel = 0; channel < material_color_.size();
+               ++channel)
+            material_color_[channel] = mat.color[channel];
+          has_material_color_ = true;
+        }
         break;
       }
     }

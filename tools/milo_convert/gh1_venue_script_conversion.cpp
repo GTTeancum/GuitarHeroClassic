@@ -450,8 +450,10 @@ class Lowerer {
 public:
     Lowerer(
         Gh2VenueScriptConversion& metrics,
-        const AuthoredRanges& authored_ranges)
-        : metrics_(metrics), authored_ranges_(authored_ranges) {}
+        const AuthoredRanges& authored_ranges,
+        const std::set<std::string>& state_variables)
+        : metrics_(metrics), authored_ranges_(authored_ranges),
+          state_variables_(state_variables) {}
 
     NodeList lower_sequence(const NodeList& source) {
         NodeList out;
@@ -467,6 +469,16 @@ public:
 
 private:
     NodeList lower(const NodePtr& source) {
+        if (source && source->tag == 0x02) {
+            const std::string name = text(source);
+            if (name.empty())
+                throw std::runtime_error(
+                    "milo convert: empty GH1 venue DataVariable");
+            if (state_variables_.find(name) ==
+                state_variables_.end())
+                return {clone_node(source)};
+            return {collection(0x13, {symbol(name)})};
+        }
         if (!source || !gh::dtb::is_array(*source))
             return {clone_node(source)};
         const auto& children = gh::dtb::children(*source);
@@ -627,6 +639,7 @@ private:
 
     Gh2VenueScriptConversion& metrics_;
     const AuthoredRanges& authored_ranges_;
+    const std::set<std::string>& state_variables_;
 };
 
 bool is_parameter_list(const NodePtr& node) {
@@ -655,10 +668,22 @@ Gh2VenueScriptConversion convert_gh1_venue_script_to_gh2_worlddir(
 
     FunctionMap functions;
     NodeList handler_rows;
+    std::vector<std::pair<std::string, std::string>> loaded_sections;
+    std::vector<std::pair<std::string, NodePtr>> initial_states;
+    size_t source_roots = 0;
+    size_t recognized_roots = 0;
+    size_t unrecognized_roots = 0;
+    std::vector<std::string> unrecognized_root_forms;
     for (const auto& root : roots) {
+        ++source_roots;
         if (!root || root->tag != 0x11 ||
-            !gh::dtb::is_array(*root))
+            !gh::dtb::is_array(*root)) {
+            ++unrecognized_roots;
+            unrecognized_root_forms.push_back(
+                !root ? "<null>" :
+                "<tag:" + std::to_string(root->tag) + ">");
             continue;
+        }
         const auto& children = gh::dtb::children(*root);
         if (children.size() >= 2 &&
             text(children[0]) == "func") {
@@ -680,6 +705,7 @@ Gh2VenueScriptConversion convert_gh1_venue_script_to_gh2_worlddir(
                  index < children.size(); ++index)
                 function.body.push_back(children[index]);
             functions.emplace(name, std::move(function));
+            ++recognized_roots;
             continue;
         }
         if (children.size() >= 3 &&
@@ -687,17 +713,82 @@ Gh2VenueScriptConversion convert_gh1_venue_script_to_gh2_worlddir(
             text(children[1]) == "add_handlers") {
             for (size_t index = 2;
                  index < children.size(); ++index) {
-                if (children[index] &&
-                    children[index]->tag == 0x10)
-                    handler_rows.push_back(children[index]);
+                if (!children[index] ||
+                    children[index]->tag != 0x10)
+                    throw std::runtime_error(
+                        "milo convert: GH1 venue add_handlers contains "
+                        "a non-handler entry");
+                handler_rows.push_back(children[index]);
             }
+            ++recognized_roots;
+            continue;
         }
+        if (children.size() == 4 &&
+            text(children[0]) == "arena" &&
+            text(children[1]) == "load_section") {
+            const std::string section = text(children[2]);
+            const std::string directory = text(children[3]);
+            if (section.empty() || directory.empty())
+                throw std::runtime_error(
+                    "milo convert: GH1 venue load_section has an empty "
+                    "section or directory");
+            loaded_sections.emplace_back(section, directory);
+            ++recognized_roots;
+            continue;
+        }
+        if (children.size() == 3 &&
+            text(children[0]) == "set" &&
+            children[1] && children[1]->tag == 0x02) {
+            const std::string variable = text(children[1]);
+            if (variable.empty())
+                throw std::runtime_error(
+                    "milo convert: GH1 venue top-level state initializer "
+                    "has an empty variable");
+            if (std::any_of(
+                    initial_states.begin(), initial_states.end(),
+                    [&](const auto& state) {
+                        return state.first == variable;
+                    }))
+                throw std::runtime_error(
+                    "milo convert: duplicate GH1 venue top-level state "
+                    "initializer " + variable);
+            initial_states.emplace_back(
+                variable, clone_node(children[2]));
+            ++recognized_roots;
+            continue;
+        }
+        ++unrecognized_roots;
+        std::string form = "<array>";
+        if (!children.empty() && !text(children[0]).empty())
+            form = text(children[0]);
+        if (children.size() > 1 && !text(children[1]).empty())
+            form += " " + text(children[1]);
+        unrecognized_root_forms.push_back(std::move(form));
+    }
+    if (unrecognized_roots != 0) {
+        std::string forms;
+        for (const auto& form : unrecognized_root_forms) {
+            if (!forms.empty()) forms += ", ";
+            forms += form;
+        }
+        throw std::runtime_error(
+            "milo convert: GH1 venue script contains " +
+            std::to_string(unrecognized_roots) +
+            " unrecognized top-level root(s): " + forms);
     }
     if (handler_rows.empty())
         throw std::runtime_error(
             "milo convert: GH1 venue script has no Arena handlers");
 
     Gh2VenueScriptConversion result;
+    result.source_roots = source_roots;
+    result.recognized_roots = recognized_roots;
+    result.unrecognized_roots = unrecognized_roots;
+    result.loaded_sections = loaded_sections;
+    for (const auto& [name, value] : initial_states) {
+        (void)value;
+        result.initialized_states.push_back(name);
+    }
     result.source_functions = functions.size();
     Expander expander(functions, result);
     std::map<std::string, size_t> handler_indices;
@@ -736,11 +827,20 @@ Gh2VenueScriptConversion convert_gh1_venue_script_to_gh2_worlddir(
             {text(children.front()), std::move(body)});
     }
 
-    Lowerer lowerer(result, authored_ranges);
+    std::set<std::string> state_variables;
+    for (const auto& [name, value] : initial_states) {
+        (void)value;
+        state_variables.insert(name);
+    }
+    Lowerer lowerer(result, authored_ranges, state_variables);
     NodeList target_type = {
         symbol(venue), symbol("WORLD_OBJECT_BASE")};
+    for (const auto& [name, value] : initial_states)
+        target_type.push_back(
+            row(name, {clone_node(value)}));
     for (auto& handler : expanded_handlers) {
         handler.body = lowerer.lower_sequence(handler.body);
+        result.handler_names.push_back(handler.name);
         NodeList target_handler = {symbol(handler.name)};
         target_handler.insert(
             target_handler.end(),
@@ -756,6 +856,7 @@ Gh2VenueScriptConversion convert_gh1_venue_script_to_gh2_worlddir(
     target.root_line = source.root_line;
     target.storage = source.storage;
     target.cipher_seed = source.cipher_seed;
+    target.trailing_bytes = source.trailing_bytes;
     target.root = {
         collection(
             0x10,

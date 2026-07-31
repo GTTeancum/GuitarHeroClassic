@@ -134,8 +134,13 @@ int main() {
                  "char_offset,char_2p_select_placer_player,"
                  "char_2p_select_event,fixed_dt,character_controllers,"
                  "char_reference_base,midi_fret_target,viewer_clip_stack,"
-                 "render_size);",
+                 "screenshot_sequence,render_size);",
                  "parsed fixed dt reaches character viewer proof path");
+  ok &= contains(app_main_c, "screenshot_sequence.find(frame)",
+                 "character viewer checks deterministic sequence frames");
+  ok &= contains(
+      app_main_c, "win->save_screenshot(sequence_it->second.c_str());",
+      "character viewer captures an input-free deterministic frame sequence");
   ok &= contains(app_main_c,
                  "--no-character-controllers",
                  "character viewer exposes a raw-bind diagnostic controller gate");
@@ -161,7 +166,8 @@ int main() {
   ok &= contains(app_main_c,
                  "char_offset,char_2p_select_placer_player,char_2p_select_event,"
                  "fixed_dt,character_controllers,char_reference_base,"
-                 "midi_fret_target,viewer_clip_stack,render_size);",
+                 "midi_fret_target,viewer_clip_stack,screenshot_sequence,"
+                 "render_size);",
                  "parsed reference-base diagnostic reaches character viewer proof path");
   ok &= contains(char_renderer_c,
                  "voidCharRenderer::set_reference_base(boolenabled){"
@@ -210,8 +216,10 @@ int main() {
                  "apply_source_upper_twists(character,bind_bones);",
                  "upper twists stay after CharHair per accepted PS2 cadence");
   ok &= contains(hand_twist_scheduler_c,
-                 "std::stable_sort(ik_indices.begin(),ik_indices.end(),",
-                 "instrument hand scheduler uses a stable shared role sort");
+                 "for(size_treverse=character.ik_hands.size();reverse-->0;)",
+                 "instrument hand scheduler follows the recovered reverse poll seed");
+  ok &= lacks(hand_twist_scheduler_c, "source_ik_hand_role_rank",
+              "instrument hand scheduling does not classify controller names");
   ok &= contains(hand_twist_scheduler_c,
                  "apply_source_ik_hand(character,ik);",
                  "source hand scheduler polls each IK hand");
@@ -223,21 +231,19 @@ int main() {
                  "source_hand_matches_fore_twist(ik,ft)",
                  "source hand scheduler matches foretwist by source hand row");
   ok &= contains(fore_twist_c,
-                 "source_char_fore_twist_poll_world(ft,true,true,true,true,"
-                 "hand_parent_world,hand_world,hand_local_x,"
-                 "twist2.local.pos[0],twist_result)",
-                 "foretwist uses the source-backed live world-row poll");
+                 "source_gh2_trace_fore_twist_poll_local("
+                 "ft,true,true,true,true,*hand.local,*forearm.local,"
+                 "twist2_bind,twist_result)",
+                 "foretwist uses the accepted GH2 PS2 local-row poll");
   ok &= lacks(fore_twist_c,
               "character.bone_world_local_chain_authored(hand.name)",
               "foretwist must not bypass source live WorldXfm rows");
   ok &= contains(fore_twist_c,
-                 "set_local_from_world(twist1.local,"
-                 "twist_result.twist_parent_world,twist1_parent_world);",
-                 "foretwist writes source twist-parent world back to twist1 local row");
+                 "*twist1.local=twist_result.twist1_local;",
+                 "foretwist publishes the traced twist1 local row");
   ok &= contains(fore_twist_c,
-                 "set_local_from_world(twist2.local,twist_result.twist2_world,"
-                 "twist_result.twist_parent_world);",
-                 "foretwist writes source twist2 world back to twist2 local row");
+                 "*twist2.local=twist_result.twist2_local;",
+                 "foretwist publishes the traced twist2 local row");
   ok &= contains(
       solver_weight_c,
       "constautoruntime=character.runtime_weight_props.find(ik.weight_prop);",
@@ -309,7 +315,7 @@ int main() {
                  "via%s\\n",
                  "explicit clip fallback log names the source driver row");
   ok &= contains(char_clip_c,
-                 "result.source_milo_path=resolved_milo_path;",
+                 "result.source_milo_path=loaded->resolved_path;",
                  "loaded clips retain the concrete animation MILO path");
   ok &= contains(char_clip_c,
                  "\"[clip]'%s'from%s:",
@@ -388,27 +394,35 @@ int main() {
                  "use_fret_hand_parser?current_fret_hand_cue(",
                  "player*_fret hand cues drive the fretting fingers");
   ok &= contains(gameplay_c,
-                 "std::upper_bound(cues.begin(),cues.end(),now_tick,",
-                 "player*_fret_pos target waits for the authored cue tick");
+                 "std::upper_bound(cues.begin(),cues.end(),now_beat,",
+                 "player*_fret_pos target waits for the inverted parser event beat");
   ok &= contains(gameplay_c,
                  "if(it==cues.begin())returnstate;",
                  "fret-position IK target has no future-cue fallback");
   ok &= contains(gameplay_c,
                  "std::strcmp(wanted,\"bone_L-pinky03\")==0;",
                  "left-hand row logger covers the full fretting finger chain");
-  ok &= contains(gameplay_c,
-                 "env_float(\"GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS\",0.08f)",
-                 "hand-driver scheduler blend uses the traced fast default");
+  ok &= lacks(gameplay_c,
+              "GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS",
+              "hand-driver scheduler has no global one-off blend override");
   ok &= contains(char_clip_c,
-                 "env_float_or(\"GHOGX_IKMIDI_BLEND_SECONDS\",0.08f)",
-                 "MIDI fret-position target blend uses the fast hand default");
+                 "blend_width==-1.0f?clip.blend_width:blend_width",
+                 "hand-driver scheduler consumes decoded clip blend width");
+  ok &= lacks(char_clip_c, "GHOGX_IKMIDI_BLEND_SECONDS",
+              "MIDI fret-position target has no guessed seconds override");
   ok &= contains(char_clip_c,
-                 "std::clamp(env_float_or(\"GHOGX_IKMIDI_BLEND_SECONDS\","
-                 "0.08f),0.0f,0.22f)",
-                 "MIDI fret-position target blend is capped at parser min-gap");
+                 "source_gh2_char_ik_midi_poll(source_state,delta_beat)",
+                 "MIDI fret-position target advances through source beat timing");
   ok &= contains(char_clip_c,
-                 "blend=%.3f",
-                 "MIDI fret-position target logs the resolved blend width");
+                 "xfm_rotation_quat(a_xfm,a_quat);"
+                 "xfm_rotation_quat(b_xfm,b_quat);",
+                 "MIDI target rotation uses source Matrix3 quaternion interpolation");
+  ok &= contains(char_clip_c,
+                 "quat_to_rot(blended_quat,out_xfm.rot);",
+                 "MIDI target rotation publishes source normalized quaternion lerp");
+  ok &= contains(char_clip_c,
+                 "eventBeat=%.3fbeat=%.3f",
+                 "MIDI target diagnostics log exact parser and controller timing");
   ok &= contains(char_clip_c,
                  "returnstd::clamp(ik.weight,0.0f,1.0f);",
                  "hand IK falls back to the decoded CharIKHand weight, not unpolled WeightSetter defaults");
@@ -445,17 +459,21 @@ int main() {
   ok &= contains(char_clip_c,
                  "returnis_hand_driver_root_key(key)||key==\"bone_facing\"",
                  "CharBone output diagnostics include fret-hand root targets");
+  ok &= lacks(char_renderer_c,
+              "is_guitar_strings_prop_mesh",
+              "attached prop transparency is not selected by mesh name");
   ok &= contains(char_renderer_c,
-                 "boolis_guitar_strings_prop_mesh(conststd::string&name){"
-                 "returnname==\"guitar_strings.mesh\";}",
-                 "attached guitar string mesh is identified explicitly");
+                 "constuint8_tprop_material_blend="
+                 "prop_material?prop_material->blend:"
+                 "static_cast<uint8_t>(kBlendSrc);",
+                 "attached props consume their decoded material blend mode");
   ok &= contains(char_renderer_c,
-                 "constboolstring_texture_alpha=texture&&"
-                 "is_guitar_strings_prop_mesh(m.name);",
-                 "guitar strings preserve texture alpha without changing all props");
+                 "constboolprop_uses_texture_alpha=texture&&"
+                 "(prop_alpha_test||prop_material_blend!=kBlendSrc);",
+                 "attached prop texture alpha follows decoded material state");
   ok &= contains(char_renderer_c,
-                 "dev->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);",
-                 "guitar string prop alpha samples the diffuse texture alpha");
+                 "d3d_state.texture_stage(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);",
+                 "transparent prop materials sample diffuse texture alpha");
   ok &= contains(char_renderer_c,
                  "\"[prop-alpha]mesh=%smat=%stex=%ssize=%dx%d\"",
                  "prop alpha diagnostics prove the string texture alpha path");

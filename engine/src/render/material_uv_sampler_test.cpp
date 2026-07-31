@@ -1,5 +1,6 @@
 #include "render/milo_scene_renderer.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -15,6 +16,11 @@ namespace {
 
 using ghogx::render::MiloSceneRenderer;
 using ghogx::render::choose_material_uv_sampler;
+using ghogx::render::source_texgen_xfm_2d;
+
+bool near(float actual, float expected) {
+  return std::fabs(actual - expected) <= 1.0e-5f;
+}
 
 MiloSceneRenderer::MaterialUvSamplerDecision decide(
     MiloSceneRenderer::MaterialUvBounds bounds, float scale_u = 1.0f,
@@ -25,6 +31,41 @@ MiloSceneRenderer::MaterialUvSamplerDecision decide(
 }  // namespace
 
 int main() {
+  const auto plain =
+      source_texgen_xfm_2d(0, 2.0f, 0.25f, -0.5f, 3.0f, -0.2f, 0.4f);
+  CHECK(near(plain.m00, 2.0f));
+  CHECK(near(plain.m01, 0.25f));
+  CHECK(near(plain.m10, -0.5f));
+  CHECK(near(plain.m11, 3.0f));
+  CHECK(near(plain.tu, -0.2f));
+  CHECK(near(plain.tv, 0.4f));
+
+  const auto character_wall =
+      source_texgen_xfm_2d(1, 2.0f, 0.0f, 0.0f, 1.0f, -1.2495f, 0.0f);
+  CHECK(near(character_wall.m00, 2.0f));
+  CHECK(near(character_wall.m11, 1.0f));
+  CHECK(near(character_wall.tu, 1.999f));
+  CHECK(near(character_wall.tv, 0.0f));
+
+  const auto rotated_star =
+      source_texgen_xfm_2d(1, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f);
+  CHECK(near(rotated_star.m00, 0.0f));
+  CHECK(near(rotated_star.m01, 1.0f));
+  CHECK(near(rotated_star.m10, -1.0f));
+  CHECK(near(rotated_star.m11, 0.0f));
+  CHECK(near(rotated_star.tu, 1.0f));
+  CHECK(near(rotated_star.tv, 0.0f));
+
+  const auto backdrop =
+      source_texgen_xfm_2d(1, 1.0f, 0.0f, 0.0f, 0.95f, 0.0f, 0.03f);
+  CHECK(near(backdrop.tu, 0.0f));
+  CHECK(near(backdrop.tv, 0.0535f));
+
+  const auto spraypaint =
+      source_texgen_xfm_2d(1, 0.95f, 0.0f, 0.0f, 1.0f, 0.009f, 0.02f);
+  CHECK(near(spraypaint.tu, 0.01645f));
+  CHECK(near(spraypaint.tv, 0.02f));
+
   const auto static_tile =
       decide({true, -1.18f, 2.00f, 3.13f, 3.00f});
   CHECK(static_tile.uv_repeats);
@@ -55,6 +96,6 @@ int main() {
   CHECK(!invalid_bounds.uv_repeats);
   CHECK(!invalid_bounds.wrap);
 
-  std::printf("  [ok] material UV sampler wrap decision\n");
+  std::printf("  [ok] retail texture-generator transform and sampler decision\n");
   return 0;
 }

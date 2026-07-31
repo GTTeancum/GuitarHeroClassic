@@ -16,6 +16,32 @@ from parse_v3_hdr import parse_hdr  # noqa: E402
 
 MARKER = b"\xad\xde\xad\xde"
 GAMEPLAY_VENUES = ("battle", "arena", "theatre", "fest", "big", "small1", "small2", "stone")
+STOCK_GH2_BASE_CHARACTERS = (
+    "alterna1",
+    "alterna2",
+    "classic",
+    "deathmetal1",
+    "deathmetal2",
+    "female_singer",
+    "funk1",
+    "glam1",
+    "glam2",
+    "goth1",
+    "goth2",
+    "grim",
+    "metal1",
+    "metal2",
+    "metal_bass",
+    "metal_drummer",
+    "metal_keyboard",
+    "metal_singer",
+    "punk1",
+    "punk2",
+    "rock1",
+    "rock2",
+    "rockabill1",
+    "rockabill2",
+)
 VENUE_ANIMATION_TYPES = {
     "AnimFilter",
     "CamAnim",
@@ -575,6 +601,42 @@ def audit_anims(hdr: Path, ark: Path) -> dict[str, Any]:
     return result
 
 
+def audit_character_classes(hdr: Path, ark: Path) -> dict[str, Any]:
+    selected = set(STOCK_GH2_BASE_CHARACTERS)
+    entries = {
+        e.full_path.replace("\\", "/").lower(): e
+        for e in ark_entries(hdr)
+    }
+    result: dict[str, Any] = {
+        "characters": len(selected),
+        "types": {},
+        "per_character_types": {},
+        "failures": [],
+    }
+    type_counts: Counter[str] = Counter()
+    per_character: dict[str, dict[str, int]] = {}
+    for character in sorted(selected):
+        path = f"char/{character}/og/gen/{character}.milo_ps2"
+        entry = entries.get(path)
+        if entry is None:
+            result["failures"].append(
+                {"path": path, "error": "missing packed stock character"}
+            )
+            continue
+        try:
+            payload = inflate_milo(read_ark_entry(ark, entry))
+            _dv, _dt, _dn, milo_entries = parse_dir(payload)
+        except Exception as ex:
+            result["failures"].append({"path": path, "error": str(ex)})
+            continue
+        counts = Counter(milo_entry.typ for milo_entry in milo_entries)
+        type_counts.update(counts)
+        per_character[character] = dict(sorted(counts.items()))
+    result["types"] = dict(sorted(type_counts.items()))
+    result["per_character_types"] = per_character
+    return result
+
+
 def audit_venue_classes(hdr: Path, ark: Path, venues: set[str] | None = None) -> dict[str, Any]:
     selected_venues = set(venues or GAMEPLAY_VENUES)
     result: dict[str, Any] = {
@@ -689,6 +751,8 @@ def main() -> None:
     ap.add_argument("--ark", default=r"C:\Programming\GitHub\Guitar Hero II\Guitar Hero II PS2 (USA)\GEN\MAIN_0.ARK")
     ap.add_argument("--out")
     ap.add_argument("--anims", action="store_true")
+    ap.add_argument("--character-classes", action="store_true",
+                    help="summarize object classes in the 24 stock base-character MILOs")
     ap.add_argument("--venue-classes", action="store_true",
                     help="summarize object classes inside gameplay venue MILOs")
     ap.add_argument("--camera-classes", action="store_true",
@@ -699,6 +763,8 @@ def main() -> None:
     if ns.camera_classes:
         venues = {v.strip().lower() for v in ns.venues.split(",") if v.strip()}
         res = audit_camera_classes(Path(ns.hdr), Path(ns.ark), venues)
+    elif ns.character_classes:
+        res = audit_character_classes(Path(ns.hdr), Path(ns.ark))
     elif ns.venue_classes:
         venues = {v.strip().lower() for v in ns.venues.split(",") if v.strip()}
         res = audit_venue_classes(Path(ns.hdr), Path(ns.ark), venues)

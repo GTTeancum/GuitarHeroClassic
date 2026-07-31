@@ -1,6 +1,8 @@
 #include "acp.h"
 
+#include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 int main() {
@@ -31,6 +33,47 @@ int main() {
             parsed.channel_sets[0].frame_size != 20 ||
             !parsed.trailing_bytes.empty()) {
             std::fprintf(stderr, "acp_test: round trip mismatch\n");
+            return 1;
+        }
+
+        gh::acp::ChannelSet samples;
+        samples.channels = {
+            "bone_test.pos", "bone_test.quat", "bone_test.rotx"};
+        samples.sample_count = 1;
+        samples.compression = 1;
+        samples.frame_size = 22;
+        samples.sample_bytes.resize(samples.frame_size);
+        auto put_f32 = [&](size_t offset, float value) {
+            std::memcpy(samples.sample_bytes.data() + offset, &value,
+                        sizeof(value));
+        };
+        auto put_i16 = [&](size_t offset, int16_t value) {
+            std::memcpy(samples.sample_bytes.data() + offset, &value,
+                        sizeof(value));
+        };
+        put_f32(0, 1.0f);
+        put_f32(4, 2.0f);
+        put_f32(8, 3.0f);
+        put_i16(12, 16384);
+        put_i16(14, -16384);
+        put_i16(16, 32767);
+        put_i16(18, -32768);
+        put_i16(20, 1024);
+        const auto pos =
+            gh::acp::decode_channel_sample(samples, 0, 99);
+        const auto quat =
+            gh::acp::decode_channel_sample(samples, 1, 99);
+        const auto angle =
+            gh::acp::decode_channel_sample(samples, 2, 99);
+        if (pos.component_count != 3 || pos.values[0] != 1.0f ||
+            pos.values[1] != 2.0f || pos.values[2] != 3.0f ||
+            quat.component_count != 4 ||
+            std::fabs(quat.values[0] - 16384.0f / 32767.0f) > 1e-6f ||
+            std::fabs(quat.values[1] + 16384.0f / 32767.0f) > 1e-6f ||
+            quat.values[2] != 1.0f || quat.values[3] != -1.0f ||
+            angle.component_count != 1 ||
+            std::fabs(angle.values[0] - 0.625f) > 1e-6f) {
+            std::fprintf(stderr, "acp_test: sample decode mismatch\n");
             return 1;
         }
     } catch (const std::exception& ex) {

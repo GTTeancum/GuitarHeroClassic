@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <cstring>
 #include <cstdio>
 #include <limits>
@@ -77,17 +78,51 @@ void print_positions(const gh::acp::File& file) {
     }
 }
 
+void print_sample(const gh::acp::File& file, uint32_t sample_index,
+                  const std::string& filter) {
+    for (size_t set_index = 0;
+         set_index < file.channel_sets.size(); ++set_index) {
+        const auto& set = file.channel_sets[set_index];
+        if (set.sample_count == 0) continue;
+        for (size_t channel_index = 0;
+             channel_index < set.channels.size(); ++channel_index) {
+            const std::string& channel = set.channels[channel_index];
+            if (!filter.empty() &&
+                channel.find(filter) == std::string::npos) {
+                continue;
+            }
+            const auto decoded = gh::acp::decode_channel_sample(
+                set, channel_index, sample_index);
+            std::printf("set%zu sample=%u source_sample=%u %s",
+                        set_index, sample_index,
+                        set.sample_count == 1 ? 0u : sample_index,
+                        channel.c_str());
+            for (size_t component = 0;
+                 component < decoded.component_count; ++component) {
+                std::printf("%s%.9g",
+                            component == 0 ? " " : ",",
+                            decoded.values[component]);
+            }
+            std::printf("\n");
+        }
+    }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 3 ||
-        (std::string(argv[1]) != "info" &&
-         std::string(argv[1]) != "channels" &&
-         std::string(argv[1]) != "positions" &&
-         std::string(argv[1]) != "verify")) {
+    const std::string command = argc > 1 ? argv[1] : "";
+    const bool sample_command =
+        argc >= 4 && argc <= 5 && command == "sample";
+    const bool basic_command =
+        argc == 3 &&
+        (command == "info" || command == "channels" ||
+         command == "positions" || command == "verify");
+    if (!sample_command && !basic_command) {
         std::fprintf(stderr,
                      "Usage: acp_tool "
-                     "<info|channels|positions|verify> <file.acp>\n");
+                     "<info|channels|positions|verify> <file.acp>\n"
+                     "       acp_tool sample <file.acp> <index> [filter]\n");
         return 2;
     }
     try {
@@ -106,6 +141,15 @@ int main(int argc, char** argv) {
         }
         if (std::string(argv[1]) == "positions") {
             print_positions(file);
+            return 0;
+        }
+        if (sample_command) {
+            const unsigned long parsed =
+                std::strtoul(argv[3], nullptr, 0);
+            if (parsed > std::numeric_limits<uint32_t>::max())
+                throw std::runtime_error("sample index exceeds uint32");
+            print_sample(file, static_cast<uint32_t>(parsed),
+                         argc == 5 ? argv[4] : "");
             return 0;
         }
         if (std::string(argv[1]) == "verify") {

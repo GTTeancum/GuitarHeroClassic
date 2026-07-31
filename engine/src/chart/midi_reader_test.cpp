@@ -173,7 +173,7 @@ static std::vector<uint8_t> build_test_smf() {
     t1.note_on(0,   96);   // Expert Green on
     t1.note_on(0,   60);   // Easy Green on
     t1.note_on(0,   40);   // fret-position animation spot 1
-    t1.note_on(60,  44);   // dense fret-position cue filtered by min_gap
+    t1.note_on(60,  44);   // dense fret-position cue; min_gap schedules it early
     // tick 120: Expert Green off, Red on.
     t1.note_off(120, 96);
     t1.note_on (120, 97);  // Expert Red on
@@ -530,18 +530,28 @@ int main() {
 
     // --- player*_fret_pos cues from PART GUITAR pitch 40..59 ---
     // TRIGGERS pitch 50 above is a lighting cue and must not leak into this
-    // selected-guitar-track stream. The accepted GH2DXu parser also declares
-    // min_gap 0.22, so the tick-60 dense cue is intentionally filtered.
-    CHECK(chart.fret_positions.size() == 2, "Fret position cues: 2");
-    if (chart.fret_positions.size() == 2) {
+    // selected-guitar-track stream. Retail declares `(inverted TRUE)` and
+    // beat-based `min_gap 0.22`: dense cues remain present, and the adjusted
+    // preceding note end becomes each cue's early dispatch beat.
+    CHECK(chart.fret_positions.size() == 3, "Fret position cues: 3");
+    if (chart.fret_positions.size() == 3) {
         CHECK(chart.fret_positions[0].tick == 0 &&
               chart.fret_positions[0].pitch == 40 &&
-              chart.fret_positions[0].spot_index == 1,
+              chart.fret_positions[0].spot_index == 1 &&
+              chart.fret_positions[0].event_beat < -1.0e20,
               "FretPos[0]: pitch 40 -> spot 1");
-        CHECK(chart.fret_positions[1].tick == 900 &&
-              chart.fret_positions[1].pitch == 59 &&
-              chart.fret_positions[1].spot_index == 20,
-              "FretPos[1]: pitch 59 -> spot 20");
+        CHECK(chart.fret_positions[1].tick == 60 &&
+              chart.fret_positions[1].pitch == 44 &&
+              chart.fret_positions[1].spot_index == 5 &&
+              std::fabs(chart.fret_positions[1].event_beat + 0.095) <
+                  0.000001,
+              "FretPos[1]: dense pitch 44 retained and scheduled");
+        CHECK(chart.fret_positions[2].tick == 900 &&
+              chart.fret_positions[2].pitch == 59 &&
+              chart.fret_positions[2].spot_index == 20 &&
+              std::fabs(chart.fret_positions[2].event_beat - 1.655) <
+                  0.000001,
+              "FretPos[2]: pitch 59 -> spot 20 with beat dispatch");
     }
 
     // --- GH1 singer DataEventList cue ---

@@ -49,6 +49,8 @@ int main() {
   using ghogx::character::source_char_ik_midi_poll_deps;
   using ghogx::character::source_char_ik_midi_prop_sync_plan;
   using ghogx::character::source_char_ik_midi_save_plan;
+  using ghogx::character::source_gh2_char_ik_midi_new_spot;
+  using ghogx::character::source_gh2_char_ik_midi_poll;
 
   bool ok = true;
 
@@ -92,6 +94,37 @@ int main() {
   ok &= expect_bool(midi.local_xfm_reset, true, "Enter local reset value");
   ok &= expect_bool(midi.old_local_xfm_reset, true,
                     "Enter old local reset value");
+
+  const auto transition =
+      source_gh2_char_ik_midi_new_spot(midi, "spot_neck_fret11.mesh", 0.22f);
+  ok &= expect_bool(transition.snapped, false,
+                    "NewSpot positive duration interpolates");
+  ok &= near(transition.remaining_beats, 0.22f,
+             "NewSpot remaining beats");
+  ok &= near(transition.fraction, 0.0f, "NewSpot fraction");
+  ok &= near(transition.fraction_per_beat, 1.0f / 0.22f,
+             "NewSpot fraction rate");
+  ok &= expect_string(midi.cur_spot, "spot_neck_fret11.mesh",
+                      "NewSpot current spot");
+
+  auto poll = source_gh2_char_ik_midi_poll(midi, 0.055f);
+  ok &= near(poll.fraction, 0.25f, "Poll quarter fraction");
+  ok &= near(poll.eased_fraction, 0.1464466f,
+             "Poll PS2 half-cosine quarter");
+  poll = source_gh2_char_ik_midi_poll(midi, 0.055f);
+  ok &= near(poll.fraction, 0.5f, "Poll half fraction");
+  ok &= near(poll.eased_fraction, 0.5f,
+             "Poll PS2 half-cosine midpoint");
+  poll = source_gh2_char_ik_midi_poll(midi, 1.0f);
+  ok &= near(poll.fraction, 1.0f, "Poll clamps fraction");
+  ok &= near(poll.eased_fraction, 1.0f,
+             "Poll PS2 half-cosine endpoint");
+
+  const auto snap =
+      source_gh2_char_ik_midi_new_spot(midi, "spot_neck_fret20.mesh", 0.0f);
+  ok &= expect_bool(snap.snapped, true, "NewSpot zero duration snaps");
+  ok &= near(snap.fraction, 1.0f, "NewSpot snap fraction");
+  ok &= near(snap.fraction_per_beat, 0.0f, "NewSpot snap rate");
 
   midi.bone = "bone_fret.mesh";
   midi.cur_spot = "spot_neck_fret20.mesh";

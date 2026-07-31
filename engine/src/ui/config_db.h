@@ -25,6 +25,20 @@
 
 namespace ghogx::ui {
 
+struct CharacterVariant {
+  Symbol character;
+  Symbol selection;
+  Symbol source_game;
+  std::string label;
+  std::string model_path;
+  std::string ui_model_path;
+  std::string ui_anim_path;
+  std::string main_anim_path;
+  std::string strum_anim_path;
+  std::string fret_anim_path;
+  std::string highway_surface_path;
+};
+
 class ConfigDb {
  public:
   // Load the named config/gen DTBs from the ARK. Missing/unparsable files are
@@ -69,6 +83,13 @@ class ConfigDb {
   DataNode guitar_skin_field(Symbol guitar, Symbol skin, Symbol field) const;
   Symbol guitar_for_skin(Symbol skin) const;
 
+  // Generated from each game's authored roster, locale names, and asset
+  // inventory. Canonical identity and exact per-game setup stay separate.
+  std::vector<Symbol> characters() const;
+  std::vector<CharacterVariant> character_variants(Symbol character) const;
+  const CharacterVariant* character_variant(Symbol selection) const;
+  Symbol character_for_variant(Symbol selection) const;
+
   // Generic keyed-record field: record's `find_keyed(field)` value (at(1)).
   static DataNode field(const DataArray* record, Symbol key);
 
@@ -78,6 +99,7 @@ class ConfigDb {
 
   std::map<const void*, std::shared_ptr<DataArray>> tables_;
   std::vector<Symbol> practice_sections_;
+  std::vector<CharacterVariant> character_variants_;
 };
 
 }  // namespace ghogx::ui

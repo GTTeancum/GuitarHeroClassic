@@ -19,7 +19,7 @@ namespace ghogx::chart {
 
 namespace {
 
-constexpr double kFretPositionMinGapSeconds = 0.22;
+constexpr double kFretPositionMinGapBeats = 0.22;
 constexpr double kFretHandMinGapSeconds = 0.12;
 constexpr uint32_t kFoFiXGh2HopoCutoffTicks = 170;
 
@@ -331,6 +331,47 @@ uint32_t Chart::sec_to_tick(double sec) const {
     return cur_tick + static_cast<uint32_t>(std::max(0.0, ticks));
 }
 
+double Chart::sec_to_beat(double sec) const {
+    if (ticks_per_beat == 0) return 0.0;
+
+    uint32_t us_per_beat = 500000;
+    for (const auto& tc : tempo_map) {
+        if (tc.tick != 0) break;
+        us_per_beat = tc.us_per_beat;
+    }
+    if (sec <= 0.0) {
+        return sec / (static_cast<double>(us_per_beat) * 1e-6);
+    }
+
+    double cur_sec = 0.0;
+    uint32_t cur_tick = 0;
+    for (const auto& tc : tempo_map) {
+        if (tc.tick <= cur_tick) {
+            us_per_beat = tc.us_per_beat;
+            continue;
+        }
+        const double beat_seconds =
+            static_cast<double>(us_per_beat) * 1e-6;
+        const double span_sec =
+            static_cast<double>(tc.tick - cur_tick) /
+            static_cast<double>(ticks_per_beat) * beat_seconds;
+        if (cur_sec + span_sec >= sec) {
+            return (static_cast<double>(cur_tick) +
+                    (sec - cur_sec) / beat_seconds *
+                        static_cast<double>(ticks_per_beat)) /
+                   static_cast<double>(ticks_per_beat);
+        }
+        cur_sec += span_sec;
+        cur_tick = tc.tick;
+        us_per_beat = tc.us_per_beat;
+    }
+    const double beat_seconds = static_cast<double>(us_per_beat) * 1e-6;
+    return (static_cast<double>(cur_tick) +
+            (sec - cur_sec) / beat_seconds *
+                static_cast<double>(ticks_per_beat)) /
+           static_cast<double>(ticks_per_beat);
+}
+
 double Chart::duration_sec() const {
     uint32_t last = 0;
     for (int d = 0; d < 4; ++d)
@@ -342,42 +383,63 @@ double Chart::duration_sec() const {
     return tick_to_sec(last);
 }
 
-void append_fret_position_cues(const std::vector<TrackNoteOn>& src_notes,
+void append_fret_position_cues(const std::vector<TrackNoteSpan>& src_notes,
                                std::vector<FretPositionCue>& dst) {
     for (const auto& note : src_notes) {
         int spot_index = 0;
         if (!decode_fret_position(note.pitch, spot_index)) continue;
-        dst.push_back({note.tick, note.pitch, spot_index});
+        FretPositionCue cue;
+        cue.tick = note.tick_on;
+        cue.tick_off = note.tick_off;
+        cue.pitch = note.pitch;
+        cue.spot_index = spot_index;
+        dst.push_back(cue);
     }
 }
 
 void sort_fret_position_cues(std::vector<FretPositionCue>& cues) {
-    std::sort(cues.begin(), cues.end(),
-              [](const FretPositionCue& a, const FretPositionCue& b) {
-                  if (a.tick != b.tick) return a.tick < b.tick;
-                  return a.pitch < b.pitch;
-              });
+    // MidiParser::ParseNote inserts equal-start notes after existing notes.
+    // Preserve authored order instead of inventing a pitch-order tiebreak.
+    std::stable_sort(cues.begin(), cues.end(),
+                     [](const FretPositionCue& a,
+                        const FretPositionCue& b) {
+                         return a.tick < b.tick;
+                     });
 }
 
-void apply_fret_position_min_gap(const Chart& chart,
-                                 std::vector<FretPositionCue>& cues) {
+void apply_fret_position_parser_schedule(
+    const Chart& chart, std::vector<FretPositionCue>& cues) {
     if (cues.empty()) return;
 
-    std::vector<FretPositionCue> filtered;
-    filtered.reserve(cues.size());
-    double last_accepted_sec = 0.0;
-    bool have_accepted = false;
+    // config/gen/midi_parsers.dtb declares player*_fret_pos as
+    // `(inverted TRUE) (min_gap 0.22)` without `use_realtime_gaps`.
+    // MidiParser::FixGap adjusts the preceding event end in beats; it does not
+    // discard dense notes. DataEventList::Invert then makes that adjusted end
+    // the next message's dispatch beat while retaining the original note-on
+    // beat as the message end consumed by CharIKMidi::NewSpot.
+    std::vector<double> adjusted_end_beats;
+    adjusted_end_beats.reserve(cues.size());
     for (const auto& cue : cues) {
-        const double cue_sec = chart.tick_to_sec(cue.tick);
-        if (have_accepted &&
-            cue_sec - last_accepted_sec < kFretPositionMinGapSeconds) {
-            continue;
-        }
-        filtered.push_back(cue);
-        last_accepted_sec = cue_sec;
-        have_accepted = true;
+        adjusted_end_beats.push_back(
+            static_cast<double>(cue.tick_off) /
+            static_cast<double>(chart.ticks_per_beat));
     }
-    cues.swap(filtered);
+    for (size_t i = 1; i < cues.size(); ++i) {
+        const double next_start =
+            static_cast<double>(cues[i].tick) /
+            static_cast<double>(chart.ticks_per_beat);
+        const double gap = next_start - adjusted_end_beats[i - 1];
+        const double fixed_gap =
+            std::max(kFretPositionMinGapBeats, gap);
+        adjusted_end_beats[i - 1] = next_start - fixed_gap;
+    }
+
+    constexpr double kSourceNegativeHuge = -1.0e30;
+    double preceding_end = kSourceNegativeHuge;
+    for (size_t i = 0; i < cues.size(); ++i) {
+        cues[i].event_beat = preceding_end;
+        preceding_end = adjusted_end_beats[i];
+    }
 }
 
 void append_hand_gem_cues(const Chart& chart, const std::vector<Note>& notes,
@@ -551,7 +613,7 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     for (size_t t = 0; t < tracks.size(); ++t) {
         if (tracks[t].name != "ANIM") continue;
         chart.gh1_anim_track = true;
-        append_fret_position_cues(all_note_ons[t], chart.fret_positions);
+        append_fret_position_cues(all_note_spans[t], chart.fret_positions);
         for (const auto& ev : all_text[t]) {
             if (ev.text.rfind("HandMap_", 0) == 0) {
                 chart.hand_map_cues.push_back({ev.tick, ev.text});
@@ -882,7 +944,7 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     for (size_t t : guitar_tracks) {
         for (auto& n : all_raw[t]) raw_notes.push_back(n);
         for (auto& s : all_sp[t])  sp_regions.push_back(s);
-        append_fret_position_cues(all_note_ons[t], chart.fret_positions);
+        append_fret_position_cues(all_note_spans[t], chart.fret_positions);
         for (const auto& span : all_note_spans[t]) {
             if (span.pitch == 108) {
                 chart.singer_face_cues.push_back(
@@ -911,7 +973,7 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                          t, tracks[t].name.c_str());
             for (auto& n : all_raw[t]) raw_bass_notes.push_back(n);
             for (auto& s : all_sp[t]) bass_sp_regions.push_back(s);
-            append_fret_position_cues(all_note_ons[t],
+            append_fret_position_cues(all_note_spans[t],
                                       chart.bass_fret_positions);
         }
         append_chart_notes(raw_bass_notes, bass_sp_regions, chart.bass_notes);
@@ -920,9 +982,9 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     }
 
     sort_fret_position_cues(chart.fret_positions);
-    apply_fret_position_min_gap(chart, chart.fret_positions);
+    apply_fret_position_parser_schedule(chart, chart.fret_positions);
     sort_fret_position_cues(chart.bass_fret_positions);
-    apply_fret_position_min_gap(chart, chart.bass_fret_positions);
+    apply_fret_position_parser_schedule(chart, chart.bass_fret_positions);
 
     std::fprintf(stderr, "[midi] parsed: Easy=%zu Med=%zu Hard=%zu Expert=%zu BassMed=%zu fretPos=%zu bassFretPos=%zu handCues=%zu bassHandCues=%zu singerFace=%zu dur=%.1fs\n",
                  chart.notes[0].size(), chart.notes[1].size(),

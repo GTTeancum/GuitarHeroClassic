@@ -63,6 +63,12 @@ bool missing(const std::string& haystack, const std::string& needle,
   return false;
 }
 
+bool missing_inventory_type(const std::string& inventory,
+                            const std::string& type,
+                            const std::string& label) {
+  return missing(inventory, "\"" + type + "\":", label);
+}
+
 bool contains_at_least(const std::string& haystack, const std::string& needle,
                        size_t minimum, const std::string& label) {
   size_t count = 0;
@@ -256,11 +262,20 @@ int run_contract() {
                 "charhair_diff_manifest.json"));
   const std::string gameplay =
       compact(read_file(engine_dir / "src" / "game" / "gameplay.cpp"));
+  const std::string gameplay_rules =
+      compact(read_file(engine_dir / "src" / "game" / "gameplay_rules.cpp"));
+  const std::string gameplay_rules_test =
+      compact(read_file(engine_dir / "src" / "game" /
+                        "gameplay_rules_test.cpp"));
   const std::string re_anim_audit =
       compact(read_file(engine_dir.parent_path() / "tools" /
                         "re_anim_audit.py"));
   const std::string char_mesh = compact(read_file(char_dir / "char_mesh.cpp"));
   const std::string char_mesh_h = compact(read_file(char_dir / "char_mesh.h"));
+  const std::string character_type_script =
+      compact(read_file(char_dir / "character_type_script.cpp"));
+  const std::string character_type_script_test =
+      compact(read_file(char_dir / "character_type_script_test.cpp"));
   const std::string char_clip = compact(read_file(char_dir / "char_clip.cpp"));
   const std::string char_clip_h = compact(read_file(char_dir / "char_clip.h"));
   const std::string char_clip_audit =
@@ -372,8 +387,7 @@ int run_contract() {
   const std::string format_notes_compact = compact(format_notes);
   const std::string stock_character_type_inventory_latest = read_file(
       engine_dir /
-      "out/source_truth_controller_inventory_20260710/"
-      "stock_character_type_inventory_latest.log");
+      "testdata/source_truth/gh2_stock_character_type_inventory_summary.json");
   const std::string source_readme = read_file(source_dir / "README.md");
   const std::filesystem::path re_gh2_dir = extra_dir / "re-gh2";
   const std::string re_gh2_readme =
@@ -918,12 +932,6 @@ int run_contract() {
       extra_dir / "band3_recomp/generated");
   const std::string band3_readme = read_file(
       extra_dir / "band3_recomp/README.md");
-  const std::string stock_guitar_string_sweep = read_file(
-      engine_dir /
-      "out/source_guitarstring_20260711/guitar_sweep/guitar_sweep.csv");
-  const std::string stock_guitar_string_sweep_compact =
-      compact(stock_guitar_string_sweep);
-
   bool ok = true;
 
   ok &= gltf_matrix_helpers_cs_exists;
@@ -1267,7 +1275,8 @@ int run_contract() {
                  "coverage matrix cites current CharClip source evidence");
   ok &= contains(doc,
                  "| Clip groups | `rb3-latest` `CharClipGroup.cpp` / "
-                 "`CharClipGroup.h` |",
+                 "`CharClipGroup.h`; GH2 retail "
+                 "`0x00169E40..0x0016A0F8` |",
                  "coverage matrix cites CharClipGroup source evidence");
   ok &= contains(doc,
                  "| Clip set preview/editor container | `rb3-latest` "
@@ -1285,8 +1294,8 @@ int run_contract() {
                  "`mFlags`.",
                  "coverage matrix records native CharClipGroup Load slice");
   ok &= contains(doc,
-                 "Guitarist active group selection now follows source "
-                 "`CharClipGroup::GetClip` cycling.",
+                 "Zero-argument cycling and the retail flagged "
+                 "`GetClip(int)` cyclic scan/promotion are both recovered",
                  "coverage matrix records native CharClipGroup GetClip slice");
   ok &= contains(doc,
                  "Grim GH2 `CharClipSamples` version gates, legacy "
@@ -1813,11 +1822,10 @@ int run_contract() {
   ok &= contains(guitar_string_source_test,
                  "source_char_guitar_string_prop_sync_plan()",
                  "focused CharGuitarString test covers prop-sync plan");
-  ok &= contains(stock_guitar_string_sweep,
-                 "\"Entry\",\"HasCharGuitarString\",\"StringHits\",\"TransSummary\"",
-                 "stock guitar sweep records CharGuitarString column");
-  ok &= missing(stock_guitar_string_sweep_compact, "\",\"1\",\"",
-                "stock guitar sweep has no active CharGuitarString rows");
+  ok &= missing_inventory_type(stock_character_type_inventory_latest,
+                               "CharGuitarString",
+                               "stock character inventory has no "
+                               "CharGuitarString rows");
   ok &= contains(doc, "HasCharGuitarString=0",
                  "document records stock CharGuitarString absence");
   ok &= contains(doc,
@@ -5257,6 +5265,31 @@ int run_contract() {
                  "it->color;it->boneWeights.Set(col.fr(),col.fg(),col.fb(),"
                  "col.fa());col.Clear();}}",
                  "RB3 RndMesh PostLoad maps old skinned color payload to weights");
+  ok &= contains(scene,
+                 "constintpacked=static_cast<int>(value*255.0f);"
+                 "returnstatic_cast<float>(packed&0xFF)/255.0f;}",
+                 "native Mesh decoder reproduces Color32 truncation and low-byte load semantics");
+  ok &= contains(scene,
+                 "v.r=r.f32();v.g=r.f32();v.b=r.f32();v.a=r.f32();",
+                 "native PS2 Mesh decoder retains the shared four-float slot until bone resolution");
+  ok &= contains(scene,
+                 "if(!mesh.bones.empty()){for(Vertex&vertex:mesh.verts){"
+                 "vertex.w[0]=vertex.r;vertex.w[1]=vertex.g;"
+                 "vertex.w[2]=vertex.b;vertex.w[3]=vertex.a;"
+                 "vertex.r=1.0f;vertex.g=1.0f;vertex.b=1.0f;"
+                 "vertex.a=1.0f;}}",
+                 "native PS2 Mesh PostLoad preserves the shared floats as weights when the bone table is non-empty");
+  ok &= contains(scene,
+                 "}else{for(Vertex&vertex:mesh.verts){"
+                 "vertex.r=source_hmx_color32_channel(vertex.r);"
+                 "vertex.g=source_hmx_color32_channel(vertex.g);"
+                 "vertex.b=source_hmx_color32_channel(vertex.b);"
+                 "vertex.a=source_hmx_color32_channel(vertex.a);}}",
+                 "native PS2 Mesh PostLoad packs the shared slot through Color32 only for unskinned geometry");
+  ok &= contains(scene_test,
+                 "MeshObjunskinned=decode_mesh(\"unskinned.mesh\","
+                 "unskinned_body);",
+                 "milo_scene test covers the unskinned retained-Color32 branch");
   ok &= contains(rb3_mesh_cpp,
                  "if(gRev<0x1F)SetZeroWeightBones();",
                  "RB3 RndMesh zero-weight bone-index cleanup gate");
@@ -5758,6 +5791,22 @@ int run_contract() {
                  "plan.reads_bone_indices=mesh_revision>0x1c;",
                  "native vertex-load plan mirrors bone-index gate");
   ok &= contains(char_mesh,
+                 "v.r=r.f32();v.g=r.f32();v.b=r.f32();v.a=r.f32();",
+                 "character Mesh decoder retains signed shared-slot floats before bone resolution");
+  ok &= contains(char_mesh,
+                 "plan.quantizes_unskinned_color32=mesh_revision<0x25&&"
+                 "!is_skinned;",
+                 "native vertex-load plan restricts Color32 packing to unskinned legacy meshes");
+  ok &= contains(char_mesh,
+                 "plan.preserves_signed_skinned_float_weights="
+                 "mesh_revision<0x25&&is_skinned;",
+                 "native vertex-load plan preserves signed legacy skin weights");
+  ok &= contains(char_mesh,
+                 "if(mesh.bone_palette.empty()){for(SkinVertex&vertex:"
+                 "mesh.verts){vertex.r=milo_scene::"
+                 "source_hmx_color32_channel(vertex.r);",
+                 "character Mesh decoder packs retained color only after resolving an empty bone palette");
+  ok &= contains(char_mesh,
                  "plan.postload_color_to_weights=mesh_revision<0x25&&is_skinned;",
                  "native vertex-load plan mirrors old skinned color-to-weight gate");
   ok &= contains(char_mesh,
@@ -5776,6 +5825,12 @@ int run_contract() {
                  "if(vertex.weights[3]==0.0f){vertex.bone_indices[3]="
                  "vertex.bone_indices[0];}",
                  "native zero-weight helper mirrors source slot 3 rewrite");
+  ok &= contains(renderer,
+                 "constbooluse_vertex_color=m.bone_palette.empty()&&!highlight_mesh;",
+                 "character renderer retains the shared slot as vertex color only for unskinned geometry");
+  ok &= contains(renderer,
+                 "modulate_source_vertex_color(mesh_color,v,use_vertex_color)",
+                 "character renderer applies retained unskinned Color32 channels");
   ok &= contains(char_mesh,
                  "SourceRndMeshDefaultStatesource_rndmesh_default_state(){"
                  "returnSourceRndMeshDefaultState{};}",
@@ -6154,14 +6209,8 @@ int run_contract() {
                 "renderer must not keep legacy hair depth fallback");
   ok &= missing(renderer, "hairRender",
                 "renderer debug output must not expose removed hair-name branch");
-  ok &= contains(renderer,
-                 "boolis_hair_two_sided_surface(constCharacter&character,"
-                 "constSkinnedMesh*mesh,"
-                 "constghogx::milo_scene::MatObj*material=nullptr)",
-                 "renderer has the explicit project hair two-sided rule");
-  ok &= contains(renderer,
-                 "character_mesh_uses_char_hair_point_bone(character,*mesh)",
-                 "hair two-sided rule uses decoded CharHair point membership");
+  ok &= missing(renderer, "is_hair_two_sided_surface",
+                "renderer has no semantic hair override outside decoded state");
   ok &= contains(char_mesh_h,
                  "boolcharacter_mesh_uses_char_hair_point_bone("
                  "constCharacter&character,constSkinnedMesh&mesh);",
@@ -6170,15 +6219,10 @@ int run_contract() {
                  "character_mesh_uses_char_hair_point_bone(character,"
                  "hair_weighted_mesh)",
                  "CharHair point-bone mesh membership is tested");
+  ok &= missing(renderer, "has_hair_token",
+                "hair spelling does not select character render behavior");
   ok &= contains(renderer,
-                 "has_hair_token(mesh->name)||has_hair_token(mesh->material)",
-                 "hair two-sided rule catches mesh and mesh-material tokens");
-  ok &= contains(renderer,
-                 "has_hair_token(material->name)||"
-                 "has_hair_token(material->diffuse_tex)",
-                 "hair two-sided rule catches material and texture tokens");
-  ok &= contains(renderer,
-                 "constDWORDmesh_cull_mode=character_cull_mode(&m,material);",
+                 "constDWORDmesh_cull_mode=character_cull_mode(material);",
                  "mesh culling is selected through authored material state");
   ok &= missing(renderer,
                 "is_hair_two_sided_surface(mesh,material)){returnD3DCULL_NONE;}",
@@ -6192,8 +6236,8 @@ int run_contract() {
                 "hair two-sided rule must not double-draw alpha/blend surfaces");
   ok &= missing(renderer, "auto draw_current_mesh",
                 "hair two-sided rule must not keep a hidden two-pass drawer");
-  ok &= contains(renderer, "hairTwoSided=%d",
-                 "mesh render logs expose the hair two-sided rule");
+  ok &= missing(renderer, "hairTwoSided=%d",
+                "render diagnostics do not preserve a name-derived hair rule");
   ok &= contains(renderer, "hairPointBone=%d",
                  "mesh render logs expose decoded CharHair membership");
   ok &= contains(renderer,
@@ -6204,8 +6248,31 @@ int run_contract() {
                  "returna->draw_order<b->draw_order;}",
                  "native draw sort uses source RndDrawable draw order without hair names");
   ok &= contains(renderer,
-                 "returnis_hidden_by_character_lod_group(character,mesh);",
-                 "native LOD visibility falls back only to source group membership");
+                 "for(constauto&lod:character.root_lods)",
+                 "native LOD visibility uses decoded Character root references");
+  ok &= contains(renderer,
+                 "source_character_draw_closure(character,min_lod)",
+                 "native draw order consumes the decoded Character root closure");
+  ok &= contains(char_mesh,
+                 "SourceCharacterDrawClosuresource_character_draw_closure(",
+                 "shared Character root closure is source-owned and testable");
+  ok &= contains(renderer,
+                 "character.root_shadow",
+                 "native shadow visibility uses the decoded Character root reference");
+  ok &= contains(char_mesh,
+                 "gh::milo_object::parse_character9(out.dir_entry_bytes)",
+                 "native Character roots use the shared exact Character9 parser");
+  ok &= contains(char_mesh,
+                 "gh::milo_object::parse_band_character1(out.dir_entry_bytes).character",
+                 "native BandCharacter roots use the shared exact wrapper parser");
+  ok &= missing(renderer, "\"top.view\"",
+                "renderer does not select LODs from a literal legacy view name");
+  ok &= missing(renderer, "\"lod0.grp\"",
+                "renderer does not select LODs from a literal GH2 group name");
+  ok &= missing(renderer, "\"Ponytail\"",
+                "renderer does not hide skeleton helpers by an object-name rule");
+  ok &= missing(renderer, "is_shadow(",
+                "renderer does not classify shadow meshes by spelling");
 
   ok &= contains(gltf_program_cs,
                  "boneName.StartsWith(\"bone_hair_\",StringComparison.OrdinalIgnoreCase)",
@@ -14033,6 +14100,14 @@ int run_contract() {
                  "SourceCharIKMidiState&state);",
                  "native exposes CharIKMidi Enter helper");
   ok &= contains(char_clip_h,
+                 "SourceGh2CharIKMidiNewSpotResult"
+                 "source_gh2_char_ik_midi_new_spot(",
+                 "native exposes exact GH2 CharIKMidi NewSpot helper");
+  ok &= contains(char_clip_h,
+                 "SourceGh2CharIKMidiPollResult"
+                 "source_gh2_char_ik_midi_poll(",
+                 "native exposes exact GH2 CharIKMidi Poll helper");
+  ok &= contains(char_clip_h,
                  "voidsource_char_ik_midi_poll_deps("
                  "SourceCharIKMidiPollDeps&deps,constSourceCharIKMidiState&"
                  "state);",
@@ -14063,6 +14138,16 @@ int run_contract() {
   ok &= contains(char_clip,
                  "state.local_xfm_reset=true;state.old_local_xfm_reset=true;",
                  "native CharIKMidi Enter helper resets source transforms");
+  ok &= contains(char_clip,
+                 "if(remaining_beats<=0.0f){state.frac=1.0f;"
+                 "state.frac_per_beat=0.0f;",
+                 "native GH2 CharIKMidi NewSpot helper mirrors snap branch");
+  ok &= contains(char_clip,
+                 "state.frac_per_beat=1.0f/remaining_beats;",
+                 "native GH2 CharIKMidi NewSpot helper mirrors beat rate");
+  ok &= contains(char_clip,
+                 "std::sin(kSourcePi*state.frac+kSourceHalfPi)",
+                 "native GH2 CharIKMidi Poll helper mirrors PS2 easing");
   ok &= contains(char_clip,
                  "voidsource_char_ik_midi_poll_deps("
                  "SourceCharIKMidiPollDeps&deps,constSourceCharIKMidiState&"
@@ -14124,11 +14209,9 @@ int run_contract() {
                  "target `bone_fret.mesh`, and report\n    `unreadBytes=0`",
                  "document records refreshed CharIKMidi stock proof");
   ok &= contains(doc,
-                 "viewer/gameplay\n"
-                 "    fret-target helper remains diagnostic application glue until\n"
-                 "    `CharIKMidi::NewSpot` / `Poll` bodies are available from ihatecompvir\n"
-                 "    source",
-                 "document fences CharIKMidi runtime helper");
+                 "The GH2 PS2 `CharIKMidi::NewSpot` and `Poll` runtime contract is "
+                 "now recovered",
+                 "document records recovered GH2 CharIKMidi runtime contract");
   ok &= contains(doc,
                  "ikmidi_source_decode_audit.log",
                  "document records focused stock CharIKMidi audit");
@@ -19112,7 +19195,8 @@ int run_contract() {
                  "native CharDriver runtime dump records missing poll/evaluator bodies");
   ok &= contains(char_clip_h,
                  "boolsafe_to_evaluate_flags=false;"
-                 "boolsafe_to_import_poll=false;};",
+                 "boolsafe_to_import_poll=false;"
+                 "boolgh2_ps2_poll_recovered=false;};",
                  "native CharDriver runtime dump fences driver runtime import");
   ok &= contains(char_clip_h,
                  "SourceCharDriverRuntimeDumpEvidence"
@@ -19233,7 +19317,7 @@ int run_contract() {
                  "\"[controller-driver]char=%sname=%sversion=%d",
                  "controller audit logs CharDriver source revision");
   ok &= contains(bind_audit,
-                 "\"weightOwner=%sweightProp=%senabled=%dmidi=%d",
+                 "\"weightOwner=%sweightProp=%srealign=%dmidi=%d",
                  "controller audit logs CharDriver source weight owner");
   ok &= contains(bind_audit,
                  "\"midiVersion=%dmidiUnreadBytes=%zumidiDefaultClip=%s",
@@ -19752,10 +19836,33 @@ int run_contract() {
                  "(`0x803AC728 -> 0x803AC8F0`)",
                  "document records OutfitLoader Save dump range");
   ok &= contains(doc,
-                 "Native keeps both rows opaque until a reviewable\n"
-                 "loader body or direct original-game trace proves the "
-                 "serialized behavior",
-                 "document keeps CharWalk and OutfitLoader source-gated");
+                 "Supplemental direct GH2 retail evidence closes the "
+                 "serialized layouts without\npretending that the missing "
+                 "runtime bodies are present",
+                 "document separates serialized closure from runtime gaps");
+  ok &= contains(doc,
+                 "`SLUS_214.47` OutfitLoader save at `0x0018AEC8`\nand load "
+                 "at `0x0018B170`",
+                 "document records direct OutfitLoader retail trace");
+  ok &= contains(doc,
+                 "`Poll` is\n`0x00184B10..0x00184CC8`, the start/setup body "
+                 "is\n`0x00184CC8..0x00184FD0`",
+                 "document records direct GH2 CharWalk Poll and start bounds");
+  ok &= contains(doc,
+                 "the exact `None=0`, `Going=1`, `Stopping=2` state enum",
+                 "document records the retail CharWalk state contract");
+  ok &= contains(doc,
+                 "Native now keeps that\nstate distinct from its "
+                 "turn/walk/stop clip phase",
+                 "document separates retail CharWalk state from clip phase");
+  ok &= contains(doc,
+                 "`0x0010CD64`. Dispatch at `0x0010CD88` loads "
+                 "`Character+0x248` and calls\n`CharWalk` body "
+                 "`0x00184FD0`",
+                 "document records direct GH2 actually_walking dispatch");
+  ok &= contains(doc,
+                 "`mClips[min(mCurNode-2,last)]`",
+                 "document records the retail expected walk-clip index");
   ok &= contains(doc,
                  "The original-game\n"
                  "    trace notes corroborate this deterministic contract, "
@@ -20361,19 +20468,24 @@ int run_contract() {
                  "stock_character_type_inventory.log",
                  "document cites refreshed stock object inventory proof log");
   ok &= contains(doc,
-                 "24 base character MILOs were scanned, the opaque rows are "
-                 "still exactly 19\n`CharWalk`, 20 `OutfitLoader`, and 99 "
-                 "`WorldFx`",
-                 "document records refreshed opaque row recheck counts");
+                 "24 base character MILOs were scanned, with exactly 19 "
+                 "`CharWalk`, 20\n`OutfitLoader`, and 99 `WorldFx` rows",
+                 "document records refreshed stock row recheck counts");
   ok &= contains(doc,
                  "controller rows remain visible as 31 `CharHair`, 38 "
                  "`CharIKHand`, 39\n`CharForeTwist`, 48 `CharUpperTwist`, "
                  "and zero `CharIKFoot` rows",
                  "document records refreshed source-backed controller counts");
   ok &= contains(doc,
-                 "not permission to import a runtime body that ihatecompvir's\n"
-                 "checked sources do not expose",
+                 "do not authorize a fabricated class-specific load\nbody",
                  "document fences refreshed inventory from fabricated imports");
+  ok &= contains(doc,
+                 "`WorldFx::Poll` at `0x002725D0` gates on word `+0x98`",
+                 "document records retail WorldFx live-state gate");
+  ok &= contains(doc,
+                 "`Start` at `0x002726B8` sets it, `Stop` at `0x002728E0` "
+                 "clears it",
+                 "document records retail WorldFx start/stop gates");
   ok &= contains(doc, "`CharPollGroup`: zero stock rows",
                  "document records stock CharPollGroup absence");
   ok &= contains(doc, "`Light` / `RndLight`: zero stock rows",
@@ -20480,8 +20592,10 @@ int run_contract() {
                  "document records generic Object rows decode cleanly");
   ok &= contains(doc, "`Tex`: 160 stock texture rows",
                  "document records stock Tex row count");
-  ok &= contains(doc, "`WorldFx`: 99 stock rows",
-                 "document records stock WorldFx row count");
+  ok &= contains(
+      doc,
+      "`WorldFx`: the current complete stock sweep finds 87 rows",
+      "document records current stock WorldFx row count");
   ok &= contains(doc,
                  "Native now decodes and\n  logs the source-backed field "
                  "prefix using `EventTrigger::Load`",
@@ -20555,8 +20669,11 @@ int run_contract() {
                  "(`metal_keyboard_mip.tex` and `metal_singer_belt_mip.tex`)",
                  "document records focused RndBitmap mip proof");
   ok &= contains(doc,
-                 "there is no\n  checked `WorldFx::Load` source body",
+                 "ihatecompvir still exposes no checked\n  `WorldFx::Load` body",
                  "document fences WorldFx load body absence");
+  ok &= contains(doc,
+                 "100 decoded rows and zero failures",
+                 "document records current performer/crowd WorldFx sweep");
   ok &= contains(doc,
                  "The larger `rb3-latest/src/system/rndobj` source snapshot "
                  "includes many\nrender/effect classes",
@@ -20571,63 +20688,82 @@ int run_contract() {
                  "`TexBlender`, `CubeTex`,\n`ColorXfm`, `Line`, `PostProc`, "
                  "`ScreenMask`, or `SoftParticles`",
                  "document records absent stock texture/effect row classes");
-  ok &= missing(stock_character_type_inventory_latest, "type=Cam count=",
+  ok &= contains(stock_character_type_inventory_latest, "\"characters\": 24",
+                 "stock character inventory covers all 24 base characters");
+  ok &= contains(stock_character_type_inventory_latest, "\"CharIKHand\": 38",
+                 "stock character inventory retains the 38 IK-hand rows");
+  ok &= contains(stock_character_type_inventory_latest,
+                 "\"CharForeTwist\": 38",
+                 "stock character inventory retains the 38 foretwist rows");
+  ok &= contains(stock_character_type_inventory_latest,
+                 "\"CharUpperTwist\": 48",
+                 "stock character inventory retains the 48 uppertwist rows");
+  ok &= contains(stock_character_type_inventory_latest, "\"failures\": []",
+                 "stock character inventory has no scan failures");
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "Cam",
                 "stock character inventory has no Cam rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=CamAnim count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "CamAnim",
                 "stock character inventory has no CamAnim rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=Env count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "Env",
                 "stock character inventory has no Env rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=EnvAnim count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "EnvAnim",
                 "stock character inventory has no EnvAnim rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=Light count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "Light",
                 "stock character inventory has no Light rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=RndLight count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "RndLight",
                 "stock character inventory has no RndLight rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=Lit count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "Lit",
                 "stock character inventory has no Lit rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=LitAnim count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "LitAnim",
                 "stock character inventory has no LitAnim rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=Flare count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "Flare",
                 "stock character inventory has no Flare rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=Fur count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "Fur",
                 "stock character inventory has no Fur rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=Wind count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "Wind",
                 "stock character inventory has no Wind rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=Part count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "Part",
                 "stock character inventory has no Part rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=PartAnim count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "PartAnim",
                 "stock character inventory has no PartAnim rows");
-  ok &= missing(stock_character_type_inventory_latest,
-                "type=PartLauncher count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest,
+                "PartLauncher",
                 "stock character inventory has no PartLauncher rows");
-  ok &= missing(stock_character_type_inventory_latest,
-                "type=TexRenderer count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest,
+                "TexRenderer",
                 "stock character inventory has no TexRenderer rows");
-  ok &= missing(stock_character_type_inventory_latest,
-                "type=TexBlendController count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest,
+                "TexBlendController",
                 "stock character inventory has no TexBlendController rows");
-  ok &= missing(stock_character_type_inventory_latest,
-                "type=TexBlender count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest,
+                "TexBlender",
                 "stock character inventory has no TexBlender rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=CubeTex count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "CubeTex",
                 "stock character inventory has no CubeTex rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=ColorXfm count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "ColorXfm",
                 "stock character inventory has no ColorXfm rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=Line count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "Line",
                 "stock character inventory has no Line rows");
-  ok &= missing(stock_character_type_inventory_latest, "type=PostProc count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest, "PostProc",
                 "stock character inventory has no PostProc rows");
-  ok &= missing(stock_character_type_inventory_latest,
-                "type=ScreenMask count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest,
+                "ScreenMask",
                 "stock character inventory has no ScreenMask rows");
-  ok &= missing(stock_character_type_inventory_latest,
-                "type=SoftParticles count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest,
+                "SoftParticles",
                 "stock character inventory has no SoftParticles rows");
-  ok &= missing(stock_character_type_inventory_latest,
-                "type=CharIKFoot count=",
+  ok &= missing_inventory_type(stock_character_type_inventory_latest,
+                "CharIKFoot",
                 "stock character inventory has no CharIKFoot rows");
-  ok &= missing(char_mesh, "decode_char_walk",
-                "native must not guess CharWalk decoder");
+  ok &= contains(char_mesh, "CharWalkdecode_char_walk(",
+                 "native exposes exact ObjectFields-only CharWalk decoder");
+  ok &= contains(char_mesh,
+                 "gh::milo_object::parse_char_walk1(body);",
+                 "CharWalk decoder delegates to revision-aware object reader");
+  ok &= contains(char_mesh_h, "structCharWalk{",
+                 "native header exposes decoded CharWalk state");
+  ok &= contains(char_mesh_h, "std::vector<CharWalk>char_walks;",
+                 "native character graph retains decoded CharWalk rows");
   ok &= contains(char_mesh, "EventTriggerdecode_event_trigger(",
                  "native decodes EventTrigger only through named source slice");
   ok &= contains(char_mesh_h,
@@ -20847,10 +20983,25 @@ int run_contract() {
                  "bind audit logs generic Object source rows");
   ok &= contains(bind_audit, "unreadBytes=%zu",
                  "bind audit logs generic Object unread byte count");
-  ok &= missing(char_mesh, "decode_outfit_loader",
-                "native must not guess OutfitLoader decoder");
-  ok &= missing(char_mesh, "decode_world_fx",
-                "native must not guess WorldFx decoder");
+  ok &= contains(char_mesh, "OutfitLoaderdecode_outfit_loader(",
+                 "native exposes retail-backed OutfitLoader decoder");
+  ok &= contains(char_mesh,
+                 "gh::milo_object::parse_outfit_loader1(body);",
+                 "OutfitLoader decoder delegates to revision-aware object reader");
+  ok &= contains(char_mesh_h, "structOutfitLoader{",
+                 "native header exposes decoded OutfitLoader state");
+  ok &= contains(char_mesh_h,
+                 "std::vector<OutfitLoader>outfit_loaders;",
+                 "native character graph retains decoded OutfitLoader rows");
+  ok &= contains(char_mesh, "WorldFxdecode_world_fx(",
+                 "native exposes exact inherited WorldFx decoder");
+  ok &= contains(char_mesh,
+                 "constautosource=gh::milo_object::parse_world_fx1(body);",
+                 "WorldFx decoder delegates to revision-aware object reader");
+  ok &= contains(char_mesh_h, "structWorldFx{",
+                 "native header exposes decoded WorldFx state");
+  ok &= contains(char_mesh_h, "std::vector<WorldFx>world_fxes;",
+                 "native character graph retains decoded WorldFx rows");
   ok &= contains(char_mesh_h, "structOpaqueObjectRow{",
                  "native header exposes opaque row inventory record");
   ok &= contains(char_mesh_h, "std::vector<OpaqueObjectRow>opaque_rows;",
@@ -21405,10 +21556,84 @@ int run_contract() {
   ok &= contains(tex_source_test,
                  "decode_rnd_tex(\"movie.tex\",movie_target)",
                  "focused RndTex test covers movie rendered clamp exception");
-  ok &= missing(char_mesh, "OutfitLoader",
-                "native character graph must not promote OutfitLoader yet");
-  ok &= missing(char_mesh, "WorldFx",
-                "native character graph must not promote WorldFx yet");
+  ok &= contains(mesh_decode_test,
+                 "decode_outfit_loader(",
+                 "focused mesh decode test covers OutfitLoader");
+  ok &= contains(mesh_decode_test,
+                 "decode_char_walk(",
+                 "focused mesh decode test covers CharWalk");
+  ok &= contains(gameplay,
+                 "load_character_world_fx_runtime(",
+                 "gameplay uses common character WorldFx loader");
+  ok &= contains(gameplay,
+                 "draw_character_world_fx_runtime(",
+                 "gameplay uses common character WorldFx draw path");
+  ok &= contains(gameplay,
+                 "update_character_world_fx_runtime(",
+                 "gameplay uses common character WorldFx update path");
+  ok &= contains(character_type_script,
+                 "voidcollect_type_members(",
+                 "character type compiler exposes structural macro flattening");
+  ok &= contains(character_type_script,
+                 "collect_type_members(members[i],flattened_members);",
+                 "character type compiler expands nested member bundles");
+  ok &= contains(character_type_script_test, "macro_bundle_handler",
+                 "focused type-script test covers bundled macro members");
+  ok &= contains(
+      character_type_script,
+      "CharacterTypeScriptWaypointRegistry::find(uint32_tflags)const{",
+      "type-script host exposes source-order Waypoint find");
+  ok &= contains(character_type_script,
+                 "(impl_->waypoints[index].flags&flags)!=0",
+                 "Waypoint find uses overlapping source flags");
+  ok &= contains(
+      character_type_script,
+      "waypoints->mark_last(waypoint->waypoint().source_index);",
+      "type-script host rotates selected Waypoint to registry end");
+  ok &= contains(character_type_script,
+                 "if(msg==Symbol(\"teleport\"))returnowner_->teleport(args);",
+                 "character script object handles native teleport");
+  ok &= contains(gameplay,
+                 "perf.type_script->last_teleport()",
+                 "gameplay consumes authored type-script teleport");
+  ok &= contains(gameplay,
+                 "start_source=\"type-script\";",
+                 "gameplay records type-script start authority");
+  ok &= contains(character_type_script_test,
+                 "first_waypoint->source_index==7",
+                 "focused test covers first source-order Waypoint");
+  ok &= contains(character_type_script_test,
+                 "second_waypoint->source_index==8",
+                 "focused test covers waypoint_last rotation");
+  ok &= contains(
+      character_type_script,
+      "CharacterTypeScriptProgram::member(std::string_viewname)const{",
+      "character type compiler retains non-handler data members");
+  ok &= contains(
+      character_type_script,
+      "character_type_script_walk_config("
+      "constCharacterTypeScriptProgram&character_program,"
+      "constCharacterTypeScriptProgram&walk_program,",
+      "typed CharWalk config is compiled from the two authored GH2 types");
+  ok &= contains(
+      character_type_script,
+      "constautowaypoint_flags=literal_bit_or(*walkspot_fields[1]);"
+      "constautomax_walk_wait="
+      "type_member_number(character_program,\"max_walk_wait\");"
+      "constautopath_radius="
+      "type_member_number(walk_program,\"path_radius\");",
+      "typed CharWalk config reads authored waypoint, wait, and radius facts");
+  ok &= contains(
+      character_type_script_test,
+      "walk_config->delay_enabled!="
+      "std::array<bool,5>{false,false,true,true,false}",
+      "focused type-script test covers the complete GH2 guitarist delay mask");
+  ok &= contains(
+      character_type_script_test,
+      "walk_config->waypoint_flags!=(64u|128u)||"
+      "walk_config->max_walk_wait!=6.0f||"
+      "walk_config->path_radius!=12.0f",
+      "focused type-script test covers exact GH2 CharWalk numeric facts");
   ok &= contains(rb3_latest_char_weight_setter_h,
                  "ObjPtr<CharDriver,ObjectDir>mDriver;",
                  "latest CharWeightSetter source header exposes driver");
@@ -22049,14 +22274,21 @@ int run_contract() {
                  "## Waypoint Clip/Path Diagnostic Authorities",
                  "document records Waypoint source authority section");
   ok &= contains(doc,
-                 "Native helpers are source-only deterministic diagnostics",
-                 "document fences Waypoint helper from live path behavior");
+                 "GH2-native CharWalk path now consumes exact revision-3",
+                 "document promotes exact Waypoint3 rows to live path behavior");
   ok &= contains(doc,
                  "`Waypoint::Find(flags)` returns the first registered",
                  "document records source Waypoint find behavior");
   ok &= contains(doc,
                  "`source_waypoint_registered_command_dump_evidence` records those dump-only",
                  "document records Waypoint registered command boundary");
+  ok &= contains(doc,
+                 "`waypoint_find` to `0x00191020` and `waypoint_last` to\n"
+                 "    `0x00191160`",
+                 "document records GH2 retail Waypoint command addresses");
+  ok &= contains(doc,
+                 "`CharacterTypeScriptWaypointRegistry`",
+                 "document records promoted find/last runtime boundary");
   ok &= contains(rb3_latest_char_bone_offset_h,
                  "ObjPtr<RndTransformable,ObjectDir>mDest;",
                  "latest CharBoneOffset header exposes destination pointer");
@@ -26131,13 +26363,13 @@ int run_contract() {
                  "boolhas_source,boolhas_twist1,boolhas_twist2,",
                  "native API exposes CharUpperTwist source Poll helper");
   ok &= contains(char_clip,
-                 "quat_from_vec_to_vec(mat_row(source_parent_world,0),"
-                 "mat_row(source_world,0),q);",
-                 "native CharUpperTwist port follows source MakeRotQuat rows");
+                 "set_local_from_world(source_local,source_world,"
+                 "source_parent_world);",
+                 "native GH1 CharUpperTwist resolves the animated local row");
   ok &= contains(char_clip,
-                 "out.twist1_world=make_output(twist1_current_world,0.333f);"
-                 "out.twist2_world=make_output(twist2_current_world,0.666f);",
-                 "native CharUpperTwist port keeps source interpolation weights");
+                 "source_gh2_trace_write_x_twist(half_twist_local,"
+                 "source_local,roll*0.5f);",
+                 "native GH1 CharUpperTwist applies the recovered half twist");
   ok &= contains(char_clip,
                  "std::atan2(clamped2,clamped)+bias",
                  "native CharForeTwist port keeps source angle basis and bias");
@@ -26176,17 +26408,25 @@ int run_contract() {
                  "twist1);deps.change.push_back(twist2);}",
                  "native CharUpperTwist PollDeps helper mirrors source order");
   ok &= contains(char_clip,
-                 "out.twist1_world=make_output(twist1_current_world,0.333f);"
-                 "out.twist2_world=make_output(twist2_current_world,0.666f);",
-                 "native CharUpperTwist helper keeps source interpolation constants");
+                 "out.twist1_world=half_twist_world;"
+                 "out.twist2_world=half_twist_world;",
+                 "native GH1 CharUpperTwist publishes the shared sibling row");
   ok &= contains(char_clip,
-                 "source_char_fore_twist_poll_world("
-                 "ft,true,true,true,true,hand_parent_world,hand_world,",
-                 "runtime CharForeTwist path calls ihatecompvir world-row helper");
+                 "source_gh2_trace_fore_twist_poll_local("
+                 "ft,true,true,true,true,*hand.local,*forearm.local,"
+                 "twist2_bind,twist_result)",
+                 "runtime CharForeTwist path calls accepted GH2 PS2 trace helper");
   ok &= contains(char_clip,
-                 "source_char_upper_twist_poll_world("
-                 "true,true,true,true,source_parent_world,source_world,",
-                 "runtime CharUpperTwist path calls ihatecompvir world-row helper");
+                 "source_gh2_trace_upper_twist_poll_local("
+                 "true,true,true,serial_chain,*upper.local,twist2_bind,"
+                 "twist_result)",
+                 "runtime CharUpperTwist path calls accepted GH2 PS2 trace helper");
+  ok &= contains(char_clip,
+                 "if(twist2_parent_is_twist1){",
+                 "runtime CharUpperTwist preserves the PS2 hierarchy branch");
+  ok &= contains(char_clip,
+                 "out.twist1_factor=0.5f;out.twist2_factor=0.5f;",
+                 "runtime CharUpperTwist implements the PS2 sibling fallback");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_fore_upper_twist_source_test"
                  "character_fore_upper_twist_source_test.cpp)",
@@ -26207,11 +26447,13 @@ int run_contract() {
                  "fore_out.source_angle_radians,kPi*2.0f/3.0f",
                  "focused fore twist test covers source angle with bias");
   ok &= contains(fore_upper_twist_source_test,
-                 "expect_upper_rows(upper_out.twist1_world,0.333f",
-                 "focused upper twist test covers source first weight");
+                 "expect_rot_x_world(upper_out.twist1_world,-kPi*0.25f,"
+                 "1.0f,2.0f,3.0f",
+                 "focused upper twist test covers first half-twist row");
   ok &= contains(fore_upper_twist_source_test,
-                 "expect_upper_rows(upper_out.twist2_world,0.666f",
-                 "focused upper twist test covers source second weight");
+                 "expect_rot_x_world(upper_out.twist2_world,-kPi*0.25f,"
+                 "1.0f,2.0f,3.0f",
+                 "focused upper twist test covers second half-twist row");
   ok &= contains(doc,
                  "Native `source_char_upper_twist_poll_world` ports that world-row `Poll`",
                  "document records native CharUpperTwist source helper");
@@ -26241,21 +26483,21 @@ int run_contract() {
                  "fore_applied[ft_index]=true;",
                  "native marks matched foretwists after the paired source poll");
   ok &= contains(char_clip,
-                 "set_local_from_world(twist1.local,twist_result.twist_parent_world,",
-                 "native CharForeTwist applies source twist parent SetWorldXfm");
+                 "*twist1.local=twist_result.twist1_local;",
+                 "native CharForeTwist publishes traced twist1 local row");
   ok &= contains(char_clip,
-                 "set_local_from_world(twist2.local,twist_result.twist2_world,",
-                 "native CharForeTwist applies source twist2 SetWorldXfm");
+                 "*twist2.local=twist_result.twist2_local;",
+                 "native CharForeTwist publishes traced twist2 local row");
   ok &= contains(char_clip,
-                 "set_local_from_world(twist1.local,twist_result.twist1_world,",
-                 "native CharUpperTwist applies first source SetWorldXfm");
+                 "*twist1.local=twist_result.twist1_local;",
+                 "native CharUpperTwist publishes traced first local row");
   ok &= contains(char_clip,
-                 "transform_local_chain_world(character,twist2.name,"
-                 "twist2_world_after_twist1)",
-                 "native CharUpperTwist rereads second output after first SetWorldXfm");
+                 "constmilo_scene::Xfmtwist2_bind="
+                 "twist2.bind_local?*twist2.bind_local:*twist2.local;",
+                 "native CharUpperTwist starts the second row from authored bind");
   ok &= contains(char_clip,
-                 "set_local_from_world(twist2.local,sequenced_twist_result.twist2_world,",
-                 "native CharUpperTwist applies second source SetWorldXfm");
+                 "*twist2.local=twist_result.twist2_local;",
+                 "native CharUpperTwist publishes traced second local row");
   ok &= contains(doc, "## Clip Runtime Boundary",
                  "document records CharClip runtime source boundary");
   ok &= contains(doc,
@@ -27741,7 +27983,7 @@ int run_contract() {
                  "\"rawPos=%drawScale=%drawQuat=%drawRotX=%drawRotY=%d\"",
                  "clip audit emits raw channel type evidence");
   ok &= contains(char_clip_audit,
-                 "\"rawRotZ=%drawDX=%drawDY=%drawDZ=%dextendedTyped=%d\\n\"",
+                 "\"rawRotZ=%drawDX=%drawDY=%drawDZ=%dextendedTyped=%d\"",
                  "clip audit emits the complete typed channel inventory");
   ok &= missing(char_clip, "out.compression>3",
                 "native clip decoder no longer caps source compression at mode 3");
@@ -30421,8 +30663,13 @@ int run_contract() {
                  "boolhas_evaluate_statement_body=false;"
                  "boolhas_scale_add_statement_body=false;"
                  "boolhas_rotate_to_statement_body=false;"
-                 "boolsafe_to_import_runtime=false;};",
-                 "native CharClipDriver runtime dump evidence fences imports");
+                 "boolsafe_to_import_runtime=false;",
+                 "RB2 dump-only CharClipDriver evidence remains fenced");
+  ok &= contains(char_clip_h,
+                 "boolgh2_ps2_evaluate_recovered=false;"
+                 "boolgh2_ps2_scale_add_recovered=false;"
+                 "boolgh2_ps2_align_to_frame_recovered=false;",
+                 "native API distinguishes recovered GH2 PS2 driver bodies");
   ok &= contains(char_clip_h,
                  "structSourceCharDriverPlayDecision{boolfound_clip=false;"
                  "boolnotify_missing_clip=false;boolset_last_node=false;"
@@ -30759,8 +31006,8 @@ int run_contract() {
                  "conststd::string&bones);",
                  "native character API exposes source CharDriver PollDeps helper");
   ok &= contains(char_clip_h,
-                 "floatsource_driver_blend_width_=1.0f;",
-                 "native CharClipPlayer stores source driver blend default");
+                 "floatsource_frame_=0.0f;",
+                 "native CharClipPlayer stores the GH2 task-frame input");
   ok &= contains(char_clip_h,
                  "boolsource_play_multiple_clips_=false;",
                  "native CharClipPlayer stores source play-multiple default");
@@ -31214,8 +31461,8 @@ int run_contract() {
                  "transition-onlytwistchanneldidnotfadethroughidentity",
                  "focused clip driver flags test covers transition-only twist rows");
   ok &= contains(clip_driver_flags_test,
-                 "non-looptransientstackdidnotexitbacktopreviousclip",
-                 "focused clip driver flags test covers source stack transient exit");
+                 "GH2Evaluatedidnotretirethefullyobscurednextstack",
+                 "focused clip driver flags test covers exact next-stack retirement");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_runtime_dump_evidence()",
                  "focused clip driver flags test covers CharClip runtime dump evidence");
@@ -31273,9 +31520,23 @@ int run_contract() {
                  "==kCharPlayNoLoop)returnfalse;}returntrue;}",
                  "native CharDriver starved helper ports source body");
   ok &= contains(char_clip,
-                 "boolCharClipPlayer::source_starved()const{if(layers_.empty())"
-                 "returnsource_char_driver_starved(false,false,0);",
-                 "native CharClipPlayer reports source starved state");
+                 "boolsource_gh2_ps2_char_driver_poll_starved(boolhas_first,"
+                 "boolfirst_has_next){return!has_first||!first_has_next;}",
+                 "native GH2 PS2 Poll ports its exact stack-starved predicate");
+  ok &= contains(char_clip,
+                 "boolCharClipPlayer::source_starved()const{return"
+                 "source_gh2_ps2_char_driver_poll_starved(",
+                 "native CharClipPlayer reports GH2 PS2 Poll starved state");
+  ok &= contains(char_clip,
+                 "voidCharClipPlayer::poll_source_scheduler(floatframe){",
+                 "native CharClipPlayer runs the recovered GH2 PS2 outer "
+                 "scheduler");
+  ok &= contains(char_clip,
+                 "original_loop_mode==kCharPlayGraphLoop",
+                 "native GH2 Poll repeats graph-loop clip nodes");
+  ok &= contains(char_clip,
+                 "original_loop_mode==kCharPlayNodeLoop",
+                 "native GH2 Poll re-resolves node-loop nodes");
   ok &= contains(char_clip,
                  "floatsource_char_driver_resolve_blend_width("
                  "floatrequested_blend_width,floatdriver_blend_width){return"
@@ -31283,15 +31544,17 @@ int run_contract() {
                  "requested_blend_width;}",
                  "native CharDriver blend helper ports source sentinel");
   ok &= contains(char_clip,
-                 "source_char_driver_resolve_blend_width(blend_width,"
-                 "source_driver_blend_width_);",
-                 "native CharClipPlayer uses source driver blend fallback");
+                 "constfloatresolved_blend=blend_width==-1.0f?"
+                 "clip.blend_width:blend_width;",
+                 "native GH2 CharClipPlayer preserves the PS2 clip blend "
+                 "width and explicit override");
+  ok &= missing(char_clip,
+                "layers_.pop_back();}}",
+                "native GH2 Evaluate does not invent an end-of-clip stack pop");
   ok &= contains(char_clip,
-                 "if(exit_current.clip&&!play_flags_loop(*exit_current.clip,"
-                 "exit_current.flags)){constfloatduration=exit_current.clip->"
-                 "duration_seconds();if(duration>0.0f&&exit_current.time_seconds"
-                 ">=duration){layers_.pop_back();}}",
-                 "native CharClipPlayer exits non-loop transient back to previous source node");
+                 "if(index>0&&layer.blend_fraction==1.0f){"
+                 "exit_source_layers(0,index);layers_.erase(",
+                 "native GH2 Evaluate retires the fully obscured next stack");
   ok &= contains(char_clip,
                  "boolsource_char_driver_should_start_clip("
                  "boolplay_multiple_clips,boolclip_already_playing){if("
@@ -32667,12 +32930,41 @@ int run_contract() {
                  "Native `source_char_clip_group_delete_remaining_plan` records",
                  "document records native CharClipGroup DeleteRemaining boundary");
   ok &= contains(doc,
-                 "`CharClipGroup.h` still declares `GetClip(int)`, `HasClip`,",
-                 "document records CharClipGroup bodyless declaration boundary");
+                 "`CharClipGroup.cpp` snapshot does not expose that body. GH2 retail fills",
+                 "document records GH2 retail recovery of flagged CharClipGroup selection");
   ok &= contains(doc,
-                 "Source-backed runtime group selection is therefore limited "
-                 "to the concrete\n    zero-argument `GetClip()` cycling path",
-                 "document fences CharClipGroup runtime group selection");
+                 "it scans cyclically from\n    `mWhich + 1`, accepts the first clip satisfying",
+                 "document records flagged CharClipGroup cyclic scan");
+  ok &= contains(doc,
+                 "promotes that entry into the next\n    cyclic slot, updates `mWhich`, and returns it",
+                 "document records flagged CharClipGroup promotion");
+  ok &= contains(char_clip_h,
+                 "std::vector<Transition>transitions;",
+                 "runtime CharClip retains serialized transition rows");
+  ok &= contains(char_clip,
+                 "transition.nodes.push_back({c.f32(),c.f32()});",
+                 "runtime CharClip reader retains both transition-node beats");
+  ok &= contains(char_clip_h,
+                 "source_char_clip_find_first_transition_node(",
+                 "runtime exposes source first-transition lookup");
+  ok &= contains(char_clip_h,
+                 "source_char_clip_find_last_transition_node(",
+                 "runtime exposes source last-transition lookup");
+  ok &= contains(char_clip_h,
+                 "source_char_clip_find_transition_node(",
+                 "runtime exposes retail CharClip FindNode lookup");
+  ok &= contains(char_clip,
+                 "if(mode==2)returnstd::nullopt;",
+                 "runtime preserves CharClip FindNode mode-2 null");
+  ok &= contains(char_clip,
+                 "(next_clip.default_play_flags&0x0000f000u)>>12u",
+                 "runtime derives synthesized node alignment from target play flags");
+  ok &= contains(clip_driver_flags_test,
+                 "CharClipFindNodemode/alignmentmismatch",
+                 "focused test covers retail CharClip FindNode branches");
+  ok &= contains(doc,
+                 "GH2 retail `CharClip::FindNode` at",
+                 "document records retail CharClip FindNode recovery");
   ok &= contains(doc,
                  "selected clip's flags with every other clip",
                  "document records source CharClipGroup duplicate behavior");
@@ -33221,10 +33513,11 @@ int run_contract() {
                 "old name-based CharIKHand role classifier removed");
   ok &= missing(char_clip, "source_instrument_hand_rank",
                 "newer name-ranked CharIKHand role helper removed");
+  ok &= missing(char_clip, "source_ik_hand_role_rank",
+                "CharIKHand polling has no controller-name role classifier");
   ok &= contains(char_clip,
-                 "source_ik_hand_role_rank(character.ik_hands[a])<"
-                 "source_ik_hand_role_rank(character.ik_hands[b])",
-                 "CharIKHand polling keeps accepted trace-backed instrument cadence");
+                 "for(size_treverse=character.ik_hands.size();reverse-->0;)",
+                 "CharIKHand polling follows the recovered reverse sorter seed");
   ok &= missing(char_clip, "Ps2IkPollRole",
                 "old CharIKHand role enum removed");
   ok &= missing(char_clip, "ps2_ik_hand_position_enabled",
@@ -33730,6 +34023,7 @@ int run_contract() {
                  "apply_character_pose_stack_frame(Character&character,"
                  "constClipChannelLayerStack*stack){"
                  "CharacterPoseStackFrameResultresult;"
+                 "dump_arm_mesh_pose(character,\"pose-stack-pre\");"
                  "clear_runtime_trans_worlds(character);",
                  "native shared pose-stack frame clears runtime rows");
   ok &= contains(char_clip,
@@ -36419,6 +36713,115 @@ int run_contract() {
                  "viewer and gameplay checks now assert that each "
                  "path feeds this shared helper",
                  "document records viewer/gameplay shared-helper contract");
+  ok &= contains(char_clip_h,
+                 "source_char_clip_facing_sample_at_beat(constCharClip&clip,"
+                 "floatbeat)",
+                 "native CharClip exposes authored-beat facing sampling");
+  ok &= contains(char_clip_h,
+                 "constCharClip*source_first_playing_clip()const",
+                 "native clip player exposes source FirstPlaying selection");
+  ok &= contains(clip_driver_flags_test,
+                 "driverFirstPlayingdidnotskipzero-weightstackhead",
+                 "focused test covers zero-weight FirstPlaying head");
+  ok &= contains(gameplay_rules,
+                 "source_charwalk_turn_candidate_score(",
+                 "gameplay rules implement source turn candidate scorer");
+  ok &= contains(gameplay_rules_test,
+                 "CharWalkturnscorerrejectsafarthercandidate",
+                 "focused rules test covers turn distance rejection");
+  ok &= contains(scene,
+                 "w.connections.push_back(r.str());",
+                 "runtime Waypoint3 decoder retains authored connections");
+  ok &= contains(scene,
+                 "w.radius=r.f32();w.y_radius=r.f32();"
+                 "w.angle_radius=r.f32();",
+                 "runtime Waypoint3 decoder retains source shape radii");
+  ok &= contains(scene_test,
+                 "waypoint.connections[0]==\"walk_b.way\"",
+                 "focused scene test covers Waypoint3 connection order");
+  ok &= contains(gameplay_rules,
+                 "SourceCharWalkRouteSelectionsource_charwalk_find_route(",
+                 "gameplay rules implement retail Waypoint graph search");
+  ok &= contains(gameplay_rules,
+                 "source_charwalk_find_nearest_waypoint(",
+                 "gameplay rules implement retail nearest Waypoint scan");
+  ok &= contains(gameplay_rules,
+                 "(graph[connected_index].flags&blocked_mask)!=0",
+                 "Waypoint graph search rejects blocked intermediate nodes");
+  ok &= contains(gameplay_rules,
+                 "std::rotate(registry_order.begin()+",
+                 "Waypoint graph search rotates the successful destination");
+  ok &= contains(gameplay_rules_test,
+                 "CharWalknearestretainsregistryorderwhendistancestie",
+                 "focused rules test covers nearest Waypoint tie order");
+  ok &= contains(gameplay_rules_test,
+                 "CharWalkfollowsauthoredconnectionsandmovesitsdestinationlast",
+                 "focused rules test covers route and registry order");
+  ok &= contains(gameplay_rules,
+                 "std::asin(signed_sine)",
+                 "CharWalk corridor uses the recovered signed sine angle");
+  ok &= contains(gameplay_rules_test,
+                 "CharWalkregulatorpreservesthesignedsourcecross-productturn",
+                 "focused rules test covers both corridor turn directions");
+  ok &= contains(gameplay,
+                 "source_charwalk_find_nearest_waypoint("
+                 "native_waypoint_graph,"
+                 "venue_charwalk_waypoint_registry_order_",
+                 "gameplay uses retail nearest Waypoint selection");
+  ok &= contains(gameplay,
+                 "source_charwalk_find_route("
+                 "native_waypoint_graph,native_source_waypoint,"
+                 "request_waypoint_flags,"
+                 "request_waypoint_flags|kWalkSpot,"
+                 "venue_charwalk_waypoint_registry_order_)",
+                 "gameplay follows decoded Waypoint connections");
+  ok &= contains(gameplay,
+                 "source_charwalk_turn_candidate_score(",
+                 "gameplay selects native turns through recovered scorer");
+  ok &= contains(gameplay,
+                 "source_char_clip_find_transition_node(*current_clip,"
+                 "turn.clip,current_beat,3)",
+                 "gameplay uses source mode-3 current-to-turn lookup");
+  ok &= contains(doc,
+                 "current-to-turn uses mode 3, turn-to-walk uses the\n"
+                 "last authored node",
+                 "document records exact CharWalk turn scorer");
+  ok &= contains(doc,
+                 "`0x00190E98`/`0x00190D30` close live route selection",
+                 "document records exact CharWalk Waypoint graph search");
+  ok &= contains(doc,
+                 "`-asin(crossZ/(max(5,lenA)*max(5,lenB))) * Character[0x23C]`",
+                 "document records signed CharWalk corridor correction");
+  ok &= contains(
+      char_clip,
+      "source_charwalk_build_motion_plan(",
+      "native exposes exact CharWalk plan/stop builder");
+  ok &= contains(
+      char_clip,
+      "max(chosen_error-3.0f,0.0f)*5.0f+angle_error*"
+      "kRadiansToDegrees",
+      "native keeps exact CharWalk stop score");
+  ok &= contains(
+      gameplay,
+      "source_charwalk_forward_predict(",
+      "gameplay feeds exact CharWalk forward prediction");
+  ok &= contains(
+      gameplay,
+      "source_charwalk_back_predict(",
+      "gameplay feeds exact CharWalk backward prediction");
+  ok &= contains(
+      char_clip,
+      "source_charwalk_regulate_offset(",
+      "native exposes exact CharWalk PlanPoint offset regulation");
+  ok &= contains(
+      char_clip,
+      "result.active_point_count=result.selected_point_index;",
+      "stop chooser replaces the provisional count with selected point");
+  ok &= contains(
+      doc,
+      "`mOffsetSpeed` at\n"
+      "`+0xC74`, and the beat remainder at `+0xC78`",
+      "document records exact GH2 CharWalk regulator layout");
 
   if (!ok) {
     std::cerr
