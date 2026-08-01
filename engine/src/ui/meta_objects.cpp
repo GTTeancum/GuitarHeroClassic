@@ -1623,18 +1623,33 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     Symbol guitar = arg_symbol(args, 0, get_property(Symbol("guitar"))
                                             .as_symbol()
                                             .value_or(Symbol()));
-    out = guitar.valid()
-              ? DataNode::Sym(Symbol(std::string(guitar.c_str()) + "_desc"))
-              : DataNode();
+    if (!guitar.valid()) {
+      out = DataNode();
+      return true;
+    }
+    const Symbol desc(Symbol(std::string(guitar.c_str()) + "_desc"));
+    const Symbol shop_desc(
+        Symbol(std::string(guitar.c_str()) + "_shop_desc"));
+    out = DataNode::Sym(
+        mgr_ && mgr_->localize(desc) == desc.c_str() &&
+                mgr_->localize(shop_desc) != shop_desc.c_str()
+            ? shop_desc
+            : desc);
     return true;
   }
   if (std::strcmp(m, "get_guitar_skin_desc") == 0) {
     Symbol skin = arg_symbol(args, 0, get_property(Symbol("guitar_skin"))
                                           .as_symbol()
                                           .value_or(Symbol()));
-    out = skin.valid()
-              ? DataNode::Sym(Symbol(std::string(skin.c_str()) + "_desc"))
-              : DataNode();
+    if (!skin.valid()) {
+      out = DataNode();
+      return true;
+    }
+    const Symbol desc(Symbol(std::string(skin.c_str()) + "_desc"));
+    out = DataNode::Sym(mgr_ && mgr_->localize(desc) == desc.c_str() &&
+                               mgr_->localize(skin) != skin.c_str()
+                           ? skin
+                           : desc);
     return true;
   }
   if (std::strcmp(m, "get_num_guitars") == 0) {
