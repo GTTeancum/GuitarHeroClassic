@@ -3282,11 +3282,33 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
       // parent-composed placement from the MILO. Use it when present so
       // parented menu titles (for example mem_card's `op_memcard`) land on the
       // poster instead of at their unparented local offset.
-      const auto& xfm =
-          ((lbl.type == "BandLabel" || lbl.type == "Text" || isTextEntry) &&
-           menu_label_uses_authored_world_transform(lbl))
-              ? lbl.world
-              : lbl.local;
+      const std::array<float, 12>* animated_destination = nullptr;
+      if (lbl.parent == "sg_text_skin.grp") {
+        const char* destination_name = nullptr;
+        if (lbl.name == "sg_skin_nm.lbl")
+          destination_name = "sg_guitar_nm.lbl";
+        else if (lbl.name == "sg_skin_desc.lbl")
+          destination_name = "sg_guitar_desc.lbl";
+        else if (lbl.name == "sg_selectyourskin.lbl")
+          destination_name = "sg_selectyourguitar.lbl";
+        if (destination_name) {
+          const auto destination =
+              std::find_if(labels.begin(), labels.end(),
+                           [&](const MenuLabel& candidate) {
+                             return candidate.name == destination_name &&
+                                    candidate.has_world;
+                           });
+          if (destination != labels.end())
+            animated_destination = &destination->world;
+        }
+      }
+      const auto& xfm = animated_destination
+                            ? *animated_destination
+                            : (((lbl.type == "BandLabel" ||
+                                 lbl.type == "Text" || isTextEntry) &&
+                                menu_label_uses_authored_world_transform(lbl))
+                                   ? lbl.world
+                                   : lbl.local);
       float source_scale = 1.0f;
       float fit_width_world = 0.0f;
       float fit_height_world = 0.0f;
@@ -5804,6 +5826,14 @@ void focus_move(ScreenManager& mgr, const std::vector<MenuLabel>& labels,
     DataArray args;
     args.push(DataNode::Int(dir));
     component->handle_property(Symbol("scroll_character"), args);
+    return;
+  }
+  if (panel->class_name() == Symbol("GuitarSelectPanel")) {
+    mgr.set_global(Symbol("button"),
+                   DataNode::Sym(
+                       Symbol(dir > 0 ? "kPad_DDown" : "kPad_DUp")));
+    mgr.set_global(Symbol("player_num"), DataNode::Int(0));
+    panel->handle_property(Symbol("BUTTON_DOWN_MSG"), DataArray());
     return;
   }
   if (move_character_outfit_window(mgr, panel, dir)) return;

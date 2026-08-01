@@ -2228,14 +2228,14 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
     if (std::strcmp(m, "set_skin_select") == 0) {
       const int player = arg0_int(args);
       const bool selecting_skin = args.size() > 1 && node_bool(args.at(1));
-      set_property(Symbol(indexed_key("skin_select", player)),
+      set_property(player_key("skin_select", player),
                    DataNode::Int(selecting_skin ? 1 : 0));
       return true;
     }
     if (std::strcmp(m, "is_skin_select") == 0) {
       const int player = arg0_int(args);
       out = DataNode::Int(node_bool(get_property(
-                              Symbol(indexed_key("skin_select", player))))
+                              player_key("skin_select", player)))
                               ? 1
                               : 0);
       return true;

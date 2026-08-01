@@ -1646,10 +1646,9 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
       return true;
     }
     const Symbol desc(Symbol(std::string(skin.c_str()) + "_desc"));
-    out = DataNode::Sym(mgr_ && mgr_->localize(desc) == desc.c_str() &&
-                               mgr_->localize(skin) != skin.c_str()
-                           ? skin
-                           : desc);
+    out = mgr_ && mgr_->localize(desc) == desc.c_str()
+              ? DataNode::Str("")
+              : DataNode::Sym(desc);
     return true;
   }
   if (std::strcmp(m, "get_num_guitars") == 0) {

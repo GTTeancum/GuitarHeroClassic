@@ -2031,6 +2031,17 @@ int main(int argc, char** argv) {
     CHECK(sel_guitar_panel->handle_property(Symbol("is_skin_select"), player_arg)
               .as_int()
               .value_or(-1) == 0);
+    DataArray skin_select_args;
+    skin_select_args.push(DataNode::Int(0));
+    skin_select_args.push(DataNode::Int(1));
+    sel_guitar_panel->handle_property(Symbol("set_skin_select"),
+                                      skin_select_args);
+    CHECK(sel_guitar_panel->handle_property(Symbol("is_skin_select"), player_arg)
+              .as_int()
+              .value_or(-1) == 1);
+    skin_select_args.at(1) = DataNode::Int(0);
+    sel_guitar_panel->handle_property(Symbol("set_skin_select"),
+                                      skin_select_args);
     CHECK(sel_guitar_panel->handle_property(Symbol("get_selected_guitar"),
                                             player_arg)
               .as_symbol()
