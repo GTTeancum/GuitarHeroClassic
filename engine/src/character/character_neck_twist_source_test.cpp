@@ -1,0 +1,192 @@
+#include "character/char_mesh.h"
+
+#include <array>
+#include <cmath>
+#include <iostream>
+#include <string>
+#include <vector>
+
+namespace {
+
+bool expect_bool(bool got, bool want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_size(size_t got, size_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_int(int got, int want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_string(const std::string& got, const std::string& want,
+                   const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool near(float got, float want, const char* label) {
+  if (std::fabs(got - want) <= 0.0001f) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+}  // namespace
+
+int main() {
+  using ghogx::character::SourceCharNeckTwistPollDeps;
+  using ghogx::character::source_char_neck_twist_copy_plan;
+  using ghogx::character::source_char_neck_twist_defaults;
+  using ghogx::character::source_char_neck_twist_half_limited_angle;
+  using ghogx::character::source_char_neck_twist_handler_plan;
+  using ghogx::character::source_char_neck_twist_load_plan;
+  using ghogx::character::source_char_neck_twist_load_revision_known;
+  using ghogx::character::source_char_neck_twist_prop_sync_plan;
+  using ghogx::character::source_char_neck_twist_poll_plan;
+  using ghogx::character::source_char_neck_twist_poll_deps;
+  using ghogx::character::source_char_neck_twist_save_plan;
+
+  constexpr float kPi = 3.14159265358979323846f;
+  const std::array<float, 9> identity = {1.0f, 0.0f, 0.0f,
+                                         0.0f, 1.0f, 0.0f,
+                                         0.0f, 0.0f, 1.0f};
+  const std::array<float, 9> parent = {1.0f, 0.0f, 0.0f,
+                                       0.0f, 1.0f, 0.0f,
+                                       0.0f, 0.0f, 1.0f};
+  const std::array<float, 9> pure_x_roll = {1.0f, 0.0f, 0.0f,
+                                            0.0f, 0.0f, 1.0f,
+                                            0.0f, -1.0f, 0.0f};
+  const std::array<float, 9> swing_z_only = {0.0f, 1.0f, 0.0f,
+                                             -1.0f, 0.0f, 0.0f,
+                                             0.0f, 0.0f, 1.0f};
+  bool ok = true;
+
+  const auto defaults = source_char_neck_twist_defaults();
+  ok &= expect_string(defaults.head, "", "default head");
+  ok &= expect_string(defaults.twist, "", "default twist");
+
+  ok &= expect_bool(source_char_neck_twist_load_revision_known(-1), false,
+                    "revision -1 rejected");
+  ok &= expect_bool(source_char_neck_twist_load_revision_known(0), true,
+                    "revision 0 accepted");
+  ok &= expect_bool(source_char_neck_twist_load_revision_known(1), true,
+                    "revision 1 accepted");
+  ok &= expect_bool(source_char_neck_twist_load_revision_known(2), false,
+                    "revision 2 rejected");
+
+  const auto bad_load = source_char_neck_twist_load_plan(2);
+  ok &= expect_bool(bad_load.known_revision, false, "bad load revision");
+  ok &= expect_size(bad_load.read_order.size(), 0, "bad load read order");
+  const auto load_v1 = source_char_neck_twist_load_plan(1);
+  ok &= expect_bool(load_v1.known_revision, true, "load revision 1");
+  ok &= expect_size(load_v1.read_order.size(), 3, "load read count");
+  ok &= expect_string(load_v1.read_order[0], "Hmx::Object", "load object");
+  ok &= expect_string(load_v1.read_order[1], "mHead", "load head");
+  ok &= expect_string(load_v1.read_order[2], "mTwist", "load twist");
+
+  const auto copy_plan = source_char_neck_twist_copy_plan();
+  ok &= expect_size(copy_plan.copied_superclasses.size(), 1,
+                    "copy superclass count");
+  ok &= expect_string(copy_plan.copied_superclasses[0], "Hmx::Object",
+                      "copy superclass");
+  ok &= expect_size(copy_plan.copied_members.size(), 2,
+                    "copy member count");
+  ok &= expect_string(copy_plan.copied_members[0], "mHead", "copy head");
+  ok &= expect_string(copy_plan.copied_members[1], "mTwist", "copy twist");
+
+  const auto handler_plan = source_char_neck_twist_handler_plan();
+  ok &= expect_string(handler_plan.superclasses[0], "Hmx::Object",
+                      "handler superclass");
+  ok &= expect_int(handler_plan.check, 0x65, "handler check");
+  ok &= expect_int(source_char_neck_twist_save_plan().save_id, 0x4A,
+                   "CharNeckTwist save id");
+
+  const auto prop_sync_plan = source_char_neck_twist_prop_sync_plan();
+  ok &= expect_size(prop_sync_plan.properties.size(), 2, "prop count");
+  ok &= expect_string(prop_sync_plan.properties[0], "head", "prop head");
+  ok &= expect_string(prop_sync_plan.properties[1], "twist", "prop twist");
+
+  SourceCharNeckTwistPollDeps deps;
+  source_char_neck_twist_poll_deps(deps, "bone_head.mesh",
+                                   "bone_neck.mesh");
+  ok &= expect_size(deps.changed_by.size(), 1, "changed_by count");
+  ok &= expect_size(deps.change.size(), 1, "change count");
+  ok &= expect_string(deps.changed_by[0], "bone_head.mesh", "changed_by head");
+  ok &= expect_string(deps.change[0], "bone_neck.mesh", "change twist");
+
+  ok &= near(source_char_neck_twist_half_limited_angle(1.0f, 0.0f), 0.0f,
+             "zero twist angle");
+  ok &= near(source_char_neck_twist_half_limited_angle(0.0f, 1.0f),
+             kPi * 0.25f, "positive quarter twist angle");
+  ok &= near(source_char_neck_twist_half_limited_angle(0.0f, -1.0f),
+             -kPi * 0.25f, "negative quarter twist angle");
+
+  auto poll = source_char_neck_twist_poll_plan(
+      false, true, true, true, identity, {parent});
+  ok &= expect_bool(poll.entered_head_twist_gate, false,
+                    "Poll skips missing head");
+  ok &= expect_bool(poll.writes_twist_local_rotate_x, false,
+                    "Poll missing head has no write");
+
+  poll = source_char_neck_twist_poll_plan(
+      true, true, false, true, identity, {parent});
+  ok &= expect_bool(poll.entered_head_twist_gate, true,
+                    "Poll enters head/twist gate");
+  ok &= expect_bool(poll.entered_twist_parent_gate, false,
+                    "Poll skips missing twist parent");
+
+  poll = source_char_neck_twist_poll_plan(
+      true, true, true, false, identity, {parent});
+  ok &= expect_bool(poll.entered_twist_parent_gate, true,
+                    "Poll enters twist parent gate");
+  ok &= expect_size(poll.parent_multiply_count, 1,
+                    "Poll multiplies parent local before chain miss");
+  ok &= expect_bool(poll.reached_twist_parent, false,
+                    "Poll records parent chain miss");
+  ok &= expect_bool(poll.writes_twist_local_rotate_x, false,
+                    "Poll chain miss has no write");
+
+  poll = source_char_neck_twist_poll_plan(
+      true, true, true, true, pure_x_roll, {});
+  ok &= expect_bool(poll.reached_twist_parent, true,
+                    "Poll reaches twist parent");
+  ok &= expect_bool(poll.applied_make_rot_quat_unit_x, true,
+                    "Poll applies MakeRotQuatUnitX");
+  ok &= near(poll.accumulated_y[1], 0.0f,
+             "Poll accumulated pure roll row y y");
+  ok &= near(poll.accumulated_y[2], 1.0f,
+             "Poll accumulated pure roll row y z");
+  ok &= near(poll.rotated_y_after_make_rot_quat_unit_x[1], 0.0f,
+             "Poll pure roll rotated y y");
+  ok &= near(poll.rotated_y_after_make_rot_quat_unit_x[2], 1.0f,
+             "Poll pure roll rotated y z");
+  ok &= near(poll.rotate_about_x_radians, kPi * 0.25f,
+             "Poll writes half limited angle from computed rotated y");
+  ok &= expect_bool(poll.writes_twist_local_rotate_x, true,
+                    "Poll records twist local X write");
+
+  poll = source_char_neck_twist_poll_plan(
+      true, true, true, true, identity, {swing_z_only});
+  ok &= near(poll.accumulated_x[0], 0.0f,
+             "Poll swing-only accumulated x x");
+  ok &= near(poll.accumulated_x[1], 1.0f,
+             "Poll swing-only accumulated x y");
+  ok &= near(poll.rotated_y_after_make_rot_quat_unit_x[0], 0.0f,
+             "Poll swing-only rotated y x");
+  ok &= near(poll.rotated_y_after_make_rot_quat_unit_x[1], 1.0f,
+             "Poll swing-only rotated y y");
+  ok &= near(poll.rotated_y_after_make_rot_quat_unit_x[2], 0.0f,
+             "Poll swing-only rotated y z");
+  ok &= near(poll.rotate_about_x_radians, 0.0f,
+             "Poll swing-only cancels X swing");
+
+  return ok ? 0 : 1;
+}

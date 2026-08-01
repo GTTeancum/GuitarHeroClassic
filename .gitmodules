@@ -1,0 +1,6 @@
+[submodule "third_party/Mackiloha"]
+	path = third_party/Mackiloha
+	url = https://github.com/PikminGuts92/Mackiloha.git
+[submodule "third_party/miniz"]
+	path = third_party/miniz
+	url = https://github.com/richgel999/miniz.git

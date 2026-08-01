@@ -1,0 +1,18 @@
+character	selection	source	label
+punk	gh1_punk	gh1	Atomic
+punk	gh80_punk1	gh80	80's Punk
+alterna	gh1_alterna	gh1	Bad in black
+alterna	gh80_alterna1	gh80	Hairspray
+glam	gh1_hair_metal	gh1	War paint
+glam	gh80_glam1	gh80	Steel Panther
+goth	gh1_nu_metal	gh1	Latex
+goth	gh80_goth2	gh80	Short shorts
+metal	gh1_metal	gh1	Metal shirt
+metal	gh80_metal1	gh80	Jacket
+classic	gh1_classic	gh1	Strawberry Fields
+classic	classic	gh2	Kashmir
+funk1	gh1_hiphop	gh1	Hip hop
+funk1	funk1	gh2	Funk
+grim	gh1_grim	gh1	Classic
+grim	grim	gh2	Time
+grim	gh80_grim	gh80	No time
