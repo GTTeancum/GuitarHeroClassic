@@ -10,10 +10,13 @@ from pathlib import Path
 
 
 def clean_name(value: str) -> str:
+    value = re.sub(
+        r"<sup>\s*(?:TM|™|®)\s*</sup>", "", value, flags=re.IGNORECASE
+    )
     value = re.sub(r"</?sup>", "", value, flags=re.IGNORECASE)
-    value = value.replace("TM", "").replace("Â®", "").replace("®", "")
-    value = value.replace("™", "")
+    value = value.replace("Â®", "").replace("®", "").replace("™", "")
     value = value.replace("\u00ae", "").replace("\u2122", "").replace("\u00c2", "")
+    value = value.replace("\\q", "")
     value = re.sub(r"\s+", " ", value).strip()
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
@@ -79,6 +82,14 @@ def halve_prices(block: str) -> tuple[str, int]:
     return re.sub(r"(\(price\s+)(\d+)(\))", replacement, block), count
 
 
+def skin_symbol(record: dict[str, str]) -> str:
+    if record.get("is_default_skin", "").lower() == "true":
+        return (
+            f"rb2_{record['role']}_{record['catalog_id']}_default"
+        )
+    return f"{record['asset_stem']}_skin"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--inventory", required=True, type=Path)
@@ -107,20 +118,47 @@ def main() -> int:
             f"missing={sorted(inventory_keys - record_keys)} "
             f"extra={sorted(record_keys - inventory_keys)}"
         )
+    records_by_instrument: dict[tuple[str, str], list[dict[str, str]]] = {}
+    for record in records:
+        records_by_instrument.setdefault(
+            (record["role"], record["catalog_id"]), []
+        ).append(record)
+    for key, finish_rows in records_by_instrument.items():
+        finish_rows.sort(
+            key=lambda row: (
+                row.get("is_default_skin", "").lower() != "true",
+                row["asset_stem"],
+            )
+        )
+        if (
+            sum(
+                row.get("is_default_skin", "").lower() == "true"
+                for row in finish_rows
+            )
+            != 1
+        ):
+            raise RuntimeError(f"{key}: expected exactly one default finish")
 
     guitars = read_dta_text(args.guitars_dta)
     guitar_additions: list[str] = []
     store_additions: list[str] = []
     for row in inventory:
         model = f"rb2_{row['role']}_{row['catalog_id']}"
-        skin = f"{model}_default"
+        finish_rows = records_by_instrument[(row["role"], row["catalog_id"])]
+        skin_blocks = []
+        for finish in finish_rows:
+            skin = skin_symbol(finish)
+            skin_blocks.append(
+                f"  ({skin}\n"
+                f"   (outfit {finish['asset_stem']})\n"
+                f"   (mat guitar_sg_cherry.mat))"
+            )
         guitar_additions.append(
             f"({model}\n"
             f" (type {row['role']})\n"
             f" (skins\n"
-            f"  ({skin}\n"
-            f"   (outfit {model})\n"
-            f"   (mat guitar_sg_cherry.mat))))"
+            + "\n".join(skin_blocks)
+            + "))"
         )
         store_additions.append(
             f"  ({model}\n"
@@ -165,13 +203,8 @@ def main() -> int:
     rb2_locale_keys: set[str] = set()
     for row in inventory:
         model = f"rb2_{row['role']}_{row['catalog_id']}"
-        rb2_locale_keys.update(
-            {
-                model,
-                f"{model}_default",
-                f"{model}_shop_desc",
-            }
-        )
+        rb2_locale_keys.update({model, f"{model}_shop_desc"})
+    rb2_locale_keys.update(skin_symbol(record) for record in records)
     store_locale_replacements = {
         "store_guitar": '(store_guitar "INSTRUMENTS")',
         "guitar_shop_desc": (
@@ -198,10 +231,12 @@ def main() -> int:
         display_name = clean_name(row["display_name"])
         locale += (
             f'({model} "{display_name}")\n'
-            f'({model}_default "Standard Finish")\n'
             f'({model}_shop_desc "{display_name}, imported from Rock Band 2 '
             f'and converted for Guitar Hero II.")\n'
         )
+    for record in records:
+        skin_name = clean_name(record.get("skin_display_name", "Default"))
+        locale += f'({skin_symbol(record)} "{skin_name}")\n'
 
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "guitars.dta").write_text(guitars, encoding="utf-8")
@@ -216,7 +251,7 @@ def main() -> int:
         writer.writerow(["rb2_basses", sum(row["role"] == "bass" for row in inventory)])
         writer.writerow(["rb2_store_items", len(inventory)])
         writer.writerow(["rb2_display_names", len(inventory)])
-        writer.writerow(["rb2_skin_display_names", len(inventory)])
+        writer.writerow(["rb2_skin_display_names", len(records)])
         writer.writerow(["rb2_shop_descriptions", len(inventory)])
         writer.writerow(["gh2_model_prices_halved", halved_counts["guitar"]])
         writer.writerow(["gh2_skin_prices_halved", halved_counts["skin"]])
@@ -224,7 +259,7 @@ def main() -> int:
         "RB2_CATALOG_PATCH_COMPLETE "
         f"items={len(inventory)} guitars={sum(row['role'] == 'guitar' for row in inventory)} "
         f"basses={sum(row['role'] == 'bass' for row in inventory)} "
-        f"display_names={len(inventory)} skin_display_names={len(inventory)} "
+        f"display_names={len(inventory)} skin_display_names={len(records)} "
         f"shop_descriptions={len(inventory)} "
         f"gh2_models_halved={halved_counts['guitar']} "
         f"gh2_skins_halved={halved_counts['skin']} output={args.output.resolve()}"

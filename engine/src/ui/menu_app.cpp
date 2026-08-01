@@ -7042,15 +7042,49 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                   player1_config->handle_property(Symbol("get_guitar"),
                                                   DataArray()))
             : Symbol();
+    const auto resolve_skin =
+        [&](Symbol instrument, Object* player)
+            -> std::pair<Symbol, Symbol> {
+      if (!instrument.valid()) return {};
+      Symbol skin =
+          player
+              ? symbol_value(player->handle_property(
+                    Symbol("get_guitar_skin"), DataArray()))
+              : Symbol();
+      if (!skin.valid()) skin = db.first_guitar_skin(instrument);
+      return {
+          symbol_value(db.guitar_skin_field(instrument, skin,
+                                            Symbol("outfit"))),
+          symbol_value(db.guitar_skin_field(instrument, skin,
+                                            Symbol("mat")))};
+    };
+    const auto [selected_guitar_outfit, selected_guitar_mat] =
+        resolve_skin(selected_guitar, player0_config);
+    const auto [selected_bass_outfit, selected_bass_mat] =
+        resolve_skin(selected_bass, player1_config);
     gameplay.set_selected_instruments(
         selected_guitar.valid() ? selected_guitar.c_str() : "",
-        selected_bass.valid() ? selected_bass.c_str() : "");
+        selected_guitar_outfit.valid() ? selected_guitar_outfit.c_str() : "",
+        selected_guitar_mat.valid() ? selected_guitar_mat.c_str() : "",
+        selected_bass.valid() ? selected_bass.c_str() : "",
+        selected_bass_outfit.valid() ? selected_bass_outfit.c_str() : "",
+        selected_bass_mat.valid() ? selected_bass_mat.c_str() : "");
     std::fprintf(stderr,
                  "[flow] equipped instrument handoff: mode=%s "
-                 "player0=%s player1=%s\n",
+                 "player0=%s skin_outfit=%s skin_mat=%s "
+                 "player1=%s skin_outfit=%s skin_mat=%s\n",
                  game_mode.valid() ? game_mode.c_str() : "<unset>",
                  selected_guitar.valid() ? selected_guitar.c_str() : "<song>",
-                 selected_bass.valid() ? selected_bass.c_str() : "<npc>");
+                 selected_guitar_outfit.valid()
+                     ? selected_guitar_outfit.c_str()
+                     : "<default>",
+                 selected_guitar_mat.valid() ? selected_guitar_mat.c_str()
+                                             : "<default>",
+                 selected_bass.valid() ? selected_bass.c_str() : "<npc>",
+                 selected_bass_outfit.valid() ? selected_bass_outfit.c_str()
+                                              : "<default>",
+                 selected_bass_mat.valid() ? selected_bass_mat.c_str()
+                                           : "<default>");
     std::fprintf(
         stderr,
         "[flow] selected song handoff: provider_index=%zu song=%s mode=%s "
@@ -7382,7 +7416,8 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     update_meta_music(dt);
 
     if (phase == RuntimePhase::BootLogos) {
-      const bool skip = win->action_pressed(Action::Confirm) ||
+      const bool skip = options.automate_full_loop ||
+                        win->action_pressed(Action::Confirm) ||
                         win->action_pressed(Action::Start) ||
                         win->action_pressed(Action::Back);
       constexpr float kFade = 0.45f;
@@ -7414,7 +7449,8 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     }
 
     if (phase == RuntimePhase::IntroVideo) {
-      const bool skip = win->action_pressed(Action::Confirm) ||
+      const bool skip = options.automate_full_loop ||
+                        win->action_pressed(Action::Confirm) ||
                         win->action_pressed(Action::Start) ||
                         win->action_pressed(Action::Back);
       if (skip) {

@@ -9,6 +9,14 @@ import re
 from pathlib import Path
 
 
+def skin_symbol(record: dict[str, str]) -> str:
+    if record.get("is_default_skin", "").lower() == "true":
+        return (
+            f"rb2_{record['role']}_{record['catalog_id']}_default"
+        )
+    return f"{record['asset_stem']}_skin"
+
+
 def clean_name(value: str) -> str:
     value = re.sub(r"</?sup>", "", value, flags=re.IGNORECASE)
     value = value.replace("TM", "").replace("Ã‚Â®", "").replace("Â®", "")
@@ -88,6 +96,7 @@ def parse_prices(text: str, section: str) -> dict[str, int]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--inventory", required=True, type=Path)
+    parser.add_argument("--records", required=True, type=Path)
     parser.add_argument("--source-store", required=True, type=Path)
     parser.add_argument("--patched-store", required=True, type=Path)
     parser.add_argument("--patched-guitars", required=True, type=Path)
@@ -96,6 +105,13 @@ def main() -> int:
 
     with args.inventory.open(encoding="utf-8", newline="") as stream:
         inventory = list(csv.DictReader(stream, dialect="excel-tab"))
+    with args.records.open(encoding="utf-8", newline="") as stream:
+        records = list(csv.DictReader(stream, dialect="excel-tab"))
+    records_by_instrument: dict[tuple[str, str], list[dict[str, str]]] = {}
+    for record in records:
+        records_by_instrument.setdefault(
+            (record["role"], record["catalog_id"]), []
+        ).append(record)
     source_store = read_dta_text(args.source_store)
     patched_store = read_dta_text(args.patched_store)
     patched_guitars = read_dta_text(args.patched_guitars)
@@ -127,8 +143,7 @@ def main() -> int:
             )
         model_pattern = (
             rf"\({re.escape(model)}\s+"
-            rf"\(type\s+{re.escape(row['role'])}\).*?"
-            rf"\(outfit\s+{re.escape(model)}\)"
+            rf"\(type\s+{re.escape(row['role'])}\).*?\(skins\b"
         )
         if not re.search(model_pattern, patched_guitars, re.DOTALL):
             errors.append(f"missing/invalid guitar config {model}")
@@ -144,15 +159,6 @@ def main() -> int:
                 f"display name count {model}: "
                 f"{len(display_name_matches)} != 1"
             )
-        skin_name_pattern = (
-            rf'\({re.escape(model)}_default\s+"Standard Finish"\)'
-        )
-        skin_name_matches = re.findall(skin_name_pattern, patched_locale)
-        if len(skin_name_matches) != 1:
-            errors.append(
-                f"skin display name count {model}: "
-                f"{len(skin_name_matches)} != 1"
-            )
         description_pattern = (
             rf"\({re.escape(model)}_shop_desc\s+"
             rf'"[^"]*imported from Rock Band 2 and converted for Guitar Hero II\."\)'
@@ -165,6 +171,32 @@ def main() -> int:
                 f"shop description count {model}: "
                 f"{len(description_matches)} != 1"
             )
+        finish_rows = records_by_instrument.get(
+            (row["role"], row["catalog_id"]), []
+        )
+        if not finish_rows:
+            errors.append(f"no converted finishes for {model}")
+        for finish in finish_rows:
+            skin = skin_symbol(finish)
+            config_pattern = (
+                rf"\({re.escape(skin)}\s+"
+                rf"\(outfit\s+{re.escape(finish['asset_stem'])}\)\s+"
+                rf"\(mat\s+guitar_sg_cherry\.mat\)\)"
+            )
+            if not re.search(config_pattern, patched_guitars, re.DOTALL):
+                errors.append(f"missing/invalid finish config {skin}")
+            skin_name_pattern = (
+                rf'\({re.escape(skin)}\s+"'
+                rf'{re.escape(finish["skin_display_name"])}"\)'
+            )
+            skin_name_matches = re.findall(
+                skin_name_pattern, patched_locale
+            )
+            if len(skin_name_matches) != 1:
+                errors.append(
+                    f"skin display name count {skin}: "
+                    f"{len(skin_name_matches)} != 1"
+                )
     rb2_keys = {
         f"rb2_{row['role']}_{row['catalog_id']}"
         for row in inventory
@@ -175,6 +207,9 @@ def main() -> int:
         errors.append("patched store model key set mismatch")
     if set(target_skins) != set(source_skins):
         errors.append("patched skin key set mismatch")
+    if re.search(r"\u2122|<sup>\s*TM\s*</sup>|\\q", patched_locale,
+                 re.IGNORECASE):
+        errors.append("patched locale still contains trademark/quote markup")
     for expected in (
         '(store_guitar "INSTRUMENTS")',
         "Guitars and basses from Rock Band 2 join the Guitar Hero II collection.",
@@ -192,7 +227,7 @@ def main() -> int:
         f"rb2_items={len(inventory)} "
         f"gh2_models={len(source_models)} gh2_skins={len(source_skins)} "
         f"store_models={len(target_models)} display_names={len(inventory)} "
-        f"skin_display_names={len(inventory)} "
+        f"skin_display_names={len(records)} "
         f"shop_descriptions={len(inventory)} "
         f"errors=0"
     )

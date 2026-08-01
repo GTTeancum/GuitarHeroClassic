@@ -35,8 +35,17 @@ def main() -> int:
         writer = csv.writer(stream, dialect="excel-tab")
         writer.writerow(["relative_path", "size"])
         writer.writerows(rows)
-    if len(rows) != 95:
-        raise RuntimeError(f"expected 95 overlay files, found {len(rows)}")
+    records_path = build_root / "conversion_records.tsv"
+    with records_path.open(encoding="utf-8", newline="") as stream:
+        converted_count = sum(
+            1 for _ in csv.DictReader(stream, dialect="excel-tab")
+        )
+    expected_files = converted_count + 3
+    if len(rows) != expected_files:
+        raise RuntimeError(
+            f"expected {expected_files} overlay files "
+            f"({converted_count} finishes + 3 DTBs), found {len(rows)}"
+        )
     print(
         f"RB2_DEPLOY_OVERLAY_READY files={len(rows)} "
         f"bytes={sum(size for _, size in rows)} manifest={manifest}"
