@@ -850,9 +850,16 @@ class Gameplay {
   // Instrument selections committed by the retail menu flow. These are
   // distinct from diagnostic overrides: they are the player's equipped
   // profile choices and remain the normal gameplay source.
-  void set_selected_instruments(std::string guitar, std::string bass) {
+  void set_selected_instruments(
+      std::string guitar, std::string guitar_outfit,
+      std::string guitar_material, std::string bass,
+      std::string bass_outfit, std::string bass_material) {
     selected_guitar_ = std::move(guitar);
+    selected_guitar_outfit_ = std::move(guitar_outfit);
+    selected_guitar_material_ = std::move(guitar_material);
     selected_bass_ = std::move(bass);
+    selected_bass_outfit_ = std::move(bass_outfit);
+    selected_bass_material_ = std::move(bass_material);
   }
   // Co-op player two owns the bassist slot. Carry that player's exact
   // character variant into the bassist performer rather than leaving the
@@ -1898,7 +1905,11 @@ class Gameplay {
   std::string diagnostic_guitar_override_;
   std::string diagnostic_bass_override_;
   std::string selected_guitar_;
+  std::string selected_guitar_outfit_;
+  std::string selected_guitar_material_;
   std::string selected_bass_;
+  std::string selected_bass_outfit_;
+  std::string selected_bass_material_;
   std::string diagnostic_venue_event_;
   std::string diagnostic_camera_shot_;
   std::string diagnostic_front_camera_role_;

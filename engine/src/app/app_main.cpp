@@ -41,6 +41,8 @@
 //                                      route guitarist/highway art through character c
 //   ghogx_app --diagnostic-bass <model>
 //                                      route the bassist prop through a selected bass
+//   ghogx_app --diagnostic-player-bassist <model>
+//                                      use a player-character rig for the bassist slot
 //   ghogx_app --diagnostic-performer <role>=<source:model>
 //                                      route any performer through an archive-qualified
 //                                      character reference without changing gameplay/UI
@@ -963,6 +965,15 @@ class AppEngine : public ghogx::Engine {
 
   void set_diagnostic_bass_override(const std::string& bass) {
     gameplay_.set_diagnostic_bass_override(bass);
+  }
+
+  void set_diagnostic_player_bassist(const std::string& model) {
+    const std::string base = "char/" + model;
+    gameplay_.set_selected_bassist_character_variant(
+        model, base + "/og/gen/" + model + ".milo_ps2",
+        base + "/anims/gen/" + model + "_main.milo_ps2",
+        base + "/anims/gen/" + model + "_strum.milo_ps2",
+        base + "/anims/gen/" + model + "_fret.milo_ps2");
   }
 
   void set_diagnostic_venue_event(const std::string& event_name) {
@@ -2890,6 +2901,7 @@ int main(int argc, char** argv) {
   bool venue_only = false;
   std::string diagnostic_guitar;
   std::string diagnostic_bass;
+  std::string diagnostic_player_bassist;
   std::string diagnostic_venue_event;
   std::string diagnostic_camera_shot;
   std::string diagnostic_front_camera;
@@ -3065,6 +3077,9 @@ int main(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--diagnostic-bass") == 0 &&
                i + 1 < argc) {
       diagnostic_bass = argv[++i];
+    } else if (std::strcmp(argv[i], "--diagnostic-player-bassist") == 0 &&
+               i + 1 < argc) {
+      diagnostic_player_bassist = argv[++i];
     } else if (std::strcmp(argv[i], "--diagnostic-venue-event") == 0 &&
                i + 1 < argc) {
       diagnostic_venue_event = argv[++i];
@@ -3470,6 +3485,11 @@ int main(int argc, char** argv) {
     engine.set_diagnostic_bass_override(diagnostic_bass);
     std::fprintf(stderr, "[ghogx] diagnostic bass override: %s\n",
                  diagnostic_bass.c_str());
+  }
+  if (!diagnostic_player_bassist.empty()) {
+    engine.set_diagnostic_player_bassist(diagnostic_player_bassist);
+    std::fprintf(stderr, "[ghogx] diagnostic player bassist: %s\n",
+                 diagnostic_player_bassist.c_str());
   }
   if (!diagnostic_venue_event.empty()) {
     engine.set_diagnostic_venue_event(diagnostic_venue_event);

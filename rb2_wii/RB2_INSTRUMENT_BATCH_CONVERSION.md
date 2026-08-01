@@ -7,6 +7,7 @@ GH2-style packages for this repository's game:
 
 - 59 guitars;
 - 33 basses;
+- 543 retail finish/skin packages (376 guitar and 167 bass finishes);
 - RB2 display names and source prices;
 - store prices equal to `floor(RB2 price / 2)`; and
 - the existing GH2 guitar/model prices halved by the same catalog patch.
@@ -14,21 +15,37 @@ GH2-style packages for this repository's game:
 The current audited build is:
 
 ```text
-rb2_wii/batch_build/rb2_retail_native_v10
+rb2_wii/batch_build/rb2_retail_finishes_v11
 ```
 
 Its package overlay is deliberately not the acceptance oracle. A model is
 finished only after store purchase/equip and gameplay checks in the active
 game.
 
-The complete v10 overlay is deployed. `ark_tool verify` reports an exact
-version-3 archive, and all 95 active entries read back byte-identically:
-92 instrument packages, `guitars.dtb`, `store.dtb`, and
+The complete v11 overlay is deployed. All 546 active entries read back
+byte-identically: 543 finish packages, `guitars.dtb`, `store.dtb`, and
 `ui/eng/gen/locale.dtb`. The per-entry proof is:
 
 ```text
-rb2_wii/batch_build/rb2_retail_native_v10/active_readback_audit.tsv
+rb2_wii/batch_build/rb2_retail_finishes_v11/active_readback_audit.tsv
 ```
+
+## Finish inventory and runtime selection
+
+`tools/build_instrument_finish_inventory.py` expands the 92 model groups from
+`char/instruments.dta` into the retail outfit list and joins Harmonix's English
+finish names. The generated `catalog/rb2_instrument_finishes.tsv` has one row
+per finish MILO. Fixed fantasy instruments have one resource finish;
+customizable families expose Paint, Sparkle, Sunburst, Triburst, wood, and
+pickguard combinations exactly as authored.
+
+The game keeps model purchase and finish selection separate. Buying an RB2
+model at `floor(RB2 cost / 2)` makes its full retail finish list available;
+finishes are not assigned a second invented price. `PlayerConfig` and
+`GameConfig` persist the selected skin. On song launch, the menu resolves that
+skin's `outfit` and optional `mat`, and gameplay loads the resolved outfit MILO
+for both the single-player guitar and Player 2 bass. Stock GH2 material-only
+skins continue to use their material override on the attached gameplay prop.
 
 ## Qualified baseline
 
@@ -88,8 +105,13 @@ of incorrectly calling an imported bass a guitar.
 Run from the repository root with the bundled Python runtime:
 
 ```powershell
+python rb2_wii/tools/build_instrument_finish_inventory.py `
+  --rb2-root ..\rb2_wii
+
 python rb2_wii/tools/convert_rb2_instruments.py `
-  --output-root rb2_wii/batch_build/rb2_retail_native_v10
+  --rb2-root ..\rb2_wii `
+  --inventory ../rb2_wii/catalog/rb2_instrument_finishes.tsv `
+  --output-root ../rb2_wii/batch_build/rb2_retail_finishes_v11
 ```
 
 The converter uses native command-line tools (`milo_tool`, `superfreq`) and
@@ -115,21 +137,26 @@ For each instrument it:
    both qualified string textures, preserving RB2 repeat wrap and source-alpha
    behavior. The source instrument's cull and alpha-cut requirements are
    retained.
-8. Reconstructs customizable finishes in RB2 shader order. It recolors the
+8. Selects body color only from diffuse textures. `_comp`, `_mask`, normal,
+   specular, dummy, and strings maps are rejected before material-name
+   ranking. This prevents RB2 shader payloads from appearing as neon confetti
+   on Chainsaw, SkeleTone Bass, Axe Bass, Batwing, Jupiter, Neon, The Hand,
+   and the other affected fantasy instruments.
+9. Reconstructs customizable finishes in RB2 shader order. It recolors the
    paintable area, then restores the original diffuse RGB wherever the
    diffuse alpha marks fixed-color detail. On `telecaster01` that alpha island
    is the white pickguard. Only after that composition is the GH2 body texture
    flattened opaque.
-9. Preserves the RB2 body material's cull flag. Most RB2 instrument shells are
+10. Preserves the RB2 body material's cull flag. Most RB2 instrument shells are
    authored two-sided; replacing that state with the stock SG's `cull=true`
    removes thin neck, headstock, pickguard, and hardware faces.
-10. Converts `bone_fret`, `bone_strum`, and all 20 neck-fret target positions
+11. Converts `bone_fret`, `bone_strum`, and all 20 neck-fret target positions
    with the same body-envelope fit.
-11. Moves the rendered body, strings, and shadow `0.45` units toward the
+12. Moves the rendered body, strings, and shadow `0.45` units toward the
     performer while leaving hand targets fixed. The cached stored transform
     moves by the matching `-0.45` amount.
-12. Packs the GH2-native MILO and verifies required body/string meshes.
-13. Writes a SHA-256-tagged conversion record and overlay manifest entry.
+13. Packs the GH2-native MILO and verifies required body/string meshes.
+14. Writes a SHA-256-tagged conversion record and overlay manifest entry.
 
 The placement correction is not optional. Omitting it leaves the instrument
 in front of the hands. Applying the offset to hand targets as well defeats the
@@ -257,25 +284,22 @@ Approved executable SHA-256:
 
 ## Audit
 
-`batch_build/rb2_retail_native_v10/native_batch_audit.tsv` records:
+`batch_build/rb2_retail_finishes_v11/native_batch_audit.tsv` records:
 
-- 92/92 package hashes matched;
-- 196 required staged meshes were present;
-- all 92 primary bodies are face-forward (`X extent > Y extent`), so an
-  edge-on instrument now fails the build audit;
-- 91/91 generated placement transforms matched the fitted/offset contract
-  (the Fender is checked by its qualified package hash);
-- 100/100 encoded body images were opaque;
-- 276/276 string material/texture records matched the qualified Fender;
-- 92/92 prices equaled `floor(source price / 2)`; and
-- the regenerated overlay manifest contains 95 unique paths: 92 instruments
-  plus `guitars.dtb`, `store.dtb`, and `ui/eng/gen/locale.dtb`.
+- 543/543 finish-package hashes matched;
+- 1,098 required staged body/string meshes were present;
+- all primary bodies are face-forward (`X extent > Y extent`);
+- every body/string transform pair matches;
+- the texture audit decoded all 551 emitted body images and selected zero
+  auxiliary shader maps; and
+- all 546 deployed overlay files read back byte-identically from the active
+  ARK.
 
 The catalog audit result is:
 
 ```text
 RB2_CATALOG_AUDIT_OK rb2_items=92 gh2_models=24 gh2_skins=27
-store_models=116 display_names=92 skin_display_names=92
+store_models=116 display_names=92 skin_display_names=543
 shop_descriptions=92 errors=0
 ```
 
@@ -332,3 +356,49 @@ The `--diagnostic-proof-lighting` switch is only a visual inspection aid. It
 installs neutral performer/instrument lighting before performer construction,
 and `--diagnostic-front-camera guitarist0` locks a wider front view. Neither
 switch changes package geometry, store state, ownership, or gameplay logic.
+
+## Full 92-instrument visual review
+
+`tools/capture_rb2_instrument_proofs.py` creates one deterministic gameplay
+frame for every row in `conversion_records.tsv`. The output is a disposable,
+local-only review folder; it is not a substitute for user visual approval and
+must not be added to the public repository.
+
+The capture contract is:
+
+- 59 guitar frames use the player guitarist and
+  `--diagnostic-front-camera guitarist0`;
+- 33 bass frames use Player 2's character through
+  `--diagnostic-player-bassist alterna`, not the authored NPC bassist, and
+  `--diagnostic-front-camera bassist`;
+- every frame is a normal 960x720 BMP under bright proof lighting;
+- autoplay and a 25-second song seek put both hands and the instrument in an
+  active gameplay pose, and capture waits 90 rendered frames for the
+  fretting-hand solver to settle;
+- each process is hidden automatically because screenshot capture is enabled;
+  and
+- each result must log the exact prop source, anchored camera, playing state,
+  screenshot write, and Player 2 handoff for basses.
+
+Do not use frame 1 as bass hand-contact evidence. The player-character
+fretting solver resolves the converted prop targets during the first gameplay
+updates; the initial frame can still show the bind/unblended hand pose. The
+90-frame warmup is part of the proof contract, not a model offset.
+
+Example invocation from the repository root:
+
+```powershell
+python rb2_wii/tools/capture_rb2_instrument_proofs.py `
+  --exe ..\gh2_ps2_hybrid_assets\ghogx_app.exe `
+  --game-dir ..\gh2_ps2_hybrid_assets `
+  --records ..\rb2_wii\batch_build\rb2_retail_finishes_v11\conversion_records.tsv `
+  --output-dir ..\proofs\rb2-instruments-all-92-review `
+  --jobs 4
+```
+
+The generated `manifest.tsv` records the catalog identity, friendly display
+name, image path, dimensions, and validation result. `index.html` presents all
+92 labeled images at their native review size. Structural success does not
+mean an instrument is visually approved: inspect body completeness,
+orientation, strings, transparency, finish mapping, multipart placement, and
+both hand contacts in every frame.

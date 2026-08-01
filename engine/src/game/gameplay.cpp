@@ -616,6 +616,15 @@ std::string guitar_milo_for_quickplay(const std::string& symbol) {
     return "char/og/guitars/gen/" + stem + ".milo_ps2";
 }
 
+void apply_instrument_skin_material(ghogx::milo_scene::Scene& scene,
+                                    std::string_view material) {
+    if (material.empty() || !scene.find_mat(std::string(material))) return;
+    for (auto& mesh : scene.meshes) {
+        if (mesh.name == "guitar.mesh" || mesh.name == "guitar_fire.mesh")
+            mesh.material = std::string(material);
+    }
+}
+
 std::optional<std::string> first_bass_guitar_milo(
     const std::string& hdr_path, const std::string& ark_path) {
     try {
@@ -42621,7 +42630,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                      std::initializer_list<const char*> active_names,
                                      const std::string& prop_milo = std::string(),
                                      const std::string& prop_attach_bone =
-                                         "bone_pos_guitar.mesh") {
+                                         "bone_pos_guitar.mesh",
+                                     const std::string& prop_material =
+                                         std::string()) {
                 const bool selected_guitarist_variant =
                     role == "guitarist0" &&
                     diagnostic_character_override_.empty() &&
@@ -43453,6 +43464,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         }
                     }
                     if (prop_loaded) {
+                        apply_instrument_skin_material(prop_scene,
+                                                       prop_material);
                         auto prop_textures = ghogx::asset::load_milo_textures(
                             prop_hdr_path, prop_ark_path, resolved_prop_milo,
                             texture_names_for_scene(prop_scene));
@@ -44612,6 +44625,15 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 bind_performer_type_script_driver(performers_.size() - 1);
             };
 
+            const std::string equipped_guitar_outfit =
+                diagnostic_guitar_override_.empty() &&
+                        !selected_guitar_outfit_.empty()
+                    ? selected_guitar_outfit_
+                    : quickplay_rig_->guitar;
+            const std::string equipped_guitar_material =
+                diagnostic_guitar_override_.empty()
+                    ? selected_guitar_material_
+                    : std::string();
             add_performer("guitarist0", quickplay_rig_->character_outfit,
                           quickplay_rig_->character_outfit,
                           quickplay_rig_->character_outfit,
@@ -44622,7 +44644,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                            "stand_medium_03", "stand_medium_04",
                            "stand_fast_01", "stand_fast_02",
                            "stand_fast_03", "stand_fast_04"},
-                          guitar_milo_for_quickplay(quickplay_rig_->guitar));
+                          guitar_milo_for_quickplay(equipped_guitar_outfit),
+                          "bone_pos_guitar.mesh",
+                          equipped_guitar_material);
 
             const BandRoleNames band_roles =
                 classify_band_roles(quickplay_rig_->band);
@@ -44675,7 +44699,15 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     equipped_bass.empty()
                         ? first_bass_guitar_milo(hdr_path_, ark_path_)
                               .value_or("")
-                        : guitar_milo_for_quickplay(equipped_bass);
+                        : guitar_milo_for_quickplay(
+                              diagnostic_bass_override_.empty() &&
+                                      !selected_bass_outfit_.empty()
+                                  ? selected_bass_outfit_
+                                  : equipped_bass);
+                const std::string equipped_bass_material =
+                    diagnostic_bass_override_.empty()
+                        ? selected_bass_material_
+                        : std::string();
                 if (!diagnostic_bass_override_.empty()) {
                     std::fprintf(
                         stderr,
@@ -44714,7 +44746,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                "bassist_active_medium_02",
                                "bassist_active_fast_01",
                                "bassist_active_fast_02"},
-                              bass_prop, bass_attach_bone);
+                              bass_prop, bass_attach_bone,
+                              equipped_bass_material);
             }
             if (!drummer.empty()) {
                 add_performer("drummer", drummer, drummer, "drummer",

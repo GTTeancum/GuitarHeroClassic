@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import re
 import shutil
 import struct
 import subprocess
@@ -31,6 +32,15 @@ from rb2_native_assets import (
     patch_modern_material_cull,
     Ps2MeshTemplate,
     replace_length_prefixed_string,
+)
+
+AUXILIARY_TEXTURE_SUFFIXES = (
+    "_comp.tex",
+    "_mask.tex",
+    "_norm.tex",
+    "_normal.tex",
+    "_spec.tex",
+    "_specular.tex",
 )
 
 def run(command: list[str], log: Path, cwd: Path) -> str:
@@ -110,7 +120,11 @@ def texture_for_material(material: str, textures: list[str]) -> str | None:
     candidates = [
         texture
         for texture in textures
-        if "string" not in texture and "dummy" not in texture
+        if (
+            "string" not in texture.lower()
+            and "dummy" not in texture.lower()
+            and not texture.lower().endswith(AUXILIARY_TEXTURE_SUFFIXES)
+        )
     ]
     if not candidates:
         raise RuntimeError(f"no body texture for material {material}")
@@ -125,20 +139,28 @@ def texture_for_material(material: str, textures: list[str]) -> str | None:
         for token in material.lower().replace(".", "_").split("_")
         if token and token not in ignore
     }
-    ranked: list[tuple[int, str]] = []
-    for texture in candidates:
-        texture_tokens = {
+    def normalized_tokens(value: str) -> set[str]:
+        return {
             token
-            for token in texture.lower().replace(".", "_").split("_")
+            for token in value.lower().replace(".", "_").split("_")
             if token and token not in ignore
         }
-        ranked.append((len(material_tokens & texture_tokens), texture))
-    ranked.sort(key=lambda item: (-item[0], item[1]))
+
+    ranked: list[tuple[int, int, str]] = []
+    for texture in candidates:
+        texture_tokens = normalized_tokens(texture)
+        overlap = len(material_tokens & texture_tokens)
+        # Prefer the diffuse with the fewest unrelated role tokens when two
+        # candidates describe the same material.  This resolves, for example,
+        # the Chainsaw body versus its separate chain diffuse deterministically.
+        extras = len(texture_tokens - material_tokens)
+        ranked.append((overlap, extras, texture))
+    ranked.sort(key=lambda item: (-item[0], item[1], item[2]))
     if ranked[0][0] == 0:
         raise RuntimeError(
             f"ambiguous body texture for {material}: {sorted(candidates)}"
         )
-    return ranked[0][1]
+    return ranked[0][2]
 
 
 def offset_mesh(path: Path, local_x: float, stored_z: float) -> None:
@@ -181,12 +203,12 @@ def sha256(path: Path) -> str:
 
 
 def clean_markup(text: str) -> str:
-    return (
-        text.replace("<sup>TM</sup>", "™")
-        .replace("<sup>®</sup>", "®")
-        .replace("<sup>", "")
-        .replace("</sup>", "")
+    text = re.sub(
+        r"<sup>\s*(?:TM|™|®)\s*</sup>", "", text, flags=re.IGNORECASE
     )
+    text = re.sub(r"</?sup>", "", text, flags=re.IGNORECASE)
+    text = text.replace("™", "").replace("®", "").replace("\\q", "")
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def main() -> int:
@@ -198,12 +220,18 @@ def main() -> int:
     )
     parser.add_argument("--ids", nargs="*", default=[])
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--inventory", type=Path)
     parser.add_argument("--output-root", type=Path)
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
     rb2_root = args.rb2_root.resolve()
     repo_root = rb2_root.parent
-    inventory = rb2_root / "catalog" / "rb2_instruments.tsv"
+    inventory = (
+        args.inventory.resolve()
+        if args.inventory
+        else rb2_root / "catalog" / "rb2_instruments.tsv"
+    )
     milo_tool = (
         repo_root
         / "GuitarHeroOGX-main-ui-engine"
@@ -231,7 +259,7 @@ def main() -> int:
     for required in [inventory, milo_tool, template, superfreq]:
         if not required.exists():
             raise FileNotFoundError(required)
-    if output_root.exists():
+    if output_root.exists() and not args.resume:
         raise FileExistsError(
             f"output already exists; choose another --output-root: {output_root}"
         )
@@ -263,7 +291,7 @@ def main() -> int:
     overlay = output_root / "overlay" / "char" / "og" / "guitars" / "gen"
     logs = output_root / "logs"
     records: list[dict[str, str | int]] = []
-    output_root.mkdir(parents=True)
+    output_root.mkdir(parents=True, exist_ok=args.resume)
     qualified_fender_package = (
         rb2_root
         / "output"
@@ -274,22 +302,60 @@ def main() -> int:
         / "gen"
         / "guitar_sg.milo_ps2"
     )
+    qualified_fender_output = output_root / "_qualified_fender"
+    if qualified_fender_output.exists():
+        shutil.rmtree(qualified_fender_output)
     qualified_fender_entries = extract_milo(
         milo_tool,
         qualified_fender_package,
-        output_root / "_qualified_fender",
+        qualified_fender_output,
         logs / "qualified_fender.log",
         repo_root,
     )
 
+    record_path = output_root / "conversion_records.tsv"
+    records: list[dict[str, str | int]] = []
+    if args.resume and record_path.is_file():
+        with record_path.open(encoding="utf-8", newline="") as stream:
+            records.extend(csv.DictReader(stream, dialect="excel-tab"))
+    completed_stems = {str(record["asset_stem"]) for record in records}
+
+    def checkpoint_records() -> None:
+        with record_path.open("w", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(
+                stream,
+                fieldnames=list(records[0]),
+                dialect="excel-tab",
+            )
+            writer.writeheader()
+            writer.writerows(records)
+
     for index, row in enumerate(rows, start=1):
         role = row["role"]
         catalog_id = row["catalog_id"]
-        stem = f"rb2_{role}_{catalog_id}"
+        skin_id = row.get("skin_id", "")
+        is_default_skin = (
+            not skin_id
+            or row.get("is_default_skin", "").lower() == "true"
+            or skin_id == row["default_outfit"]
+        )
+        stem = (
+            f"rb2_{role}_{catalog_id}"
+            if is_default_skin
+            else f"rb2_{role}_{skin_id}"
+        )
+        if stem in completed_stems:
+            print(
+                "RB2_INSTRUMENT_RESUME_SKIP "
+                f"{index}/{len(rows)} role={role} id={catalog_id} stem={stem}"
+            )
+            continue
         item_root = output_root / "work" / stem
         stage = item_root / "stage"
         images = item_root / "images"
         log = logs / f"{stem}.log"
+        if item_root.exists():
+            shutil.rmtree(item_root)
         shutil.copytree(template, stage)
         images.mkdir(parents=True)
 
@@ -365,6 +431,7 @@ def main() -> int:
         )
 
         material_targets: dict[str, tuple[str, str]] = {}
+        texture_sources: list[str] = []
         customizable = variant.resolve() != resource.resolve()
         if customizable:
             if len(body_meshes) != 1:
@@ -380,12 +447,10 @@ def main() -> int:
                 name
                 for name in variant_textures
                 if (
-                    name.endswith("_diff.tex")
-                    or (
-                        name.endswith(".tex")
-                        and not name.endswith("_comp.tex")
-                        and not name.endswith("_mask.tex")
-                    )
+                    "string" not in name
+                    and "dummy" not in name
+                    and name.endswith(".tex")
+                    and not name.endswith(AUXILIARY_TEXTURE_SUFFIXES)
                 )
             )
             masks = sorted(
@@ -410,6 +475,7 @@ def main() -> int:
             diffuse = decode_embedded_wii_bitmap(
                 variant_entries[("tex", diffuses[0])].read_bytes()
             )
+            texture_sources.append(diffuses[0])
             diffuse.save(images / "body_diffuse.png")
             body_image = diffuse
             if masks:
@@ -425,8 +491,8 @@ def main() -> int:
                 colors = struct.unpack_from("<ii", config, 8)
                 if colors != (0, 0):
                     raise RuntimeError(
-                        f"{role}/{catalog_id}: unsupported default palette "
-                        f"indices {colors}"
+                        f"{role}/{catalog_id}/{skin_id}: unsupported retail "
+                        f"palette indices {colors}"
                     )
                 mask = decode_embedded_wii_bitmap(
                     variant_entries[("tex", masks[0])].read_bytes()
@@ -475,6 +541,8 @@ def main() -> int:
                 dict.fromkeys(mesh.material.lower() for _, mesh in body_meshes)
             ):
                 source_texture = texture_for_material(source_name, textures)
+                if source_texture:
+                    texture_sources.append(source_texture)
                 target_mat = (
                     "guitar_sg_cherry.mat"
                     if source_name == primary.material.lower()
@@ -664,7 +732,11 @@ def main() -> int:
             log,
             repo_root,
         )
-        if role == "guitar" and catalog_id == "stratocaster01":
+        if (
+            role == "guitar"
+            and catalog_id == "stratocaster01"
+            and is_default_skin
+        ):
             # This exact package—not the earlier raw-body intermediate—is the
             # user-qualified Fender reference documented in
             # FENDER_CONVERSION_GUIDE.md. Keep the new catalog identity at the
@@ -695,6 +767,12 @@ def main() -> int:
                 "catalog_id": catalog_id,
                 "asset_stem": stem,
                 "display_name": clean_markup(row["display_name"]),
+                "skin_id": skin_id or row["default_outfit"],
+                "skin_display_name": clean_markup(
+                    row.get("skin_display_name", "Default")
+                ),
+                "is_default_skin": str(is_default_skin).lower(),
+                "texture_sources": ",".join(dict.fromkeys(texture_sources)),
                 "source_cost": int(row["source_cost"]),
                 "half_cost": int(row["half_cost"]),
                 "body_vertices": sum(
@@ -709,6 +787,7 @@ def main() -> int:
                 "sha256": sha256(package),
             }
         )
+        checkpoint_records()
         print(
             "RB2_INSTRUMENT_CONVERTED "
             f"{index}/{len(rows)} role={role} id={catalog_id} "
@@ -716,15 +795,7 @@ def main() -> int:
             f"string_parts={len(string_meshes)} bytes={package.stat().st_size}"
         )
 
-    record_path = output_root / "conversion_records.tsv"
-    with record_path.open("w", encoding="utf-8", newline="") as stream:
-        writer = csv.DictWriter(
-            stream,
-            fieldnames=list(records[0]),
-            dialect="excel-tab",
-        )
-        writer.writeheader()
-        writer.writerows(records)
+    checkpoint_records()
     manifest = output_root / "overlay" / "manifest.tsv"
     with manifest.open("w", encoding="utf-8", newline="") as stream:
         writer = csv.writer(stream, dialect="excel-tab")

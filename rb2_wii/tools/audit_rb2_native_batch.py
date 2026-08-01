@@ -126,8 +126,15 @@ def main() -> int:
             }
         )
 
-    if len(records) != 92:
-        errors.append(f"expected 92 records, found {len(records)}")
+    if len(records) != 543:
+        errors.append(f"expected 543 retail finishes, found {len(records)}")
+    if len({record["asset_stem"] for record in records}) != len(records):
+        errors.append("duplicate converted finish asset stems")
+    if (
+        len({(record["role"], record["catalog_id"]) for record in records})
+        != 92
+    ):
+        errors.append("expected finishes for exactly 92 instrument models")
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         with args.report.open("w", encoding="utf-8", newline="") as stream:

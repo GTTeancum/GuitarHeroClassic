@@ -93,6 +93,15 @@ def parse_locale(paths: list[Path]) -> dict[str, str]:
     return values
 
 
+def clean_display_name(value: str) -> str:
+    value = re.sub(
+        r"<sup>\s*(?:TM|™|®)\s*</sup>", "", value, flags=re.IGNORECASE
+    )
+    value = re.sub(r"</?sup>", "", value, flags=re.IGNORECASE)
+    value = value.replace("™", "").replace("®", "").replace("\\q", "")
+    return re.sub(r"\s+", " ", value).strip()
+
+
 def resolve_resource(
     root: Path, role: str, catalog_id: str, default_outfit: str
 ) -> Path:
@@ -184,7 +193,7 @@ def main() -> int:
             CatalogRow(
                 role=role,
                 catalog_id=catalog_id,
-                display_name=display_name,
+                display_name=clean_display_name(display_name),
                 source_cost=source_cost,
                 half_cost=source_cost // 2,
                 default_outfit=default_outfit,
