@@ -2072,24 +2072,156 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
   }
 
   if (cls_ == Symbol("GuitarSelectPanel")) {
+    const bool multiplayer =
+        node_bool(get_property(Symbol("multiplayer")));
+    auto player_key = [&](const char* base, int player) {
+      return multiplayer ? Symbol(indexed_key(base, std::clamp(player, 0, 1)))
+                         : Symbol(base);
+    };
+    auto instrument_type = [&](int player) {
+      const Symbol mode = game_symbol(mgr_, Symbol("get_mode"));
+      return multiplayer && mode == Symbol("multi_coop") && player == 1
+                 ? Symbol("bass")
+                 : Symbol("guitar");
+    };
+    auto player_config = [&](int player) -> Object* {
+      if (!multiplayer) return mgr_ ? mgr_->resolve_object(Symbol("game")) : nullptr;
+      DataArray config_args;
+      config_args.push(DataNode::Int(std::clamp(player, 0, 1)));
+      return game_message(mgr_, Symbol("get_player_config"), config_args)
+          .as_object();
+    };
+    auto guitar_count = [&](int player) {
+      DataArray count_args;
+      count_args.push(DataNode::Sym(instrument_type(player)));
+      return std::max(
+          0, node_int(game_message(mgr_, Symbol("get_num_guitars"),
+                                   count_args)));
+    };
+    auto guitar_at = [&](int player, int index) {
+      DataArray at_args;
+      at_args.push(DataNode::Sym(instrument_type(player)));
+      at_args.push(DataNode::Int(index));
+      return game_message(mgr_, Symbol("get_guitar_at"), at_args)
+          .as_symbol()
+          .value_or(Symbol());
+    };
+    auto skin_at = [&](Symbol guitar, int index) {
+      DataArray at_args;
+      at_args.push(DataNode::Sym(guitar));
+      at_args.push(DataNode::Int(index));
+      return game_message(mgr_, Symbol("get_guitar_skin_at"), at_args)
+          .as_symbol()
+          .value_or(Symbol());
+    };
+    auto ensure_selection = [&](int player) {
+      player = std::clamp(player, 0, 1);
+      const Symbol guitar_key = player_key("selected_guitar", player);
+      const Symbol skin_key = player_key("selected_skin", player);
+      Symbol selected =
+          get_property(guitar_key).as_symbol().value_or(Symbol());
+      Object* config = player_config(player);
+      Symbol configured =
+          config ? config->handle_property(Symbol("get_guitar"), DataArray())
+                       .as_symbol()
+                       .value_or(Symbol())
+                 : Symbol();
+      const int count = guitar_count(player);
+      int selected_index = 0;
+      for (int i = 0; i < count; ++i) {
+        if (guitar_at(player, i) != configured) continue;
+        selected_index = i;
+        break;
+      }
+      if (!selected.valid())
+        selected = count > 0 ? guitar_at(player, selected_index) : configured;
+      if (selected.valid()) set_property(guitar_key, DataNode::Sym(selected));
+      set_property(player_key("selected_guitar_index", player),
+                   DataNode::Int(selected_index));
+
+      Symbol selected_skin =
+          get_property(skin_key).as_symbol().value_or(Symbol());
+      if (!selected_skin.valid() && config)
+        selected_skin =
+            config->handle_property(Symbol("get_guitar_skin"), DataArray())
+                .as_symbol()
+                .value_or(Symbol());
+      if (!selected_skin.valid()) selected_skin = skin_at(selected, 0);
+      if (selected_skin.valid())
+        set_property(skin_key, DataNode::Sym(selected_skin));
+    };
     if (std::strcmp(m, "enter") == 0) {
-      DataNode guitar = game_message(mgr_, Symbol("get_guitar"), DataArray());
-      DataNode skin =
-          game_message(mgr_, Symbol("get_guitar_skin"), DataArray());
-      if (!guitar.empty()) set_property(Symbol("selected_guitar"), guitar);
-      if (!skin.empty()) set_property(Symbol("selected_skin"), skin);
-      set_property(Symbol("select_done"), DataNode::Int(0));
+      ensure_selection(0);
+      if (multiplayer) ensure_selection(1);
+      set_property(player_key("select_done", 0), DataNode::Int(0));
+      if (multiplayer)
+        set_property(player_key("select_done", 1), DataNode::Int(0));
       return true;
     }
     if (std::strcmp(m, "BUTTON_DOWN_MSG") == 0) {
       const Symbol button =
           mgr_ ? node_symbol_value(mgr_->get_global(Symbol("button")))
                : Symbol();
+      const int player =
+          mgr_ ? std::clamp(node_int(mgr_->get_global(Symbol("player_num"))),
+                            0, 1)
+               : 0;
       if (button == Symbol("kPad_X") && mgr_ && mgr_->current_screen()) {
         DataArray selected;
-        selected.push(DataNode::Int(0));
+        selected.push(DataNode::Int(player));
         mgr_->current_screen()->handle_property(Symbol("guitar_selected"),
                                                 selected);
+        return true;
+      }
+      if (button == Symbol("kPad_DDown") || button == Symbol("kPad_DUp")) {
+        ensure_selection(player);
+        const int direction = button == Symbol("kPad_DDown") ? 1 : -1;
+        const Symbol guitar_key = player_key("selected_guitar", player);
+        const Symbol skin_key = player_key("selected_skin", player);
+        const bool selecting_skin =
+            node_bool(get_property(player_key("skin_select", player)));
+        if (selecting_skin) {
+          const Symbol guitar =
+              get_property(guitar_key).as_symbol().value_or(Symbol());
+          DataArray count_args;
+          count_args.push(DataNode::Sym(guitar));
+          const int count = std::max(
+              0, node_int(game_message(mgr_, Symbol("get_num_skins"),
+                                       count_args)));
+          if (count > 0) {
+            const Symbol current =
+                get_property(skin_key).as_symbol().value_or(Symbol());
+            int index = 0;
+            for (int i = 0; i < count; ++i) {
+              if (skin_at(guitar, i) == current) {
+                index = i;
+                break;
+              }
+            }
+            index = (index + direction + count) % count;
+            const Symbol skin = skin_at(guitar, index);
+            if (skin.valid()) set_property(skin_key, DataNode::Sym(skin));
+          }
+        } else {
+          const int count = guitar_count(player);
+          if (count > 0) {
+            const Symbol index_key =
+                player_key("selected_guitar_index", player);
+            int index =
+                node_int(get_property(index_key), 0);
+            index = (index + direction + count) % count;
+            const Symbol guitar = guitar_at(player, index);
+            set_property(index_key, DataNode::Int(index));
+            if (guitar.valid()) {
+              set_property(guitar_key, DataNode::Sym(guitar));
+              const Symbol skin = skin_at(guitar, 0);
+              if (skin.valid()) set_property(skin_key, DataNode::Sym(skin));
+            }
+          }
+        }
+        DataArray refresh;
+        refresh.push(DataNode::Int(1));
+        handle_property(Symbol("update_display"), refresh);
         return true;
       }
     }
@@ -2109,21 +2241,30 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
       return true;
     }
     if (std::strcmp(m, "get_selected_guitar") == 0) {
-      out = get_property(Symbol("selected_guitar"));
-      if (out.empty())
-        out = game_message(mgr_, Symbol("get_guitar"), DataArray());
+      const int player = std::clamp(arg0_int(args), 0, 1);
+      ensure_selection(player);
+      out = get_property(player_key("selected_guitar", player));
       return true;
     }
     if (std::strcmp(m, "get_selected_skin") == 0) {
-      out = get_property(Symbol("selected_skin"));
-      if (out.empty())
-        out = game_message(mgr_, Symbol("get_guitar_skin"), DataArray());
+      const int player = std::clamp(arg0_int(args), 0, 1);
+      ensure_selection(player);
+      out = get_property(player_key("selected_skin", player));
+      return true;
+    }
+    if (std::strcmp(m, "get_num_guitars") == 0) {
+      out = DataNode::Int(guitar_count(std::clamp(arg0_int(args), 0, 1)));
       return true;
     }
     if (std::strcmp(m, "get_num_skins") == 0) {
+      const int player = std::clamp(arg0_int(args), 0, 1);
       Symbol guitar = arg_symbol(args, 1);
-      if (!guitar.valid())
-        guitar = game_symbol(mgr_, Symbol("get_guitar"));
+      if (!guitar.valid()) {
+        ensure_selection(player);
+        guitar = get_property(player_key("selected_guitar", player))
+                     .as_symbol()
+                     .value_or(Symbol());
+      }
       DataArray gargs;
       if (guitar.valid()) gargs.push(DataNode::Sym(guitar));
       out = game_message(mgr_, Symbol("get_num_skins"), gargs);
@@ -2131,15 +2272,23 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
       return true;
     }
     if (std::strcmp(m, "is_select_done") == 0) {
-      out = DataNode::Int(node_bool(get_property(Symbol("select_done"))) ? 1 : 0);
+      const int player = std::clamp(arg0_int(args), 0, 1);
+      out = DataNode::Int(
+          node_bool(get_property(player_key("select_done", player))) ? 1 : 0);
       return true;
     }
     if (std::strcmp(m, "set_select_done") == 0) {
-      set_property(Symbol("select_done"), DataNode::Int(arg0_bool(args) ? 1 : 0));
+      const int player = multiplayer ? std::clamp(arg0_int(args), 0, 1) : 0;
+      const bool done =
+          multiplayer ? (args.size() > 1 && node_bool(args.at(1)))
+                      : arg0_bool(args);
+      set_property(player_key("select_done", player),
+                   DataNode::Int(done ? 1 : 0));
       return true;
     }
     if (std::strcmp(m, "get_instrument_type") == 0) {
-      out = DataNode::Sym(Symbol("guitar"));
+      out = DataNode::Sym(
+          instrument_type(std::clamp(arg0_int(args), 0, 1)));
       return true;
     }
     if (std::strcmp(m, "update_guitar_label") == 0 ||

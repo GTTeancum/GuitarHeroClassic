@@ -39,6 +39,8 @@
 //   ghogx_app --aspect <4:3|16:9>      render aspect preset (default: 4:3)
 //   ghogx_app --diagnostic-character <c>
 //                                      route guitarist/highway art through character c
+//   ghogx_app --diagnostic-bass <model>
+//                                      route the bassist prop through a selected bass
 //   ghogx_app --diagnostic-performer <role>=<source:model>
 //                                      route any performer through an archive-qualified
 //                                      character reference without changing gameplay/UI
@@ -50,6 +52,11 @@
 //                                      force one persistent venue event after load
 //   ghogx_app --diagnostic-camera-shot <shot>
 //                                      pin a decoded regular CamShot for capture
+//   ghogx_app --diagnostic-front-camera <role>
+//                                      lock a close camera in front of a performer
+//   ghogx_app --diagnostic-proof-lighting
+//                                      replace venue cues with bright neutral
+//                                      performer/instrument proof lighting
 //   ghogx_app --diagnostic-camera-path-offset <frames>
 //                                      start a forced CamShot at a local path frame
 //                                      alias: --diagnostic-camera-path-offset-frames
@@ -954,12 +961,22 @@ class AppEngine : public ghogx::Engine {
     gameplay_.set_diagnostic_guitar_override(guitar);
   }
 
+  void set_diagnostic_bass_override(const std::string& bass) {
+    gameplay_.set_diagnostic_bass_override(bass);
+  }
+
   void set_diagnostic_venue_event(const std::string& event_name) {
     gameplay_.set_diagnostic_venue_event(event_name);
   }
 
   void set_diagnostic_camera_shot(const std::string& shot_name) {
     gameplay_.set_diagnostic_camera_shot(shot_name);
+  }
+  void set_diagnostic_front_camera(const std::string& role) {
+    gameplay_.set_diagnostic_front_camera(role);
+  }
+  void set_diagnostic_unlit_performers(bool enabled) {
+    gameplay_.set_diagnostic_unlit_performers(enabled);
   }
   void set_diagnostic_camera_path_offset_frames(double frames) {
     gameplay_.set_diagnostic_camera_path_offset_frames(frames);
@@ -2872,8 +2889,11 @@ int main(int argc, char** argv) {
   std::string diagnostic_venue;
   bool venue_only = false;
   std::string diagnostic_guitar;
+  std::string diagnostic_bass;
   std::string diagnostic_venue_event;
   std::string diagnostic_camera_shot;
+  std::string diagnostic_front_camera;
+  bool diagnostic_unlit_performers = false;
   double diagnostic_camera_path_offset_frames = 0.0;
   int diagnostic_camera_cycle_shot_frame = -1;
   int diagnostic_camera_iterate_shot_frame = -1;
@@ -3042,12 +3062,23 @@ int main(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--diagnostic-guitar") == 0 &&
                i + 1 < argc) {
       diagnostic_guitar = argv[++i];
+    } else if (std::strcmp(argv[i], "--diagnostic-bass") == 0 &&
+               i + 1 < argc) {
+      diagnostic_bass = argv[++i];
     } else if (std::strcmp(argv[i], "--diagnostic-venue-event") == 0 &&
                i + 1 < argc) {
       diagnostic_venue_event = argv[++i];
     } else if (std::strcmp(argv[i], "--diagnostic-camera-shot") == 0 &&
                i + 1 < argc) {
       diagnostic_camera_shot = argv[++i];
+    } else if (std::strcmp(argv[i], "--diagnostic-front-camera") == 0 &&
+               i + 1 < argc) {
+      diagnostic_front_camera = argv[++i];
+    } else if (std::strcmp(argv[i],
+                           "--diagnostic-unlit-performers") == 0 ||
+               std::strcmp(argv[i],
+                           "--diagnostic-proof-lighting") == 0) {
+      diagnostic_unlit_performers = true;
     } else if ((std::strcmp(argv[i], "--diagnostic-camera-path-offset") == 0 ||
                 std::strcmp(argv[i],
                             "--diagnostic-camera-path-offset-frames") == 0) &&
@@ -3312,6 +3343,8 @@ int main(int argc, char** argv) {
       return 2;
     }
     menu_options.gameplay_autoplay = diagnostic_autoplay;
+    menu_options.gameplay_front_camera_role = diagnostic_front_camera;
+    menu_options.gameplay_proof_lighting = diagnostic_unlit_performers;
     menu_options.automate_full_loop = env_flag("GHOGX_MENU_AUTO_LOOP");
     menu_options.preferred_song = song_name;
     menu_options.preferred_difficulty = difficulty;
@@ -3432,6 +3465,11 @@ int main(int argc, char** argv) {
     engine.set_diagnostic_guitar_override(diagnostic_guitar);
     std::fprintf(stderr, "[ghogx] diagnostic guitar override: %s\n",
                  diagnostic_guitar.c_str());
+  }
+  if (!diagnostic_bass.empty()) {
+    engine.set_diagnostic_bass_override(diagnostic_bass);
+    std::fprintf(stderr, "[ghogx] diagnostic bass override: %s\n",
+                 diagnostic_bass.c_str());
   }
   if (!diagnostic_venue_event.empty()) {
     engine.set_diagnostic_venue_event(diagnostic_venue_event);
@@ -3564,6 +3602,18 @@ int main(int argc, char** argv) {
     }
   }
   engine.set_sparse_screenshots(sparse_screenshots);
+  // These affect renderer construction and therefore must be installed before
+  // --auto-start builds the venue performers.
+  if (!diagnostic_front_camera.empty()) {
+    engine.set_diagnostic_front_camera(diagnostic_front_camera);
+    std::fprintf(stderr, "[ghogx] diagnostic front camera: %s\n",
+                 diagnostic_front_camera.c_str());
+  }
+  if (diagnostic_unlit_performers) {
+    engine.set_diagnostic_unlit_performers(true);
+    std::fprintf(stderr,
+                 "[ghogx] diagnostic bright proof lighting enabled\n");
+  }
   if (auto_start && !hdr.empty()) {
     // Skip splash + title, load song immediately for diagnostic/dev runs.
     if (!engine.force_start_song()) {

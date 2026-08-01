@@ -4,10 +4,36 @@
 
 # Copyrighted game assets - never commit
 /assets/
+/rb2_wii/source_ark/
+/rb2_wii/batch_build/
+/rb2_wii/output/
+/rb2_wii/**/*.ark
+/rb2_wii/**/*.hdr
+/rb2_wii/**/*.milo_*
+/rb2_wii/**/*.tex
+/rb2_wii/**/*.bmp
+/rb2_wii/**/*.png
+/rb2_wii/**/*.iso
+/rb2_wii/**/*.wbfs
+/rb2_wii/tools/arkhelper/
+/rb2_wii/tools/dolphin-*/
+/rb2_wii/tools/nuget-packages/
+/rb2_wii/tools/Rb2MiloProbe/bin/
+/rb2_wii/tools/Rb2MiloProbe/obj/
+/rb2_wii/tools/__pycache__/
+/proofs/
+/**/*.ark
+/**/*.hdr
+/**/*.milo_ps2
+/**/*.milo_wii
+/**/*.tex
+/**/*.iso
+/**/*.wbfs
 
 # Build artifacts and codegen output
 /out
 /tools/*/build/
+/tools/*/out/
 /tools/sandbox/
 /engine/build/
 /generated/*

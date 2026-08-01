@@ -290,23 +290,27 @@ const DataArray* ConfigDb::guitar(Symbol guitar_name) const {
   return record.get();
 }
 
-Symbol ConfigDb::first_guitar(Symbol type) const {
-  const DataArray* guitars = table(Symbol("guitars"));
-  if (!guitars) return Symbol();
-  for (std::size_t i = 0; i < guitars->size(); ++i) {
-    auto record = guitars->at(i).as_array();
+std::vector<Symbol> ConfigDb::guitars(Symbol type) const {
+  std::vector<Symbol> output;
+  const DataArray* table_data = table(Symbol("guitars"));
+  if (!table_data) return output;
+  for (std::size_t i = 0; i < table_data->size(); ++i) {
+    auto record = table_data->at(i).as_array();
     if (!record || record->empty()) continue;
-    Symbol key = record->at(0).as_symbol().value_or(Symbol());
+    const Symbol key = record->at(0).as_symbol().value_or(Symbol());
     if (!key.valid()) continue;
-    if (type.valid()) {
-      Symbol record_type = field(record.get(), Symbol("type"))
-                               .as_symbol()
-                               .value_or(Symbol());
-      if (record_type != type) continue;
-    }
-    return key;
+    if (type.valid() &&
+        field(record.get(), Symbol("type")).as_symbol().value_or(Symbol()) !=
+            type)
+      continue;
+    output.push_back(key);
   }
-  return Symbol();
+  return output;
+}
+
+Symbol ConfigDb::first_guitar(Symbol type) const {
+  const std::vector<Symbol> matches = guitars(type);
+  return matches.empty() ? Symbol() : matches.front();
 }
 
 std::size_t ConfigDb::guitar_skin_count(Symbol guitar_name) const {
@@ -323,15 +327,21 @@ std::size_t ConfigDb::guitar_skin_count(Symbol guitar_name) const {
 }
 
 Symbol ConfigDb::first_guitar_skin(Symbol guitar_name) const {
+  return guitar_skin_at(guitar_name, 0);
+}
+
+Symbol ConfigDb::guitar_skin_at(Symbol guitar_name, std::size_t index) const {
   const DataArray* record = guitar(guitar_name);
   if (!record) return Symbol();
   auto skins = record->find_keyed(Symbol("skins"));
   if (!skins) return Symbol();
+  std::size_t found = 0;
   for (std::size_t i = 1; i < skins->size(); ++i) {
     auto skin = skins->at(i).as_array();
     if (skin && !skin->empty()) {
       Symbol key = skin->at(0).as_symbol().value_or(Symbol());
-      if (key.valid()) return key;
+      if (!key.valid()) continue;
+      if (found++ == index) return key;
     }
   }
   return Symbol();

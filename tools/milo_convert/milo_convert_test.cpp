@@ -2082,8 +2082,8 @@ int main() {
             gh::milo_convert::
                 convert_gh1_venue_spots_to_gh2_waypoints(
                     "gh1_fixture", {venue_main, venue_lighting});
-        if (placement.waypoints != 4 ||
-            placement.characters_directory.entries.size() != 4 ||
+        if (placement.waypoints != 6 ||
+            placement.characters_directory.entries.size() != 6 ||
             placement.records.size() != 4 ||
             placement.characters_directory.dir_name !=
                 "gh1_fixture_chars") {
@@ -2144,6 +2144,33 @@ int main() {
                     "milo_convert_test: venue placement waypoint mismatch\n");
                 return 1;
             }
+        }
+        const auto walk_left =
+            gh::milo_object::parse_waypoint3(
+                placement.characters_directory.entries[4].body_bytes);
+        const auto walk_right =
+            gh::milo_object::parse_waypoint3(
+                placement.characters_directory.entries[5].body_bytes);
+        if (placement.characters_directory.entries[4].name !=
+                "walk_guitarist0_left.way" ||
+            placement.characters_directory.entries[5].name !=
+                "walk_guitarist0_right.way" ||
+            walk_left.flags != 64 ||
+            walk_right.flags != 64 ||
+            walk_left.transformable.local[9] != -62.0f ||
+            walk_right.transformable.local[9] != 82.0f ||
+            walk_left.connections !=
+                std::vector<std::string>(
+                    {"start_guitarist0.way",
+                     "walk_guitarist0_right.way"}) ||
+            walk_right.connections !=
+                std::vector<std::string>(
+                    {"start_guitarist0.way",
+                     "walk_guitarist0_left.way"})) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: derived guitarist walk route mismatch\n");
+            return 1;
         }
         gh::milo_convert::link_gh2_venue_characters_directory(
             venue_main, "gh1_fixture");

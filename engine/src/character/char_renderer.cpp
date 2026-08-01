@@ -1249,7 +1249,33 @@ void build_character_draw_order(const Character& character, int min_lod,
                      // authored ordering fields are equal. Anatomical or
                      // material-name guesses must not reorder the graph.
                      return false;
-                   });
+                    });
+}
+
+void build_prop_draw_order(
+    const milo_scene::Scene& scene,
+    std::vector<const milo_scene::MeshObj*>& out) {
+  out.clear();
+  out.reserve(scene.meshes.size());
+  std::unordered_set<std::string> emitted;
+  emitted.reserve(scene.meshes.size());
+
+  // RndGroup child order is authoritative for a packed instrument. In
+  // particular, GH2/RB2 guitar groups draw the opaque body before the
+  // alpha-blended strings. Iterating raw directory order can reverse those
+  // records, allowing transparent string texels to populate depth before the
+  // body and punch holes through it.
+  for (const std::string& name : scene.draw_order) {
+    const auto it = std::find_if(
+        scene.meshes.begin(), scene.meshes.end(),
+        [&](const milo_scene::MeshObj& mesh) { return mesh.name == name; });
+    if (it != scene.meshes.end() && emitted.insert(name).second) {
+      out.push_back(&*it);
+    }
+  }
+  for (const milo_scene::MeshObj& mesh : scene.meshes) {
+    if (emitted.insert(mesh.name).second) out.push_back(&mesh);
+  }
 }
 
 DWORD modulate_source_vertex_color(D3DCOLOR base,
@@ -1394,6 +1420,7 @@ struct CharRenderer::Impl {
                                            0, 0, 1, 0, 0, 0, 0, 1};
   int min_lod = 0;
   bool use_scene_lighting = false;
+  bool proof_lighting = false;
   bool reference_base = false;
   float color_mod[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   IDirect3DTexture9* worldcrowd_impostor_tex = nullptr;
@@ -1494,6 +1521,10 @@ void CharRenderer::set_min_lod(int min_lod) {
 
 void CharRenderer::set_use_scene_lighting(bool enabled) {
   impl_->use_scene_lighting = enabled;
+}
+
+void CharRenderer::set_proof_lighting(bool enabled) {
+  impl_->proof_lighting = enabled;
 }
 
 void CharRenderer::set_reference_base(bool enabled) {
@@ -1917,13 +1948,23 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
   // lights. Venue composites reuse the existing scene light state instead of
   // installing unrelated viewer lights.
   dev->SetRenderState(D3DRS_LIGHTING, TRUE);
-  dev->SetRenderState(D3DRS_COLORVERTEX, TRUE);
-  dev->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
-  dev->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_COLOR1);
+  // Venue-authored vertex colors can be nearly black at a particular cue.
+  // The proof-light switch must illuminate the existing texture/material,
+  // independent of that cue, rather than merely installing brighter lights
+  // which are then multiplied by the dark vertex color.
+  dev->SetRenderState(D3DRS_COLORVERTEX,
+                      impl.proof_lighting ? FALSE : TRUE);
+  dev->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE,
+                      impl.proof_lighting ? D3DMCS_MATERIAL : D3DMCS_COLOR1);
+  dev->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE,
+                      impl.proof_lighting ? D3DMCS_MATERIAL : D3DMCS_COLOR1);
   dev->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE);
   dev->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
   if (!impl.use_scene_lighting) {
-    dev->SetRenderState(D3DRS_AMBIENT, D3DCOLOR_XRGB(150, 150, 158));
+    const unsigned char ambient = impl.proof_lighting ? 60 : 150;
+    dev->SetRenderState(
+        D3DRS_AMBIENT,
+        D3DCOLOR_XRGB(ambient, ambient, ambient));
     auto set_light = [&](DWORD i, float x, float y, float z, float b) {
       D3DLIGHT9 l{};
       l.Type = D3DLIGHT_DIRECTIONAL;
@@ -1933,15 +1974,34 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
       dev->SetLight(i, &l);
       dev->LightEnable(i, TRUE);
     };
-    set_light(0, 0.3f, -0.6f, -0.5f, 0.6f);  // key from front-above
-    set_light(1, -0.4f, 0.6f, -0.3f, 0.3f);  // fill from behind
+    set_light(0, 0.3f, -0.6f, -0.5f,
+              impl.proof_lighting ? 0.35f : 0.6f);
+    set_light(1, -0.4f, 0.6f, -0.3f,
+              impl.proof_lighting ? 0.15f : 0.3f);
   }
   ScopedCharacterSceneLightRange scene_light_range(
       dev, impl.use_scene_lighting);
   D3DMATERIAL9 mtrl{};
   mtrl.Diffuse.r = mtrl.Diffuse.g = mtrl.Diffuse.b = mtrl.Diffuse.a = 1.0f;
   mtrl.Ambient.r = mtrl.Ambient.g = mtrl.Ambient.b = mtrl.Ambient.a = 1.0f;
+  if (impl.proof_lighting) {
+    // A neutral fill card keeps black venue cues from swallowing the subject;
+    // the two directional lights above still provide shape and normal detail.
+    mtrl.Emissive.r = mtrl.Emissive.g = mtrl.Emissive.b = 0.10f;
+  }
   dev->SetMaterial(&mtrl);
+  auto set_proof_material = [&](const milo_scene::MatObj* material) {
+    if (!impl.proof_lighting) return;
+    const float r = material ? material->color[0] : 1.0f;
+    const float g = material ? material->color[1] : 1.0f;
+    const float b = material ? material->color[2] : 1.0f;
+    const float a = material ? material->color[3] : 1.0f;
+    D3DMATERIAL9 proof{};
+    proof.Diffuse = {r, g, b, a};
+    proof.Ambient = {r, g, b, a};
+    proof.Emissive = {r * 0.03f, g * 0.03f, b * 0.03f, a};
+    dev->SetMaterial(&proof);
+  };
 
   dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
   dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
@@ -2066,6 +2126,7 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
         material_it != impl.character_mats_by_name.end()
             ? material_it->second
             : nullptr;
+    set_proof_material(material);
     const SourceCharacterMaterialLightingPlan material_lighting =
         source_character_material_lighting_plan(
             impl.use_scene_lighting, material && material->use_environ,
@@ -2272,8 +2333,9 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
             mul16(affine_inverse(prop_anchor_world), attach_world);
         for (const auto& pm : impl.prop_scene.meshes) {
           if (!pm.decoded || pm.verts.empty()) continue;
-          auto prop_world = mul16(impl.prop_scene.world_matrix(pm),
-                                  prop_to_attach);
+          auto prop_world =
+              mul16(scene_object_world(impl.prop_scene, pm.name),
+                    prop_to_attach);
           prop_world = mul16(prop_world, impl.world_transform);
           const auto inv_prop_world = affine_inverse(prop_world);
           float best_d2 = 0.0f;
@@ -2605,6 +2667,10 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
           "bone_fret.mesh",
           "bone_fret_hand.mesh",
           "guitar.mesh",
+          "guitar_detail01.mesh",
+          "guitar_detail02.mesh",
+          "guitar_detail03.mesh",
+          "guitar_detail04.mesh",
           "guitar_strings.mesh",
           "shadow_guitar.mesh",
       };
@@ -2639,9 +2705,45 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
       int i = static_cast<int>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
       return i < 0 ? 0 : (i > 255 ? 255 : i);
     };
-    for (const auto& m : impl.prop_scene.meshes) {
+    std::vector<const milo_scene::MeshObj*> prop_draw_meshes;
+    build_prop_draw_order(impl.prop_scene, prop_draw_meshes);
+    for (const milo_scene::MeshObj* prop_mesh : prop_draw_meshes) {
+      const auto& m = *prop_mesh;
       if (!m.decoded || m.vertex_count == 0 || m.face_count == 0) continue;
-      auto local_world = impl.prop_scene.world_matrix(m);
+      // These authored helper/effect meshes rely on the venue's special
+      // shader path. They obscure the instrument when submitted through the
+      // neutral fixed-function proof light, so omit them only for this
+      // diagnostic view.
+      if (impl.proof_lighting &&
+          (m.name == "shadow_guitar.mesh" ||
+           m.name == "guitar_fire.mesh")) {
+        continue;
+      }
+      // Prop ObjectDirs commonly terminate their transform chain at a
+      // Character root object (for example "guitar_sg") that is not itself a
+      // serialized RndTransformable.  Scene::world_matrix therefore falls
+      // back to a child mesh's stale stored-world cache when it cannot resolve
+      // that final parent.  Compose the known local chain here, as the
+      // attached-prop camera/anchor path already does, so multipart children
+      // remain rigidly aligned with guitar.mesh.
+      auto local_world = scene_object_world(impl.prop_scene, m.name);
+      if (debug_prop_enabled()) {
+        static std::set<std::string> logged_prop_mesh_worlds;
+        const std::string key = impl.prop_scene.dir_name + "|" +
+                                impl.prop_attach_bone + "|" + m.name;
+        if (logged_prop_mesh_worlds.insert(key).second) {
+          std::fprintf(
+              stderr,
+              "[prop-mesh-world] mesh=%s parent=%s "
+              "local=(%.3f %.3f %.3f) stored=(%.3f %.3f %.3f) "
+              "resolved=(%.3f %.3f %.3f)\n",
+              m.name.c_str(), m.parent.c_str(),
+              m.local.pos[0], m.local.pos[1], m.local.pos[2],
+              m.world_stored.pos[0], m.world_stored.pos[1],
+              m.world_stored.pos[2], local_world[12], local_world[13],
+              local_world[14]);
+        }
+      }
       auto character_world = mul16(local_world, prop_to_attach);
       auto world = mul16(character_world, impl.world_transform);
       if (debug_prop_enabled() && impl.logged_prop_debug) {
@@ -2661,6 +2763,7 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
           prop_material_it != impl.prop_mats_by_name.end()
               ? prop_material_it->second
               : nullptr;
+      set_proof_material(prop_material);
       const bool prop_scene_lit =
           !impl.use_scene_lighting ||
           (prop_material && prop_material->use_environ);
@@ -3228,7 +3331,7 @@ std::optional<std::array<float, 16>> scene_object_stored_world(
     const milo_scene::Scene& scene,
     const std::string& name) {
   for (const auto& m : scene.meshes) {
-    if (m.name == name) return scene.world_matrix(m);
+    if (m.name == name) return xfm16(m.world_stored);
   }
   for (const auto& t : scene.transes) {
     if (t.name == name) return xfm16(t.world_stored);

@@ -52,9 +52,11 @@ std::array<float, 12> placement_transform(
 
 gh::milo::Entry make_waypoint(
     std::string name, uint32_t flags,
-    const std::array<float, 12>& transform) {
+    const std::array<float, 12>& transform,
+    std::vector<std::string> connections = {}) {
     gh::milo_object::Waypoint3 waypoint;
     waypoint.flags = flags;
+    waypoint.connections = std::move(connections);
     waypoint.transformable.local = transform;
     waypoint.transformable.world = transform;
     gh::milo::Entry entry;
@@ -152,10 +154,12 @@ convert_gh1_venue_spots_to_gh2_waypoints(
 
     const auto add_placement =
         [&](std::string role, std::string helper,
-            std::string waypoint, uint32_t flags) {
+            std::string waypoint, uint32_t flags,
+            std::vector<std::string> connections = {}) {
             const auto target = require_transform(helper);
             directory.entries.push_back(
-                make_waypoint(waypoint, flags, target));
+                make_waypoint(
+                    waypoint, flags, target, std::move(connections)));
             Gh2VenuePlacementRecord record;
             record.role = std::move(role);
             record.source_helper = std::move(helper);
@@ -166,9 +170,23 @@ convert_gh1_venue_spots_to_gh2_waypoints(
             record.target_transform = target;
             result.records.push_back(std::move(record));
         };
+    constexpr uint32_t kGuitaristStartAndWalk = 65;
+    constexpr uint32_t kWalkSpot = 64;
+    constexpr float kWalkRouteOffset = 72.0f;
+    const auto walk_start = require_transform("walk_spot_01.mesh");
+    auto walk_left = walk_start;
+    auto walk_right = walk_start;
+    for (size_t axis = 0; axis < 3; ++axis) {
+        walk_left[9 + axis] -=
+            walk_start[axis] * kWalkRouteOffset;
+        walk_right[9 + axis] +=
+            walk_start[axis] * kWalkRouteOffset;
+    }
     add_placement(
         "guitarist0", "walk_spot_01.mesh",
-        "start_guitarist0.way", 65);
+        "start_guitarist0.way", kGuitaristStartAndWalk,
+        {"walk_guitarist0_left.way",
+         "walk_guitarist0_right.way"});
     add_placement(
         "singer", "stage_spot_01.mesh",
         "start_singer.way", 4);
@@ -178,6 +196,14 @@ convert_gh1_venue_spots_to_gh2_waypoints(
     add_placement(
         "drummer", "stage_spot_03.mesh",
         "start_drummer.way", 32);
+    directory.entries.push_back(make_waypoint(
+        "walk_guitarist0_left.way", kWalkSpot, walk_left,
+        {"start_guitarist0.way",
+         "walk_guitarist0_right.way"}));
+    directory.entries.push_back(make_waypoint(
+        "walk_guitarist0_right.way", kWalkSpot, walk_right,
+        {"start_guitarist0.way",
+         "walk_guitarist0_left.way"}));
 
     result.waypoints = directory.entries.size();
     finish_directory(directory);

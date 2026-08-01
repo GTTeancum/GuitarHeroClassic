@@ -57,6 +57,10 @@ struct MenuRunOptions {
   // Menu navigation stays human-driven.  This flag affects only the in-song
   // controller so the normal front-end flow can be exercised hands-free.
   bool gameplay_autoplay = false;
+  // Gameplay-only presentation controls also apply when gameplay is reached
+  // through the live menu flow.
+  std::string gameplay_front_camera_role;
+  bool gameplay_proof_lighting = false;
   // Optional state-aware proof harness.  It presses the real menu components;
   // it does not bypass the stock screen scripts.
   bool automate_full_loop = false;

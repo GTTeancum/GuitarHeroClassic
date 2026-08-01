@@ -30322,6 +30322,12 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
                          quickplay_rig_->guitar.c_str(),
                          diagnostic_guitar_override_.c_str());
             quickplay_rig_->guitar = diagnostic_guitar_override_;
+        } else if (!selected_guitar_.empty()) {
+            std::fprintf(stderr,
+                         "[world] equipped guitar: %s -> %s\n",
+                         quickplay_rig_->guitar.c_str(),
+                         selected_guitar_.c_str());
+            quickplay_rig_->guitar = selected_guitar_;
         }
         const std::string char_milo =
             selected_character_active
@@ -40984,6 +40990,7 @@ ghogx::DataNode Gameplay::handle_performer_driver_message(
 
     uint32_t play_flags = ghogx::character::kCharPlayLast;
     std::string query_description = "<none>";
+    std::string selected_group_name;
     const ghogx::character::CharClip* clip = nullptr;
     if (message.message == "play_if_safe" &&
         message.args.size() >= 4) {
@@ -41075,6 +41082,8 @@ ghogx::DataNode Gameplay::handle_performer_driver_message(
       }
       query_description =
           group_name ? std::string(*group_name) : std::string("<group>");
+      selected_group_name =
+          group_name ? std::string(*group_name) : std::string{};
       auto group =
           group_name ? runtime.groups.find(std::string(*group_name))
                      : runtime.groups.end();
@@ -41134,13 +41143,18 @@ ghogx::DataNode Gameplay::handle_performer_driver_message(
       }
       const auto group_name = message.args.at(0).as_string();
       if (group_name) {
+        query_description = std::string(*group_name);
+        selected_group_name = std::string(*group_name);
         ghogx::DataNode group_node =
             ghogx::DataNode::Sym(ghogx::Symbol(*group_name));
         clip = resolve_performer_driver_node(
             performer, message.driver, group_node, false);
         if (clip) {
-          runtime.saved_node =
-              ghogx::DataNode::Sym(ghogx::Symbol(clip->name));
+          // CharDriver::Play(const DataNode&) restores mLastNode to the
+          // requested node after resolving its current clip.  Retaining the
+          // group (rather than the selected clip name) is what lets NodeLoop
+          // advance CharClipGroup::mWhich on the next continuation.
+          runtime.saved_node = group_node;
           runtime.saved_node_valid = true;
         }
       }
@@ -41155,16 +41169,45 @@ ghogx::DataNode Gameplay::handle_performer_driver_message(
                    message.message.c_str());
       return ghogx::DataNode::Int(0);
     }
-    player->play(*clip, play_flags, -1.0f, runtime.beat_scale);
+    uint32_t resolved_play_flags = play_flags;
+    // GH2's BandCharacter handler deliberately sends kPlayNow for authored
+    // guitarist groups and relies on CharDriver's saved-node lifecycle to
+    // keep resolving that group.  The native application's lightweight
+    // CharClipPlayer does not own the complete retail CharDriver::Poll body,
+    // so preserving kPlayNow alone leaves the selected full-body clip clamped
+    // on its final frame while the independent hand drivers keep moving.
+    //
+    // Model the missing saved-node continuation explicitly.  NodeLoop is the
+    // matching mode because resolve_performer_driver_node() re-evaluates the
+    // saved group and advances CharClipGroup::mWhich on every continuation.
+    // Do not rewrite explicit loop modes, introductions, or non-guitar roles.
+    const bool authored_guitar_group_continuation =
+        performer.role == "guitarist0" &&
+        message.driver == "main.drv" &&
+        message.message == "play_group" &&
+        (resolved_play_flags & 0xF0u) == 0u &&
+        (selected_group_name == "normal" ||
+         selected_group_name == "idle" ||
+         selected_group_name == "extreme" ||
+         selected_group_name == "solo");
+    if (authored_guitar_group_continuation) {
+      resolved_play_flags =
+          (resolved_play_flags & ~0xF0u) |
+          ghogx::character::kCharPlayNodeLoop;
+    }
+    player->play(*clip, resolved_play_flags, -1.0f, runtime.beat_scale);
     std::fprintf(stderr,
                  "[world] authored CharDriver play: role=%s driver=%s "
                  "message=%s query=%s clip=%s clipFlags=0x%08x "
-                 "playFlags=0x%08x\n",
+                 "playFlags=0x%08x resolvedPlayFlags=0x%08x "
+                 "savedNodeContinuation=%d\n",
                  performer.role.c_str(), message.driver.c_str(),
                  message.message.c_str(), query_description.c_str(),
                  clip->name.c_str(),
                  static_cast<unsigned>(clip->flags),
-                 static_cast<unsigned>(play_flags));
+                 static_cast<unsigned>(play_flags),
+                 static_cast<unsigned>(resolved_play_flags),
+                 authored_guitar_group_continuation ? 1 : 0);
     return ghogx::DataNode::Int(1);
 }
 
@@ -42061,6 +42104,34 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         regular_camera_keys_, camera_manager_random_seed_,
                         camera_manager_random_seed_source_.c_str());
                 }
+                if (const char* diagnostic_target =
+                        std::getenv(
+                            "GHOGX_DIAGNOSTIC_CAMERA_TARGET_ENTITY")) {
+                    const std::string entity = diagnostic_target;
+                    if (!entity.empty()) {
+                        std::function<void(CameraKey&)> retarget =
+                            [&](CameraKey& key) {
+                                key.target_entity = entity;
+                                key.target_subpart = "bone_spine1.mesh";
+                                key.target_source_object.clear();
+                                key.target_refs = {
+                                    {entity, "bone_spine1.mesh", ""}};
+                                key.camshot_refs_decoded = true;
+                                for (auto& frame :
+                                     key.source_camshot_keyframes)
+                                    retarget(frame);
+                                for (auto& frame : key.positions)
+                                    retarget(frame);
+                            };
+                        for (auto& key : regular_camera_keys_)
+                            retarget(key);
+                        std::fprintf(
+                            stderr,
+                            "[world] diagnostic camera targets retargeted: "
+                            "entity=%s subpart=bone_spine1.mesh shots=%zu\n",
+                            entity.c_str(), regular_camera_keys_.size());
+                    }
+                }
                 regular_camera_source_record_member_table_ =
                     camera_source_record_member_table_for_keys(
                         regular_camera_keys_);
@@ -42551,15 +42622,39 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                      const std::string& prop_milo = std::string(),
                                      const std::string& prop_attach_bone =
                                          "bone_pos_guitar.mesh") {
-                const bool selected_variant =
+                const bool selected_guitarist_variant =
                     role == "guitarist0" &&
                     diagnostic_character_override_.empty() &&
                     !selected_character_selection_.empty() &&
                     character_name == selected_character_selection_ &&
                     !selected_character_model_path_.empty();
+                const bool selected_bassist_variant =
+                    role == "bassist" &&
+                    diagnostic_performer_overrides_.find(role) ==
+                        diagnostic_performer_overrides_.end() &&
+                    !selected_bassist_selection_.empty() &&
+                    character_name == selected_bassist_selection_ &&
+                    !selected_bassist_model_path_.empty();
+                const bool selected_variant =
+                    selected_guitarist_variant || selected_bassist_variant;
+                const std::string& selected_model_path =
+                    selected_bassist_variant ? selected_bassist_model_path_
+                                              : selected_character_model_path_;
+                const std::string& selected_main_anim_path =
+                    selected_bassist_variant
+                        ? selected_bassist_main_anim_path_
+                        : selected_character_main_anim_path_;
+                const std::string& selected_strum_anim_path =
+                    selected_bassist_variant
+                        ? selected_bassist_strum_anim_path_
+                        : selected_character_strum_anim_path_;
+                const std::string& selected_fret_anim_path =
+                    selected_bassist_variant
+                        ? selected_bassist_fret_anim_path_
+                        : selected_character_fret_anim_path_;
                 if (selected_variant) {
                     model_name = std::filesystem::path(
-                                     selected_character_model_path_)
+                                     selected_model_path)
                                      .stem()
                                      .string();
                 }
@@ -42592,7 +42687,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
 
                 std::string char_milo =
                     selected_variant
-                        ? selected_character_model_path_
+                        ? selected_model_path
                         : "char/" + model_name + "/og/gen/" + model_name +
                               ".milo_ps2";
                 ghogx::character::Character character;
@@ -42872,9 +42967,14 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     character_hdr_path, character_ark_path, char_milo,
                     character.texture_names());
 
+                const bool external_bass_replacement =
+                    role == "bassist" &&
+                    (!diagnostic_bass_override_.empty() ||
+                     !selected_bass_.empty());
                 const bool attach_external_prop =
                     !prop_milo.empty() &&
-                    !character_draws_authored_instrument(character);
+                    (!character_draws_authored_instrument(character) ||
+                     external_bass_replacement);
 
                 Performer perf;
                 perf.role = std::move(role);
@@ -42938,9 +43038,22 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 perf.renderer =
                     std::make_unique<ghogx::character::CharRenderer>(win);
                 perf.renderer->set_character(std::move(character), textures);
+                if (external_bass_replacement) {
+                    const bool hidden =
+                        perf.renderer->set_object_showing("guitar.mesh",
+                                                          false);
+                    std::fprintf(
+                        stderr,
+                        "[world] authored bass hidden for equipped prop: "
+                        "character=%s object=guitar.mesh hidden=%d\n",
+                        model_name.c_str(), hidden ? 1 : 0);
+                }
                 const bool scene_lighting =
-                    performer_scene_lighting_enabled();
+                    performer_scene_lighting_enabled() &&
+                    !diagnostic_unlit_performers_;
                 perf.renderer->set_use_scene_lighting(scene_lighting);
+                perf.renderer->set_proof_lighting(
+                    diagnostic_unlit_performers_);
                 auto& runtime_character = perf.renderer->character();
                 const std::string world_fx_owner =
                     perf.role + ":" + model_name;
@@ -43365,8 +43478,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
 
                 const std::string anim_milo =
                     selected_variant &&
-                            !selected_character_main_anim_path_.empty()
-                        ? selected_character_main_anim_path_
+                            !selected_main_anim_path.empty()
+                        ? selected_main_anim_path
                         : "char/" + model_name + "/anims/gen/" + anim_stem +
                               "_main.milo_ps2";
                 const NativeDriverClipSearch main_clip_search =
@@ -44168,14 +44281,14 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     gh1_acp_hand_driver) {
                     const std::string strum_milo =
                         selected_variant &&
-                                !selected_character_strum_anim_path_.empty()
-                            ? selected_character_strum_anim_path_
+                                !selected_strum_anim_path.empty()
+                            ? selected_strum_anim_path
                             : "char/" + model_name + "/anims/gen/" +
                                   anim_stem + "_strum.milo_ps2";
                     const std::string fret_milo =
                         selected_variant &&
-                                !selected_character_fret_anim_path_.empty()
-                            ? selected_character_fret_anim_path_
+                                !selected_fret_anim_path.empty()
+                            ? selected_fret_anim_path
                             : "char/" + model_name + "/anims/gen/" +
                                   anim_stem + "_fret.milo_ps2";
                     auto load_gh1_finger =
@@ -44554,9 +44667,45 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                      "singer_active_fast"});
             }
             if (!bass.empty()) {
+                const std::string equipped_bass =
+                    !diagnostic_bass_override_.empty()
+                        ? diagnostic_bass_override_
+                        : selected_bass_;
                 const std::string bass_prop =
-                    first_bass_guitar_milo(hdr_path_, ark_path_).value_or("");
-                add_performer("bassist", bass, bass, "bass",
+                    equipped_bass.empty()
+                        ? first_bass_guitar_milo(hdr_path_, ark_path_)
+                              .value_or("")
+                        : guitar_milo_for_quickplay(equipped_bass);
+                if (!diagnostic_bass_override_.empty()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] diagnostic bass override: %s source=%s\n",
+                        diagnostic_bass_override_.c_str(),
+                        bass_prop.c_str());
+                } else if (!selected_bass_.empty()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] equipped bass: %s source=%s\n",
+                        selected_bass_.c_str(), bass_prop.c_str());
+                }
+                const std::string bassist_character =
+                    selected_bassist_selection_.empty()
+                        ? bass
+                        : selected_bassist_selection_;
+                if (!selected_bassist_selection_.empty()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] co-op player2 bassist: authored=%s "
+                        "selected=%s model=%s\n",
+                        bass.c_str(), selected_bassist_selection_.c_str(),
+                        selected_bassist_model_path_.c_str());
+                }
+                const std::string bass_attach_bone =
+                    selected_bassist_selection_.empty()
+                        ? "bone_pos_gutbass.mesh"
+                        : "bone_pos_guitar.mesh";
+                add_performer("bassist", bassist_character,
+                              bassist_character, "bass",
                               "start_bassist.way", 16u,
                               {"bassist_idle_medium_01",
                                "bassist_idle_medium_02"},
@@ -44565,7 +44714,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                "bassist_active_medium_02",
                                "bassist_active_fast_01",
                                "bassist_active_fast_02"},
-                              bass_prop, "bone_pos_gutbass.mesh");
+                              bass_prop, bass_attach_bone);
             }
             if (!drummer.empty()) {
                 add_performer("drummer", drummer, drummer, "drummer",
@@ -46920,17 +47069,22 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
 
             auto active_main_driver_player =
                 [&]() -> const ghogx::character::CharClipPlayer* {
+                    // CharWalk drives the character root and temporarily owns
+                    // main.drv in retail. Selecting the ordinary authored
+                    // performance player here advances the walk transform
+                    // under a stationary playing pose, which presents as the
+                    // character sliding across the stage.
+                    if (!intro_active &&
+                        perf.gh1_walk_state != 0 &&
+                        perf.gh1_walk_player.active()) {
+                        return &perf.gh1_walk_player;
+                    }
                     if (authored_main_driver_owned &&
                         perf.active_player.active()) {
                         return &perf.active_player;
                     }
                     if (intro_active && perf.intro_player.active())
                         return &perf.intro_player;
-                    if (!intro_active &&
-                        perf.gh1_walk_state != 0 &&
-                        perf.gh1_walk_player.active()) {
-                        return &perf.gh1_walk_player;
-                    }
                     if (!intro_active &&
                         (performer_playing ||
                          perf.active_clip_mode == "idle") &&
@@ -49041,6 +49195,63 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 cam.fov = env_float("GHOGX_DEBUG_GAMEPLAY_CAMERA_FOV", 0.55f);
             }
         }
+        if (!diagnostic_front_camera_role_.empty()) {
+            const auto performer = std::find_if(
+                performers_.begin(), performers_.end(),
+                [&](const Performer& candidate) {
+                    return candidate.role ==
+                           diagnostic_front_camera_role_;
+                });
+            if (performer != performers_.end()) {
+                std::array<float, 3> target_pos =
+                    mat4_position_game(performer->world_transform);
+                for (const std::string target_name : {
+                         diagnostic_front_camera_role_ +
+                             ":bone_spine1.mesh",
+                         diagnostic_front_camera_role_ +
+                             ":bone_spine1"}) {
+                    const auto target = camera_targets.find(target_name);
+                    if (target != camera_targets.end()) {
+                        target_pos =
+                            mat4_position_game(target->second.world);
+                        break;
+                    }
+                }
+                const float local_forward[3] = {0.0f, 1.0f, 0.0f};
+                const auto facing = transform_vector_game(
+                    performer->world_transform, local_forward);
+                const float facing_length =
+                    std::hypot(facing[0], facing[1]);
+                auto& cam = world_->camera();
+                cam.authored = false;
+                cam.result_frame.valid = false;
+                cam.screen_offset[0] = 0.0f;
+                cam.screen_offset[1] = 0.0f;
+                cam.target[0] = target_pos[0];
+                cam.target[1] = target_pos[1];
+                cam.target[2] = target_pos[2] + 1.5f;
+                cam.yaw =
+                    facing_length > 1.0e-5f
+                        ? std::atan2(facing[0], -facing[1])
+                        : 0.0f;
+                cam.pitch = 0.06f;
+                cam.distance = 105.0f;
+                cam.fov = 0.58f;
+                cam.near_z = 1.0f;
+                cam.far_z = 12000.0f;
+                if (!diagnostic_front_camera_reported_) {
+                    diagnostic_front_camera_reported_ = true;
+                    std::fprintf(
+                        stderr,
+                        "[world] diagnostic front camera locked: "
+                        "role=%s target=(%.2f %.2f %.2f) yaw=%.3f "
+                        "distance=%.2f fov=%.3f\n",
+                        diagnostic_front_camera_role_.c_str(),
+                        cam.target[0], cam.target[1], cam.target[2],
+                        cam.yaw, cam.distance, cam.fov);
+                }
+            }
+        }
         profile_camera_subphase_start = profile_now();
         apply_gameplay_backing_camera(world_.get(), camera_targets,
                                       venue_camera_target_worlds_, song_time_,
@@ -49666,7 +49877,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     }
                 }
             }
-            if (!performer_environment.empty() && environment_owner) {
+            if (!diagnostic_unlit_performers_ &&
+                !performer_environment.empty() && environment_owner) {
                 environment_owner->apply_environment_lighting_state(
                     performer_environment);
             }

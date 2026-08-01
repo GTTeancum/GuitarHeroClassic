@@ -777,6 +777,11 @@ static void check_tutorial_panel_surface_smoke() {
 }
 
 int main(int argc, char** argv) {
+#ifdef _WIN32
+  _putenv_s("GHOGX_DISABLE_PROFILE_PERSISTENCE", "1");
+#else
+  setenv("GHOGX_DISABLE_PROFILE_PERSISTENCE", "1", 1);
+#endif
   std::string ark_dir =
       argc > 1 ? argv[1]
                : "C:/Programming/GitHub/Guitar Hero II/Guitar Hero II PS2 (USA)/GEN";
@@ -2620,10 +2625,11 @@ int main(int argc, char** argv) {
     multi_panel->handle_property(Symbol("SELECT_START_MSG"), DataArray());
     CHECK(mgr.current_screen() != nullptr &&
           mgr.current_screen()->name() == Symbol("multi_coop_venue_screen"));
-    if (Object* gamecfg = mgr.resolve_object(Symbol("gamecfg")))
+    if (Object* gamecfg = mgr.resolve_object(Symbol("gamecfg"))) {
       CHECK(gamecfg->get_property(Symbol("mode"))
                 .as_symbol()
                 .value_or(Symbol()) == Symbol("multi_coop"));
+    }
 
     mgr.goto_screen(Symbol("multi_screen"));
     mgr.set_global(Symbol("component"), DataNode::Obj(versus_button));
@@ -2659,6 +2665,14 @@ int main(int argc, char** argv) {
   // Stock multiplayer.dtb delegates per-controller difficulty and outfit
   // readiness to native MultiSelectScreen/MultiSelectPanel.  Prove the native
   // controller fan-out reaches the authored all_ready routes for both players.
+  // Give the profile one purchased RB2 bass so the co-op instrument picker has
+  // a real second choice to enumerate and commit.
+  if (Object* campaign = mgr.resolve_object(Symbol("campaign"))) {
+    DataArray buy_precision;
+    buy_precision.push(DataNode::Sym(Symbol("rb2_bass_precision01")));
+    buy_precision.push(DataNode::Int(0));
+    campaign->handle_property(Symbol("buy_item"), buy_precision);
+  }
   if (Object* gamecfg = mgr.resolve_object(Symbol("gamecfg")))
     gamecfg->set_property(Symbol("mode"), DataNode::Sym(Symbol("multi_coop")));
   auto multi_button = [&](int player, Symbol button) {
@@ -2755,14 +2769,29 @@ int main(int argc, char** argv) {
   CHECK(multi_guitar_screen != nullptr);
   CHECK(multi_guitar_panel != nullptr);
   CHECK(multi_guitar_display != nullptr);
-  if (multi_guitar_screen && multi_guitar_display) {
+  if (multi_guitar_screen && multi_guitar_panel && multi_guitar_display) {
     CHECK(multi_guitar_screen->name() == Symbol("multi_sel_guitar_screen"));
+    DataArray player0;
+    player0.push(DataNode::Int(0));
+    DataArray player1;
+    player1.push(DataNode::Int(1));
+    CHECK(multi_guitar_panel
+              ->handle_property(Symbol("get_instrument_type"), player0)
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("guitar"));
+    CHECK(multi_guitar_panel
+              ->handle_property(Symbol("get_instrument_type"), player1)
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("bass"));
+    CHECK(multi_guitar_panel->handle_property(Symbol("get_num_guitars"), player1)
+              .as_int()
+              .value_or(-1) == 2);
     CHECK(multi_guitar_display->get_property(Symbol("guitar_0"))
               .as_symbol()
               .value_or(Symbol()) == Symbol("lespaul"));
     CHECK(multi_guitar_display->get_property(Symbol("guitar_1"))
               .as_symbol()
-              .value_or(Symbol()) == Symbol("lespaul"));
+              .value_or(Symbol()) == Symbol("bass_musicman"));
     Object* p1_proxy =
         multi_guitar_display->get_property(Symbol("guitar_proxy_0")).as_object();
     Object* p2_proxy =
@@ -2785,6 +2814,50 @@ int main(int argc, char** argv) {
           p2_filter->name() == Symbol("guitar_multi1.filt"));
     CHECK(p1_env != nullptr && p1_env->name() == Symbol("guitar01.env"));
     CHECK(p2_env != nullptr && p2_env->name() == Symbol("guitar02.env"));
+
+    mgr.set_global(Symbol("player_num"), DataNode::Int(1));
+    mgr.set_global(Symbol("button"), DataNode::Sym(Symbol("kPad_DDown")));
+    multi_guitar_panel->handle_property(Symbol("BUTTON_DOWN_MSG"), DataArray());
+    CHECK(multi_guitar_panel
+              ->handle_property(Symbol("get_selected_guitar"), player1)
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("rb2_bass_precision01"));
+    CHECK(multi_guitar_panel
+              ->handle_property(Symbol("get_selected_skin"), player1)
+              .as_symbol()
+              .value_or(Symbol()) ==
+          Symbol("rb2_bass_precision01_default"));
+    CHECK(multi_guitar_display->get_property(Symbol("guitar_1"))
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("rb2_bass_precision01"));
+
+    // P1 has multiple Les Paul skins, so the first confirm enters the skin
+    // row and the second confirms it. P2's one-skin Precision confirms once;
+    // the authored all-ready route then commits both player configs.
+    auto guitar_button = [&](int player, Symbol button) {
+      mgr.set_global(Symbol("player_num"), DataNode::Int(player));
+      mgr.set_global(Symbol("button"), DataNode::Sym(button));
+      multi_guitar_panel->handle_property(Symbol("BUTTON_DOWN_MSG"),
+                                          DataArray());
+    };
+    guitar_button(0, Symbol("kPad_X"));
+    guitar_button(0, Symbol("kPad_X"));
+    guitar_button(1, Symbol("kPad_X"));
+    Object* game = mgr.resolve_object(Symbol("game"));
+    Object* player1_config =
+        game ? game->handle_property(Symbol("get_player_config"), player1)
+                   .as_object()
+             : nullptr;
+    CHECK(player1_config != nullptr);
+    CHECK(player1_config &&
+          player1_config->handle_property(Symbol("get_guitar"), DataArray())
+                  .as_symbol()
+                  .value_or(Symbol()) == Symbol("rb2_bass_precision01"));
+    CHECK(player1_config &&
+          player1_config->handle_property(Symbol("get_guitar_skin"), DataArray())
+                  .as_symbol()
+                  .value_or(Symbol()) ==
+              Symbol("rb2_bass_precision01_default"));
   }
 
   auto check_multi_venue_screen = [&](Symbol screen_name, Symbol next_screen) {

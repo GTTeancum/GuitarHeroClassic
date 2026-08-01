@@ -167,6 +167,11 @@ std::unique_ptr<Window> Window::create(int width, int height, const char* title)
   wc.lpfnWndProc = wnd_proc;
   wc.hInstance = inst;
   wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+  // Keep the client area dark before Direct3D owns it and whenever Windows
+  // repaints it while the render thread is busy.  Without a class brush,
+  // DefWindowProc erases the exposed client area to the system window color
+  // (normally bright white).
+  wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
   wc.lpszClassName = kClassName;
   RegisterClassEx(&wc);
 

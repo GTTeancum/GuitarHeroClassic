@@ -76,8 +76,10 @@ class ConfigDb {
 
   // --- guitar table convenience (config/gen/guitars.dtb) ---
   const DataArray* guitar(Symbol guitar) const;
+  std::vector<Symbol> guitars(Symbol type = Symbol()) const;
   Symbol first_guitar(Symbol type = Symbol("guitar")) const;
   std::size_t guitar_skin_count(Symbol guitar) const;
+  Symbol guitar_skin_at(Symbol guitar, std::size_t index) const;
   Symbol first_guitar_skin(Symbol guitar) const;
   const DataArray* guitar_skin(Symbol guitar, Symbol skin) const;
   DataNode guitar_skin_field(Symbol guitar, Symbol skin, Symbol field) const;

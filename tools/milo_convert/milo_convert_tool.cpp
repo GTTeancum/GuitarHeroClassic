@@ -1,6 +1,7 @@
 #include "milo_convert.h"
 
 #include "gh2_face_config_patch.h"
+#include "gh1_venue_placement_conversion.h"
 #include "acp.h"
 #include "milo.h"
 #include "milo_object.h"
@@ -52,7 +53,9 @@ void usage() {
         << "  milo_convert_tool inspect-groups <GH2.milo_ps2>\n"
         << "  milo_convert_tool inspect-skeleton <GH1.rnd_ps2> [--all]\n"
         << "  milo_convert_tool extract-entry <MILO> <type> <name> "
-           "--out <object-body>\n"
+            "--out <object-body>\n"
+        << "  milo_convert_tool rebuild-venue-waypoints <bundle-dir> "
+           "<venue> --out <venue_chars.milo_ps2>\n"
         << "  milo_convert_tool patch-face-config <rnd_objects.dtb> "
            "--out <patched.dtb> [--dta <patched.dta>]\n"
         << "  milo_convert_tool patch-face-midi-config "
@@ -72,6 +75,52 @@ int main(int argc, char** argv) {
     if (argc < 3) usage();
     const std::string command = argv[1];
     fs::path input = argv[2];
+    if (command == "rebuild-venue-waypoints") {
+        try {
+            if (argc != 6 || std::string(argv[4]) != "--out")
+                usage();
+            const std::string venue = argv[3];
+            const fs::path venue_dir =
+                input / "world" / venue / "gen";
+            if (!fs::is_directory(venue_dir))
+                throw std::runtime_error(
+                    "venue directory not found: " +
+                    venue_dir.string());
+            std::vector<gh::milo::Directory> sections;
+            for (const auto& item :
+                 fs::directory_iterator(venue_dir)) {
+                if (!item.is_regular_file() ||
+                    item.path().extension() != ".milo_ps2" ||
+                    item.path().filename() ==
+                        venue + "_chars.milo_ps2")
+                    continue;
+                const auto container = gh::milo::parse_container(
+                    gh::milo::read_file(item.path().string()));
+                sections.push_back(gh::milo::parse_directory(
+                    gh::milo::container_payload(container)));
+            }
+            const auto converted =
+                gh::milo_convert::
+                    convert_gh1_venue_spots_to_gh2_waypoints(
+                        venue, sections);
+            const auto payload = gh::milo::serialize_directory(
+                converted.characters_directory);
+            const auto bytes = gh::milo::serialize_container(
+                gh::milo::make_container(payload));
+            write_file(argv[5], bytes);
+            std::cout
+                << "venue=" << venue
+                << " sections=" << sections.size()
+                << " waypoints=" << converted.waypoints
+                << " bytes=" << bytes.size()
+                << " output=" << argv[5] << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr
+                << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
     if (command == "extract-entry") {
         try {
             if (argc != 7 || std::string(argv[5]) != "--out")

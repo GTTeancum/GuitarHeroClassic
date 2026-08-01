@@ -16557,6 +16557,14 @@ int main() {
                  "perf.gh1_walk_state!=0&&"
                  "perf.gh1_walk_player.current_clip()!=nullptr;",
                  "native bridge publishes a concrete active walk clip");
+  ok &= appears_before(
+      gameplay_c,
+      "if(!intro_active&&"
+      "perf.gh1_walk_state!=0&&"
+      "perf.gh1_walk_player.active())",
+      "if(authored_main_driver_owned&&perf.active_player.active())",
+      "active CharWalk temporarily owns the main pose ahead of the authored "
+      "performance driver");
   ok &= contains(gameplay_c,
                  "\"[world]cameraCharWalkobjects:"
                  "scope=guitarist0_character"
@@ -18624,6 +18632,33 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"main_source=%sactive=%sclip_t=%.3f/%.3f\"",
                  "performer sync rows report the player actually feeding the pose and its live clip position");
+  ok &= contains(
+      gameplay_c,
+      "constboolauthored_guitar_group_continuation="
+      "performer.role==\"guitarist0\"&&"
+      "message.driver==\"main.drv\"&&"
+      "message.message==\"play_group\"&&"
+      "(resolved_play_flags&0xF0u)==0u&&"
+      "(selected_group_name==\"normal\"||"
+      "selected_group_name==\"idle\"||"
+      "selected_group_name==\"extreme\"||"
+      "selected_group_name==\"solo\");",
+      "authored guitarist performance groups repair the missing saved-node continuation");
+  ok &= contains(
+      gameplay_c,
+      "(resolved_play_flags&~0xF0u)|"
+      "ghogx::character::kCharPlayNodeLoop;",
+      "authored guitarist group continuation re-evaluates the saved group instead of clamping one pose");
+  ok &= contains(
+      gameplay_c,
+      "runtime.saved_node=group_node;"
+      "runtime.saved_node_valid=true;",
+      "play_group retains the requested group node so NodeLoop advances the group instead of replaying one clip");
+  ok &= contains(
+      gameplay_c,
+      "\"playFlags=0x%08xresolvedPlayFlags=0x%08x\""
+      "\"savedNodeContinuation=%d\\n\"",
+      "authored driver diagnostics expose requested and resolved group lifecycle flags");
   ok &= contains(gameplay_c,
                  "perf_anim_note_cue.active?perf_anim_note_cue.tick:UINT32_MAX",
                  "performer sync rows carry the authored fret-hand cue tick");

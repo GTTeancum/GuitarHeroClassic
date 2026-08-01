@@ -847,6 +847,26 @@ class Gameplay {
     selected_character_highway_surface_path_ =
         std::move(highway_surface_path);
   }
+  // Instrument selections committed by the retail menu flow. These are
+  // distinct from diagnostic overrides: they are the player's equipped
+  // profile choices and remain the normal gameplay source.
+  void set_selected_instruments(std::string guitar, std::string bass) {
+    selected_guitar_ = std::move(guitar);
+    selected_bass_ = std::move(bass);
+  }
+  // Co-op player two owns the bassist slot. Carry that player's exact
+  // character variant into the bassist performer rather than leaving the
+  // song-authored NPC in control of the purchased bass.
+  void set_selected_bassist_character_variant(
+      std::string selection, std::string model_path,
+      std::string main_anim_path, std::string strum_anim_path,
+      std::string fret_anim_path) {
+    selected_bassist_selection_ = std::move(selection);
+    selected_bassist_model_path_ = std::move(model_path);
+    selected_bassist_main_anim_path_ = std::move(main_anim_path);
+    selected_bassist_strum_anim_path_ = std::move(strum_anim_path);
+    selected_bassist_fret_anim_path_ = std::move(fret_anim_path);
+  }
   std::string_view quickplay_character_outfit() const {
     return quickplay_rig_ ? std::string_view(quickplay_rig_->character_outfit)
                           : std::string_view();
@@ -901,12 +921,22 @@ class Gameplay {
   void set_diagnostic_guitar_override(const std::string& guitar) {
     diagnostic_guitar_override_ = guitar;
   }
+  void set_diagnostic_bass_override(const std::string& bass) {
+    diagnostic_bass_override_ = bass;
+  }
   void set_diagnostic_venue_event(const std::string& event_name) {
     diagnostic_venue_event_ = event_name;
     diagnostic_venue_event_applied_ = false;
   }
   void set_diagnostic_camera_shot(const std::string& shot_name) {
     diagnostic_camera_shot_ = shot_name;
+  }
+  void set_diagnostic_unlit_performers(bool enabled) {
+    diagnostic_unlit_performers_ = enabled;
+  }
+  void set_diagnostic_front_camera(const std::string& role) {
+    diagnostic_front_camera_role_ = role;
+    diagnostic_front_camera_reported_ = false;
   }
   void set_diagnostic_camera_path_offset_frames(double frames) {
     diagnostic_camera_path_offset_frames_ = frames;
@@ -1866,13 +1896,19 @@ class Gameplay {
   std::string selected_venue_;
   std::string intro_camera_category_ = "INTRO";
   std::string diagnostic_guitar_override_;
+  std::string diagnostic_bass_override_;
+  std::string selected_guitar_;
+  std::string selected_bass_;
   std::string diagnostic_venue_event_;
   std::string diagnostic_camera_shot_;
+  std::string diagnostic_front_camera_role_;
   double diagnostic_camera_path_offset_frames_ = 0.0;
   std::optional<double> diagnostic_rock_fill_;
   std::optional<double> diagnostic_star_power_fill_;
   bool diagnostic_star_power_active_ = false;
   bool diagnostic_venue_event_applied_ = false;
+  bool diagnostic_unlit_performers_ = false;
+  bool diagnostic_front_camera_reported_ = false;
 
   // Per-lane: has this lane's gem been hit this pass (so we don't double-hit)?
   bool lane_hit_[5] = {};
@@ -1888,6 +1924,11 @@ class Gameplay {
   std::string selected_character_strum_anim_path_;
   std::string selected_character_fret_anim_path_;
   std::string selected_character_highway_surface_path_;
+  std::string selected_bassist_selection_;
+  std::string selected_bassist_model_path_;
+  std::string selected_bassist_main_anim_path_;
+  std::string selected_bassist_strum_anim_path_;
+  std::string selected_bassist_fret_anim_path_;
   std::string highway_asset_hdr_path_;
   std::string highway_asset_ark_path_;
   std::string song_shortname_;

@@ -6345,6 +6345,16 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       std::fprintf(stderr, "[menu] capture start screen = %s\n", start);
     }
   }
+  if (const char* store_cash = std::getenv("GHOGX_MENU_SEED_STORE_CASH")) {
+    if (Object* campaign = mgr.resolve_object(Symbol("campaign"))) {
+      const int cash = std::max(0, std::atoi(store_cash));
+      campaign->set_property(Symbol("cash"), DataNode::Int(cash));
+      if (Object* store_panel = mgr.find_object(Symbol("store_panel")))
+        store_panel->handle_property(Symbol("update_total_cash_display"),
+                                     DataArray());
+      std::fprintf(stderr, "[store-proof] seeded diagnostic cash=%d\n", cash);
+    }
+  }
   if (std::getenv("GHOGX_DUMP_MENU_SCREENS")) {
     for (std::size_t i = 0; i < mgr.registry().size(); ++i) {
       Object* object = mgr.registry().at(i);
@@ -6967,6 +6977,20 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         game_config
             ? symbol_value(game_config->get_property(Symbol("mode")))
             : Symbol();
+    const bool multiplayer =
+        game_mode == Symbol("multi_coop") ||
+        game_mode == Symbol("multi_vs") ||
+        game_mode == Symbol("multi_fo");
+    auto player_config_at = [&](int player) -> Object* {
+      if (!game_config) return nullptr;
+      DataArray args;
+      args.push(DataNode::Int(player));
+      return game_config->handle_property(Symbol("get_player_config"), args)
+          .as_object();
+    };
+    Object* player0_config = multiplayer ? player_config_at(0) : game_config;
+    Object* player1_config =
+        game_mode == Symbol("multi_coop") ? player_config_at(1) : nullptr;
     const bool quickplay =
         game_mode.valid()
             ? game_mode == Symbol("quickplay")
@@ -6990,6 +7014,9 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     loaded_song = song.c_str();
     loaded_difficulty = current_difficulty();
     gameplay.set_diagnostic_autoplay(options.gameplay_autoplay);
+    gameplay.set_diagnostic_front_camera(options.gameplay_front_camera_role);
+    gameplay.set_diagnostic_unlit_performers(
+        options.gameplay_proof_lighting);
     gameplay.set_deterministic_clock(fixed_dt > 0.0f);
     Symbol selected_venue;
     bool encore = false;
@@ -7003,6 +7030,27 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     }
     gameplay.set_selected_venue(selected_venue.c_str());
     gameplay.set_intro_camera_category(encore ? "INTRO_ENCORE" : "INTRO");
+    const Symbol selected_guitar =
+        player0_config
+            ? symbol_value(
+                  player0_config->handle_property(Symbol("get_guitar"),
+                                                  DataArray()))
+            : Symbol();
+    const Symbol selected_bass =
+        player1_config
+            ? symbol_value(
+                  player1_config->handle_property(Symbol("get_guitar"),
+                                                  DataArray()))
+            : Symbol();
+    gameplay.set_selected_instruments(
+        selected_guitar.valid() ? selected_guitar.c_str() : "",
+        selected_bass.valid() ? selected_bass.c_str() : "");
+    std::fprintf(stderr,
+                 "[flow] equipped instrument handoff: mode=%s "
+                 "player0=%s player1=%s\n",
+                 game_mode.valid() ? game_mode.c_str() : "<unset>",
+                 selected_guitar.valid() ? selected_guitar.c_str() : "<song>",
+                 selected_bass.valid() ? selected_bass.c_str() : "<npc>");
     std::fprintf(
         stderr,
         "[flow] selected song handoff: provider_index=%zu song=%s mode=%s "
@@ -7011,9 +7059,9 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         selected_venue.valid() ? selected_venue.c_str() : "<song-quickplay>",
         encore ? "INTRO_ENCORE" : "INTRO");
     const Symbol selected_outfit =
-        game_config
+        player0_config
             ? symbol_value(
-                  game_config->get_property(Symbol("character_outfit")))
+                  player0_config->get_property(Symbol("character_outfit")))
             : Symbol();
     if (const CharacterVariant* variant =
             db.character_variant(selected_outfit)) {
@@ -7029,6 +7077,26 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
           variant->source_game.c_str(), variant->model_path.c_str());
     } else {
       gameplay.set_selected_character_variant({}, {}, {}, {}, {}, {});
+    }
+    const Symbol selected_bassist_outfit =
+        player1_config
+            ? symbol_value(
+                  player1_config->get_property(Symbol("character_outfit")))
+            : Symbol();
+    if (const CharacterVariant* variant =
+            db.character_variant(selected_bassist_outfit)) {
+      gameplay.set_selected_bassist_character_variant(
+          variant->selection.c_str(), variant->model_path,
+          variant->main_anim_path, variant->strum_anim_path,
+          variant->fret_anim_path);
+      std::fprintf(
+          stderr,
+          "[flow] selected co-op bassist handoff: character=%s variant=%s "
+          "source=%s model=%s\n",
+          variant->character.c_str(), variant->selection.c_str(),
+          variant->source_game.c_str(), variant->model_path.c_str());
+    } else {
+      gameplay.set_selected_bassist_character_variant({}, {}, {}, {}, {});
     }
     if (!gameplay.load_song(gameplay_hdr, gameplay_ark, loaded_song,
                             loaded_difficulty)) {
@@ -7225,7 +7293,53 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   if (!options.screenshot_sequence.empty() && max_frames == 0)
     max_frames =
         static_cast<int>(options.screenshot_sequence.rbegin()->first + 3);
+  const bool trace_store_proof =
+      std::getenv("GHOGX_MENU_TRACE_STORE_PROOF") != nullptr;
+  std::string last_store_proof_state;
+  auto trace_store_state = [&]() {
+    if (!trace_store_proof) return;
+    Object* panel = mgr.find_object(Symbol("store_panel"));
+    Object* campaign = mgr.resolve_object(Symbol("campaign"));
+    if (!panel || !campaign) return;
+    const Symbol category =
+        panel->get_property(Symbol("category")).as_symbol().value_or(Symbol());
+    const int index =
+        panel->get_property(Symbol("itemIdx")).as_int().value_or(-1);
+    const Symbol item =
+        panel->get_property(Symbol("item_name")).as_symbol().value_or(Symbol());
+    DataArray price_args;
+    const int price =
+        panel->handle_property(Symbol("get_item_price"), price_args)
+            .as_int()
+            .value_or(-1);
+    DataArray unlock_args;
+    if (item.valid()) unlock_args.push(DataNode::Sym(item));
+    const bool owned =
+        item.valid() &&
+        node_bool(campaign->handle_property(Symbol("is_unlocked"),
+                                            unlock_args));
+    const int cash =
+        campaign->handle_property(Symbol("cash"), DataArray())
+            .as_int()
+            .value_or(-1);
+    const Symbol screen =
+        mgr.current_screen() ? mgr.current_screen()->name() : Symbol();
+    const std::string state =
+        std::string(screen.c_str()) + "|" + category.c_str() + "|" +
+        std::to_string(index) + "|" + item.c_str() + "|" +
+        std::to_string(price) + "|" + std::to_string(cash) + "|" +
+        (owned ? "1" : "0");
+    if (state == last_store_proof_state) return;
+    last_store_proof_state = state;
+    std::fprintf(stderr,
+                 "[store-proof] frame=%llu screen=%s category=%s index=%d "
+                 "item=%s price=%d cash=%d owned=%d\n",
+                 static_cast<unsigned long long>(frame), screen.c_str(),
+                 category.c_str(), index, item.c_str(), price, cash,
+                 owned ? 1 : 0);
+  };
   auto capture_frame = [&]() {
+    trace_store_state();
     if (!screenshot_path.empty() &&
         frame == static_cast<uint64_t>(screenshot_frame))
       win->save_screenshot(screenshot_path.c_str());

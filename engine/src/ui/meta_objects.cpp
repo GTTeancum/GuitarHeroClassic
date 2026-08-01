@@ -6,16 +6,135 @@
 #include "ui/screen_manager.h"
 
 #include <algorithm>
+#include <array>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <cstring>
 #include <map>
 #include <memory>
 #include <random>
+#include <set>
 #include <string>
 #include <vector>
 
 namespace ghogx::ui {
 
 namespace {
+namespace fs = std::filesystem;
+
+struct PersistentProfileState {
+  int cash = 0;
+  std::string guitar;
+  std::string guitar_skin;
+  std::array<std::string, 2> player_guitar;
+  std::array<std::string, 2> player_guitar_skin;
+  std::set<std::string> unlocked;
+};
+
+bool profile_persistence_enabled() {
+  const char* disabled = std::getenv("GHOGX_DISABLE_PROFILE_PERSISTENCE");
+  return !disabled || std::strcmp(disabled, "0") == 0 ||
+         std::strcmp(disabled, "FALSE") == 0 ||
+         std::strcmp(disabled, "false") == 0;
+}
+
+fs::path persistent_profile_path() {
+  if (const char* override_path = std::getenv("GHOGX_PROFILE_PATH");
+      override_path && *override_path)
+    return fs::path(override_path);
+  return fs::path("save") / "ghogx_profile_v1.txt";
+}
+
+PersistentProfileState load_persistent_profile_state() {
+  PersistentProfileState state;
+  if (!profile_persistence_enabled()) return state;
+  const fs::path path = persistent_profile_path();
+  std::ifstream stream(path);
+  std::string line;
+  if (!stream || !std::getline(stream, line) ||
+      line != "GHOGX_PROFILE_V1")
+    return state;
+  while (std::getline(stream, line)) {
+    const std::size_t split = line.find('=');
+    if (split == std::string::npos) continue;
+    const std::string key = line.substr(0, split);
+    const std::string value = line.substr(split + 1);
+    if (key == "cash") {
+      try {
+        state.cash = std::max(0, std::stoi(value));
+      } catch (...) {
+        state.cash = 0;
+      }
+    } else if (key == "guitar") {
+      state.guitar = value;
+    } else if (key == "guitar_skin") {
+      state.guitar_skin = value;
+    } else if (key == "player0_guitar") {
+      state.player_guitar[0] = value;
+    } else if (key == "player0_guitar_skin") {
+      state.player_guitar_skin[0] = value;
+    } else if (key == "player1_guitar") {
+      state.player_guitar[1] = value;
+    } else if (key == "player1_guitar_skin") {
+      state.player_guitar_skin[1] = value;
+    } else if (key == "unlock" && !value.empty()) {
+      state.unlocked.insert(value);
+    }
+  }
+  std::fprintf(stderr,
+               "[profile] loaded path=%s cash=%d guitar=%s skin=%s "
+               "unlocks=%zu\n",
+               path.string().c_str(), state.cash, state.guitar.c_str(),
+               state.guitar_skin.c_str(), state.unlocked.size());
+  return state;
+}
+
+PersistentProfileState& persistent_profile_state() {
+  static PersistentProfileState state = load_persistent_profile_state();
+  return state;
+}
+
+bool save_persistent_profile_state() {
+  if (!profile_persistence_enabled()) return true;
+  const fs::path path = persistent_profile_path();
+  const fs::path temp = path.string() + ".tmp";
+  std::error_code error;
+  if (!path.parent_path().empty())
+    fs::create_directories(path.parent_path(), error);
+  if (error) return false;
+  const PersistentProfileState& state = persistent_profile_state();
+  {
+    std::ofstream stream(temp, std::ios::trunc);
+    if (!stream) return false;
+    stream << "GHOGX_PROFILE_V1\n";
+    stream << "cash=" << std::max(0, state.cash) << "\n";
+    stream << "guitar=" << state.guitar << "\n";
+    stream << "guitar_skin=" << state.guitar_skin << "\n";
+    for (std::size_t i = 0; i < state.player_guitar.size(); ++i) {
+      stream << "player" << i << "_guitar=" << state.player_guitar[i] << "\n";
+      stream << "player" << i << "_guitar_skin="
+             << state.player_guitar_skin[i] << "\n";
+    }
+    for (const std::string& item : state.unlocked)
+      stream << "unlock=" << item << "\n";
+    if (!stream) return false;
+  }
+  fs::remove(path, error);
+  error.clear();
+  fs::rename(temp, path, error);
+  if (error) {
+    fs::remove(temp, error);
+    return false;
+  }
+  std::fprintf(stderr,
+               "[profile] saved path=%s cash=%d guitar=%s skin=%s "
+               "unlocks=%zu\n",
+               path.string().c_str(), state.cash, state.guitar.c_str(),
+               state.guitar_skin.c_str(), state.unlocked.size());
+  return true;
+}
+
 Symbol arg_symbol(const DataArray& args, std::size_t index,
                   Symbol fallback = Symbol()) {
   if (index >= args.size()) return fallback;
@@ -172,6 +291,34 @@ int store_price_for_item(const ConfigDb* db, Symbol item) {
     if (auto value = price.as_int()) return *value;
   }
   return 0;
+}
+
+bool campaign_item_unlocked(ScreenManager* mgr, Symbol item) {
+  if (!mgr || !item.valid()) return false;
+  Object* campaign = mgr->resolve_object(Symbol("campaign"));
+  if (!campaign) return false;
+  DataArray args;
+  args.push(DataNode::Sym(item));
+  return node_bool(campaign->handle_property(Symbol("is_unlocked"), args));
+}
+
+std::vector<Symbol> owned_guitars(ScreenManager* mgr, const ConfigDb* db,
+                                  Symbol type) {
+  std::vector<Symbol> output;
+  if (!db) return output;
+  const std::vector<Symbol> store_items = db->store_items(Symbol("guitar"));
+  for (Symbol guitar : db->guitars(type)) {
+    const DataArray* record = db->guitar(guitar);
+    const bool is_store_item =
+        std::find(store_items.begin(), store_items.end(), guitar) !=
+        store_items.end();
+    const bool has_requirement =
+        record && !ConfigDb::field(record, Symbol("require")).empty();
+    if (campaign_item_unlocked(mgr, guitar) ||
+        (!is_store_item && !has_requirement))
+      output.push_back(guitar);
+  }
+  return output;
 }
 
 bool guitar_award_require(Symbol require) {
@@ -762,7 +909,9 @@ class StoreProvider : public MetaObject {
 
 class PlayerConfig : public MetaObject {
  public:
-  PlayerConfig(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("PlayerCfg"), mgr, db) {
+  PlayerConfig(ScreenManager* mgr, ConfigDb* db, int player_index)
+      : MetaObject(Symbol("PlayerCfg"), mgr, db),
+        player_index_(std::clamp(player_index, 0, 1)) {
     set_property(Symbol("score"), DataNode::Int(0));
     set_property(Symbol("percent_hit"), DataNode::Int(0));
     set_property(Symbol("percent_complete"), DataNode::Int(0));
@@ -776,6 +925,13 @@ class PlayerConfig : public MetaObject {
     set_property(Symbol("star_power_ready"), DataNode::Int(0));
     set_property(Symbol("in_star_mode"), DataNode::Int(0));
     set_property(Symbol("player_matcher"), DataNode::Obj(this));
+    const PersistentProfileState& profile = persistent_profile_state();
+    const std::string& guitar = profile.player_guitar[player_index_];
+    const std::string& skin = profile.player_guitar_skin[player_index_];
+    if (!guitar.empty() && db_ && db_->guitar(Symbol(guitar)))
+      set_property(Symbol("guitar"), DataNode::Sym(Symbol(guitar)));
+    if (!skin.empty() && db_ && db_->guitar_for_skin(Symbol(skin)).valid())
+      set_property(Symbol("guitar_skin"), DataNode::Sym(Symbol(skin)));
   }
 
  protected:
@@ -794,6 +950,26 @@ class PlayerConfig : public MetaObject {
     if (std::strcmp(m, "get_difficulty") == 0) {
       out = DataNode::Sym(canonical_difficulty_symbol(
           get_property(Symbol("difficulty")).as_symbol().value_or(Symbol())));
+      return true;
+    }
+    if (std::strcmp(m, "set_guitar") == 0) {
+      Symbol guitar =
+          arg_symbol(args, 0,
+                     get_property(Symbol("guitar"))
+                         .as_symbol()
+                         .value_or(Symbol()));
+      Symbol skin = arg_symbol(args, 1);
+      if (!skin.valid() && db_) skin = db_->first_guitar_skin(guitar);
+      if (guitar.valid())
+        set_property(Symbol("guitar"), DataNode::Sym(guitar));
+      if (skin.valid())
+        set_property(Symbol("guitar_skin"), DataNode::Sym(skin));
+      PersistentProfileState& profile = persistent_profile_state();
+      profile.player_guitar[player_index_] =
+          guitar.valid() ? guitar.c_str() : "";
+      profile.player_guitar_skin[player_index_] =
+          skin.valid() ? skin.c_str() : "";
+      save_persistent_profile_state();
       return true;
     }
     if (std::strcmp(m, "set_outfit_index") == 0) {
@@ -833,6 +1009,9 @@ class PlayerConfig : public MetaObject {
     }
     return false;
   }
+
+ private:
+  int player_index_ = 0;
 };
 
 class CharacterProvider : public MetaObject {
@@ -923,6 +1102,7 @@ class CharacterProvider : public MetaObject {
     }
     return false;
   }
+
 };
 
 class PracticeSectionProvider : public MetaObject {
@@ -1165,6 +1345,14 @@ GameConfig::GameConfig(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("ga
     if (default_skin.valid())
       set_property(Symbol("guitar_skin"), DataNode::Sym(default_skin));
   }
+  const PersistentProfileState& profile = persistent_profile_state();
+  if (!profile.guitar.empty() && db_ &&
+      db_->guitar(Symbol(profile.guitar)))
+    set_property(Symbol("guitar"), DataNode::Sym(Symbol(profile.guitar)));
+  if (!profile.guitar_skin.empty() && db_ &&
+      db_->guitar_for_skin(Symbol(profile.guitar_skin)).valid())
+    set_property(Symbol("guitar_skin"),
+                 DataNode::Sym(Symbol(profile.guitar_skin)));
   // Retail GameConfig already owns a valid character before career.dtb's first
   // sel_character_panel::enter. Source that native default from the stock
   // panel fields instead of duplicating the roster in C++.
@@ -1181,7 +1369,7 @@ GameConfig::GameConfig(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("ga
     }
   }
   for (int i = 0; i < 2; ++i)
-    players_.push_back(std::make_unique<PlayerConfig>(mgr, db));
+    players_.push_back(std::make_unique<PlayerConfig>(mgr, db, i));
   for (auto& player : players_)
     player->set_property(Symbol("difficulty"), DataNode::Sym(default_difficulty()));
 }
@@ -1189,6 +1377,13 @@ GameConfig::GameConfig(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("ga
 bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
   const char* m = msg.c_str();
 
+  if (std::strcmp(m, "set") == 0 && arg_symbol(args, 0) == Symbol("mode")) {
+    const Symbol mode = arg_symbol(args, 1);
+    set_property(Symbol("mode"),
+                 mode.valid() ? DataNode::Sym(mode) : DataNode());
+    std::fprintf(stderr, "[gamecfg] mode=%s\n", mode.c_str());
+    return true;
+  }
   if (std::strcmp(m, "foreach_player_values") == 0) {
     auto values = std::make_shared<DataArray>();
     for (const auto& player : players_)
@@ -1295,7 +1490,16 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     return true;
   }
   if (std::strcmp(m, "set_career_venue") == 0) {
-    set_property(Symbol("mode"), DataNode::Sym(Symbol("career")));
+    // SEL_VENUE_SCREEN_HANDLERS is shared by the career and multiplayer venue
+    // screens.  Retail's set_career_venue chooses the venue for all of them,
+    // but it must not erase the multiplayer mode selected immediately before
+    // entering multi_*_venue_screen.
+    const Symbol current_mode =
+        get_property(Symbol("mode")).as_symbol().value_or(Symbol());
+    const bool multiplayer_mode =
+        std::strncmp(current_mode.c_str(), "multi_", 6) == 0;
+    if (!multiplayer_mode)
+      set_property(Symbol("mode"), DataNode::Sym(Symbol("career")));
     set_property(Symbol("quickplay"), DataNode::Sym(Symbol("FALSE")));
     if (mgr_) {
       if (Object* provider = mgr_->resolve_object(Symbol("song_provider"))) {
@@ -1304,9 +1508,6 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
         provider->handle_property(Symbol("set_quickplay"), disabled);
       }
     }
-    const bool career_venue_screen =
-        mgr_ && mgr_->current_screen() &&
-        mgr_->current_screen()->name() == Symbol("sel_venue_screen");
     int status = 0;
     if (mgr_) {
       if (Object* campaign = mgr_->resolve_object(Symbol("campaign")))
@@ -1316,7 +1517,7 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
                             .value_or(0));
     }
     Symbol venue =
-        career_venue_screen && db_
+        !multiplayer_mode && db_
             ? db_->campaign_venue_at(static_cast<std::size_t>(status))
             : Symbol();
     if (!venue.valid()) venue = current_venue_or_default(*this, db_);
@@ -1412,6 +1613,10 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     if (!skin.valid() && db_) skin = db_->first_guitar_skin(guitar);
     if (guitar.valid()) set_property(Symbol("guitar"), DataNode::Sym(guitar));
     if (skin.valid()) set_property(Symbol("guitar_skin"), DataNode::Sym(skin));
+    PersistentProfileState& profile = persistent_profile_state();
+    profile.guitar = guitar.valid() ? guitar.c_str() : "";
+    profile.guitar_skin = skin.valid() ? skin.c_str() : "";
+    save_persistent_profile_state();
     return true;
   }
   if (std::strcmp(m, "get_guitar_desc") == 0) {
@@ -1432,6 +1637,30 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
               : DataNode();
     return true;
   }
+  if (std::strcmp(m, "get_num_guitars") == 0) {
+    const Symbol type = arg_symbol(args, 0, Symbol("guitar"));
+    out = DataNode::Int(
+        static_cast<int>(owned_guitars(mgr_, db_, type).size()));
+    return true;
+  }
+  if (std::strcmp(m, "get_guitar_at") == 0) {
+    const Symbol type = arg_symbol(args, 0, Symbol("guitar"));
+    const std::vector<Symbol> guitars = owned_guitars(mgr_, db_, type);
+    const int index = std::clamp(arg_int(args, 1, 0), 0,
+                                 std::max(0, static_cast<int>(guitars.size()) - 1));
+    out = guitars.empty() ? DataNode()
+                          : DataNode::Sym(guitars[static_cast<std::size_t>(index)]);
+    return true;
+  }
+  if (std::strcmp(m, "get_guitar_skin_at") == 0) {
+    const Symbol guitar = arg_symbol(args, 0);
+    const int index = std::max(0, arg_int(args, 1, 0));
+    const Symbol skin =
+        db_ ? db_->guitar_skin_at(guitar, static_cast<std::size_t>(index))
+            : Symbol();
+    out = skin.valid() ? DataNode::Sym(skin) : DataNode();
+    return true;
+  }
   if (std::strcmp(m, "get_num_skins") == 0) {
     Symbol guitar = arg_symbol(args, 0, get_property(Symbol("guitar"))
                                             .as_symbol()
@@ -1444,7 +1673,13 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
 }
 
 // --- Campaign --------------------------------------------------------------
-Campaign::Campaign(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("campaign"), mgr, db) {}
+Campaign::Campaign(ScreenManager* mgr, ConfigDb* db)
+    : MetaObject(Symbol("campaign"), mgr, db) {
+  const PersistentProfileState& profile = persistent_profile_state();
+  set_property(Symbol("cash"), DataNode::Int(profile.cash));
+  for (const std::string& item : profile.unlocked)
+    set_property(Symbol(item), DataNode::Int(1));
+}
 
 bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
   const char* m = msg.c_str();
@@ -1544,7 +1779,8 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
                  DataNode::Int(get_property(Symbol("save_complete_count"))
                                    .as_int()
                                    .value_or(0) +
-                               1));
+                                1));
+    save_persistent_profile_state();
     return true;
   }
   if (std::strcmp(m, "pick_attract_song") == 0) {
@@ -1716,6 +1952,8 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     const int next =
         get_property(Symbol("cash")).as_int().value_or(0) + arg_int(args, 0, 0);
     set_property(Symbol("cash"), DataNode::Int(next));
+    persistent_profile_state().cash = std::max(0, next);
+    save_persistent_profile_state();
     out = DataNode::Int(next);
     return true;
   }
@@ -1727,6 +1965,10 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
         get_property(Symbol("cash")).as_int().value_or(0) - std::max(0, price);
     set_property(Symbol("cash"), DataNode::Int(next));
     if (item.valid()) set_property(item, DataNode::Int(1));
+    PersistentProfileState& profile = persistent_profile_state();
+    profile.cash = std::max(0, next);
+    if (item.valid()) profile.unlocked.insert(item.c_str());
+    save_persistent_profile_state();
     out = DataNode::Int(next);
     return true;
   }
