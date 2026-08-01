@@ -2603,6 +2603,30 @@ void do_back(ScreenManager& mgr) {
   Object* component = component_name.valid()
                           ? mgr.resolve_object(component_name)
                           : nullptr;
+  if (panel && panel->class_name() == Symbol("GuitarSelectPanel")) {
+    DataArray player;
+    player.push(DataNode::Int(0));
+    if (node_bool(
+            panel->handle_property(Symbol("is_skin_select"), player))) {
+      mgr.set_global(Symbol("button"),
+                     DataNode::Sym(Symbol("kPad_Tri")));
+      mgr.set_global(Symbol("player_num"), DataNode::Int(0));
+      panel->handle_property(Symbol("BUTTON_DOWN_MSG"), DataArray());
+      DataArray select_args;
+      select_args.push(DataNode::Int(0));
+      select_args.push(DataNode::Int(0));
+      panel->handle_property(Symbol("set_skin_select"), select_args);
+      if (Object* guitar_text =
+              mgr.resolve_object(Symbol("sg_text_guitar.grp")))
+        guitar_text->set_property(Symbol("showing"), DataNode::Int(1));
+      if (Object* skin_text = mgr.resolve_object(Symbol("sg_text_skin.grp")))
+        skin_text->set_property(Symbol("showing"), DataNode::Int(0));
+      DataArray refresh;
+      refresh.push(DataNode::Int(1));
+      panel->handle_property(Symbol("update_display"), refresh);
+      return;
+    }
+  }
   if (component &&
       component->class_name() == Symbol("BandTextEntry") &&
       !node_bool(component->handle_property(Symbol("no_text_entered"),
