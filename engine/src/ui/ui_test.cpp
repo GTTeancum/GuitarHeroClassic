@@ -2115,6 +2115,26 @@ int main(int argc, char** argv) {
               .as_symbol()
               .value_or(Symbol()) == Symbol("guitar.env"));
   }
+  if (sel_guitar_panel) {
+    mgr.set_global(Symbol("player_num"), DataNode::Int(0));
+    mgr.set_global(Symbol("button"), DataNode::Sym(Symbol("kPad_DDown")));
+    sel_guitar_panel->handle_property(Symbol("BUTTON_DOWN_MSG"), DataArray());
+    DataArray player_arg;
+    player_arg.push(DataNode::Int(0));
+    const Symbol next_guitar =
+        sel_guitar_panel
+            ->handle_property(Symbol("get_selected_guitar"), player_arg)
+            .as_symbol()
+            .value_or(Symbol());
+    CHECK(next_guitar.valid() && next_guitar != Symbol("lespaul"));
+    sel_guitar_panel->handle_property(Symbol("BUTTON_DOWN_MSG"), DataArray());
+    const Symbol following_guitar =
+        sel_guitar_panel
+            ->handle_property(Symbol("get_selected_guitar"), player_arg)
+            .as_symbol()
+            .value_or(Symbol());
+    CHECK(following_guitar.valid() && following_guitar != next_guitar);
+  }
 
   mgr.goto_screen(Symbol("main_screen"));
   // the authored (enter) -> reset_player_settings ran on the REAL game-side

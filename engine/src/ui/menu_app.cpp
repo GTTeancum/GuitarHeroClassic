@@ -2608,10 +2608,6 @@ void do_back(ScreenManager& mgr) {
     player.push(DataNode::Int(0));
     if (node_bool(
             panel->handle_property(Symbol("is_skin_select"), player))) {
-      mgr.set_global(Symbol("button"),
-                     DataNode::Sym(Symbol("kPad_Tri")));
-      mgr.set_global(Symbol("player_num"), DataNode::Int(0));
-      panel->handle_property(Symbol("BUTTON_DOWN_MSG"), DataArray());
       DataArray select_args;
       select_args.push(DataNode::Int(0));
       select_args.push(DataNode::Int(0));

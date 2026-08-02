@@ -2128,8 +2128,10 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
                  : Symbol();
       const int count = guitar_count(player);
       int selected_index = 0;
+      const Symbol index_target =
+          selected.valid() ? selected : configured;
       for (int i = 0; i < count; ++i) {
-        if (guitar_at(player, i) != configured) continue;
+        if (guitar_at(player, i) != index_target) continue;
         selected_index = i;
         break;
       }
