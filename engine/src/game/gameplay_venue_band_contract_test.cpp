@@ -12418,6 +12418,15 @@ int main() {
                  "runtime.player.sampled_pose()",
                  "WorldCrowd runtime samples actor clips every gameplay frame");
   ok &= contains(update_worldcrowd_runtime_c,
+                 "diagnostic_crowd_animation_proof_enabled()",
+                 "WorldCrowd pose evidence remains behind an explicit diagnostic gate");
+  ok &= contains(update_worldcrowd_runtime_c,
+                 "pose_fnv1a64=%016llx",
+                 "WorldCrowd animation proof logs a deterministic sampled-pose digest");
+  ok &= contains(update_worldcrowd_runtime_c,
+                 "runtime.next_animation_proof_log_time=song_time_+0.25;",
+                 "WorldCrowd animation proof samples changing source poses at bounded intervals");
+  ok &= contains(update_worldcrowd_runtime_c,
                  "apply_clip_channel_layers(",
                  "WorldCrowd runtime uses the shared character clip mixer");
   ok &= contains(update_worldcrowd_runtime_c,
@@ -15585,8 +15594,8 @@ int main() {
                  "verts.push_back({v2[0],v2[1],v2[2],white,1.0f,0.0f});",
                  "WorldCrowd billboard uses retail face 0,1,2 vertex order and UVs");
   ok &= contains(char_renderer_c,
-                 "dev->SetRenderState(D3DRS_CULLMODE,D3DCULL_CCW);",
-                 "WorldCrowd reverses source one-sided culling exactly once for the mirrored D3D clip axis");
+                 "dev->SetRenderState(D3DRS_CULLMODE,D3DCULL_CW);",
+                 "WorldCrowd preserves the source one-sided front face through the mirrored D3D clip axis");
   ok &= contains(char_renderer_c,
                  "dev->SetRenderState(D3DRS_ALPHAREF,0x80);",
                  "WorldCrowd billboard alpha cut mirrors gImpostorMat's source 0x80 threshold");

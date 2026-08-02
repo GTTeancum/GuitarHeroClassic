@@ -1,0 +1,8 @@
+venue	card_system	card_pose_animation	direct_card_animation_refs	crowd_light_anim_objects	decoded_color_keys	runtime_result
+arena	MultiMesh0	static	0	crowd_lighta.litanim;crowd_lightb.litanim;crowd_lightc.litanim	29;36;5	exact cards plus decoded keyed crowd lighting
+basement	MultiMesh0	static	0	crowd01.litanim;crowd02.litanim;crowd03.litanim	37;33;9	exact cards plus decoded keyed crowd lighting
+big_club	MultiMesh0	static	0	crowd_lighta.litanim;crowd_lightb.litanim;crowd_lightc.litanim	45;45;21	exact cards plus decoded keyed crowd lighting
+fest	MultiMesh0	static	0	crowd01.litanim;crowd02.litanim	44;44	exact cards plus decoded keyed crowd lighting
+small_club	MultiMesh0	static	0	crowd_lighta1.litanim;crowd_lightb1.litanim;crowd_lighta.litanim;crowd_lightb.litanim;crowd_lightc.litanim	28;35;28;35;5	exact cards plus decoded keyed crowd lighting
+small_club_multi	MultiMesh0	static	0	crowd_lighta1.litanim;crowd_lightb1.litanim;crowd_lighta.litanim;crowd_lightb.litanim;crowd_lightc.litanim	28;35;28;35;5	exact cards plus decoded keyed crowd lighting
+theatre	MultiMesh0	static	0	crowd_lighta.litanim;crowd_lightb.litanim;crowd_lightc.litanim	1;1;1	exact cards plus source-constant crowd light tracks

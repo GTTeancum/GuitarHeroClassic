@@ -3192,10 +3192,11 @@ void CharRenderer::draw_worldcrowd_impostors_over_scene(
   dev->SetTexture(0, impl.worldcrowd_impostor_tex);
   dev->SetRenderState(D3DRS_LIGHTING, FALSE);
   // WorldCrowd's gImpostorMat never disables RndMat's default cull=true.
-  // Preserve BuildBillboard's source face order above.  The D3D bridge mirrors
-  // clip X in make_projection(), which reverses that order in screen space;
-  // CCW culling keeps the source front face instead of rejecting every card.
-  dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
+  // Preserve BuildBillboard's source face order above. Its (0,1,2) face has
+  // a -Y source normal and is front-facing from the venue audience camera.
+  // The D3D bridge's mirrored projection leaves that source front face as the
+  // same CW render face used by the normal character path.
+  dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
   dev->SetRenderState(D3DRS_ZENABLE, TRUE);
   dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
   dev->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);

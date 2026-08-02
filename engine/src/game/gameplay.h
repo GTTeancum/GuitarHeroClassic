@@ -1773,6 +1773,8 @@ class Gameplay {
     size_t animation_ordinal = 0;
     float source_character_height = 0.0f;
     float fullness_fraction = 1.0f;
+    double next_animation_proof_log_time = 0.0;
+    std::uint64_t animation_proof_samples = 0;
   };
   std::map<std::string, WorldCrowdActorRuntime> worldcrowd_actor_runtime_;
   size_t worldcrowd_actor_runtime_placements_ = 0;

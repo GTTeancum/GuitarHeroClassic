@@ -19,6 +19,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -187,6 +188,14 @@ double monotonic_seconds() {
 
 bool debug_backing_camera_enabled() {
     return env_value("GHOGX_DEBUG_BACKING_CAMERA") != nullptr;
+}
+
+bool diagnostic_crowd_proof_camera_enabled() {
+    return env_value("GHOGX_DIAGNOSTIC_CROWD_PROOF_CAMERA") != nullptr;
+}
+
+bool diagnostic_crowd_animation_proof_enabled() {
+    return env_value("GHOGX_DIAGNOSTIC_CROWD_ANIMATION_PROOF") != nullptr;
 }
 
 bool authored_gameplay_cameras_disabled() {
@@ -10680,6 +10689,81 @@ std::map<std::string, std::array<float, 16>> build_venue_camera_target_worlds(
         out["crowd_group_centroid"] =
             camera_target_world_at_position(crowd_sum);
     }
+
+    // GH1 Arena::Crowd draws each MultiMesh at its serialized instance
+    // transform. Expose the exact aggregate only to diagnostic cameras; this
+    // neither changes instance transforms nor introduces a gameplay cull.
+    std::array<float, 3> multi_mesh_sum = {0.0f, 0.0f, 0.0f};
+    std::array<float, 3> multi_mesh_min = {};
+    std::array<float, 3> multi_mesh_max = {};
+    size_t multi_mesh_instance_count = 0;
+    size_t multi_mesh_ordinal = 0;
+    for (const auto& multi_mesh : scene.multi_meshes) {
+        if (!multi_mesh.decoded) continue;
+        std::array<float, 3> set_sum = {0.0f, 0.0f, 0.0f};
+        std::array<float, 3> set_min = {};
+        std::array<float, 3> set_max = {};
+        size_t set_count = 0;
+        for (const auto& instance : multi_mesh.instances) {
+            const auto position = mat4_position_game(xfm_to_mat4(instance));
+            if (set_count == 0) {
+                set_min = position;
+                set_max = position;
+            } else {
+                for (int axis = 0; axis < 3; ++axis) {
+                    set_min[axis] = std::min(set_min[axis], position[axis]);
+                    set_max[axis] = std::max(set_max[axis], position[axis]);
+                }
+            }
+            if (multi_mesh_instance_count == 0) {
+                multi_mesh_min = position;
+                multi_mesh_max = position;
+            } else {
+                for (int axis = 0; axis < 3; ++axis) {
+                    multi_mesh_min[axis] =
+                        std::min(multi_mesh_min[axis], position[axis]);
+                    multi_mesh_max[axis] =
+                        std::max(multi_mesh_max[axis], position[axis]);
+                }
+            }
+            for (int axis = 0; axis < 3; ++axis) {
+                set_sum[axis] += position[axis];
+                multi_mesh_sum[axis] += position[axis];
+            }
+            ++set_count;
+            ++multi_mesh_instance_count;
+        }
+        if (set_count > 0) {
+            const float inv_count = 1.0f / static_cast<float>(set_count);
+            for (float& value : set_sum) value *= inv_count;
+            const std::string prefix =
+                "crowd_multimesh_set_" +
+                std::to_string(multi_mesh_ordinal);
+            out[prefix + "_centroid"] =
+                camera_target_world_at_position(set_sum);
+            out[prefix + "_bounds_min"] =
+                camera_target_world_at_position(set_min);
+            out[prefix + "_bounds_max"] =
+                camera_target_world_at_position(set_max);
+        }
+        ++multi_mesh_ordinal;
+    }
+    if (multi_mesh_instance_count > 0) {
+        const float inv_count =
+            1.0f / static_cast<float>(multi_mesh_instance_count);
+        for (float& value : multi_mesh_sum) value *= inv_count;
+        out["crowd_multimesh_centroid"] =
+            camera_target_world_at_position(multi_mesh_sum);
+        out["crowd_multimesh_bounds_min"] =
+            camera_target_world_at_position(multi_mesh_min);
+        out["crowd_multimesh_bounds_max"] =
+            camera_target_world_at_position(multi_mesh_max);
+    }
+
+    std::array<float, 3> world_crowd_sum = {0.0f, 0.0f, 0.0f};
+    std::array<float, 3> world_crowd_min = {};
+    std::array<float, 3> world_crowd_max = {};
+    size_t world_crowd_placement_count = 0;
     for (const auto& crowd : scene.world_crowds) {
         if (!crowd.decoded) continue;
         std::optional<std::array<float, 16>> area_world;
@@ -10701,6 +10785,24 @@ std::map<std::string, std::array<float, 16>> build_venue_camera_target_worlds(
             for (const auto& placement : set.placements) {
                 for (int axis = 0; axis < 3; ++axis)
                     sum[axis] += placement.pos[axis];
+                if (world_crowd_placement_count == 0) {
+                    for (int axis = 0; axis < 3; ++axis) {
+                        world_crowd_min[axis] = placement.pos[axis];
+                        world_crowd_max[axis] = placement.pos[axis];
+                    }
+                } else {
+                    for (int axis = 0; axis < 3; ++axis) {
+                        world_crowd_min[axis] =
+                            std::min(world_crowd_min[axis],
+                                     placement.pos[axis]);
+                        world_crowd_max[axis] =
+                            std::max(world_crowd_max[axis],
+                                     placement.pos[axis]);
+                    }
+                }
+                for (int axis = 0; axis < 3; ++axis)
+                    world_crowd_sum[axis] += placement.pos[axis];
+                ++world_crowd_placement_count;
                 ++count;
                 const auto world = xfm_to_mat4(placement);
                 add_target(crowd.name + "_placement_" +
@@ -10768,6 +10870,17 @@ std::map<std::string, std::array<float, 16>> build_venue_camera_target_worlds(
                            area_local_centroid_world);
             }
         }
+    }
+    if (world_crowd_placement_count > 0) {
+        const float inv_count =
+            1.0f / static_cast<float>(world_crowd_placement_count);
+        for (float& value : world_crowd_sum) value *= inv_count;
+        out["crowd_placement_centroid"] =
+            camera_target_world_at_position(world_crowd_sum);
+        out["crowd_placement_bounds_min"] =
+            camera_target_world_at_position(world_crowd_min);
+        out["crowd_placement_bounds_max"] =
+            camera_target_world_at_position(world_crowd_max);
     }
     return out;
 }
@@ -38605,6 +38718,53 @@ void Gameplay::update_worldcrowd_actor_runtime(float dt) {
         ghogx::character::clear_runtime_trans_worlds(character);
         if (runtime.player.active()) {
             auto channels = runtime.player.sampled_pose();
+            if (diagnostic_crowd_animation_proof_enabled() &&
+                song_time_ + 1.0e-5 >=
+                    runtime.next_animation_proof_log_time) {
+                constexpr std::uint64_t kFnvOffset =
+                    14695981039346656037ull;
+                constexpr std::uint64_t kFnvPrime = 1099511628211ull;
+                std::uint64_t digest = kFnvOffset;
+                auto hash_bytes = [&](const void* data, size_t size) {
+                    const auto* bytes =
+                        static_cast<const unsigned char*>(data);
+                    for (size_t i = 0; i < size; ++i) {
+                        digest ^= static_cast<std::uint64_t>(bytes[i]);
+                        digest *= kFnvPrime;
+                    }
+                };
+                for (const auto& channel : channels) {
+                    const auto type =
+                        static_cast<std::int32_t>(channel.type);
+                    hash_bytes(&type, sizeof(type));
+                    hash_bytes(channel.bone_name.data(),
+                               channel.bone_name.size());
+                    hash_bytes(&channel.source_weight,
+                               sizeof(channel.source_weight));
+                    hash_bytes(channel.pos, sizeof(channel.pos));
+                    hash_bytes(channel.scale, sizeof(channel.scale));
+                    hash_bytes(channel.quat, sizeof(channel.quat));
+                    hash_bytes(&channel.angle, sizeof(channel.angle));
+                }
+                runtime.next_animation_proof_log_time =
+                    song_time_ + 0.25;
+                ++runtime.animation_proof_samples;
+                std::fprintf(
+                    stderr,
+                    "[world] WorldCrowd animation proof: actor=%s milo=%s "
+                    "group=%s clip=%s clip_source=%s source_beat=%.4f "
+                    "source_time=%.4f channels=%zu pose_fnv1a64=%016llx "
+                    "sample=%llu t=%.3f\n",
+                    runtime.actor_name.c_str(), runtime.actor_milo.c_str(),
+                    runtime.active_group.c_str(), runtime.clip.name.c_str(),
+                    runtime.clip.source_milo_path.c_str(),
+                    runtime.player.source_current_beat(),
+                    runtime.player.current_time_seconds(), channels.size(),
+                    static_cast<unsigned long long>(digest),
+                    static_cast<unsigned long long>(
+                        runtime.animation_proof_samples),
+                    song_time_);
+            }
             if (!channels.empty()) {
                 std::vector<ghogx::character::ClipChannelLayer> layers;
                 layers.push_back(ghogx::character::ClipChannelLayer{
@@ -38984,10 +39144,13 @@ void apply_gameplay_backing_camera(
     const std::map<std::string, std::array<float, 16>>& venue_targets,
     double song_time,
     bool diagnostic_camera_shot_active) {
+    const bool crowd_proof_camera =
+        diagnostic_crowd_proof_camera_enabled();
     if (!world || debug_gameplay_camera_enabled() ||
         diagnostic_camera_shot_active ||
-        authored_gameplay_cameras_enabled() ||
-        !fallback_gameplay_backing_camera_enabled()) {
+        (!crowd_proof_camera && authored_gameplay_cameras_enabled()) ||
+        (!crowd_proof_camera &&
+         !fallback_gameplay_backing_camera_enabled())) {
         return;
     }
 
@@ -39008,6 +39171,113 @@ void apply_gameplay_backing_camera(
         if (it == venue_targets.end()) return std::nullopt;
         return mat4_position_game(it->second);
     };
+    if (crowd_proof_camera) {
+        struct CrowdProofTarget {
+            std::string center;
+            std::string bounds_min;
+            std::string bounds_max;
+            std::string source;
+            float default_yaw;
+        };
+        std::vector<CrowdProofTarget> candidates;
+        if (const char* selected =
+                env_value("GHOGX_DIAGNOSTIC_CROWD_PROOF_SET")) {
+            const int ordinal = std::max(0, std::atoi(selected));
+            const std::string prefix =
+                "crowd_multimesh_set_" + std::to_string(ordinal);
+            candidates.push_back(
+                {prefix + "_centroid", prefix + "_bounds_min",
+                 prefix + "_bounds_max",
+                 "GH1 MultiMesh0 set " + std::to_string(ordinal), 0.0f});
+        }
+        const CrowdProofTarget aggregate_targets[] = {
+            {"crowd_multimesh_centroid", "crowd_multimesh_bounds_min",
+             "crowd_multimesh_bounds_max", "GH1 MultiMesh0 instances", 0.0f},
+            {"crowd_placement_centroid", "crowd_placement_bounds_min",
+             "crowd_placement_bounds_max", "GH2 WorldCrowd6 placements",
+             0.0f},
+            {"crowd_group_centroid", "", "",
+             "decoded crowd Group centroid", 0.0f},
+        };
+        candidates.insert(candidates.end(), std::begin(aggregate_targets),
+                          std::end(aggregate_targets));
+        for (const auto& candidate : candidates) {
+            const auto center = venue_target_point(candidate.center);
+            if (!center) continue;
+            auto bounds_min =
+                !candidate.bounds_min.empty()
+                    ? venue_target_point(candidate.bounds_min)
+                    : std::nullopt;
+            auto bounds_max =
+                !candidate.bounds_max.empty()
+                    ? venue_target_point(candidate.bounds_max)
+                    : std::nullopt;
+            const float span_x =
+                bounds_min && bounds_max
+                    ? std::max(1.0f, (*bounds_max)[0] - (*bounds_min)[0])
+                    : 260.0f;
+            const float span_y =
+                bounds_min && bounds_max
+                    ? std::max(1.0f, (*bounds_max)[1] - (*bounds_min)[1])
+                    : 180.0f;
+            const float span_z =
+                bounds_min && bounds_max
+                    ? std::max(0.0f, (*bounds_max)[2] - (*bounds_min)[2])
+                    : 40.0f;
+            const float default_distance =
+                std::clamp(std::max({span_x * 0.90f,
+                                     span_y * 1.30f + 80.0f,
+                                     span_z * 1.60f + 180.0f}),
+                           220.0f, 1400.0f);
+            auto& cam = world->camera();
+            cam.authored = false;
+            cam.result_frame.valid = false;
+            cam.screen_offset[0] = 0.0f;
+            cam.screen_offset[1] = 0.0f;
+            cam.target[0] = (*center)[0];
+            cam.target[1] = (*center)[1];
+            cam.target[2] =
+                bounds_min && bounds_max
+                    ? (*bounds_min)[2] +
+                          std::max(18.0f, span_z * 0.28f)
+                    : (*center)[2] + 18.0f;
+            cam.yaw = env_float("GHOGX_DIAGNOSTIC_CROWD_PROOF_YAW",
+                                candidate.default_yaw);
+            cam.pitch =
+                env_float("GHOGX_DIAGNOSTIC_CROWD_PROOF_PITCH", 0.28f);
+            cam.distance = env_float(
+                "GHOGX_DIAGNOSTIC_CROWD_PROOF_DISTANCE", default_distance);
+            cam.fov =
+                env_float("GHOGX_DIAGNOSTIC_CROWD_PROOF_FOV", 0.82f);
+            cam.near_z = 1.0f;
+            cam.far_z = 12000.0f;
+            static bool logged = false;
+            if (!logged) {
+                logged = true;
+                std::fprintf(
+                    stderr,
+                    "[world] diagnostic crowd proof camera: source=%s "
+                    "count_bounds=%d center=(%.2f %.2f %.2f) "
+                    "span=(%.2f %.2f %.2f) target=(%.2f %.2f %.2f) "
+                    "yaw=%.3f pitch=%.3f distance=%.2f fov=%.3f\n",
+                    candidate.source.c_str(),
+                    bounds_min && bounds_max ? 1 : 0,
+                    (*center)[0], (*center)[1], (*center)[2], span_x, span_y,
+                    span_z, cam.target[0], cam.target[1], cam.target[2],
+                    cam.yaw, cam.pitch, cam.distance, cam.fov);
+            }
+            return;
+        }
+        static bool logged_missing = false;
+        if (!logged_missing) {
+            logged_missing = true;
+            std::fprintf(
+                stderr,
+                "[world] diagnostic crowd proof camera: no decoded crowd "
+                "instances or placements\n");
+        }
+        return;
+    }
     for (const char* role : {"guitarist0", "singer", "bassist", "drummer",
                              "keyboard"}) {
         const std::string prefix(role);

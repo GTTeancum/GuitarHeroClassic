@@ -4,7 +4,7 @@ milo_convert_test: PASS
 ghogx_milo_scene_test: PASS
 ghogx_gameplay_venue_band_contract_test:
   crowd source-contract failures: 0
-  unrelated pre-existing/stale baseline failures: 64
+  unrelated pre-existing/stale baseline failures: 63
 
 Full GH1 conversion audit
 =========================
@@ -26,5 +26,9 @@ GH1 MultiMesh instances: 2265/2265 submitted
 GH1 missing templates: 0
 GH1 crowd.env bindings: 7/7
 GH2 WorldCrowd placements: 4080
+GH2 WorldCrowd flat submissions: 4080/4080
+GH2 animated actors with changing sampled-pose digest: 49/49
+GH1 direct MultiMesh/card animation refs: 0
+GH1 crowd-associated LightAnim objects: 24
 decode errors: 0
 manufactured crowd-floor rows: 0

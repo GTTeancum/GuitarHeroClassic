@@ -84,6 +84,14 @@ Native GH2 uses `WorldCrowd6`, not GH1 MultiMesh crowds. The decoded
 WorldCrowd owns character billboards, an authored placement Mesh, count, and
 environment.
 
+`WorldCrowd::BuildBillboard` emits faces `(0,1,2)` and `(1,3,2)`. The D3D
+bridge must preserve that source front face through its mirrored clip-X
+projection. Using `D3DCULL_CCW` rejected every live billboard even while the
+draw ledger counted every submission. The bridge now uses the same
+`D3DCULL_CW` front-face mapping as the normal character path. A paired
+source-enabled/source-disabled capture established that the old frames were
+byte-identical; the corrected frame visibly contains the decoded actors.
+
 `WorldCrowd::BuildBillboard` constructs the four-vertex character billboard.
 The placement Mesh supplies positions; it is not a visible floor surface.
 `WorldCrowd::CleanUpCrowdFloor` discards placement-mesh vertex data outside
@@ -94,6 +102,25 @@ guessed `tile_dark.mat` or `street_asphalt.mat`.
 Venue floors remain ordinary authored venue Mesh objects. The previous
 diagnostic path that manufactured visible floor geometry from crowd
 placements has been removed.
+
+## Animation contract
+
+GH2 WorldCrowd animation remains data-driven. The retail
+`world/crowd.dta` event mapping selects fullness and clip groups; the proof
+uses `excitement_peak`, which selects full 4:3 placement coverage and the
+source `great` group. A diagnostic-only logger records actor name, actor MILO,
+clip name, clip source MILO, source beat/time, channel count, and a
+deterministic FNV-1a digest over every sampled `ClipChannel`. Across all eight
+native venues, all 49 actors change digest during the five-frame proof
+interval, with at least 19 decoded channels per actor.
+
+GH1 MultiMesh cards are source-static. `MultiMesh0` carries Drawable state,
+the template Mesh reference, and transforms, but no Animatable state. The
+full source audit finds no animation object targeting a crowd MultiMesh, its
+template Mesh, or `crowd.mat`. GH1's global crowd character ACP files are
+therefore not attached to venue cards. Crowd-related venue `LightAnim`
+objects remain decoded and routed normally: 24 source rows across the seven
+converted venues, with Theatre's three rows holding one constant key each.
 
 ## Implementation points
 
@@ -115,7 +142,13 @@ The input-free runtime matrix covers 15 venues:
 - GH1: 35 MultiMesh objects, 2,265 authored instances, 2,265 submitted, zero
   missing template Meshes, and one source environment bind in every venue.
 - GH2: 49 WorldCrowd actors and 4,080 decoded placements, with no GH1
-  MultiMesh path used.
+  MultiMesh path used; 4,080/4,080 flat billboards are submitted and visible
+  under the source front-face mapping.
+- GH2 animation: 49/49 actors change sampled-pose digest, with source clip
+  path and channel count logged.
+- GH1 card animation: zero direct card animation references; 24 decoded
+  crowd-associated LightAnim objects remain in the normal venue animation
+  path.
 - Every run reaches `playing`, exits zero, and reports zero decode errors.
 - No run reports a manufactured visible crowd-floor row.
 
