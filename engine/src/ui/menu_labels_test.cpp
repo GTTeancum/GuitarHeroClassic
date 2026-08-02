@@ -70,18 +70,71 @@ int main(int argc, char** argv) {
   if (argc > 2) {
     const auto probe =
         ghogx::ui::extract_menu_labels(hdr, ark0, argv[2]);
+    ghogx::milo_scene::Scene scene;
+    ghogx::milo_scene::load_scene(hdr, ark0, argv[2], scene);
     for (const auto& label : probe) {
       std::printf(
           "probe label: %s type=%s font=%s text='%s' parent='%s' "
           "local=(%.3f %.3f %.3f) world=(%.3f %.3f %.3f) "
-          "style=%d size=%.3f align=%d color=(%.3f %.3f %.3f %.3f)\n",
+          "style=%d fit=%d size=%.3f box=(%.3f %.3f) "
+          "leading=%.3f wrap=%.3f align=%d "
+          "color=(%.3f %.3f %.3f %.3f)\n",
           label.name.c_str(), label.type.c_str(), label.font.c_str(),
           label.text.c_str(), label.parent.c_str(), label.local[9],
           label.local[10], label.local[11], label.world[9], label.world[10],
           label.world[11], label.text_tail.valid ? 1 : 0,
-          label.text_tail.text_size, label.text_tail.alignment,
+          label.text_tail.fit_text, label.text_tail.text_size,
+          label.text_tail.width, label.text_tail.height,
+          label.text_tail.leading, label.text_tail.width_bound,
+          label.text_tail.alignment,
           label.text_tail.color[0], label.text_tail.color[1],
           label.text_tail.color[2], label.text_tail.color[3]);
+    }
+    const bool career_probe =
+        std::string(argv[2]).find("career.milo") != std::string::npos;
+    for (const auto& group : scene.groups) {
+      if (career_probe && group.name.rfind("cm_", 0) != 0 &&
+          group.parent.rfind("cm_", 0) != 0 &&
+          group.name != "career.view")
+        continue;
+      std::printf(
+          "probe group: %s parent='%s' transform=%d "
+          "local=(%.3f %.3f %.3f; diag %.3f %.3f %.3f) "
+          "world=(%.3f %.3f %.3f; diag %.3f %.3f %.3f) children=",
+          group.name.c_str(), group.parent.c_str(),
+          group.has_transform ? 1 : 0, group.local.pos[0],
+          group.local.pos[1], group.local.pos[2], group.local.rot[0][0],
+          group.local.rot[1][1], group.local.rot[2][2],
+          group.world_stored.pos[0], group.world_stored.pos[1],
+          group.world_stored.pos[2], group.world_stored.rot[0][0],
+          group.world_stored.rot[1][1], group.world_stored.rot[2][2]);
+      for (const auto& child : group.children)
+        std::printf("%s%s", child == group.children.front() ? "" : ",",
+                    child.c_str());
+      std::printf("\n");
+    }
+    for (const auto& trans : scene.transes) {
+      if (trans.name.rfind("cm_", 0) != 0 &&
+          trans.parent.rfind("cm_", 0) != 0)
+        continue;
+      std::printf(
+          "probe trans: %s parent='%s' "
+          "local=(%.3f %.3f %.3f) world=(%.3f %.3f %.3f)\n",
+          trans.name.c_str(), trans.parent.c_str(), trans.local.pos[0],
+          trans.local.pos[1], trans.local.pos[2], trans.world_stored.pos[0],
+          trans.world_stored.pos[1], trans.world_stored.pos[2]);
+    }
+    for (const auto& cam : scene.cams) {
+      std::printf(
+          "probe cam: %s parent='%s' local=(%.3f %.3f %.3f) "
+          "basis=((%.3f %.3f %.3f)(%.3f %.3f %.3f)(%.3f %.3f %.3f)) "
+          "fov=%.6f near=%.3f far=%.3f\n",
+          cam.name.c_str(), cam.parent.c_str(), cam.local.pos[0],
+          cam.local.pos[1], cam.local.pos[2], cam.local.rot[0][0],
+          cam.local.rot[0][1], cam.local.rot[0][2], cam.local.rot[1][0],
+          cam.local.rot[1][1], cam.local.rot[1][2], cam.local.rot[2][0],
+          cam.local.rot[2][1], cam.local.rot[2][2], cam.fov,
+          cam.near_plane, cam.far_plane);
     }
     return probe.empty() ? 1 : 0;
   }

@@ -42632,7 +42632,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                      const std::string& prop_attach_bone =
                                          "bone_pos_guitar.mesh",
                                      const std::string& prop_material =
-                                         std::string()) {
+                                         std::string(),
+                                     int prop_paint_primary = -1,
+                                     int prop_paint_secondary = -1) {
                 const bool selected_guitarist_variant =
                     role == "guitarist0" &&
                     diagnostic_character_override_.empty() &&
@@ -43469,6 +43471,25 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         auto prop_textures = ghogx::asset::load_milo_textures(
                             prop_hdr_path, prop_ark_path, resolved_prop_milo,
                             texture_names_for_scene(prop_scene));
+                        if (prop_paint_primary >= 0) {
+                            const auto paint_diff =
+                                ghogx::asset::load_milo_texture_named(
+                                    prop_hdr_path, prop_ark_path,
+                                    resolved_prop_milo,
+                                    "rb2_paint_diff.tex");
+                            const auto paint_mask =
+                                ghogx::asset::load_milo_texture_named(
+                                    prop_hdr_path, prop_ark_path,
+                                    resolved_prop_milo,
+                                    "rb2_paint_mask.tex");
+                            if (paint_diff.valid()) {
+                                prop_textures["sg_cherry.tex"] =
+                                    ghogx::asset::compose_rb2_body_paint(
+                                        paint_diff, paint_mask,
+                                        ghogx::asset::rb2_paint_color(
+                                            prop_paint_primary));
+                            }
+                        }
                         perf.renderer->set_attached_prop(
                             std::move(prop_scene), prop_textures,
                             prop_attach_bone);
@@ -44646,7 +44667,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                            "stand_fast_03", "stand_fast_04"},
                           guitar_milo_for_quickplay(equipped_guitar_outfit),
                           "bone_pos_guitar.mesh",
-                          equipped_guitar_material);
+                          equipped_guitar_material,
+                          selected_guitar_paint_primary_,
+                          selected_guitar_paint_secondary_);
 
             const BandRoleNames band_roles =
                 classify_band_roles(quickplay_rig_->band);
@@ -44747,7 +44770,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                "bassist_active_fast_01",
                                "bassist_active_fast_02"},
                               bass_prop, bass_attach_bone,
-                              equipped_bass_material);
+                              equipped_bass_material,
+                              selected_bass_paint_primary_,
+                              selected_bass_paint_secondary_);
             }
             if (!drummer.empty()) {
                 add_performer("drummer", drummer, drummer, "drummer",

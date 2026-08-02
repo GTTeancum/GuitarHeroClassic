@@ -10,9 +10,11 @@
 
 #include "ark_v3.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -132,6 +134,7 @@ int main(int argc, char** argv) {
     CHECK(helvetica_black.rnd_text_local_z(18.0f, 30.0f) == 0.0f);
     CHECK(helvetica_black.rnd_text_local_z(0.0f, 29.0f) == 18.0f);
     CHECK(helvetica_black.rnd_text_local_z(36.0f, 29.0f) == -18.0f);
+    CHECK(helvetica_black.rnd_text_cell_height(29.0f) == 36.0f);
     const ghogx::ui::Glyph* r = helvetica_black.glyph('R');
     const ghogx::ui::Glyph* o = helvetica_black.glyph('O');
     CHECK(r != nullptr);
@@ -159,6 +162,38 @@ int main(int argc, char** argv) {
           ascii_apostrophe.size());
     CHECK(helvetica_black.layout(utf8_apostrophe).size() ==
           ascii_apostrophe.size());
+  }
+
+  for (const auto& career_font :
+       std::vector<std::pair<const char*, const char*>>{
+           {"tapeworm", "YOUR BAND"},
+           {"clarendon", "FEATURING"}}) {
+    ghogx::ui::MenuFont source;
+    CHECK(source.load(hdr, ark0,
+                      std::string("ui/gen/") + career_font.first +
+                          ".milo_ps2"));
+    if (!source.valid()) continue;
+    float min_y = 1.0e9f, max_y = -1.0e9f;
+    for (const auto& quad : source.layout(career_font.second)) {
+      min_y = std::min(min_y, quad.y0);
+      max_y = std::max(max_y, quad.y1);
+    }
+    if (std::string(career_font.first) == "tapeworm") {
+      CHECK(source.cap_height() == 39.0f);
+      CHECK(source.line_height() == 54.0f);
+      CHECK(min_y == 0.0f);
+      CHECK(max_y == 40.0f);
+    } else {
+      CHECK(source.cap_height() == 30.0f);
+      CHECK(source.line_height() == 36.0f);
+      CHECK(min_y == 7.0f);
+      CHECK(max_y == 27.0f);
+    }
+    std::printf("career font %s cell=(%.3f %.3f) inkY=(%.3f %.3f) "
+                "localZ40=(%.3f %.3f)\n",
+                career_font.first, source.cap_height(), source.line_height(),
+                min_y, max_y, source.rnd_text_local_z(min_y, 40.0f),
+                source.rnd_text_local_z(max_y, 40.0f));
   }
 
   if (g_failures == 0) {

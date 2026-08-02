@@ -57,6 +57,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -104,6 +105,63 @@ IDirect3DTexture9* upload_overlay_texture(IDirect3DDevice9* dev,
   }
   texture->UnlockRect(0);
   return texture;
+}
+
+void draw_paint_swatch(IDirect3DDevice9* dev, int width, int height,
+                       int color_index, bool active) {
+  if (!dev || width <= 0 || height <= 0 || !active) {
+    return;
+  }
+
+  const auto paint = asset::rb2_paint_color(color_index);
+  const auto color_for = [](const std::array<std::uint8_t, 3>& rgb) {
+    return D3DCOLOR_ARGB(255, rgb[0], rgb[1], rgb[2]);
+  };
+  const float scale_x = static_cast<float>(width) / 960.0f;
+  const float scale_y = static_cast<float>(height) / 720.0f;
+  const float x = 58.0f * scale_x;
+  const float y = 282.0f * scale_y;
+  const float swatch_w = 82.0f * scale_x;
+  const float swatch_h = 42.0f * scale_y;
+  const float border = 4.0f * std::min(scale_x, scale_y);
+
+  const auto draw_rect = [&](float left, float top, float right, float bottom,
+                             D3DCOLOR color) {
+    const OverlayVertex quad[4] = {
+        {left - 0.5f, top - 0.5f, 0.0f, 1.0f, color, 0.0f, 0.0f},
+        {right - 0.5f, top - 0.5f, 0.0f, 1.0f, color, 0.0f, 0.0f},
+        {left - 0.5f, bottom - 0.5f, 0.0f, 1.0f, color, 0.0f, 0.0f},
+        {right - 0.5f, bottom - 0.5f, 0.0f, 1.0f, color, 0.0f, 0.0f},
+    };
+    dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad,
+                         sizeof(OverlayVertex));
+  };
+  const auto draw_swatch = [&](float left,
+                               const std::array<std::uint8_t, 3>& rgb) {
+    // Black backing keeps white and cream paints legible; the selected chip
+    // receives the stock menu's bright-white focus treatment.
+    draw_rect(left - 2.0f * scale_x, y - 2.0f * scale_y,
+              left + swatch_w + 2.0f * scale_x,
+              y + swatch_h + 2.0f * scale_y, 0xff000000u);
+    draw_rect(left, y, left + swatch_w, y + swatch_h,
+              0xffffffffu);
+    draw_rect(left + border, y + border, left + swatch_w - border,
+              y + swatch_h - border, color_for(rgb));
+  };
+
+  dev->BeginScene();
+  dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+  dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+  dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+  dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+  dev->SetFVF(kOverlayFvf);
+  dev->SetTexture(0, nullptr);
+  dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+  dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+  dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+  dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+  draw_swatch(x, paint);
+  dev->EndScene();
 }
 
 class YouRockOverlay {
@@ -1508,6 +1566,56 @@ bool build_live_guitar_display_scene(const std::string& hdr, const std::string& 
     if (!milo_scene::load_scene(hdr, ark, guitar_path, guitar_scene)) continue;
     apply_guitar_skin_material(guitar_scene, skin_mat);
     load_scene_textures(hdr, ark, guitar_path, guitar_scene, textures);
+    int paint_primary = int_value(
+        db.guitar_skin_field(guitar, skin, Symbol("paint_primary")), -1);
+    int paint_secondary = int_value(
+        db.guitar_skin_field(guitar, skin, Symbol("paint_secondary")), -1);
+    if (paint_primary >= 0) {
+      bool paint_editor_active = false;
+      for (Symbol candidate_name : screen_panel_names(screen)) {
+        Object* candidate = mgr.find_object(candidate_name);
+        if (!candidate ||
+            candidate->class_name() != Symbol("GuitarSelectPanel")) {
+          continue;
+        }
+        const bool multiplayer =
+            node_bool(candidate->get_property(Symbol("multiplayer")));
+        const auto paint_property = [&](const char* base) {
+          return candidate->get_property(
+              multiplayer ? indexed_symbol(base, player) : Symbol(base));
+        };
+        const int staged_primary =
+            int_value(paint_property("paint_primary"), -1);
+        const int staged_secondary =
+            int_value(paint_property("paint_secondary"), -1);
+        paint_editor_active =
+            int_value(paint_property("paint_select"), 0) > 0;
+        if (staged_primary >= 0) paint_primary = staged_primary;
+        if (staged_secondary >= 0) paint_secondary = staged_secondary;
+        break;
+      }
+      const asset::Image paint_diff = asset::load_milo_texture_named(
+          hdr, ark, guitar_path, "rb2_paint_diff.tex");
+      const asset::Image paint_mask = asset::load_milo_texture_named(
+          hdr, ark, guitar_path, "rb2_paint_mask.tex");
+      if (paint_diff.valid()) {
+        textures["sg_cherry.tex"] = asset::compose_rb2_body_paint(
+            paint_diff, paint_mask,
+            asset::rb2_paint_color(paint_primary));
+        // The authored select scene uses strongly colored display lights.
+        // During color editing, show the composed diffuse itself so the body
+        // matches the swatch and fixed islands (for example Telecaster's
+        // white pickguard) remain visually identifiable. Normal finish
+        // previews and gameplay retain their source lighting.
+        if (paint_editor_active) {
+          for (auto& material : guitar_scene.mats) {
+            if (material.diffuse_tex != "sg_cherry.tex") continue;
+            material.use_environ = false;
+            material.prelit = true;
+          }
+        }
+      }
+    }
 
     std::string display_parent;
     std::string applied_filter_source;
@@ -1541,6 +1649,14 @@ bool build_live_guitar_display_scene(const std::string& hdr, const std::string& 
               compose_proxy_world(proxy_scene, proxy, proxy_local, proxy_world);
           if (proxy_context_sources_added.insert(proxy_milo).second)
             append_proxy_transform_context(combined, proxy_scene);
+        }
+        if (pn == Symbol("guitar_display_panel") &&
+            proxy_milo == "ui/gen/sel_guitar.milo_ps2") {
+          // Retail's settled single-player select places this proxy at the
+          // horizontally mirrored screen-space X. The source world row is
+          // expressed in the PS2 UI handedness; using it verbatim puts the
+          // instrument over the description instead of beside the case.
+          proxy_world.pos[0] = -proxy_world.pos[0];
         }
         append_proxy_transform_node(combined, proxy, proxy_local, proxy_world);
         used_live_proxy = true;
@@ -2606,6 +2722,19 @@ void do_back(ScreenManager& mgr) {
   if (panel && panel->class_name() == Symbol("GuitarSelectPanel")) {
     DataArray player;
     player.push(DataNode::Int(0));
+    const int paint_stage =
+        int_value(panel->handle_property(Symbol("get_paint_select"), player),
+                  0);
+    if (paint_stage > 0) {
+      DataArray stage_args;
+      stage_args.push(DataNode::Int(0));
+      stage_args.push(DataNode::Int(paint_stage == 2 ? 1 : 0));
+      panel->handle_property(Symbol("set_paint_select"), stage_args);
+      DataArray refresh;
+      refresh.push(DataNode::Int(1));
+      panel->handle_property(Symbol("update_display"), refresh);
+      return;
+    }
     if (node_bool(
             panel->handle_property(Symbol("is_skin_select"), player))) {
       DataArray select_args;
@@ -3102,6 +3231,12 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
                            transform_spans) {
   using TV = ghogx::render::MiloSceneRenderer::TextVertex;
   const float capH = font.cap_height();
+  // RndText::mSize scales the font's horizontal cell dimension.  Its rendered
+  // line cell is taller by CellDiff() = cellSize.y / cellSize.x.  UILabel
+  // height fitting and top/middle/bottom alignment operate on that complete
+  // cell, not on mSize alone.
+  const float cell_height_ratio =
+      capH > 0.0f ? font.line_height() / capH : 1.0f;
   auto emit = [&](const std::vector<MenuFont::Quad>& quads,
                   const std::function<TV(float, float, float, float)>& V) {
     for (const auto& q : quads) {
@@ -3240,16 +3375,22 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
         // its box; it does not word-wrap at RndText's retained wrap width.
         // GH2's Top Rockers title is the decisive source case: width=130,
         // wrap=400, fit=2, and retail renders TOP ROCKERS on one fitted line.
-        const auto lines = tail.fit_text == 2
+        const auto lines = (tail.fit_text == 1 || tail.fit_text == 2)
                                ? explicit_text_lines(disp)
                                : wrap_text_lines(font, disp, max_native_width);
         float fit_scale = 1.0f;
+        // GH2's compact kFitStretch and kFitJust buttons both respect their
+        // component box. Career's 30-unit source text is authored into an
+        // 18-unit button row; skipping kFitStretch made all four choices
+        // overlap at nearly twice their intended height.
         // GH2's legacy BandButton always lays out a single authored line
         // inside the serialized component width, even when its older fit enum
         // is zero. Without this native component-box constraint long localized
         // outfit names such as LIBERTY SPIKES bleed out of the 110-unit panel.
         // Modern UILabel kFitJust uses the same width fit plus its height fit.
-        if ((tail.fit_text == 2 || tail.legacy_layout) && !lines.empty()) {
+        if ((tail.fit_text == 1 || tail.fit_text == 2 ||
+             tail.legacy_layout) &&
+            !lines.empty()) {
           float max_line_world = 0.0f;
           for (const auto& line : lines) {
             max_line_world =
@@ -3259,24 +3400,28 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
           const float leading = tail.leading > 0.0f ? tail.leading : 1.0f;
           const float block_height =
               source_scale *
-              (1.0f + static_cast<float>(lines.size() - 1) * leading);
+              (cell_height_ratio +
+               static_cast<float>(lines.size() - 1) * leading);
           if (tail.width > 0.0f && max_line_world > tail.width)
             fit_scale = std::min(fit_scale, tail.width / max_line_world);
-          if (tail.fit_text == 2 && tail.height > 0.0f &&
+          if ((tail.fit_text == 1 || tail.fit_text == 2) &&
+              tail.height > 0.0f &&
               block_height > tail.height)
             fit_scale = std::min(fit_scale, tail.height / block_height);
         }
         const float draw_scale =
             source_scale * fit_scale * (foc ? kFocusScale : 1.0f);
         const float leading = tail.leading > 0.0f ? tail.leading : 1.0f;
+        const float line_cell_height = draw_scale * cell_height_ratio;
         const float block_height =
-            draw_scale * (1.0f +
-                          static_cast<float>(lines.size() - 1) * leading);
-        float first_line_z = block_height * 0.5f - draw_scale * 0.5f;
+            line_cell_height +
+            draw_scale * static_cast<float>(lines.size() - 1) * leading;
+        float first_line_z =
+            block_height * 0.5f - line_cell_height * 0.5f;
         if ((alignment & 0x10) != 0)
-          first_line_z = -draw_scale * 0.5f;
+          first_line_z = -line_cell_height * 0.5f;
         else if ((alignment & 0x40) != 0)
-          first_line_z = block_height - draw_scale * 0.5f;
+          first_line_z = block_height - line_cell_height * 0.5f;
         for (std::size_t line_i = 0; line_i < lines.size(); ++line_i) {
           float line_w = 0.0f;
           const auto line_quads = font.layout(lines[line_i], &line_w);
@@ -3367,21 +3512,25 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
           max_line_world =
               std::max(max_line_world, font.measure(line) / capH * source_scale);
         const float block_height =
-            source_scale * (1.0f + static_cast<float>(lines.size() - 1) * leading);
+            source_scale *
+            (cell_height_ratio +
+             static_cast<float>(lines.size() - 1) * leading);
         if (fit_width_world > 0.0f && max_line_world > fit_width_world)
           fit_scale = std::min(fit_scale, fit_width_world / max_line_world);
         if (fit_height_world > 0.0f && block_height > fit_height_world)
           fit_scale = std::min(fit_scale, fit_height_world / block_height);
       }
       const float draw_scale = source_scale * fit_scale;
+      const float line_cell_height = draw_scale * cell_height_ratio;
       const float block_height =
-          draw_scale * (1.0f +
-                        static_cast<float>(lines.size() - 1) * leading);
-      float first_line_z = block_height * 0.5f - draw_scale * 0.5f;
+          line_cell_height +
+          draw_scale * static_cast<float>(lines.size() - 1) * leading;
+      float first_line_z =
+          block_height * 0.5f - line_cell_height * 0.5f;
       if ((alignment & 0x10) != 0)       // RndText::kTop*
-        first_line_z = -draw_scale * 0.5f;
+        first_line_z = -line_cell_height * 0.5f;
       else if ((alignment & 0x40) != 0)  // RndText::kBottom*
-        first_line_z = block_height - draw_scale * 0.5f;
+        first_line_z = block_height - line_cell_height * 0.5f;
       for (std::size_t line_i = 0; line_i < lines.size(); ++line_i) {
         float line_w = 0.0f;
         const auto line_quads = font.layout(lines[line_i], &line_w);
@@ -6702,6 +6851,33 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
             scene_renderer.draw_over_scene(scene_renderer.camera());
         }
       };
+  auto draw_live_paint_swatches = [&]() {
+    if (!shown) return;
+    for (Symbol panel_name : screen_panel_names(shown)) {
+      Object* panel = mgr.find_object(panel_name);
+      if (!panel || panel->class_name() != Symbol("GuitarSelectPanel"))
+        continue;
+      const bool multiplayer =
+          node_bool(panel->get_property(Symbol("multiplayer")));
+      const int player =
+          multiplayer
+              ? std::clamp(int_value(
+                               mgr.get_global(Symbol("player_num")), 0),
+                           0, 1)
+              : 0;
+      const auto paint_property = [&](const char* name) {
+        return panel->get_property(multiplayer ? indexed_symbol(name, player)
+                                               : Symbol(name));
+      };
+      const int stage = int_value(paint_property("paint_select"), 0);
+      if (stage <= 0) return;
+      const int primary =
+          std::max(0, int_value(paint_property("paint_primary"), 0));
+      draw_paint_swatch(d3d, win->bb_width(), win->bb_height(), primary,
+                        stage == 1);
+      return;
+    }
+  };
 
   // Audit mode (GHOGX_MENU_DUMP=1): visit every stock screen-class object,
   // + text, and report the mesh/texture/glyph counts. The fastest way to find
@@ -7094,7 +7270,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
             : Symbol();
     const auto resolve_skin =
         [&](Symbol instrument, Object* player)
-            -> std::pair<Symbol, Symbol> {
+            -> std::tuple<Symbol, Symbol, int, int> {
       if (!instrument.valid()) return {};
       Symbol skin =
           player
@@ -7102,23 +7278,51 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                     Symbol("get_guitar_skin"), DataArray()))
               : Symbol();
       if (!skin.valid()) skin = db.first_guitar_skin(instrument);
+      int paint_primary = int_value(
+          db.guitar_skin_field(instrument, skin, Symbol("paint_primary")),
+          -1);
+      int paint_secondary = int_value(
+          db.guitar_skin_field(instrument, skin, Symbol("paint_secondary")),
+          -1);
+      if (paint_primary >= 0 && player) {
+        const int stored_primary = int_value(
+            player->handle_property(Symbol("get_guitar_paint_primary"),
+                                    DataArray()),
+            -1);
+        const int stored_secondary = int_value(
+            player->handle_property(Symbol("get_guitar_paint_secondary"),
+                                    DataArray()),
+            -1);
+        if (stored_primary >= 0) paint_primary = stored_primary;
+        if (stored_secondary >= 0) paint_secondary = stored_secondary;
+      }
       return {
           symbol_value(db.guitar_skin_field(instrument, skin,
                                             Symbol("outfit"))),
           symbol_value(db.guitar_skin_field(instrument, skin,
-                                            Symbol("mat")))};
+                                            Symbol("mat"))),
+          paint_primary,
+          paint_secondary};
     };
-    const auto [selected_guitar_outfit, selected_guitar_mat] =
+    const auto [selected_guitar_outfit, selected_guitar_mat,
+                selected_guitar_paint_primary,
+                selected_guitar_paint_secondary] =
         resolve_skin(selected_guitar, player0_config);
-    const auto [selected_bass_outfit, selected_bass_mat] =
+    const auto [selected_bass_outfit, selected_bass_mat,
+                selected_bass_paint_primary,
+                selected_bass_paint_secondary] =
         resolve_skin(selected_bass, player1_config);
     gameplay.set_selected_instruments(
         selected_guitar.valid() ? selected_guitar.c_str() : "",
         selected_guitar_outfit.valid() ? selected_guitar_outfit.c_str() : "",
         selected_guitar_mat.valid() ? selected_guitar_mat.c_str() : "",
+        selected_guitar_paint_primary,
+        selected_guitar_paint_secondary,
         selected_bass.valid() ? selected_bass.c_str() : "",
         selected_bass_outfit.valid() ? selected_bass_outfit.c_str() : "",
-        selected_bass_mat.valid() ? selected_bass_mat.c_str() : "");
+        selected_bass_mat.valid() ? selected_bass_mat.c_str() : "",
+        selected_bass_paint_primary,
+        selected_bass_paint_secondary);
     std::fprintf(stderr,
                  "[flow] equipped instrument handoff: mode=%s "
                  "player0=%s skin_outfit=%s skin_mat=%s "
@@ -7869,6 +8073,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                        character_previews,
                        /*clear_target=*/true);
     }
+    draw_live_paint_swatches();
 
     capture_frame();
     win->present();

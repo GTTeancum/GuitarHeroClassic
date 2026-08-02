@@ -27,8 +27,12 @@ struct PersistentProfileState {
   int cash = 0;
   std::string guitar;
   std::string guitar_skin;
+  int paint_primary = -1;
+  int paint_secondary = -1;
   std::array<std::string, 2> player_guitar;
   std::array<std::string, 2> player_guitar_skin;
+  std::array<int, 2> player_paint_primary = {-1, -1};
+  std::array<int, 2> player_paint_secondary = {-1, -1};
   std::set<std::string> unlocked;
 };
 
@@ -70,6 +74,18 @@ PersistentProfileState load_persistent_profile_state() {
       state.guitar = value;
     } else if (key == "guitar_skin") {
       state.guitar_skin = value;
+    } else if (key == "paint_primary") {
+      try {
+        state.paint_primary = std::stoi(value);
+      } catch (...) {
+        state.paint_primary = -1;
+      }
+    } else if (key == "paint_secondary") {
+      try {
+        state.paint_secondary = std::stoi(value);
+      } catch (...) {
+        state.paint_secondary = -1;
+      }
     } else if (key == "player0_guitar") {
       state.player_guitar[0] = value;
     } else if (key == "player0_guitar_skin") {
@@ -78,6 +94,30 @@ PersistentProfileState load_persistent_profile_state() {
       state.player_guitar[1] = value;
     } else if (key == "player1_guitar_skin") {
       state.player_guitar_skin[1] = value;
+    } else if (key == "player0_paint_primary") {
+      try {
+        state.player_paint_primary[0] = std::stoi(value);
+      } catch (...) {
+        state.player_paint_primary[0] = -1;
+      }
+    } else if (key == "player0_paint_secondary") {
+      try {
+        state.player_paint_secondary[0] = std::stoi(value);
+      } catch (...) {
+        state.player_paint_secondary[0] = -1;
+      }
+    } else if (key == "player1_paint_primary") {
+      try {
+        state.player_paint_primary[1] = std::stoi(value);
+      } catch (...) {
+        state.player_paint_primary[1] = -1;
+      }
+    } else if (key == "player1_paint_secondary") {
+      try {
+        state.player_paint_secondary[1] = std::stoi(value);
+      } catch (...) {
+        state.player_paint_secondary[1] = -1;
+      }
     } else if (key == "unlock" && !value.empty()) {
       state.unlocked.insert(value);
     }
@@ -111,10 +151,16 @@ bool save_persistent_profile_state() {
     stream << "cash=" << std::max(0, state.cash) << "\n";
     stream << "guitar=" << state.guitar << "\n";
     stream << "guitar_skin=" << state.guitar_skin << "\n";
+    stream << "paint_primary=" << state.paint_primary << "\n";
+    stream << "paint_secondary=" << state.paint_secondary << "\n";
     for (std::size_t i = 0; i < state.player_guitar.size(); ++i) {
       stream << "player" << i << "_guitar=" << state.player_guitar[i] << "\n";
       stream << "player" << i << "_guitar_skin="
              << state.player_guitar_skin[i] << "\n";
+      stream << "player" << i << "_paint_primary="
+             << state.player_paint_primary[i] << "\n";
+      stream << "player" << i << "_paint_secondary="
+             << state.player_paint_secondary[i] << "\n";
     }
     for (const std::string& item : state.unlocked)
       stream << "unlock=" << item << "\n";
@@ -934,6 +980,12 @@ class PlayerConfig : public MetaObject {
       set_property(Symbol("guitar"), DataNode::Sym(Symbol(guitar)));
     if (!skin.empty() && db_ && db_->guitar_for_skin(Symbol(skin)).valid())
       set_property(Symbol("guitar_skin"), DataNode::Sym(Symbol(skin)));
+    set_property(
+        Symbol("paint_primary"),
+        DataNode::Int(profile.player_paint_primary[player_index_]));
+    set_property(
+        Symbol("paint_secondary"),
+        DataNode::Int(profile.player_paint_secondary[player_index_]));
   }
 
  protected:
@@ -972,6 +1024,25 @@ class PlayerConfig : public MetaObject {
       profile.player_guitar_skin[player_index_] =
           skin.valid() ? skin.c_str() : "";
       save_persistent_profile_state();
+      return true;
+    }
+    if (std::strcmp(m, "set_guitar_paint") == 0) {
+      const int primary = arg_int(args, 0, -1);
+      const int secondary = arg_int(args, 1, -1);
+      set_property(Symbol("paint_primary"), DataNode::Int(primary));
+      set_property(Symbol("paint_secondary"), DataNode::Int(secondary));
+      PersistentProfileState& profile = persistent_profile_state();
+      profile.player_paint_primary[player_index_] = primary;
+      profile.player_paint_secondary[player_index_] = secondary;
+      save_persistent_profile_state();
+      return true;
+    }
+    if (std::strcmp(m, "get_guitar_paint_primary") == 0) {
+      out = get_property(Symbol("paint_primary"));
+      return true;
+    }
+    if (std::strcmp(m, "get_guitar_paint_secondary") == 0) {
+      out = get_property(Symbol("paint_secondary"));
       return true;
     }
     if (std::strcmp(m, "set_outfit_index") == 0) {
@@ -1355,6 +1426,8 @@ GameConfig::GameConfig(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("ga
       db_->guitar_for_skin(Symbol(profile.guitar_skin)).valid())
     set_property(Symbol("guitar_skin"),
                  DataNode::Sym(Symbol(profile.guitar_skin)));
+  set_property(Symbol("paint_primary"), DataNode::Int(profile.paint_primary));
+  set_property(Symbol("paint_secondary"), DataNode::Int(profile.paint_secondary));
   // Retail GameConfig already owns a valid character before career.dtb's first
   // sel_character_panel::enter. Source that native default from the stock
   // panel fields instead of duplicating the roster in C++.
@@ -1621,6 +1694,25 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     save_persistent_profile_state();
     return true;
   }
+  if (std::strcmp(m, "set_guitar_paint") == 0) {
+    const int primary = arg_int(args, 0, -1);
+    const int secondary = arg_int(args, 1, -1);
+    set_property(Symbol("paint_primary"), DataNode::Int(primary));
+    set_property(Symbol("paint_secondary"), DataNode::Int(secondary));
+    PersistentProfileState& profile = persistent_profile_state();
+    profile.paint_primary = primary;
+    profile.paint_secondary = secondary;
+    save_persistent_profile_state();
+    return true;
+  }
+  if (std::strcmp(m, "get_guitar_paint_primary") == 0) {
+    out = get_property(Symbol("paint_primary"));
+    return true;
+  }
+  if (std::strcmp(m, "get_guitar_paint_secondary") == 0) {
+    out = get_property(Symbol("paint_secondary"));
+    return true;
+  }
   if (std::strcmp(m, "get_guitar_desc") == 0) {
     Symbol guitar = arg_symbol(args, 0, get_property(Symbol("guitar"))
                                             .as_symbol()
@@ -1683,6 +1775,19 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
                                             .value_or(Symbol()));
     out = DataNode::Int(
         db_ ? static_cast<int>(db_->guitar_skin_count(guitar)) : 0);
+    return true;
+  }
+  if (std::strcmp(m, "get_guitar_paint_primary_for_skin") == 0 ||
+      std::strcmp(m, "get_guitar_paint_secondary_for_skin") == 0) {
+    const Symbol guitar = arg_symbol(args, 0);
+    const Symbol skin = arg_symbol(args, 1);
+    const Symbol field =
+        std::strcmp(m, "get_guitar_paint_primary_for_skin") == 0
+            ? Symbol("paint_primary")
+            : Symbol("paint_secondary");
+    const DataNode value =
+        db_ ? db_->guitar_skin_field(guitar, skin, field) : DataNode();
+    out = value.empty() ? DataNode::Int(-1) : value;
     return true;
   }
   return false;

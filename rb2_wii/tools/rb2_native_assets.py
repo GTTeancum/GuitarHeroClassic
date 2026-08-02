@@ -601,6 +601,7 @@ def convert_string_meshes(
     *,
     fit_to_template: bool = True,
     bake_skin: bool = True,
+    surface_offset: float = 0.0,
 ) -> bytes:
     body_world = matrix_multiply(
         matrix4(source_body.transform.local),
@@ -658,6 +659,17 @@ def convert_string_meshes(
             ]
             body_position = apply_fit(body_position, fit)
             body_normal = normalize(model_normal)
+            # RB2's string cards sit almost exactly on the instrument surface.
+            # A sub-micro-unit conversion-rounding change can therefore put the
+            # transparent card behind the opaque neck/body in the target
+            # renderer.  Move it a small, model-space distance along its
+            # authored outward normal so the strings remain in front without
+            # visibly floating above the guitar.
+            if surface_offset:
+                body_position = [
+                    component + body_normal[index] * surface_offset
+                    for index, component in enumerate(body_position)
+                ]
             vertices.append(
                 Vertex(
                     body_position,

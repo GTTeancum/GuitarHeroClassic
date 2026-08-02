@@ -2939,6 +2939,46 @@ void test_real_pause_tile_source_transforms() {
   std::printf("  [ok] real pause border tiles: pause, controller-loss, audio settings, and video settings source UV flips form all four corners\n");
 }
 
+void test_real_career_background_uv_contract() {
+  const std::string ark_dir =
+      "C:/Programming/GitHub/Guitar Hero II/gh2_ps2_hybrid_assets/gen";
+  const std::string hdr = first_existing(ark_dir, {"main.hdr", "MAIN.HDR"});
+  const std::string ark = first_existing(ark_dir, {"main_0.ark", "MAIN_0.ARK"});
+  if (hdr.empty() || ark.empty()) {
+    std::printf("  [skip] real Career background UVs (no PS2 archive)\n");
+    return;
+  }
+  Scene scene;
+  CHECK(load_scene(hdr, ark, "ui/gen/career.milo_ps2", scene));
+  bool found_poster = false;
+  for (const MeshObj& mesh : scene.meshes) {
+    if (mesh.name != "poster_bottom.mesh") continue;
+    found_poster = true;
+    const MatObj* mat = scene.find_mat(mesh.material);
+    float min_u = 1.0e9f, max_u = -1.0e9f;
+    float min_v = 1.0e9f, max_v = -1.0e9f;
+    for (const Vertex& vertex : mesh.verts) {
+      min_u = std::min(min_u, vertex.u);
+      max_u = std::max(max_u, vertex.u);
+      min_v = std::min(min_v, vertex.v);
+      max_v = std::max(max_v, vertex.v);
+    }
+    CHECK(mesh.material == "poster_bottom.mat");
+    CHECK(mat != nullptr);
+    CHECK(approx(min_u, 0.0f));
+    CHECK(approx(max_u, 1.0f));
+    CHECK(approx(min_v, 0.0f));
+    CHECK(approx(max_v, 1.0f));
+    if (mat) {
+      CHECK(approx(mat->tex_xfm[0][0], 1.0f));
+      CHECK(approx(mat->tex_xfm[1][1], -1.0f));
+      CHECK(approx(mat->tex_xfm[2][1], 0.0f));
+    }
+  }
+  CHECK(found_poster);
+  std::printf("  [ok] real Career poster source V=-1 contract\n");
+}
+
 void test_real_redoctane_main_hall_winding_contract() {
   const std::string ark_dir =
       "C:/Programming/GitHub/Guitar Hero II/gh2_ps2_hybrid_assets/gen";
@@ -3402,6 +3442,7 @@ int main() {
   test_band_placer();
   test_real_menu_band_placers();
   test_real_pause_tile_source_transforms();
+  test_real_career_background_uv_contract();
   test_real_redoctane_main_hall_winding_contract();
   test_mesh();
   test_particle_sys_source_order();

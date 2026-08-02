@@ -2863,8 +2863,9 @@ int main(int argc, char** argv) {
               .value_or(Symbol()) == Symbol("rb2_bass_precision01"));
 
     // Both instruments now have multiple finishes. The first confirm enters
-    // the skin row and the second confirms it for each player; the authored
-    // all-ready route then commits both player configs.
+    // the skin row, the second enters the default Paint color row, and the
+    // third saves that color and confirms the instrument for each player; the
+    // authored all-ready route then commits both player configs.
     auto guitar_button = [&](int player, Symbol button) {
       mgr.set_global(Symbol("player_num"), DataNode::Int(player));
       mgr.set_global(Symbol("button"), DataNode::Sym(button));
@@ -2873,6 +2874,8 @@ int main(int argc, char** argv) {
     };
     guitar_button(0, Symbol("kPad_X"));
     guitar_button(0, Symbol("kPad_X"));
+    guitar_button(0, Symbol("kPad_X"));
+    guitar_button(1, Symbol("kPad_X"));
     guitar_button(1, Symbol("kPad_X"));
     guitar_button(1, Symbol("kPad_X"));
     Object* game = mgr.resolve_object(Symbol("game"));

@@ -84,6 +84,10 @@ class MenuFont {
                      text_size
                : 0.0f;
   }
+  float rnd_text_cell_height(float text_size) const {
+    return cap_height_ > 0.0f ? text_size * line_height_ / cap_height_
+                              : text_size;
+  }
   bool has_source_char_info() const { return has_source_char_info_; }
   bool has_material_color() const { return has_material_color_; }
   const std::array<float, 4>& material_color() const {

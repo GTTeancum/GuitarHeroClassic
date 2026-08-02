@@ -6,7 +6,16 @@ param(
   [int]$PostCareerCrossCount = -1,
   [switch]$FreshBoot,
   [switch]$SkipHook,
-  [switch]$CaptureSteps
+  [switch]$CaptureSteps,
+  [switch]$CareerTrace,
+  [ValidateSet("Hidden", "Minimized")]
+  [string]$OracleWindowStyle = "Hidden",
+  [switch]$DisarmTogglePauseHotkey,
+  [int]$StateSlot = 1,
+  [switch]$TraceCurrentScreen,
+  [int]$CurrentScreenCrossCount = 0,
+  [switch]$DeclineSaveAfterCurrentCrosses,
+  [switch]$NoProofCapture
 )
 
 $ErrorActionPreference = "Stop"
@@ -631,6 +640,79 @@ function Matrix-CandidatesNear {
   return $out
 }
 
+function Runtime-Transform-CandidatesNear {
+  param([byte[]]$Ram, [uint32]$Base, [int]$Radius = 0x400, [int]$Limit = 24)
+  $out = @()
+  if (-not (Is-GuestPointer $Base $Ram.Length)) { return $out }
+  $start = [Math]::Max(0, [int]$Base - 0x20)
+  $end = [Math]::Min($Ram.Length - 0x40, [int]$Base + $Radius)
+  for ($off = $start; $off -le $end; $off += 4) {
+    $rot = @()
+    $valid = $true
+    for ($row = 0; $row -lt 3; $row++) {
+      $vec = @()
+      $len2 = 0.0
+      for ($col = 0; $col -lt 3; $col++) {
+        $value = [Pcsx2TraceNative]::F32(
+            $Ram, $off + ($row * 0x10) + ($col * 4))
+        if ([float]::IsNaN($value) -or [float]::IsInfinity($value) -or
+            [Math]::Abs($value) -gt 4.0) {
+          $valid = $false
+          break
+        }
+        $vec += [Math]::Round($value, 6)
+        $len2 += [double]$value * [double]$value
+      }
+      if (-not $valid -or $len2 -lt 0.05 -or $len2 -gt 16.0) {
+        $valid = $false
+        break
+      }
+      $rot += ,$vec
+    }
+    if (-not $valid) { continue }
+    $pos = @()
+    for ($col = 0; $col -lt 3; $col++) {
+      $value = [Pcsx2TraceNative]::F32($Ram, $off + 0x30 + ($col * 4))
+      if ([float]::IsNaN($value) -or [float]::IsInfinity($value) -or
+          [Math]::Abs($value) -gt 20000.0) {
+        $valid = $false
+        break
+      }
+      $pos += [Math]::Round($value, 6)
+    }
+    if (-not $valid) { continue }
+    $out += [ordered]@{
+      guest = (Guest-Hex $off)
+      offset_from_base = ("0x{0:x}" -f ($off - [int]$Base))
+      xfm = [ordered]@{ rot = $rot; pos = $pos }
+    }
+    if ($out.Count -ge $Limit) { break }
+  }
+  return $out
+}
+
+function Decode-Runtime-Transform {
+  param([byte[]]$Ram, [uint32]$Guest)
+  if ($Guest -gt ($Ram.Length - 0x40)) { return $null }
+  $rot = @()
+  for ($row = 0; $row -lt 3; $row++) {
+    $rot += ,@(
+      [Math]::Round([Pcsx2TraceNative]::F32($Ram, [int]$Guest + ($row * 0x10)), 6),
+      [Math]::Round([Pcsx2TraceNative]::F32($Ram, [int]$Guest + ($row * 0x10) + 4), 6),
+      [Math]::Round([Pcsx2TraceNative]::F32($Ram, [int]$Guest + ($row * 0x10) + 8), 6)
+    )
+  }
+  return [ordered]@{
+    guest = (Guest-Hex $Guest)
+    rot = $rot
+    pos = @(
+      [Math]::Round([Pcsx2TraceNative]::F32($Ram, [int]$Guest + 0x30), 6),
+      [Math]::Round([Pcsx2TraceNative]::F32($Ram, [int]$Guest + 0x34), 6),
+      [Math]::Round([Pcsx2TraceNative]::F32($Ram, [int]$Guest + 0x38), 6)
+    )
+  }
+}
+
 function Filter-Probe {
   param([byte[]]$Ram, [uint32]$Ptr)
   if (-not (Is-GuestPointer $Ptr $Ram.Length)) {
@@ -774,9 +856,20 @@ if ($existing.Count -gt 0) {
 $argList = if ($FreshBoot) {
   "-logfile `"$log`" -- `"$Iso`""
 } else {
-  "-logfile `"$log`" -state 1 -- `"$Iso`""
+  "-logfile `"$log`" -state $StateSlot -- `"$Iso`""
 }
-$proc = Start-Process -FilePath $Pcsx2 -ArgumentList $argList -WorkingDirectory (Split-Path -Parent $Pcsx2) -WindowStyle Hidden -PassThru
+$pcsxIniPath = Join-Path (Split-Path -Parent $Pcsx2) "inis\PCSX2.ini"
+$pcsxIniOriginal = $null
+if ($DisarmTogglePauseHotkey) {
+  $pcsxIniOriginal = [IO.File]::ReadAllBytes($pcsxIniPath)
+  $pcsxIniText = [Text.Encoding]::UTF8.GetString($pcsxIniOriginal)
+  $pcsxIniText = [Text.RegularExpressions.Regex]::Replace(
+      $pcsxIniText, "(?m)^TogglePause\s*=.*$",
+      "TogglePause = Keyboard/F12")
+  [IO.File]::WriteAllText(
+      $pcsxIniPath, $pcsxIniText, [Text.UTF8Encoding]::new($false))
+}
+$proc = Start-Process -FilePath $Pcsx2 -ArgumentList $argList -WorkingDirectory (Split-Path -Parent $Pcsx2) -WindowStyle $OracleWindowStyle -PassThru
 
 try {
   $eeBase = Wait-ForLogBase -Path $log -TimeoutSec 30
@@ -798,6 +891,22 @@ try {
   $snapDir = Join-Path (Split-Path -Parent $Pcsx2) "snaps"
   $stepProofs = @()
 
+  if ($TraceCurrentScreen) {
+    Start-Sleep -Seconds 5
+    for ($i = 1; $i -le $CurrentScreenCrossCount; $i++) {
+      Tap-Key $wins $vk.Cross 3500
+      if ($CaptureSteps) {
+        $stepProofs += [ordered]@{
+          step = "current_screen_cross_$i"
+          proof = (Capture-Pcsx2Snap $wins $vk "current_screen_cross_$i" $snapDir $OutDir)
+        }
+      }
+    }
+    if ($DeclineSaveAfterCurrentCrosses) {
+      Tap-Key $wins $vk.Down 800
+      Tap-Key $wins $vk.Cross 5000
+    }
+  } else {
   if ($FreshBoot) {
     # Fresh boot route: wait through logos/title, press Start to reach the stock
     # main menu, then enter Career so guitar select is available.
@@ -846,7 +955,9 @@ try {
   }
   Tap-Key $wins $vk.Cross 2200
   if ($CaptureSteps) { $stepProofs += [ordered]@{ step = "career_cross"; proof = (Capture-Pcsx2Snap $wins $vk "career_cross" $snapDir $OutDir) } }
-  if ($PostCareerCrossCount -ge 0) {
+  if ($CareerTrace) {
+    Start-Sleep -Seconds 3
+  } elseif ($PostCareerCrossCount -ge 0) {
     Tap-Key $wins $vk.Down 500
     if ($CaptureSteps) { $stepProofs += [ordered]@{ step = "post_career_down"; proof = (Capture-Pcsx2Snap $wins $vk "post_career_down" $snapDir $OutDir) } }
     for ($i = 1; $i -le $PostCareerCrossCount; $i++) {
@@ -869,28 +980,199 @@ try {
       }
     }
   }
+  }
   Start-Sleep -Seconds 3
 
-  $finalShotStart = Get-Date
-  Tap-Key $wins $vk.Screenshot 1000
-  $latestSnap = Get-ChildItem -LiteralPath $snapDir -File -Filter "*.png" -ErrorAction SilentlyContinue |
-      Where-Object { $_.LastWriteTime -gt $finalShotStart } |
-      Sort-Object LastWriteTime -Descending |
-      Select-Object -First 1
   $freshSnapProof = $false
-  if ($latestSnap) {
-    Copy-Item -LiteralPath $latestSnap.FullName -Destination $snapProofPng -Force
-    $freshSnapProof = $true
+  if (-not $NoProofCapture) {
+    $finalShotStart = Get-Date
+    Tap-Key $wins $vk.Screenshot 1000
+    $latestSnap = Get-ChildItem -LiteralPath $snapDir -File -Filter "*.png" -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -gt $finalShotStart } |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+    if ($latestSnap) {
+      Copy-Item -LiteralPath $latestSnap.FullName -Destination $snapProofPng -Force
+      $freshSnapProof = $true
+    }
+    $topWindow = $wins[0]
+    [Pcsx2TraceNative]::SaveWindow($topWindow, $proofPng) | Out-Null
   }
-
-  $topWindow = $wins[0]
-  [Pcsx2TraceNative]::SaveWindow($topWindow, $proofPng) | Out-Null
 
   $ramRead = Read-GuestRamSparse -ProcessId $proc.Id -Base $eeBase -Length 0x08f00000
   if ($ramRead.readable_ranges.Count -eq 0) {
     throw "No PCSX2 EE RAM chunks were readable; refusing to write a false trace."
   }
   $ram = [byte[]]$ramRead.bytes
+  if ($CareerTrace) {
+    $careerObjects = @()
+    foreach ($term in @(
+        "career.view",
+        "cm_status.view",
+        "cm_headers.grp",
+        "cm_details.grp",
+        "cm_buttons.view",
+        "cm_featuring.lbl",
+        "cm_band.lbl",
+        "cm_char.lbl",
+        "cm_playing.lbl",
+        "cm_guitar.lbl",
+        "cm_guitar_skin.lbl",
+        "cm_career_title.lbl",
+        "cm_career.lbl",
+        "cm_cash_title.lbl",
+        "cm_cash.lbl",
+        "cm_letsrock.btn",
+        "cm_hero.btn",
+        "cm_guitar.btn",
+        "cm_store.btn")) {
+      $hitItems = @()
+      $allRefs = @()
+      foreach ($hit in @(String-Hits $ram $term | Select-Object -First 8)) {
+        $refItems = @()
+        foreach ($ref in @([Pcsx2TraceNative]::FindU32(
+              $ram, [uint32]$hit) | Select-Object -First 12)) {
+          $allRefs += [uint32]$ref
+          $objectBase = [Math]::Max(0, [int]$ref - 0x18)
+          $nearPointers = @()
+          for ($nearOff = -0x40; $nearOff -le 0x40; $nearOff += 4) {
+            $field = [int]$ref + $nearOff
+            if ($field -lt 0 -or $field + 4 -gt $ram.Length) { continue }
+            $ptr = [Pcsx2TraceNative]::U32($ram, $field)
+            if (-not (Is-GuestPointer $ptr $ram.Length) -or
+                $ptr -eq [uint32]$hit) {
+              continue
+            }
+            $pointerMatrices = @(
+                Runtime-Transform-CandidatesNear $ram $ptr 0x400 16)
+            if ($pointerMatrices.Count -eq 0) { continue }
+            $nearPointers += [ordered]@{
+              field_offset_from_ref = ("0x{0:x}" -f $nearOff)
+              field_guest = (Guest-Hex $field)
+              pointer_guest = (U32-Hex $ptr)
+              matrices = $pointerMatrices
+            }
+          }
+          $refItems += [ordered]@{
+            ref_guest = (Guest-Hex $ref)
+            object_base_if_name_at_0x18 = (Guest-Hex $objectBase)
+            matrices_wide = @(Runtime-Transform-CandidatesNear $ram (
+                [Math]::Max(0, [int]$ref - 0x400)) 0x800 24)
+            nearby_pointer_matrices = $nearPointers
+          }
+        }
+        $hitItems += [ordered]@{
+          string_guest = (Guest-Hex $hit)
+          references = $refItems
+        }
+      }
+      $liveComponent = $null
+      if ($term.EndsWith(".lbl") -and $allRefs.Count -gt 0) {
+        # GH2 UILabel's virtual Hmx::Object name field is at +0x174. The
+        # highest live reference is the instantiated Career component; the
+        # lower references belong to serialized/panel lookup structures.
+        $liveNameRef = @($allRefs | Sort-Object -Descending |
+            Where-Object { $_ -ge 0x00b00000 } | Select-Object -First 1)
+        if ($liveNameRef.Count -gt 0) {
+          $componentBase = [uint32]($liveNameRef[0] - 0x174)
+          $componentPointers = @()
+          for ($fieldOff = 0; $fieldOff -le 0x170; $fieldOff += 4) {
+            $fieldGuest = [uint32]($componentBase + $fieldOff)
+            $fieldPtr = [Pcsx2TraceNative]::U32($ram, [int]$fieldGuest)
+            if ($fieldPtr -lt 0x00b00000 -or
+                -not (Is-GuestPointer $fieldPtr $ram.Length)) {
+              continue
+            }
+            $componentPointers += [ordered]@{
+              field_offset = ("0x{0:x}" -f $fieldOff)
+              field_guest = (Guest-Hex $fieldGuest)
+              pointer_guest = (U32-Hex $fieldPtr)
+              target_transform_candidates = @(
+                  Runtime-Transform-CandidatesNear $ram $fieldPtr 0x200 12)
+            }
+          }
+          $layoutWords = @()
+          for ($fieldOff = 0; $fieldOff -le 0x178; $fieldOff += 4) {
+            $fieldGuest = [uint32]($componentBase + $fieldOff)
+            $layoutWords += [ordered]@{
+              field_offset = ("0x{0:x}" -f $fieldOff)
+              u32 = (U32-Hex (
+                  [Pcsx2TraceNative]::U32($ram, [int]$fieldGuest)))
+              f32 = [Math]::Round(
+                  [Pcsx2TraceNative]::F32($ram, [int]$fieldGuest), 6)
+            }
+          }
+          $vectorCandidates = @()
+          for ($fieldOff = 0; $fieldOff -le 0x170; $fieldOff += 4) {
+            $startPtr = [Pcsx2TraceNative]::U32(
+                $ram, [int]$componentBase + $fieldOff)
+            $finishPtr = [Pcsx2TraceNative]::U32(
+                $ram, [int]$componentBase + $fieldOff + 4)
+            $endPtr = [Pcsx2TraceNative]::U32(
+                $ram, [int]$componentBase + $fieldOff + 8)
+            if ((Is-GuestPointer $startPtr $ram.Length) -and
+                (Is-GuestPointer $finishPtr $ram.Length) -and
+                (Is-GuestPointer $endPtr $ram.Length) -and
+                $startPtr -le $finishPtr -and $finishPtr -le $endPtr -and
+                ($endPtr - $startPtr) -le 0x10000) {
+              $vectorCandidates += [ordered]@{
+                field_offset = ("0x{0:x}" -f $fieldOff)
+                start = (U32-Hex $startPtr)
+                finish = (U32-Hex $finishPtr)
+                end = (U32-Hex $endPtr)
+                used_bytes = [uint32]($finishPtr - $startPtr)
+                capacity_bytes = [uint32]($endPtr - $startPtr)
+              }
+            }
+          }
+          $liveComponent = [ordered]@{
+            name_reference = (Guest-Hex $liveNameRef[0])
+            rnd_text_base = (Guest-Hex $componentBase)
+            rnd_text_local = (Decode-Runtime-Transform $ram ([uint32]($componentBase + 0x20)))
+            rnd_text_world = (Decode-Runtime-Transform $ram ([uint32]($componentBase + 0x60)))
+            rnd_text_size = [Math]::Round(
+                [Pcsx2TraceNative]::F32($ram, [int]$componentBase + 0x118), 6)
+            rnd_text_alignment = (U32-Hex (
+                [Pcsx2TraceNative]::U32($ram, [int]$componentBase + 0x130)))
+            rnd_text_leading = [Math]::Round(
+                [Pcsx2TraceNative]::F32($ram, [int]$componentBase + 0x134), 6)
+            rnd_text_kerning = [Math]::Round(
+                [Pcsx2TraceNative]::F32($ram, [int]$componentBase + 0x138), 6)
+            ui_label_fit = (U32-Hex (
+                [Pcsx2TraceNative]::U32($ram, [int]$componentBase + 0x13c)))
+            ui_label_width = [Math]::Round(
+                [Pcsx2TraceNative]::F32($ram, [int]$componentBase + 0x140), 6)
+            ui_label_height = [Math]::Round(
+                [Pcsx2TraceNative]::F32($ram, [int]$componentBase + 0x144), 6)
+            rnd_text_wrap_width = [Math]::Round(
+                [Pcsx2TraceNative]::F32($ram, [int]$componentBase + 0x148), 6)
+            component_pointer_fields = $componentPointers
+            layout_words = $layoutWords
+            vector_candidates = $vectorCandidates
+          }
+        }
+      }
+      $careerObjects += [ordered]@{
+        name = $term
+        live_component = $liveComponent
+        hits = $hitItems
+      }
+    }
+    $careerTracePath = Join-Path $OutDir "career_runtime_transform_trace.json"
+    [ordered]@{
+      generated_at = (Get-Date).ToString("s")
+      source = "settled retail GH2 PS2 Career page in noninteractive PCSX2 memory trace"
+      pcsx2_pid = $proc.Id
+      ee_base_host = ("0x{0:x16}" -f $eeBase)
+      readable_guest_ranges = $ramRead.readable_ranges
+      no_focus_policy = "WindowStyle $OracleWindowStyle; input used PostMessage only"
+      proof_capture = $(if ($NoProofCapture) { "disabled" } else { "enabled" })
+      objects = $careerObjects
+    } | ConvertTo-Json -Depth 20 |
+        Set-Content -LiteralPath $careerTracePath -Encoding UTF8
+    Write-Host $careerTracePath
+    return
+  }
   $terms = @(
     "sel_guitar_new_screen",
     "sel_guitar_panel",
@@ -956,12 +1238,21 @@ try {
   $filterBodyPath = Join-Path $Repo "engine\out\menu_tuning\milo_inspect_20260703\sel_guitar_entries\AnimFilter__guitar_single.filt"
   $tnmBodyPath = Join-Path $Repo "engine\out\menu_tuning\milo_inspect_20260703\sel_guitar_entries\TransAnim__guitar_single.tnm"
   $proxyBodyPath = Join-Path $Repo "engine\out\menu_tuning\milo_inspect_20260703\sel_guitar_entries\UIProxy__guitar.pxy"
-  $filterBody = [IO.File]::ReadAllBytes($filterBodyPath)
-  $tnmBody = [IO.File]::ReadAllBytes($tnmBodyPath)
-  $proxyBody = [IO.File]::ReadAllBytes($proxyBodyPath)
-  $filterExactHits = @([Pcsx2TraceNative]::IndexOfAll($ram, $filterBody))
-  $tnmExactHits = @([Pcsx2TraceNative]::IndexOfAll($ram, $tnmBody))
-  $proxyExactHits = @([Pcsx2TraceNative]::IndexOfAll($ram, $proxyBody))
+  $filterExactHits = @()
+  $tnmExactHits = @()
+  $proxyExactHits = @()
+  if (Test-Path -LiteralPath $filterBodyPath) {
+    $filterBody = [IO.File]::ReadAllBytes($filterBodyPath)
+    $filterExactHits = @([Pcsx2TraceNative]::IndexOfAll($ram, $filterBody))
+  }
+  if (Test-Path -LiteralPath $tnmBodyPath) {
+    $tnmBody = [IO.File]::ReadAllBytes($tnmBodyPath)
+    $tnmExactHits = @([Pcsx2TraceNative]::IndexOfAll($ram, $tnmBody))
+  }
+  if (Test-Path -LiteralPath $proxyBodyPath) {
+    $proxyBody = [IO.File]::ReadAllBytes($proxyBodyPath)
+    $proxyExactHits = @([Pcsx2TraceNative]::IndexOfAll($ram, $proxyBody))
+  }
 
   $liveFilter = $null
   if ($filterExactHits.Count -gt 0) {
@@ -1009,6 +1300,73 @@ try {
     }
   }
 
+  $liveNamedTransforms = @()
+  foreach ($term in @(
+      "guitar.pxy",
+      "guitar.mesh",
+      "guitar_single.view",
+      "guitar_setup.cam",
+      "meta.cam")) {
+    $termHits = @()
+    foreach ($hit in @(String-Hits $ram $term | Select-Object -First 8)) {
+      $termRefs = @()
+      foreach ($ref in @([Pcsx2TraceNative]::FindU32(
+            $ram, [uint32]$hit) | Select-Object -First 16)) {
+        $objectCandidate = [Pcsx2TraceNative]::U32($ram, [int]$ref + 4)
+        $runtimeChild = if (Is-GuestPointer $objectCandidate $ram.Length) {
+          [Pcsx2TraceNative]::U32($ram, [int]$objectCandidate + 0x144)
+        } else { [uint32]0 }
+        $attachmentCandidates = @()
+        if (Is-GuestPointer $objectCandidate $ram.Length) {
+          foreach ($attachmentOff in @(0x170, 0x180, 0x194)) {
+            $attachmentPtr = [Pcsx2TraceNative]::U32(
+                $ram, [int]$objectCandidate + $attachmentOff)
+            $attachmentCandidates += [ordered]@{
+              field_offset = ("0x{0:x}" -f $attachmentOff)
+              pointer = (U32-Hex $attachmentPtr)
+              transform_candidates = $(if (
+                  Is-GuestPointer $attachmentPtr $ram.Length) {
+                    @(Runtime-Transform-CandidatesNear $ram $attachmentPtr 0x2000 64)
+                  } else { @() })
+            }
+          }
+        }
+        $termRefs += [ordered]@{
+          ref_guest = (Guest-Hex $ref)
+          nearby_words = @(Float-Block $ram ([int]$ref - 0x20) 24)
+          directory_object_candidate = (U32-Hex $objectCandidate)
+          object_transform_candidates = $(if (
+              Is-GuestPointer $objectCandidate $ram.Length) {
+                @(Runtime-Transform-CandidatesNear $ram $objectCandidate 0x400 24)
+              } else { @() })
+          object_pointer_fields = $(if (
+              Is-GuestPointer $objectCandidate $ram.Length) {
+                @(Pointer-Fields $ram ([int]$objectCandidate) 0x240 64)
+              } else { @() })
+          runtime_child_0x144 = (U32-Hex $runtimeChild)
+          runtime_child_transform_candidates = $(if (
+              Is-GuestPointer $runtimeChild $ram.Length) {
+                @(Runtime-Transform-CandidatesNear $ram $runtimeChild 0x600 32)
+              } else { @() })
+          attachment_candidates = $attachmentCandidates
+          transform_candidates = @(
+              Runtime-Transform-CandidatesNear $ram ([uint32]$ref) 0x300 16)
+        }
+      }
+      $termHits += [ordered]@{
+        string_guest = (Guest-Hex $hit)
+        near_string_transform_candidates = @(
+            Runtime-Transform-CandidatesNear $ram (
+                [uint32][Math]::Max(0, $hit - 0x800)) 0x1000 48)
+        references = $termRefs
+      }
+    }
+    $liveNamedTransforms += [ordered]@{
+      name = $term
+      hits = $termHits
+    }
+  }
+
   $trace = [ordered]@{
     generated_at = (Get-Date).ToString("s")
     pcsx2_pid = $proc.Id
@@ -1041,6 +1399,7 @@ try {
     display_setup_hook_install = $setupHook
     display_setup_hook_trace = (Read-DisplaySetupHookTrace $ram)
     guitar_display_entry_trace = (Trace-GuitarDisplayEntries $ram)
+    live_named_transform_candidates = $liveNamedTransforms
     live_loaded_assets = [ordered]@{
       filter_exact_hits = @($filterExactHits | Select-Object -First 8 | ForEach-Object { Guest-Hex $_ })
       transanim_exact_hits = @($tnmExactHits | Select-Object -First 8 | ForEach-Object { Guest-Hex $_ })
@@ -1057,5 +1416,8 @@ try {
     $proc.CloseMainWindow() | Out-Null
     Start-Sleep -Seconds 2
     if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+  }
+  if ($null -ne $pcsxIniOriginal) {
+    [IO.File]::WriteAllBytes($pcsxIniPath, $pcsxIniOriginal)
   }
 }

@@ -148,10 +148,18 @@ def main() -> int:
         skin_blocks = []
         for finish in finish_rows:
             skin = skin_symbol(finish)
+            paint_fields = ""
+            if finish.get("skin_id", "").endswith("_paint"):
+                paint_fields = (
+                    f"\n   (paint_primary {int(finish['palette_primary'])})"
+                    f"\n   (paint_secondary "
+                    f"{int(finish.get('palette_secondary') or 0)})"
+                )
             skin_blocks.append(
                 f"  ({skin}\n"
                 f"   (outfit {finish['asset_stem']})\n"
-                f"   (mat guitar_sg_cherry.mat))"
+                f"   (mat guitar_sg_cherry.mat)"
+                f"{paint_fields})"
             )
         guitar_additions.append(
             f"({model}\n"
@@ -236,6 +244,8 @@ def main() -> int:
         )
     for record in records:
         skin_name = clean_name(record.get("skin_display_name", "Default"))
+        if record.get("skin_id", "").endswith("_paint"):
+            skin_name = "Custom Paint"
         locale += f'({skin_symbol(record)} "{skin_name}")\n'
 
     args.output.mkdir(parents=True, exist_ok=True)

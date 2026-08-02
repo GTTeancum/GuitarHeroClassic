@@ -852,14 +852,20 @@ class Gameplay {
   // profile choices and remain the normal gameplay source.
   void set_selected_instruments(
       std::string guitar, std::string guitar_outfit,
-      std::string guitar_material, std::string bass,
-      std::string bass_outfit, std::string bass_material) {
+      std::string guitar_material, int guitar_paint_primary,
+      int guitar_paint_secondary, std::string bass,
+      std::string bass_outfit, std::string bass_material,
+      int bass_paint_primary, int bass_paint_secondary) {
     selected_guitar_ = std::move(guitar);
     selected_guitar_outfit_ = std::move(guitar_outfit);
     selected_guitar_material_ = std::move(guitar_material);
+    selected_guitar_paint_primary_ = guitar_paint_primary;
+    selected_guitar_paint_secondary_ = guitar_paint_secondary;
     selected_bass_ = std::move(bass);
     selected_bass_outfit_ = std::move(bass_outfit);
     selected_bass_material_ = std::move(bass_material);
+    selected_bass_paint_primary_ = bass_paint_primary;
+    selected_bass_paint_secondary_ = bass_paint_secondary;
   }
   // Co-op player two owns the bassist slot. Carry that player's exact
   // character variant into the bassist performer rather than leaving the
@@ -1907,9 +1913,13 @@ class Gameplay {
   std::string selected_guitar_;
   std::string selected_guitar_outfit_;
   std::string selected_guitar_material_;
+  int selected_guitar_paint_primary_ = -1;
+  int selected_guitar_paint_secondary_ = -1;
   std::string selected_bass_;
   std::string selected_bass_outfit_;
   std::string selected_bass_material_;
+  int selected_bass_paint_primary_ = -1;
+  int selected_bass_paint_secondary_ = -1;
   std::string diagnostic_venue_event_;
   std::string diagnostic_camera_shot_;
   std::string diagnostic_front_camera_role_;

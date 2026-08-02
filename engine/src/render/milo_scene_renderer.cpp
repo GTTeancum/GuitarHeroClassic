@@ -4419,6 +4419,21 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       uv_m11 = mat->tex_xfm[1][1];
       uv_m20 = mat->tex_xfm[2][0];
       uv_m21 = mat->tex_xfm[2][1];
+      // GH2's Career poster is the one PS2 menu sheet whose authored Mat
+      // carries a V=-1 transform while the bitmap payload is already decoded
+      // into top-down rows for D3D. Applying both inversions mirrors the whole
+      // page vertically (header art at the bottom, store art at the top).
+      // Retail's live page keeps the decoded sheet upright, so cancel only
+      // this redundant image-orientation transform. The pause-card tile Mats
+      // retain their negative U/V scales because those are real corner flips.
+      if (m.name == "poster_bottom.mesh" &&
+          material == "poster_bottom.mat" &&
+          std::fabs(uv_m01) < 1.0e-5f &&
+          std::fabs(uv_m10) < 1.0e-5f &&
+          uv_m11 < -0.999f) {
+        uv_m11 = -uv_m11;
+        uv_m21 = 0.0f;
+      }
       mr = mat->color[0]; mg = mat->color[1]; mb = mat->color[2]; ma = mat->color[3];
       material_blend = mat->blend;
       material_z_mode = mat->z_mode;

@@ -10,6 +10,7 @@
 #pragma once
 
 #include <cstdint>
+#include <array>
 #include <map>
 #include <string>
 #include <vector>
@@ -22,6 +23,24 @@ struct Image {
   std::vector<uint8_t> rgba;  // width*height*4, RGBA8 row-major
   bool valid() const { return width > 0 && height > 0 && !rgba.empty(); }
 };
+
+// CPU reconstruction of RB2's instrument two-color material. Diffuse alpha
+// interpolates primary to secondary; a valid mask preserves fixed-color
+// diffuse channels. Without a mask, the primary color modulates the diffuse.
+Image compose_rb2_paint(
+    const Image& diffuse, const Image& mask,
+    const std::array<uint8_t, 3>& primary,
+    const std::array<uint8_t, 3>& secondary);
+// PS2 Custom Paint uses one diffuse body color. The source diffuse retains
+// authored wear/shading; the nearest-resampled RGB mask protects large fixed
+// regions, and diffuse alpha protects instrument-specific detail islands such
+// as Telecaster's white pickguard.
+Image compose_rb2_body_paint(
+    const Image& diffuse, const Image& mask,
+    const std::array<uint8_t, 3>& color);
+int rb2_paint_color_count();
+std::array<uint8_t, 3> rb2_paint_color(int index);
+const char* rb2_paint_color_name(int index);
 
 // Load the largest decodable embedded Tex from `milo_path` inside the PS2 ARK
 // (hdr_path + ark_path). "Largest" by pixel area, which reliably picks the

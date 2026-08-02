@@ -23,6 +23,164 @@ namespace ghogx::asset {
 
 namespace {
 
+struct Rb2PaintColor {
+  std::array<uint8_t, 3> rgb;
+  const char* name;
+};
+
+constexpr std::array<Rb2PaintColor, 51> kRb2GuitarPalette = {{
+    {{{0, 0, 0}}, "Black"},
+    {{{250, 254, 254}}, "Arctic White"},
+    {{{254, 239, 156}}, "Vintage Cream"},
+    {{{252, 243, 226}}, "Ivory"},
+    {{{241, 236, 226}}, "Pearl"},
+    {{{221, 240, 255}}, "Ice Blue"},
+    {{{151, 217, 249}}, "Sky Blue"},
+    {{{139, 216, 206}}, "Seafoam"},
+    {{{174, 223, 225}}, "Powder Blue"},
+    {{{165, 228, 199}}, "Mint"},
+    {{{145, 190, 247}}, "Cornflower Blue"},
+    {{{146, 183, 228}}, "Steel Blue"},
+    {{{30, 162, 232}}, "Electric Blue"},
+    {{{26, 101, 125}}, "Deep Teal"},
+    {{{54, 100, 186}}, "Royal Blue"},
+    {{{0, 50, 100}}, "Navy"},
+    {{{27, 33, 114}}, "Midnight Blue"},
+    {{{228, 204, 146}}, "Natural"},
+    {{{255, 232, 102}}, "Lemon"},
+    {{{255, 197, 62}}, "Amber"},
+    {{{249, 234, 53}}, "Yellow"},
+    {{{249, 228, 166}}, "Champagne"},
+    {{{233, 159, 50}}, "Butterscotch"},
+    {{{255, 139, 89}}, "Coral"},
+    {{{244, 163, 128}}, "Salmon"},
+    {{{147, 155, 150}}, "Silver"},
+    {{{132, 148, 151}}, "Gunmetal"},
+    {{{104, 118, 138}}, "Slate"},
+    {{{74, 78, 81}}, "Charcoal"},
+    {{{159, 96, 26}}, "Walnut"},
+    {{{230, 53, 34}}, "Flame Red"},
+    {{{90, 12, 14}}, "Oxblood"},
+    {{{136, 19, 19}}, "Crimson"},
+    {{{208, 77, 32}}, "Burnt Orange"},
+    {{{194, 39, 31}}, "Cherry Red"},
+    {{{174, 49, 43}}, "Brick Red"},
+    {{{176, 0, 18}}, "Candy Apple Red"},
+    {{{51, 13, 17}}, "Burgundy"},
+    {{{253, 162, 235}}, "Pink"},
+    {{{199, 177, 163}}, "Taupe"},
+    {{{188, 158, 184}}, "Lavender Gray"},
+    {{{160, 94, 174}}, "Purple"},
+    {{{162, 89, 120}}, "Mauve"},
+    {{{20, 0, 47}}, "Deep Violet"},
+    {{{191, 201, 71}}, "Olive"},
+    {{{174, 239, 109}}, "Lime"},
+    {{{19, 98, 98}}, "Dark Teal"},
+    {{{36, 85, 55}}, "Forest Green"},
+    {{{57, 111, 26}}, "Leaf Green"},
+    {{{35, 74, 23}}, "Dark Green"},
+    {{{6, 45, 40}}, "Evergreen"},
+}};
+
+}  // namespace
+
+int rb2_paint_color_count() {
+  return static_cast<int>(kRb2GuitarPalette.size());
+}
+
+std::array<uint8_t, 3> rb2_paint_color(int index) {
+  index = std::clamp(index, 0, rb2_paint_color_count() - 1);
+  return kRb2GuitarPalette[static_cast<size_t>(index)].rgb;
+}
+
+const char* rb2_paint_color_name(int index) {
+  index = std::clamp(index, 0, rb2_paint_color_count() - 1);
+  return kRb2GuitarPalette[static_cast<size_t>(index)].name;
+}
+
+Image compose_rb2_paint(
+    const Image& diffuse, const Image& mask,
+    const std::array<uint8_t, 3>& primary,
+    const std::array<uint8_t, 3>& secondary) {
+  if (!diffuse.valid()) return {};
+  const bool masked = mask.valid();
+  Image result = diffuse;
+  const size_t pixel_count =
+      static_cast<size_t>(diffuse.width) * diffuse.height;
+  for (size_t pixel = 0; pixel < pixel_count; ++pixel) {
+    const size_t offset = pixel * 4;
+    const int x = static_cast<int>(pixel % diffuse.width);
+    const int y = static_cast<int>(pixel / diffuse.width);
+    const int mask_x =
+        masked ? std::min(mask.width - 1, x * mask.width / diffuse.width) : 0;
+    const int mask_y =
+        masked ? std::min(mask.height - 1, y * mask.height / diffuse.height) : 0;
+    const size_t mask_offset =
+        masked
+            ? (static_cast<size_t>(mask_y) * mask.width + mask_x) * 4u
+            : 0u;
+    const uint32_t interpolation = diffuse.rgba[offset + 3];
+    for (size_t channel = 0; channel < 3; ++channel) {
+      const uint32_t source = diffuse.rgba[offset + channel];
+      uint32_t tint = primary[channel];
+      if (masked) {
+        tint = ((255u - interpolation) * primary[channel] +
+                interpolation * secondary[channel] + 127u) /
+               255u;
+      }
+      const uint32_t tinted = (source * tint + 127u) / 255u;
+      const uint32_t preserve =
+          masked ? mask.rgba[mask_offset + channel] : 0u;
+      result.rgba[offset + channel] = static_cast<uint8_t>(
+          (source * preserve + tinted * (255u - preserve) + 127u) /
+          255u);
+    }
+    result.rgba[offset + 3] = 255;
+  }
+  return result;
+}
+
+Image compose_rb2_body_paint(
+    const Image& diffuse, const Image& mask,
+    const std::array<uint8_t, 3>& color) {
+  if (!diffuse.valid()) return {};
+  const bool masked = mask.valid();
+  Image result = diffuse;
+  const size_t pixel_count =
+      static_cast<size_t>(diffuse.width) * diffuse.height;
+  for (size_t pixel = 0; pixel < pixel_count; ++pixel) {
+    const size_t offset = pixel * 4u;
+    const int x = static_cast<int>(pixel % diffuse.width);
+    const int y = static_cast<int>(pixel / diffuse.width);
+    const int mask_x =
+        masked ? std::min(mask.width - 1, x * mask.width / diffuse.width) : 0;
+    const int mask_y =
+        masked ? std::min(mask.height - 1, y * mask.height / diffuse.height) : 0;
+    const size_t mask_offset =
+        masked
+            ? (static_cast<size_t>(mask_y) * mask.width + mask_x) * 4u
+            : 0u;
+    // RB2's external RGB mask protects large fixed regions such as the neck
+    // and headstock. Some instruments, notably Telecaster, carry additional
+    // fixed-color islands (the white pickguard) in diffuse alpha instead.
+    // Preserve either signal before flattening the GH2 body texture opaque.
+    const uint32_t alpha_preserve = diffuse.rgba[offset + 3u];
+    for (size_t channel = 0; channel < 3; ++channel) {
+      const uint32_t source = diffuse.rgba[offset + channel];
+      const uint32_t tinted = (source * color[channel] + 127u) / 255u;
+      const uint32_t mask_preserve =
+          masked ? mask.rgba[mask_offset + channel] : 0u;
+      const uint32_t preserve = std::max(mask_preserve, alpha_preserve);
+      result.rgba[offset + channel] = static_cast<uint8_t>(
+          (source * preserve + tinted * (255u - preserve) + 127u) / 255u);
+    }
+    result.rgba[offset + 3u] = 255;
+  }
+  return result;
+}
+
+namespace {
+
 // Some ARK entries are reached only via the "../../system/run/" prefix the
 // runtime uses; mirror the catalog tool's fallback.
 std::optional<gh::ark::Entry> find_entry(const gh::ark::ArkV3Reader& ark,

@@ -178,16 +178,29 @@ def main() -> int:
             errors.append(f"no converted finishes for {model}")
         for finish in finish_rows:
             skin = skin_symbol(finish)
-            config_pattern = (
-                rf"\({re.escape(skin)}\s+"
-                rf"\(outfit\s+{re.escape(finish['asset_stem'])}\)\s+"
-                rf"\(mat\s+guitar_sg_cherry\.mat\)\)"
-            )
+            if finish.get("skin_id", "").endswith("_paint"):
+                config_pattern = (
+                    rf"\({re.escape(skin)}\s+"
+                    rf"\(outfit\s+{re.escape(finish['asset_stem'])}\)\s+"
+                    rf"\(mat\s+guitar_sg_cherry\.mat\)\s+"
+                    rf"\(paint_primary\s+"
+                    rf"{int(finish['palette_primary'])}\)\s+"
+                    rf"\(paint_secondary\s+"
+                    rf"{int(finish.get('palette_secondary') or 0)}\)\)"
+                )
+                expected_skin_name = "Custom Paint"
+            else:
+                config_pattern = (
+                    rf"\({re.escape(skin)}\s+"
+                    rf"\(outfit\s+{re.escape(finish['asset_stem'])}\)\s+"
+                    rf"\(mat\s+guitar_sg_cherry\.mat\)\)"
+                )
+                expected_skin_name = finish["skin_display_name"]
             if not re.search(config_pattern, patched_guitars, re.DOTALL):
                 errors.append(f"missing/invalid finish config {skin}")
             skin_name_pattern = (
                 rf'\({re.escape(skin)}\s+"'
-                rf'{re.escape(finish["skin_display_name"])}"\)'
+                rf'{re.escape(expected_skin_name)}"\)'
             )
             skin_name_matches = re.findall(
                 skin_name_pattern, patched_locale

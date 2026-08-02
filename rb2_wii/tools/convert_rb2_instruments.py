@@ -285,6 +285,41 @@ def compose_single_color(
     return tinted
 
 
+def make_gameplay_visible_strings(source: Image.Image) -> Image.Image:
+    """Retain RB2's string-card cutout while surviving GH2-scale minification."""
+    image = source.convert("RGBA")
+    width, height = image.size
+    source_pixels = image.load()
+    output: list[tuple[int, int, int, int]] = []
+    for y in range(height):
+        for x in range(width):
+            # One horizontal texel of coverage expansion keeps the six authored
+            # strands separate while preventing bilinear/minified samples from
+            # landing entirely in transparent gaps.
+            candidates = [
+                source_pixels[max(0, x - 1), y],
+                source_pixels[x, y],
+                source_pixels[min(width - 1, x + 1), y],
+            ]
+            red, green, blue, alpha = max(
+                candidates, key=lambda pixel: pixel[3]
+            )
+            if alpha == 0:
+                output.append((red, green, blue, 0))
+                continue
+            lifted_alpha = round((alpha / 255.0) ** 0.5 * 255.0)
+            output.append(
+                (
+                    max(red, 176),
+                    max(green, 176),
+                    max(blue, 176),
+                    max(alpha, lifted_alpha),
+                )
+            )
+    image.putdata(output)
+    return image
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -316,6 +351,16 @@ def main() -> int:
         / "_tools_milo"
         / "milo_tool.exe"
     )
+    tex_tool = (
+        repo_root
+        / "GuitarHeroOGX-main-ui-engine"
+        / "engine"
+        / "out"
+        / "build"
+        / "win-amd64-release"
+        / "_tools_tex"
+        / "tex_tool.exe"
+    )
     template = rb2_root / "templates" / "stock_sg"
     superfreq = (
         repo_root
@@ -337,6 +382,7 @@ def main() -> int:
     for required in [
         inventory,
         milo_tool,
+        tex_tool,
         template,
         superfreq,
         color_index_path,
@@ -397,6 +443,26 @@ def main() -> int:
         logs / "qualified_fender.log",
         repo_root,
     )
+    qualified_string_textures: dict[str, bytes] = {}
+    for string_name in ["guitar_strings.tex", "guitar_strings_mip.tex"]:
+        decoded_path = qualified_fender_output / f"{string_name}.bmp"
+        run(
+            [
+                str(tex_tool),
+                "decode",
+                str(qualified_fender_entries[("tex", string_name)]),
+                "--out",
+                str(decoded_path),
+            ],
+            logs / "qualified_fender.log",
+            repo_root,
+        )
+        with Image.open(decoded_path) as decoded:
+            qualified_string_textures[string_name] = encode_ps2_tex(
+                make_gameplay_visible_strings(decoded),
+                string_name,
+                force_32bpp=True,
+            )
     color_palette_output = output_root / "_colorpalettes"
     if color_palette_output.exists():
         shutil.rmtree(color_palette_output)
@@ -581,6 +647,19 @@ def main() -> int:
             )
             texture_sources.append(diffuses[0])
             diffuse.save(images / "body_diffuse.png")
+            is_custom_paint = skin_id.lower().endswith("_paint")
+            if is_custom_paint:
+                # Preserve the shader inputs for native runtime Paint editing.
+                # The visible sg_cherry texture remains the authored RB2
+                # default, while these unreferenced entries let the menu and
+                # gameplay recompose arbitrary primary/secondary choices.
+                (stage / "Tex" / "rb2_paint_diff.tex").write_bytes(
+                    encode_ps2_tex(
+                        diffuse,
+                        "rb2_paint_diff.tex",
+                        force_32bpp=True,
+                    )
+                )
             channel_indices = outfit_colors.get(skin_id.lower())
             if channel_indices is None:
                 raise RuntimeError(
@@ -618,6 +697,16 @@ def main() -> int:
                     variant_entries[("tex", masks[0])].read_bytes()
                 )
                 mask.save(images / "body_mask.png")
+                if is_custom_paint:
+                    paint_mask = mask.copy()
+                    paint_mask.putalpha(255)
+                    (stage / "Tex" / "rb2_paint_mask.tex").write_bytes(
+                        encode_ps2_tex(
+                            paint_mask,
+                            "rb2_paint_mask.tex",
+                            force_32bpp=True,
+                        )
+                    )
                 body_image = compose_two_color(
                     diffuse,
                     mask,
@@ -792,7 +881,7 @@ def main() -> int:
         )
         for target_tex in ["guitar_strings.tex", "guitar_strings_mip.tex"]:
             (stage / "Tex" / target_tex).write_bytes(
-                qualified_fender_entries[("tex", target_tex)].read_bytes()
+                qualified_string_textures[target_tex]
             )
         string_target_template = Ps2MeshTemplate(
             body_template.transform,
@@ -812,6 +901,7 @@ def main() -> int:
                 "guitar_strings.mesh",
                 "guitar_strings.mat",
                 fit_to_template=True,
+                surface_offset=0.04,
             )
         )
         trans_templates = {

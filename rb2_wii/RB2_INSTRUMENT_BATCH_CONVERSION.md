@@ -199,10 +199,31 @@ depth before the body, making the guitar behind them disappear. The runtime
 prop renderer therefore consumes the MILO scene's group-authored draw order,
 and zero-alpha string texels are discarded using RB2's alpha-cut state.
 
+The converted string card is also displaced `0.04` model units along its
+authored outward vertex normal. RB2 places the card nearly coplanar with the
+neck and body; without this small deterministic separation, ordinary
+floating-point conversion differences can move it behind the opaque surface
+and make every string disappear through depth testing.
+
+The qualified 64x32 string texture retains its transparent background and six
+authored strands, but each strand receives one texel of horizontal coverage
+expansion plus an alpha gamma lift. At GH2 performer scale the untouched RB2
+antialiasing otherwise minifies into transparent gaps: the mesh is submitted,
+yet the strings become visually absent.
+
 Body textures follow a different rule: source diffuse alpha can be meaningful
 during composition even though the final target is opaque. Preserve fixed
 detail under that alpha first, then force the encoded body image opaque.
 Flattening first erased the Telecaster pickguard.
+
+Custom Paint uses one PS2-era diffuse color. Nearest-sample the authored RB2
+RGB paint mask to the diffuse dimensions, combine its fixed-detail coverage
+with the source diffuse alpha using `max`, tint only the remaining body pixels,
+and then flatten the completed texture opaque. The paint editor previews that
+composed body material without the select screen's colored lights, so its body
+matches the color swatch and protected details such as the Telecaster's white
+pickguard remain easy to audit. Normal finish previews and gameplay retain
+their authored lighting.
 
 ## Multipart and authored-root transforms
 

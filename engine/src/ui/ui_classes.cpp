@@ -2,6 +2,7 @@
 
 #include "ui/ui_classes.h"
 
+#include "asset/milo_image.h"
 #include "core/class_reg.h"
 #include "ui/screen_manager.h"
 
@@ -2114,6 +2115,38 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
           .as_symbol()
           .value_or(Symbol());
     };
+    auto paint_default = [&](Symbol guitar, Symbol skin, bool secondary) {
+      DataArray paint_args;
+      paint_args.push(DataNode::Sym(guitar));
+      paint_args.push(DataNode::Sym(skin));
+      return node_int(
+          game_message(
+              mgr_,
+              Symbol(
+                  secondary
+                      ? "get_guitar_paint_secondary_for_skin"
+                      : "get_guitar_paint_primary_for_skin"),
+              paint_args),
+          -1);
+    };
+    auto refresh_paint_labels = [&](int player) {
+      const int stage = node_int(
+          get_property(player_key("paint_select", player)), 0);
+      if (stage <= 0 || !mgr_) return;
+      const int primary = node_int(
+          get_property(player_key("paint_primary", player)), 0);
+      if (Object* name = mgr_->resolve_object(Symbol("sg_skin_nm.lbl"))) {
+        const std::string text =
+            ghogx::asset::rb2_paint_color_name(primary);
+        name->set_property(Symbol("text"), DataNode::Str(text));
+      }
+      if (Object* description =
+              mgr_->resolve_object(Symbol("sg_skin_desc.lbl"))) {
+        description->set_property(
+            Symbol("text"),
+            DataNode::Str("UP/DOWN: CHANGE COLOR\nCONTINUE: SAVE"));
+      }
+    };
     auto ensure_selection = [&](int player) {
       player = std::clamp(player, 0, 1);
       const Symbol guitar_key = player_key("selected_guitar", player);
@@ -2155,6 +2188,9 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
     if (std::strcmp(m, "enter") == 0) {
       ensure_selection(0);
       if (multiplayer) ensure_selection(1);
+      set_property(player_key("paint_select", 0), DataNode::Int(0));
+      if (multiplayer)
+        set_property(player_key("paint_select", 1), DataNode::Int(0));
       set_property(player_key("select_done", 0), DataNode::Int(0));
       if (multiplayer)
         set_property(player_key("select_done", 1), DataNode::Int(0));
@@ -2169,6 +2205,51 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
                             0, 1)
                : 0;
       if (button == Symbol("kPad_X") && mgr_ && mgr_->current_screen()) {
+        const Symbol guitar =
+            get_property(player_key("selected_guitar", player))
+                .as_symbol()
+                .value_or(Symbol());
+        const Symbol skin =
+            get_property(player_key("selected_skin", player))
+                .as_symbol()
+                .value_or(Symbol());
+        const bool selecting_skin =
+            node_bool(get_property(player_key("skin_select", player)));
+        int paint_stage = node_int(
+            get_property(player_key("paint_select", player)), 0);
+        const int default_primary = paint_default(guitar, skin, false);
+        if (paint_stage == 0 && selecting_skin && default_primary >= 0) {
+          Object* config = player_config(player);
+          int primary =
+              config
+                  ? node_int(config->handle_property(
+                                 Symbol("get_guitar_paint_primary"),
+                                 DataArray()),
+                             -1)
+                  : -1;
+          if (primary < 0) primary = default_primary;
+          set_property(player_key("paint_primary", player),
+                       DataNode::Int(primary));
+          set_property(player_key("paint_secondary", player),
+                       DataNode::Int(primary));
+          set_property(player_key("paint_select", player),
+                       DataNode::Int(1));
+          DataArray refresh;
+          refresh.push(DataNode::Int(1));
+          handle_property(Symbol("update_display"), refresh);
+          refresh_paint_labels(player);
+          return true;
+        }
+        if (paint_stage == 1) {
+          if (Object* config = player_config(player)) {
+            DataArray colors;
+            colors.push(get_property(player_key("paint_primary", player)));
+            colors.push(get_property(player_key("paint_primary", player)));
+            config->handle_property(Symbol("set_guitar_paint"), colors);
+          }
+          set_property(player_key("paint_select", player),
+                       DataNode::Int(0));
+        }
         DataArray selected;
         selected.push(DataNode::Int(player));
         mgr_->current_screen()->handle_property(Symbol("guitar_selected"),
@@ -2178,6 +2259,22 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
       if (button == Symbol("kPad_DDown") || button == Symbol("kPad_DUp")) {
         ensure_selection(player);
         const int direction = button == Symbol("kPad_DDown") ? 1 : -1;
+        const int paint_stage = node_int(
+            get_property(player_key("paint_select", player)), 0);
+        if (paint_stage > 0) {
+          const Symbol color_key = player_key("paint_primary", player);
+          const int count = ghogx::asset::rb2_paint_color_count();
+          int color = node_int(get_property(color_key), 0);
+          color = (color + direction + count) % count;
+          set_property(color_key, DataNode::Int(color));
+          set_property(player_key("paint_secondary", player),
+                       DataNode::Int(color));
+          DataArray refresh;
+          refresh.push(DataNode::Int(1));
+          handle_property(Symbol("update_display"), refresh);
+          refresh_paint_labels(player);
+          return true;
+        }
         const Symbol guitar_key = player_key("selected_guitar", player);
         const Symbol skin_key = player_key("selected_skin", player);
         const bool selecting_skin =
@@ -2246,6 +2343,20 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
       const int player = std::clamp(arg0_int(args), 0, 1);
       ensure_selection(player);
       out = get_property(player_key("selected_guitar", player));
+      return true;
+    }
+    if (std::strcmp(m, "get_paint_select") == 0) {
+      const int player = std::clamp(arg0_int(args), 0, 1);
+      out = get_property(player_key("paint_select", player));
+      return true;
+    }
+    if (std::strcmp(m, "set_paint_select") == 0) {
+      const int player = std::clamp(arg0_int(args), 0, 1);
+      const int stage =
+          args.size() > 1 ? std::clamp(node_int(args.at(1)), 0, 1) : 0;
+      set_property(player_key("paint_select", player),
+                   DataNode::Int(stage));
+      if (stage > 0) refresh_paint_labels(player);
       return true;
     }
     if (std::strcmp(m, "get_selected_skin") == 0) {
