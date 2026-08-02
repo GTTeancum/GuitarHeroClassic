@@ -306,6 +306,8 @@ std::vector<Symbol> owned_guitars(ScreenManager* mgr, const ConfigDb* db,
                                   Symbol type) {
   std::vector<Symbol> output;
   if (!db) return output;
+  if (std::getenv("GHOGX_MENU_REVIEW_ALL_INSTRUMENTS"))
+    return db->guitars(type);
   const std::vector<Symbol> store_items = db->store_items(Symbol("guitar"));
   for (Symbol guitar : db->guitars(type)) {
     const DataArray* record = db->guitar(guitar);
