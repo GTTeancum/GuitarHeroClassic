@@ -12215,9 +12215,9 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "boolrotate_to_camera=false;",
                  "WorldCrowd placement references retain the per-crowd rotate flag");
-  ok &= contains(gameplay_h_c,
-                 "floatvisible_bounds_radius=0.0f;",
-                 "WorldCrowd actor runtime stores visible actor bounds for broad camera culling");
+  ok &= absent(gameplay_h_c,
+               "visible_bounds_radius",
+               "WorldCrowd runtime does not add a synthetic per-actor camera-cull radius");
   ok &= contains(gameplay_h_c,
                  "size_tanimation_ordinal=0;",
                  "WorldCrowd actor runtime preserves a stable OnIterateFrac actor ordinal");
@@ -12237,9 +12237,9 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "floatfullness_fraction=1.0f;",
                  "WorldCrowd actor runtime tracks DTA set_fullness density");
-  ok &= contains(gameplay_c,
-                 "worldcrowd_actor_visible_bounds_radius(",
-                 "WorldCrowd runtime derives the body-radius part of broad camera culling from visible decoded meshes");
+  ok &= absent(gameplay_c,
+               "worldcrowd_actor_visible_bounds_radius(",
+               "WorldCrowd runtime submits source instances without a synthetic broad camera cull");
   ok &= contains(gameplay_c,
                  "worldcrowd_clip_group_for_actor(",
                  "WorldCrowd runtime maps native excitement through the DTA per-actor play_group mix");
@@ -12367,10 +12367,9 @@ int main() {
                  "runtime.fullness_fraction=worldcrowd_fullness_for_event("
                  "active_venue_event_,worldcrowd_widescreen_);",
                  "WorldCrowd runtime initializes DTA crowd fullness from the active event");
-  ok &= contains(rebuild_worldcrowd_runtime_c,
-                 "runtime.visible_bounds_radius="
-                 "worldcrowd_actor_visible_bounds_radius(runtime_character);",
-                 "WorldCrowd runtime records visible actor bounds after authored visibility execution");
+  ok &= absent(rebuild_worldcrowd_runtime_c,
+               "visible_bounds_radius",
+               "WorldCrowd runtime rebuild does not manufacture camera-cull bounds");
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "crowd_placement_index,source_character_height,"
                  "area_it->second,crowd.rotate_to_camera});",
@@ -14971,8 +14970,11 @@ int main() {
                  "postproc_overrides=%zupostprocess=%sanims=%zuglow=%s\\n\"",
                  "intro TransAnim camera flag/LOD stamping is runtime-verifiable");
   ok &= contains(gameplay_c,
-                 "venue_crowd_meshes_=mesh_names_for_crowd(venue_scene);",
-                 "venue load builds an authored crowd mesh set");
+                 "venue_worldcrowd_refs_.insert(ref);",
+                 "venue load records exact decoded WorldCrowd object refs");
+  ok &= absent(gameplay_c,
+               "mesh_names_for_crowd(",
+               "venue crowd behavior is not inferred from mesh, group, or material names");
   ok &= contains(gameplay_c,
                  "hidden.insert(venue_camera_hidden_meshes_.begin(),",
                  "camera crowd hides compose with venue visibility state");
@@ -15005,9 +15007,9 @@ int main() {
                  "crowd_select=%dcrowd_entries=%zucrowd_ref=%s"
                  "crowd_pairs=%zucrowd_total_pairs=%zu",
                  "camera crowd diagnostics expose active list and total selected members");
-  ok &= contains(gameplay_c,
-                 "if(key.hide_crowd)next_hidden=venue_crowd_meshes_;",
-                 "hide_crowd selects only decoded crowd meshes");
+  ok &= absent(gameplay_c,
+               "if(key.hide_crowd)next_hidden=",
+               "CamShot hide_crowd never removes authored venue geometry");
   ok &= contains(gameplay_c,
                  "for(constauto&raw_ref:key.hide_list_refs){",
                  "camera visibility applies authored CamShot hide_list refs");
@@ -15155,9 +15157,13 @@ int main() {
                  "next_hidden_proxy_meshes;",
                  "camera visibility builds per-proxy hidden mesh sets");
   ok &= contains(gameplay_c,
-                 "next_hide_crowd=true;"
-                 "next_hidden.insert(venue_crowd_meshes_.begin(),",
-                 "CamShot hide_list crowd refs also hide skinned WorldCrowd actors");
+                 "venue_worldcrowd_refs_.find(ref)!="
+                 "venue_worldcrowd_refs_.end()){"
+                 "if(hide_ref){next_hide_crowd=true;}",
+                 "CamShot hide-list refs match decoded WorldCrowd objects exactly");
+  ok &= absent(gameplay_c,
+               "next_hidden.insert(venue_crowd_meshes_.begin(),",
+               "WorldCrowd hide refs do not hide crowd-named venue geometry");
   ok &= contains(gameplay_c,
                  "constautogroup_it=proxy.group_meshes.find(ref);",
                  "CamShot hide_list group refs also resolve inside RndDir proxy MILOs");
@@ -15194,8 +15200,8 @@ int main() {
                  "source_crowd_gate=%d",
                  "camera crowd visibility diagnostics expose the source [crowd] gate for face-camera rotation");
   ok &= contains(gameplay_c,
-                 "world_->set_face_camera_meshes(venue_camera_crowd_face_camera_",
-                 "camera-facing crowd meshes are sent to the venue renderer");
+                 "world_->set_face_camera_meshes({});",
+                 "WorldCrowd billboard facing never rotates authored venue meshes");
   ok &= contains(renderer_h_c,
                  "voidset_face_camera_meshes(std::unordered_set<std::string>mesh_names);",
                  "renderer exposes a generic face-camera mesh set");
@@ -15380,6 +15386,15 @@ int main() {
                "append_worldcrowd_floor_meshes_for_venue_chars(venue_scene,"
                "venue_chars_scene_for_load);",
                "WorldCrowd placement meshes must not be appended to the visible venue draw list");
+  ok &= absent(gameplay_c,
+               "size_tappend_worldcrowd_floor_meshes_for_venue_chars(",
+               "obsolete placement-mesh floor fabrication is removed, not merely left unused");
+  ok &= absent(gameplay_c,
+               "\"tile_dark.mat\"",
+               "crowd flooring is not repaired with a guessed material name");
+  ok &= absent(gameplay_c,
+               "\"street_asphalt.mat\"",
+               "crowd flooring is not repaired with a venue-specific material band-aid");
   ok &= contains(gameplay_c,
                  "WorldCrowdplacementmeshesretainedasnon-draw"
                  "placementdata",
@@ -15388,6 +15403,24 @@ int main() {
                  "venue_chars_scene_for_load.world_crowds.size(),"
                  "chars_milo.c_str()",
                  "venue diagnostics count non-draw WorldCrowd placement objects from the decoded chars MILO");
+  ok &= contains(gameplay_c,
+                 "venue_scene.find_environ(\"crowd.env\")",
+                 "assembled GH1 venues resolve the exact retail crowd environment");
+  ok &= contains(gameplay_c,
+                 "group.name!=\"__gh1_runtime_multimeshes.grp\"",
+                 "GH1 crowd environment ownership is scoped to the converter's Arena::Crowd Group");
+  ok &= contains(gameplay_c,
+                 "group.environment_ref=crowd_environment->name;",
+                 "GH1 crowd MultiMeshes inherit the source crowd environment after section assembly");
+  ok &= contains(gameplay_c,
+                 "\"source=SLUS_212.24:Arena+0x9C\\n\"",
+                 "GH1 crowd environment runtime logging cites the recovered retail owner slot");
+  ok &= contains(renderer_c,
+                 "elseif(has_suffix(child,\".mm\"))",
+                 "Group environment traversal recognizes authored RndMultiMesh children");
+  ok &= contains(renderer_c,
+                 "assign_mesh_environment(multi_mesh_it->second->mesh);",
+                 "RndMultiMesh Group environments reach the referenced template mesh draw");
   ok &= contains(gameplay_c,
                  "\"[world]venuefloormesh:mesh=%smaterial=%stexture=%s\"",
                  "venue diagnostics report real floor geometry and material state");
@@ -15431,29 +15464,24 @@ int main() {
   ok &= contains(gameplay_c,
                  "culled_fullness=%zu",
                  "WorldCrowd draw diagnostics report DTA fullness culling");
-  ok &= contains(gameplay_c,
-                 "culled_camera=%zu",
-                 "WorldCrowd draw diagnostics report broad camera-cone culling");
+  ok &= absent(gameplay_c,
+               "culled_camera=",
+               "WorldCrowd draw diagnostics do not report a non-source camera-cone cull");
   ok &= contains(gameplay_c,
                  "hidden_flat=%zumissing_impostor=%zu",
                  "WorldCrowd draw diagnostics expose 3D-only suppression and failed impostor coverage");
-  ok &= contains(gameplay_c,
-                 "GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL",
-                 "WorldCrowd camera-cone cull keeps an explicit A/B disable");
+  ok &= absent(gameplay_c,
+               "GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL",
+               "WorldCrowd rendering has no synthetic camera-cone A/B path");
   ok &= absent(gameplay_c,
                "GHOGX_DISABLE_WORLDCROWD_FOREGROUND_CULL",
                "WorldCrowd uses the decoded 3D/impostor split instead of a synthetic foreground cull");
-  ok &= contains(gameplay_c,
-                 "!(cam.result_frame.valid&&"
-                 "cam.result_frame.has_custom_projection)",
-                 "WorldCrowd camera-cone cull avoids custom projection shots");
-  ok &= contains(gameplay_c,
-                 "std::max(runtime.visible_bounds_radius,"
-                 "placement_source_height(placement_index))+3.0f",
-                 "WorldCrowd camera-cone cull covers both decoded 3D bounds and billboard height");
-  ok &= contains(gameplay_c,
-                 "camera_cross_axis(camera_up,camera_forward)",
-                 "WorldCrowd camera-cone cull derives a camera-space basis");
+  ok &= absent(draw_worldcrowd_runtime_c,
+               "outside_x",
+               "WorldCrowd draw submits authored instances instead of applying a synthetic view cone");
+  ok &= absent(draw_worldcrowd_runtime_c,
+               "beyond_far",
+               "WorldCrowd draw leaves clipping to the renderer like RndMultiMesh");
   ok &= contains(gameplay_c,
                  "env_value(\"GHOGX_ENABLE_WORLDCROWD_ACTORS\")!=nullptr",
                  "WorldCrowd actor rendering keeps an explicit validation enable");

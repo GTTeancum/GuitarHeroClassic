@@ -1131,6 +1131,44 @@ Result convert_gh1_directory_to_gh2_rnddir(
         }
     }
 
+    // Retail GH1's Arena::Crowd owns every MultiMesh in the shipped corpus
+    // (41/41 objects, all in venue crowd/lighting sections) outside ordinary
+    // View membership. Preserve that recovered runtime ownership explicitly
+    // in the target RndDir instead of quarantining the instance lists as
+    // unreachable drawables. The referenced template meshes are indirect
+    // draw dependencies and are reachable through RndMultiMesh::DrawShowing.
+    std::set<std::string> runtime_owned_multi_mesh_drawables;
+    {
+        gh::milo_object::Group12 runtime_multi_meshes;
+        runtime_multi_meshes.drawable.showing = true;
+        set_identity(runtime_multi_meshes.transformable.local);
+        set_identity(runtime_multi_meshes.transformable.world);
+        for (const auto& target : result.directory.entries) {
+            if (target.type != "MultiMesh") continue;
+            runtime_multi_meshes.objects.push_back(target.name);
+            runtime_owned_multi_mesh_drawables.insert(target.name);
+            const auto multi_mesh =
+                gh::milo_object::parse_multi_mesh1(target.body_bytes);
+            runtime_owned_multi_mesh_drawables.insert(multi_mesh.mesh);
+        }
+        if (!runtime_multi_meshes.objects.empty()) {
+            constexpr const char* kRuntimeMultiMeshes =
+                "__gh1_runtime_multimeshes.grp";
+            if (!target_names.insert(kRuntimeMultiMeshes).second)
+                throw std::runtime_error(
+                    "reserved runtime MultiMesh Group name collides");
+            result.directory.entries.push_back(make_entry(
+                "Group", kRuntimeMultiMeshes,
+                gh::milo_object::serialize_group12(runtime_multi_meshes)));
+            runtime_owned_multi_mesh_drawables.insert(kRuntimeMultiMeshes);
+            add_row(
+                result, "Arena::Crowd", "<runtime-owned MultiMeshes>",
+                "Group", kRuntimeMultiMeshes, "synthesized",
+                "41/41 retail GH1 MultiMeshes are venue crowd archetypes; "
+                "native Group preserves Arena::Crowd draw ownership");
+        }
+    }
+
     if (!authored_draw_root.empty()) {
         const auto target_entry =
             [&](const std::string& name) -> const gh::milo::Entry* {
@@ -1182,6 +1220,9 @@ Result convert_gh1_directory_to_gh2_rnddir(
             };
             try {
                 visit_group(visit_group, authored_draw_root);
+                reachable.insert(
+                    runtime_owned_multi_mesh_drawables.begin(),
+                    runtime_owned_multi_mesh_drawables.end());
                 gh::milo_object::Group12 hidden;
                 hidden.drawable.showing = false;
                 set_identity(hidden.transformable.local);

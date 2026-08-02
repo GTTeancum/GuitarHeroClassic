@@ -1723,7 +1723,13 @@ class Gameplay {
   double last_venue_filter_debug_time_ = -1.0;
   std::unordered_set<std::string> venue_base_hidden_meshes_;
   std::unordered_set<std::string> venue_runtime_hidden_meshes_;
-  std::unordered_set<std::string> venue_crowd_meshes_;
+  // Exact decoded WorldCrowd object refs. CamShot hide_crowd and hide-list
+  // WorldCrowd refs act on the crowd runtime, never on venue geometry.
+  std::unordered_set<std::string> venue_worldcrowd_refs_;
+  // Exact decoded RndMultiMesh drawable refs. GH1 crowd packages serialize
+  // their audience as these authored instance lists; hide_crowd controls the
+  // list objects, not arbitrary meshes whose names happen to contain crowd.
+  std::unordered_set<std::string> venue_crowd_drawable_refs_;
   std::unordered_set<std::string> venue_mesh_names_;
   std::map<std::string, std::vector<std::string>> venue_group_meshes_;
   std::map<std::string, std::vector<std::string>> venue_anim_group_children_;
@@ -1766,7 +1772,6 @@ class Gameplay {
     std::vector<PlacementRef> placement_refs;
     size_t animation_ordinal = 0;
     float source_character_height = 0.0f;
-    float visible_bounds_radius = 0.0f;
     float fullness_fraction = 1.0f;
   };
   std::map<std::string, WorldCrowdActorRuntime> worldcrowd_actor_runtime_;

@@ -4,6 +4,7 @@
 
 #include "ark_v3.h"
 #include "milo.h"
+#include "milo_object.h"
 
 #include <algorithm>
 #include <cctype>
@@ -716,9 +717,16 @@ bool scene_has_mesh(const Scene& scene, const std::string& name) {
   return false;
 }
 
+bool scene_has_multi_mesh(const Scene& scene, const std::string& name) {
+  for (const MultiMeshObj& multi_mesh : scene.multi_meshes) {
+    if (multi_mesh.name == name) return true;
+  }
+  return false;
+}
+
 void append_group_draw_order(const Scene& scene, const GroupObj& group,
                              std::unordered_set<std::string>& visiting_groups,
-                             std::unordered_set<std::string>& emitted_meshes,
+                             std::unordered_set<std::string>& emitted_drawables,
                              std::vector<std::string>& order) {
   if (!group.showing) return;
   if (!visiting_groups.insert(group.name).second) return;
@@ -727,16 +735,19 @@ void append_group_draw_order(const Scene& scene, const GroupObj& group,
         scene.meshes.begin(), scene.meshes.end(),
         [&](const MeshObj& mesh) { return mesh.name == name; });
     if (mesh_it == scene.meshes.end()) return;
-    if (emitted_meshes.insert(name).second) order.push_back(name);
+    if (emitted_drawables.insert(name).second) order.push_back(name);
     for (const auto& drawable_child : mesh_it->drawable_children)
       self(self, drawable_child);
   };
   const auto visit_child = [&](const std::string& child) {
     if (name_has_suffix(child, ".mesh") && scene_has_mesh(scene, child)) {
       append_mesh(append_mesh, child);
+    } else if (name_has_suffix(child, ".mm") &&
+               scene_has_multi_mesh(scene, child)) {
+      if (emitted_drawables.insert(child).second) order.push_back(child);
     } else if (const GroupObj* child_group = find_group_obj(scene, child)) {
       append_group_draw_order(scene, *child_group, visiting_groups,
-                              emitted_meshes, order);
+                              emitted_drawables, order);
     }
   };
   if (!group.draw_only.empty()) {
@@ -750,20 +761,35 @@ void append_group_draw_order(const Scene& scene, const GroupObj& group,
 void rebuild_group_authored_draw_order(Scene& scene) {
   scene.draw_order.clear();
   scene.grouped_meshes.clear();
-  if (scene.groups.empty()) return;
+  scene.grouped_multi_meshes.clear();
 
   std::unordered_set<std::string> referenced_groups;
   std::unordered_set<std::string> grouped_mesh_set;
+  std::unordered_set<std::string> grouped_multi_mesh_set;
+  // RndMultiMesh::DrawShowing owns the referenced template mesh draw.  Never
+  // append that mesh once at its stored transform as an ObjectDir root.
+  for (const MultiMeshObj& multi_mesh : scene.multi_meshes) {
+    if (scene_has_mesh(scene, multi_mesh.mesh)) {
+      grouped_mesh_set.insert(multi_mesh.mesh);
+    }
+  }
   for (const GroupObj& group : scene.groups) {
     for (const std::string& child : group.children) {
       if (find_group_obj(scene, child)) referenced_groups.insert(child);
       if (name_has_suffix(child, ".mesh") && scene_has_mesh(scene, child)) {
         grouped_mesh_set.insert(child);
+      } else if (name_has_suffix(child, ".mm") &&
+                 scene_has_multi_mesh(scene, child)) {
+        grouped_multi_mesh_set.insert(child);
       }
     }
     if (!group.draw_only.empty() && name_has_suffix(group.draw_only, ".mesh") &&
         scene_has_mesh(scene, group.draw_only)) {
       grouped_mesh_set.insert(group.draw_only);
+    }
+    if (!group.draw_only.empty() && name_has_suffix(group.draw_only, ".mm") &&
+        scene_has_multi_mesh(scene, group.draw_only)) {
+      grouped_multi_mesh_set.insert(group.draw_only);
     }
     if (!group.draw_only.empty() &&
         find_group_obj(scene, group.draw_only)) {
@@ -772,26 +798,39 @@ void rebuild_group_authored_draw_order(Scene& scene) {
   }
   scene.grouped_meshes.assign(grouped_mesh_set.begin(), grouped_mesh_set.end());
   std::sort(scene.grouped_meshes.begin(), scene.grouped_meshes.end());
+  scene.grouped_multi_meshes.assign(grouped_multi_mesh_set.begin(),
+                                    grouped_multi_mesh_set.end());
+  std::sort(scene.grouped_multi_meshes.begin(),
+            scene.grouped_multi_meshes.end());
 
   struct DrawRoot {
     float order = 0.0f;
     size_t dir_index = 0;
     const GroupObj* group = nullptr;
     const MeshObj* mesh = nullptr;
+    const MultiMeshObj* multi_mesh = nullptr;
   };
-  std::unordered_set<std::string> emitted_meshes;
+  std::unordered_set<std::string> emitted_drawables;
   std::vector<DrawRoot> roots;
-  roots.reserve(scene.groups.size() + scene.meshes.size());
+  roots.reserve(scene.groups.size() + scene.meshes.size() +
+                scene.multi_meshes.size());
   for (const GroupObj& group : scene.groups) {
     if (referenced_groups.find(group.name) == referenced_groups.end()) {
       roots.push_back(DrawRoot{group.draw_order, group.dir_index, &group,
-                               nullptr});
+                               nullptr, nullptr});
     }
   }
   for (const MeshObj& mesh : scene.meshes) {
     if (grouped_mesh_set.find(mesh.name) == grouped_mesh_set.end()) {
       roots.push_back(
-          DrawRoot{mesh.draw_order, mesh.dir_index, nullptr, &mesh});
+          DrawRoot{mesh.draw_order, mesh.dir_index, nullptr, &mesh, nullptr});
+    }
+  }
+  for (const MultiMeshObj& multi_mesh : scene.multi_meshes) {
+    if (grouped_multi_mesh_set.find(multi_mesh.name) ==
+        grouped_multi_mesh_set.end()) {
+      roots.push_back(DrawRoot{multi_mesh.draw_order, multi_mesh.dir_index,
+                               nullptr, nullptr, &multi_mesh});
     }
   }
   std::stable_sort(roots.begin(), roots.end(),
@@ -802,11 +841,14 @@ void rebuild_group_authored_draw_order(Scene& scene) {
   for (const DrawRoot& root : roots) {
     if (root.group) {
       std::unordered_set<std::string> visiting;
-      append_group_draw_order(scene, *root.group, visiting, emitted_meshes,
+      append_group_draw_order(scene, *root.group, visiting, emitted_drawables,
                               scene.draw_order);
     } else if (root.mesh && root.mesh->showing &&
-               emitted_meshes.insert(root.mesh->name).second) {
+               emitted_drawables.insert(root.mesh->name).second) {
       scene.draw_order.push_back(root.mesh->name);
+    } else if (root.multi_mesh && root.multi_mesh->showing &&
+               emitted_drawables.insert(root.multi_mesh->name).second) {
+      scene.draw_order.push_back(root.multi_mesh->name);
     }
   }
 }
@@ -4363,6 +4405,33 @@ MeshObj decode_mesh(const std::string& entry_name,
   return mesh;
 }
 
+MultiMeshObj decode_multi_mesh(const std::string& entry_name,
+                               const std::vector<uint8_t>& body) {
+  MultiMeshObj out;
+  out.name = entry_name;
+  try {
+    const gh::milo_object::MultiMesh1 source =
+        gh::milo_object::parse_multi_mesh1(body);
+    out.mesh = source.mesh;
+    out.showing = source.drawable.showing;
+    out.draw_order = source.drawable.draw_order;
+    out.instances.reserve(source.transforms.size());
+    for (const auto& transform : source.transforms) {
+      Xfm xfm;
+      size_t at = 0;
+      for (auto& row : xfm.rot) {
+        for (float& value : row) value = transform[at++];
+      }
+      for (float& value : xfm.pos) value = transform[at++];
+      out.instances.push_back(xfm);
+    }
+    out.decoded = true;
+  } catch (const std::exception& ex) {
+    out.error = ex.what();
+  }
+  return out;
+}
+
 ParticleSysObj decode_particle_sys(const std::string& entry_name,
                                    const std::vector<uint8_t>& body) {
   ParticleSysObj part;
@@ -5001,6 +5070,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
     }
 
     int mesh_ok = 0, mesh_fail = 0;
+    int multi_mesh_ok = 0, multi_mesh_fail = 0;
     std::string first_mesh_error;
     int particle_ok = 0, particle_fail = 0;
     size_t source_order_particles = 0;
@@ -5021,6 +5091,17 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
             }
           }
           out.meshes.push_back(std::move(m));
+        } else if (de.type == "MultiMesh") {
+          MultiMeshObj multi_mesh = decode_multi_mesh(de.name, b);
+          multi_mesh.dir_index = &de - dir.entries.data();
+          if (multi_mesh.decoded) {
+            ++multi_mesh_ok;
+          } else {
+            ++multi_mesh_fail;
+            std::fprintf(stderr, "[milo_scene]   MultiMesh '%s' decode: %s\n",
+                         de.name.c_str(), multi_mesh.error.c_str());
+          }
+          out.multi_meshes.push_back(std::move(multi_mesh));
         } else if (de.type == "Trans") {
           out.transes.push_back(decode_trans(de.name, b, dir.dir_version));
         } else if (de.type == "Mat") {
@@ -5348,6 +5429,12 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         for (const auto& mesh : out.meshes)
           out.grouped_meshes.push_back(mesh.name);
         std::sort(out.grouped_meshes.begin(), out.grouped_meshes.end());
+        out.grouped_multi_meshes.clear();
+        out.grouped_multi_meshes.reserve(out.multi_meshes.size());
+        for (const auto& multi_mesh : out.multi_meshes)
+          out.grouped_multi_meshes.push_back(multi_mesh.name);
+        std::sort(out.grouped_multi_meshes.begin(),
+                  out.grouped_multi_meshes.end());
       }
     }
     size_t source_order_groups = 0;
@@ -5355,8 +5442,9 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
       if (group.source_order_decoded) ++source_order_groups;
     }
     std::fprintf(stderr,
-                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu particles (%d ok / %d fail, %zu source-order), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group (%zu source-order), %zu world_crowd (%d ok / %d fail)\n",
+                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu multi_mesh (%d ok / %d fail), %zu particles (%d ok / %d fail, %zu source-order), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group (%zu source-order), %zu world_crowd (%d ok / %d fail)\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
+                 out.multi_meshes.size(), multi_mesh_ok, multi_mesh_fail,
                  out.particles.size(), particle_ok, particle_fail,
                  source_order_particles, out.transes.size(), out.mats.size(),
                  out.cams.size(), out.waypoints.size(), out.groups.size(),

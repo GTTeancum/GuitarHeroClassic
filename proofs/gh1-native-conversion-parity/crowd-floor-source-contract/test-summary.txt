@@ -1,0 +1,30 @@
+Focused validation
+==================
+milo_convert_test: PASS
+ghogx_milo_scene_test: PASS
+ghogx_gameplay_venue_band_contract_test:
+  crowd source-contract failures: 0
+  unrelated pre-existing/stale baseline failures: 64
+
+Full GH1 conversion audit
+=========================
+assets: 105
+complete: 105
+incomplete: 0
+ACP records: 926/926
+converted objects: 13115
+source-derived synthesized objects: 815
+blocked objects: 0
+emitted semantic objects: 13930
+venue assets: 33
+venue references: 14667
+
+Runtime matrix
+==============
+venues: 15/15 reach playing and exit 0
+GH1 MultiMesh instances: 2265/2265 submitted
+GH1 missing templates: 0
+GH1 crowd.env bindings: 7/7
+GH2 WorldCrowd placements: 4080
+decode errors: 0
+manufactured crowd-floor rows: 0

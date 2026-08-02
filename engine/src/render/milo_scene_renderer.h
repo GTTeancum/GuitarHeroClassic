@@ -352,7 +352,15 @@ class MiloSceneRenderer {
   Window* win_ = nullptr;
   IDirect3DDevice9* dev_ = nullptr;
   milo_scene::Scene scene_;
-  std::vector<const milo_scene::MeshObj*> ordered_draw_meshes_;
+  struct OrderedMeshDraw {
+    const milo_scene::MeshObj* mesh = nullptr;
+    const milo_scene::MultiMeshObj* multi_mesh = nullptr;
+    const milo_scene::Xfm* instance_world = nullptr;
+  };
+  // RndMultiMesh entries expand in-place in the authored drawable order.
+  // Each instance uses its serialized world transform exactly as
+  // RndMultiMesh::DrawShowing does in the source runtime.
+  std::vector<OrderedMeshDraw> ordered_mesh_draws_;
   std::unordered_map<const milo_scene::MeshObj*, std::array<float, 16>>
       base_mesh_worlds_;
   std::unordered_set<std::string> spotlight_template_meshes_;

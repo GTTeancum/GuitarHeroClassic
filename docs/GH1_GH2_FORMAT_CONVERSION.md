@@ -610,6 +610,27 @@ formula `2 * atan(0.75 * tan(source_fov / 2))`.
 All rows are exact. Removed legacy Drawable object-list and target fields are
 empty in every affected source instance. The result therefore requires no
 asset-name exception and leaves no unaccounted value in these six classes.
+
+For `MultiMesh0`, field-exact conversion is now joined to source-exact runtime
+ownership. All 41 source objects are crowd archetypes found in eight venue
+packages. The converter emits an ordered
+`__gh1_runtime_multimeshes.grp` corresponding to retail `Arena::Crowd`, while
+the renderer expands every serialized transform through the referenced
+template Mesh without drawing that template separately. Cross-directory
+`crowd.env` cannot be represented by a standalone package ObjectPtr, so it is
+resolved and assigned to the owner Group only after all venue sections merge.
+This matches the retail `Arena + 0x9C` environment field and leaves no dangling
+serialized reference.
+
+The accompanying texture audit proves that conversion must not normalize
+crowd alpha. Seven packages share a binary-alpha bitmap with 25,220 transparent
+and 7,548 opaque pixels. Theatre's source bitmap carries the same RGB but is
+fully opaque. Both source forms remain bitmap-identical after conversion.
+Runtime coverage submits all 2,265 GH1 instances with zero missing templates;
+the native GH2 path separately retains 49 `WorldCrowd6` actors and 4,080
+placements. Details and proof are in
+`docs/CROWD_AND_FLOOR_SOURCE_PARITY.md`.
+
 Report SHA-256:
 `443CD2E341975FD3AC919E8F22068D9D794043DE4C6029464C29FA97BF9D8B9F`.
 

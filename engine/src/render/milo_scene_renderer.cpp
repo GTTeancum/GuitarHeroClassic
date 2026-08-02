@@ -3408,21 +3408,47 @@ void MiloSceneRenderer::set_scene(
       authored_parents_.emplace(child, group.name);
     }
   }
-  ordered_draw_meshes_.clear();
-  ordered_draw_meshes_.reserve(scene_.meshes.size());
-  std::unordered_set<const milo_scene::MeshObj*> queued;
-  queued.reserve(scene_.meshes.size());
+  ordered_mesh_draws_.clear();
+  size_t multi_mesh_instances = 0;
+  for (const auto& multi_mesh : scene_.multi_meshes)
+    multi_mesh_instances += multi_mesh.instances.size();
+  ordered_mesh_draws_.reserve(scene_.meshes.size() + multi_mesh_instances);
+  std::unordered_set<std::string> queued_drawables;
+  queued_drawables.reserve(scene_.meshes.size() + scene_.multi_meshes.size());
   std::unordered_set<std::string> grouped_meshes(scene_.grouped_meshes.begin(),
                                                  scene_.grouped_meshes.end());
+  std::unordered_set<std::string> grouped_multi_meshes(
+      scene_.grouped_multi_meshes.begin(),
+      scene_.grouped_multi_meshes.end());
+  std::unordered_map<std::string, const milo_scene::MultiMeshObj*>
+      multi_meshes_by_name;
+  for (const auto& multi_mesh : scene_.multi_meshes)
+    multi_meshes_by_name.emplace(multi_mesh.name, &multi_mesh);
+  size_t missing_multi_mesh_templates = 0;
   std::unordered_set<std::string> visited_draw_groups;
   std::function<void(const std::string&)> queue_authored_draw =
       [&](const std::string& name) {
     for (const auto& mesh : scene_.meshes) {
-      if (queued.find(&mesh) == queued.end() && mesh.name == name) {
-        ordered_draw_meshes_.push_back(&mesh);
-        queued.insert(&mesh);
+      if (mesh.name == name && queued_drawables.insert(name).second) {
+        ordered_mesh_draws_.push_back(OrderedMeshDraw{&mesh, nullptr, nullptr});
         return;
       }
+    }
+    const auto multi_mesh_it = multi_meshes_by_name.find(name);
+    if (multi_mesh_it != multi_meshes_by_name.end() &&
+        multi_mesh_it->second &&
+        queued_drawables.insert(name).second) {
+      const auto* multi_mesh = multi_mesh_it->second;
+      const auto mesh_it = meshes_by_name_.find(multi_mesh->mesh);
+      if (mesh_it == meshes_by_name_.end() || !mesh_it->second) {
+        ++missing_multi_mesh_templates;
+        return;
+      }
+      for (const auto& instance : multi_mesh->instances) {
+        ordered_mesh_draws_.push_back(
+            OrderedMeshDraw{mesh_it->second, multi_mesh, &instance});
+      }
+      return;
     }
     const auto group_it = groups_by_name_.find(name);
     if (group_it == groups_by_name_.end() || !group_it->second ||
@@ -3452,11 +3478,30 @@ void MiloSceneRenderer::set_scene(
     // Ungrouped objects include placement, crowd-limit, and editor helpers;
     // ObjectDir does not implicitly append them after drawing that root.
     if (legacy_authored_root_only) continue;
-    if (!scene_.draw_order.empty() &&
-        grouped_meshes.find(mesh.name) != grouped_meshes.end()) {
+    if (grouped_meshes.find(mesh.name) != grouped_meshes.end()) {
       continue;
     }
-    if (queued.insert(&mesh).second) ordered_draw_meshes_.push_back(&mesh);
+    queue_authored_draw(mesh.name);
+  }
+  for (const auto& multi_mesh : scene_.multi_meshes) {
+    if (legacy_authored_root_only) continue;
+    if (grouped_multi_meshes.find(multi_mesh.name) !=
+        grouped_multi_meshes.end()) {
+      continue;
+    }
+    queue_authored_draw(multi_mesh.name);
+  }
+  if (!scene_.multi_meshes.empty()) {
+    std::fprintf(
+        stderr,
+        "[milo_scene] RndMultiMesh draw plan: objects=%zu instances=%zu "
+        "submitted=%zu missing_templates=%zu source=RndMultiMesh::DrawShowing\n",
+        scene_.multi_meshes.size(), multi_mesh_instances,
+        std::count_if(ordered_mesh_draws_.begin(), ordered_mesh_draws_.end(),
+                      [](const OrderedMeshDraw& draw) {
+                        return draw.multi_mesh != nullptr;
+                      }),
+        missing_multi_mesh_templates);
   }
   spotlight_template_meshes_.clear();
   auto add_spotlight_group_meshes = [&](const std::string& group_name) {
@@ -3516,14 +3561,27 @@ void MiloSceneRenderer::set_scene(
     }
     const auto& group = *group_it->second;
     if (!group.environment_ref.empty()) current_env = group.environment_ref;
+    const auto assign_mesh_environment =
+        [&](const std::string& mesh_name) {
+      if (current_env.empty()) return;
+      const auto [it, inserted] =
+          mesh_environments_.emplace(mesh_name, current_env);
+      if (!inserted && it->second != current_env) {
+        ++mesh_environment_conflicts;
+      }
+    };
     const auto assign_child = [&](const std::string& child) {
       if (has_suffix(child, ".mesh")) {
-        if (!current_env.empty()) {
-          const auto [it, inserted] =
-              mesh_environments_.emplace(child, current_env);
-          if (!inserted && it->second != current_env) {
-            ++mesh_environment_conflicts;
-          }
+        assign_mesh_environment(child);
+      } else if (has_suffix(child, ".mm")) {
+        const auto multi_mesh_it = multi_meshes_by_name.find(child);
+        if (multi_mesh_it != multi_meshes_by_name.end() &&
+            multi_mesh_it->second) {
+          // RndMultiMesh::DrawShowing submits its referenced RndMesh while the
+          // owning Group's environment is current. The target renderer keys
+          // environment state by the submitted template mesh, so preserve
+          // that exact indirection here.
+          assign_mesh_environment(multi_mesh_it->second->mesh);
         }
       } else if (groups_by_name_.find(child) != groups_by_name_.end()) {
         self(self, child, current_env, visiting);
@@ -5421,7 +5479,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   // explicitly deferred foreground meshes during that text-only pass so those
   // meshes can remain coupled to their overlay labels.
   if (draw_scene || (draw_text && !post_text_meshes_.empty())) {
-    const auto& draw_meshes = ordered_draw_meshes_;
+    const auto& draw_meshes = ordered_mesh_draws_;
     if (env_enabled("GHOGX_LOG_SCENE_DRAW_ORDER")) {
       static std::unordered_set<const MiloSceneRenderer*> logged_draw_order;
       if (logged_draw_order.insert(this).second) {
@@ -5440,15 +5498,21 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
                        group.parent.c_str());
         }
         for (size_t i = 0; i < draw_meshes.size(); ++i) {
-          const auto* mesh = draw_meshes[i];
+          const auto& draw = draw_meshes[i];
+          const auto* mesh = draw.mesh;
           const auto* mat = mesh ? scene_.find_mat(mesh->material) : nullptr;
           std::fprintf(stderr,
                        "[milo_scene] draw_order[%zu]=%s material=%s zmode=%u "
-                       "parent=%s\n",
-                       i, mesh ? mesh->name.c_str() : "<null>",
+                       "parent=%s instance_of=%s\n",
+                       i,
+                       draw.multi_mesh ? draw.multi_mesh->name.c_str()
+                                       : (mesh ? mesh->name.c_str() : "<null>"),
                        mesh ? mesh->material.c_str() : "<none>",
                        mat ? static_cast<unsigned>(mat->z_mode) : 255u,
-                       mesh ? mesh->parent.c_str() : "<none>");
+                       mesh ? mesh->parent.c_str() : "<none>",
+                       draw.multi_mesh
+                           ? draw.multi_mesh->mesh.c_str()
+                           : "<none>");
         }
       }
     }
@@ -5537,9 +5601,15 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     std::vector<ProjectedCameraMeshHit> projected_camera_mesh_hits;
     const auto& spotlight_template_meshes = spotlight_template_meshes_;
 
-  for (const auto* mp : draw_meshes) {
-    const auto& m = *mp;
+  for (const auto& ordered_draw : draw_meshes) {
+    if (!ordered_draw.mesh) continue;
+    const auto& m = *ordered_draw.mesh;
+    const bool multi_mesh_instance =
+        ordered_draw.multi_mesh && ordered_draw.instance_world;
+    const std::string& drawable_name =
+        multi_mesh_instance ? ordered_draw.multi_mesh->name : m.name;
     const bool hidden_by_runtime =
+        hidden_meshes_.find(drawable_name) != hidden_meshes_.end() ||
         hidden_meshes_.find(m.name) != hidden_meshes_.end();
     const bool hidden_by_debug_skip =
         mesh_matches_env_spec("GHOGX_SKIP_VENUE_MESH", m.name);
@@ -5549,10 +5619,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     const bool material_zero_alpha =
         pick_mat && pick_mat->color[3] <= 0.001f;
     const bool source_showing =
-        m.showing || legacy_environment_drawables_.find(m.name) !=
-                         legacy_environment_drawables_.end();
+        (multi_mesh_instance ? ordered_draw.multi_mesh->showing : m.showing) ||
+        legacy_environment_drawables_.find(m.name) !=
+            legacy_environment_drawables_.end();
     const bool would_reach_draw =
-        m.decoded && source_showing && !hidden_by_runtime && !hidden_by_debug_skip &&
+        m.decoded &&
+        (!multi_mesh_instance || ordered_draw.multi_mesh->decoded) &&
+        source_showing && !hidden_by_runtime && !hidden_by_debug_skip &&
         !spotlight_template_mesh && !material_zero_alpha;
     const bool debug_source_highlighted =
         debug_venue && !debug_venue->highlight_mesh.empty() &&
@@ -5741,29 +5814,36 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           local, sample_transform_anim(active.anim, anim_frame));
     };
     std::vector<std::string> animated_ancestors;
-    for (std::string parent = m.parent; !parent.empty();) {
-      animated_ancestors.push_back(parent);
-      const std::string next = parent_for(parent);
-      if (next.empty() || next == parent) break;
-      parent = next;
-      if (animated_ancestors.size() >= 64) break;
+    if (!multi_mesh_instance) {
+      for (std::string parent = m.parent; !parent.empty();) {
+        animated_ancestors.push_back(parent);
+        const std::string next = parent_for(parent);
+        if (next.empty() || next == parent) break;
+        parent = next;
+        if (animated_ancestors.size() >= 64) break;
+      }
     }
     std::reverse(animated_ancestors.begin(), animated_ancestors.end());
     const bool chain_has_transform_sample =
-        target_has_transform_sample(m.name) ||
-        std::any_of(animated_ancestors.begin(), animated_ancestors.end(),
-                    target_has_transform_sample);
+        !multi_mesh_instance &&
+        (target_has_transform_sample(m.name) ||
+         std::any_of(animated_ancestors.begin(), animated_ancestors.end(),
+                     target_has_transform_sample));
     const bool chain_has_world_override =
-        m.world_xfm_override ||
-        std::any_of(animated_ancestors.begin(), animated_ancestors.end(),
-                    [&](const std::string& target) {
-                      std::array<float, 16> ignored{};
-                      return world_override_for(target, ignored);
-                    });
+        !multi_mesh_instance &&
+        (m.world_xfm_override ||
+         std::any_of(animated_ancestors.begin(), animated_ancestors.end(),
+                     [&](const std::string& target) {
+                       std::array<float, 16> ignored{};
+                       return world_override_for(target, ignored);
+                     }));
     const auto cached_base_world = base_mesh_worlds_.find(&m);
-    auto world = cached_base_world != base_mesh_worlds_.end()
-                     ? cached_base_world->second
-                     : scene_.world_matrix(m);
+    auto world =
+        multi_mesh_instance
+            ? xfm_to_mat4(*ordered_draw.instance_world)
+            : (cached_base_world != base_mesh_worlds_.end()
+                   ? cached_base_world->second
+                   : scene_.world_matrix(m));
     bool recomposed_animated_chain = false;
     if (chain_has_transform_sample || chain_has_world_override) {
       std::vector<std::string> chain;
@@ -5839,18 +5919,20 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         recomposed_animated_chain = true;
       }
     }
-    if (!recomposed_animated_chain) {
+    if (!multi_mesh_instance && !recomposed_animated_chain) {
       for (const std::string& target : animated_ancestors) {
         apply_transform_samples(world, target);
       }
       apply_transform_samples(world, m.name);
     }
-    const auto pulse_it = mesh_pulses_.find(m.name);
-    if (pulse_it != mesh_pulses_.end()) {
-      world[14] += pulse_it->second;
-    }
-    if (face_camera_meshes_.find(m.name) != face_camera_meshes_.end()) {
-      apply_face_camera_yaw(world, m, eye);
+    if (!multi_mesh_instance) {
+      const auto pulse_it = mesh_pulses_.find(m.name);
+      if (pulse_it != mesh_pulses_.end()) {
+        world[14] += pulse_it->second;
+      }
+      if (face_camera_meshes_.find(m.name) != face_camera_meshes_.end()) {
+        apply_face_camera_yaw(world, m, eye);
+      }
     }
     auto draw_world = mul16(world, world_transform_);
     const auto source_winding_it = source_mesh_winding_reversed_.find(&m);

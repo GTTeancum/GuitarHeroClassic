@@ -429,6 +429,11 @@
   This is a source-format correction and does not alter native GH2 Group
   semantics. Evidence:
   `proofs/gh1-native-conversion-parity/view-environment-scope-contract/`.
+  The crowd and crowd-floor subcase is also closed for the full 15-venue
+  matrix. Converted GH1 uses exact `MultiMesh0` transforms, decoded card
+  alpha, and retail `Arena::Crowd`/`crowd.env` ownership; native GH2 retains
+  `WorldCrowd6`, and its placement Mesh is not rendered as a floor. Evidence:
+  `proofs/gh1-native-conversion-parity/crowd-floor-source-contract/`.
 
 ## Open GH1 Venue TODO
 
@@ -848,3 +853,4 @@
 53. 2026-07-12: RedOctane audience floor is verified present/renderable in freecam. Pink surfaces in the venue inspector are active crosshair highlights, not missing-material or bad-floor evidence.
 54. 2026-07-12: RedOctane fan animation is verified moving through the authored shuttle cycle. Use `GHOGX_DEBUG_VENUE_FILTER_STRIDE` and `GHOGX_LOG_MESH_ANIM_STRIDE` with low values when checking fast venue animations so half-second/30-render diagnostics do not alias the motion as stationary.
 55. 2026-06-23: Investigate apparent UV mapping issues visible in native venue screenshots. The user-provided example at `C:\Users\smmel\AppData\Local\Temp\codex-clipboard-58e40d45-095e-4972-bd59-5e7577f4ca9a.png` shows stretched/repeated striped textures across venue surfaces and props. Treat this as a later shared texture coordinate/material decode audit, not a venue-specific visual hack. Do not pull it into the current character hand/venue lighting priority unless a traced venue-format fix points directly at it.
+56. 2026-08-02: Crowd and crowd-floor source parity is complete across all seven converted GH1 venues and eight native GH2 venues. GH1 `MultiMesh0` decode/render preserves 41 source objects, exact template ownership, 2,265 serialized instance transforms, source alpha, and retail `Arena::Crowd` `crowd.env` ownership. GH2 retains its separate `WorldCrowd6` path with 49 actors and 4,080 placements. Retail `WorldCrowd::CleanUpCrowdFloor` proves the placement Mesh is construction data rather than visible flooring, so the prior manufactured floor/material substitution was removed. Fifteen input-free runs reach gameplay and exit zero with no decode errors, missing templates, or manufactured floor rows. Evidence: `proofs/gh1-native-conversion-parity/crowd-floor-source-contract/`.

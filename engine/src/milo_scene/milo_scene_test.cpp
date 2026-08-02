@@ -2324,6 +2324,37 @@ void test_multimesh() {
       source_rndmultimesh_proxy_prop_sync_plan();
   CHECK(!proxy_props.has_rows);
 
+  std::vector<uint8_t> body;
+  put_u32(body, 1);                 // GH2 RndMultiMesh revision.
+  put_u32(body, 0);                 // Hmx::Object fields revision.
+  put_str(body, "");                // type.
+  body.push_back(0);                // no type properties.
+  put_u32(body, 3);                 // RndDrawable revision.
+  body.push_back(1);                // showing.
+  put_f32(body, 1.0f);
+  put_f32(body, 2.0f);
+  put_f32(body, 3.0f);
+  put_f32(body, 4.0f);              // sphere.
+  put_f32(body, 5.5f);              // draw order.
+  put_str(body, "Crowd_B45.mesh");
+  put_u32(body, 2);                 // instances.
+  for (int instance = 0; instance < 2; ++instance) {
+    const float base = static_cast<float>(instance * 100);
+    for (int i = 0; i < 12; ++i)
+      put_f32(body, base + static_cast<float>(i + 1));
+  }
+  const MultiMeshObj decoded = decode_multi_mesh("Crowd01.mm", body);
+  CHECK(decoded.decoded);
+  CHECK(decoded.showing);
+  CHECK(approx(decoded.draw_order, 5.5f));
+  CHECK(decoded.mesh == "Crowd_B45.mesh");
+  CHECK(decoded.instances.size() == 2);
+  CHECK(approx(decoded.instances[0].rot[0][0], 1.0f));
+  CHECK(approx(decoded.instances[0].rot[2][2], 9.0f));
+  CHECK(approx(decoded.instances[0].pos[0], 10.0f));
+  CHECK(approx(decoded.instances[0].pos[2], 12.0f));
+  CHECK(approx(decoded.instances[1].pos[2], 112.0f));
+
   std::printf("  [ok] MultiMesh: handlers=%zu proxy_check=0x%x\n",
               handlers.handlers.size(), proxy_handlers.check);
 }
@@ -2730,6 +2761,32 @@ void test_group_draw_order_matches_rnddir_roots() {
                   "hidden_child.mesh") != scene.grouped_meshes.end());
   std::printf(
       "  [ok] Group draw roots: opaque before translucent, hidden child suppressed\n");
+
+  Scene crowd_scene;
+  crowd_scene.meshes.push_back(mesh("Crowd_B45.mesh"));
+  MultiMeshObj crowd;
+  crowd.name = "Crowd01.mm";
+  crowd.mesh = "Crowd_B45.mesh";
+  crowd.decoded = true;
+  crowd.showing = true;
+  crowd.instances.resize(2);
+  crowd_scene.multi_meshes.push_back(crowd);
+  GroupObj crowd_view;
+  crowd_view.name = "crowd.view";
+  crowd_view.showing = true;
+  crowd_view.children.push_back("Crowd01.mm");
+  crowd_scene.groups.push_back(crowd_view);
+  rebuild_group_authored_draw_order_for_test(crowd_scene);
+  CHECK(crowd_scene.draw_order.size() == 1);
+  CHECK(crowd_scene.draw_order[0] == "Crowd01.mm");
+  CHECK(std::find(crowd_scene.grouped_meshes.begin(),
+                  crowd_scene.grouped_meshes.end(),
+                  "Crowd_B45.mesh") != crowd_scene.grouped_meshes.end());
+  CHECK(std::find(crowd_scene.grouped_multi_meshes.begin(),
+                  crowd_scene.grouped_multi_meshes.end(),
+                  "Crowd01.mm") != crowd_scene.grouped_multi_meshes.end());
+  std::printf(
+      "  [ok] Group draw roots: MultiMesh owns template and keeps authored order\n");
 }
 
 void test_waypoint_source_order_rev3() {

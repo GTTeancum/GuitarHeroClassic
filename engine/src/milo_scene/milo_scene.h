@@ -2290,6 +2290,20 @@ struct MeshObj {
   std::string error;         // non-empty if decode failed (mesh still listed)
 };
 
+// RndMultiMesh is a drawable that submits one authored Mesh at each serialized
+// world transform. GH1 venue crowd packages use this directly; GH2 WorldCrowd
+// builds the same primitive at runtime.
+struct MultiMeshObj {
+  std::string name;
+  std::string mesh;
+  std::vector<Xfm> instances;
+  bool showing = true;
+  float draw_order = 0.0f;
+  size_t dir_index = 0;
+  bool decoded = false;
+  std::string error;
+};
+
 struct ParticleSysObj {
   std::string name;
   uint16_t revision = 0;
@@ -2417,6 +2431,8 @@ BandPlacerObj decode_band_placer(const std::string& entry_name,
 MeshObj decode_mesh(const std::string& entry_name,
                     const std::vector<uint8_t>& body,
                     int32_t parent_dir_revision = 24);
+MultiMeshObj decode_multi_mesh(const std::string& entry_name,
+                               const std::vector<uint8_t>& body);
 ParticleSysObj decode_particle_sys(const std::string& entry_name,
                                    const std::vector<uint8_t>& body);
 WorldCrowdObj decode_world_crowd(const std::string& entry_name,
@@ -2483,6 +2499,7 @@ ScreenMaskObj decode_screen_mask(const std::string& entry_name,
 // names referenced by materials (so the caller can batch-load them).
 struct Scene {
   std::vector<MeshObj> meshes;
+  std::vector<MultiMeshObj> multi_meshes;
   std::vector<TransObj> transes;
   std::vector<MatObj> mats;
   std::vector<CamObj> cams;
@@ -2499,6 +2516,7 @@ struct Scene {
   std::vector<WorldCrowdObj> world_crowds;
   std::vector<std::string> draw_order;  // Group-authored Mesh child order.
   std::vector<std::string> grouped_meshes;  // Meshes referenced by any Group.
+  std::vector<std::string> grouped_multi_meshes;
   std::string dir_name;
   std::string dir_type;
   int32_t dir_revision = 0;

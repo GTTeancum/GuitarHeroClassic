@@ -10,7 +10,7 @@ add_library(ghogx_milo_scene STATIC
 )
 # Headers included as "milo_scene/..." -> root is engine/src.
 target_include_directories(ghogx_milo_scene PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
-target_link_libraries(ghogx_milo_scene PUBLIC milo PRIVATE ark_v3)
+target_link_libraries(ghogx_milo_scene PUBLIC milo PRIVATE ark_v3 milo_object)
 
 if(MSVC)
     target_compile_options(ghogx_milo_scene PRIVATE /W4)

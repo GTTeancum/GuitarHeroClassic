@@ -442,6 +442,16 @@ content-complete in the target renderer: target frustum/depth culling replaces
 the source's camera-dependent draw-list reduction. Exact static evidence is in
 `.codex/analysis/gh1-venuecam-crowd-region-static.md`.
 
+All 41 packed GH1 `MultiMesh0` objects are crowd-card archetypes. Runtime now
+decodes their template Mesh and exact ordered transform arrays, submits every
+instance like `RndMultiMesh::DrawShowing`, and does not also draw the template
+at its root transform. The converter emits
+`__gh1_runtime_multimeshes.grp` as the native draw owner corresponding to
+GH1 `Arena::Crowd`. After all venue sections merge, runtime binds the decoded
+`crowd.env` to that Group. This follows the retail pointer stored at
+`Arena + 0x9C` by `SLUS_212.24` `0x001685DC..0x0016862C`; it is not a
+venue-name lighting rule.
+
 The remaining low-frequency fields also have bounded native contracts:
 
 - All 46 explicit `force_cam_facing` values and the default are zero, so the
@@ -901,6 +911,17 @@ material correction does not replace or bypass the GH2 venue path. The matrix
 and contact sheets are in
 `proofs/gh1-native-conversion-parity/shared-alpha-cut-regression/`; it remains
 a regression smoke test, not matched retail parity.
+
+The separate crowd-card alpha audit covers all eight GH1 packages containing
+MultiMeshes. Seven share a 128x256 indexed image with 25,220 transparent and
+7,548 opaque pixels. Theatre has the same RGB pixels but its source CLUT marks
+all 32,768 pixels opaque; its `crowd.mat` also authors SrcAlpha,
+`useEnviron=true`, `cull=true`, `zMode=1`, `alphaCut=false`, and
+`alphaWrite=false`. Raw and converted bitmap digests match in both cases.
+Accordingly, no black-key or fabricated Theatre alpha is allowed. Full crowd,
+floor, environment, and 15-venue runtime evidence is documented in
+`docs/CROWD_AND_FLOOR_SOURCE_PARITY.md` and
+`proofs/gh1-native-conversion-parity/crowd-floor-source-contract/`.
 
 ## Resolved proof observations
 

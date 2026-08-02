@@ -4487,8 +4487,13 @@ std::unordered_set<std::string> mesh_names_in_group_set(
                 continue;
             }
             for (const auto& child : group.children) {
-                if (child.size() > 5 &&
-                    child.rfind(".mesh") == child.size() - 5) {
+                const bool mesh_ref =
+                    child.size() > 5 &&
+                    child.rfind(".mesh") == child.size() - 5;
+                const bool multi_mesh_ref =
+                    child.size() > 3 &&
+                    child.rfind(".mm") == child.size() - 3;
+                if (mesh_ref || multi_mesh_ref) {
                     hidden.insert(child);
                 } else if (child.size() > 4 &&
                            child.rfind(".grp") == child.size() - 4 &&
@@ -4546,7 +4551,8 @@ std::map<std::string, std::vector<std::string>> mesh_names_by_group(
         if (it == group_children.end()) return;
         for (const auto& child : it->second) {
             const std::string ref = canonical_milo_ref(child);
-            if (ref.rfind(".mesh") != std::string::npos) {
+            if (ref.rfind(".mesh") != std::string::npos ||
+                ref.rfind(".mm") != std::string::npos) {
                 if (std::find(meshes.begin(), meshes.end(), ref) == meshes.end())
                     meshes.push_back(ref);
             } else if (ref.rfind(".grp") != std::string::npos) {
@@ -4575,40 +4581,6 @@ bool crowd_ref_name(std::string_view s) {
     std::string lower(s);
     lower = lowercase_ascii(std::move(lower));
     return lower.find("crowd") != std::string::npos;
-}
-
-std::unordered_set<std::string> mesh_names_for_crowd(
-    const ghogx::milo_scene::Scene& scene) {
-    std::unordered_set<std::string> hidden;
-    std::unordered_set<std::string> wanted_groups;
-    for (const auto& group : scene.groups) {
-        if (crowd_ref_name(group.name)) wanted_groups.insert(group.name);
-    }
-    bool changed = true;
-    while (changed) {
-        changed = false;
-        for (const auto& group : scene.groups) {
-            if (wanted_groups.find(group.name) == wanted_groups.end()) {
-                continue;
-            }
-            for (const auto& child : group.children) {
-                if (child.size() > 5 &&
-                    child.rfind(".mesh") == child.size() - 5) {
-                    hidden.insert(child);
-                } else if (child.size() > 4 &&
-                           child.rfind(".grp") == child.size() - 4 &&
-                           wanted_groups.insert(child).second) {
-                    changed = true;
-                }
-            }
-        }
-    }
-    for (const auto& mesh : scene.meshes) {
-        if (crowd_ref_name(mesh.name) || crowd_ref_name(mesh.material)) {
-            hidden.insert(mesh.name);
-        }
-    }
-    return hidden;
 }
 
 std::unordered_set<std::string> mesh_names_with_materials(
@@ -10935,31 +10907,6 @@ float worldcrowd_actor_source_height(
     return 0.0f;
 }
 
-float worldcrowd_actor_visible_bounds_radius(
-    const ghogx::character::Character& character) {
-    bool have = false;
-    std::array<float, 3> mn = {0.0f, 0.0f, 0.0f};
-    std::array<float, 3> mx = {0.0f, 0.0f, 0.0f};
-    for (const auto& mesh : character.meshes) {
-        if (!mesh.decoded || !mesh.showing || mesh.verts.empty()) continue;
-        for (int axis = 0; axis < 3; ++axis) {
-            if (!have) {
-                mn[axis] = mesh.bb_min[axis];
-                mx[axis] = mesh.bb_max[axis];
-            } else {
-                mn[axis] = std::min(mn[axis], mesh.bb_min[axis]);
-                mx[axis] = std::max(mx[axis], mesh.bb_max[axis]);
-            }
-        }
-        have = true;
-    }
-    if (!have) return 0.0f;
-    const float rx = (mx[0] - mn[0]) * 0.5f;
-    const float ry = (mx[1] - mn[1]) * 0.5f;
-    const float rz = (mx[2] - mn[2]) * 0.5f;
-    return std::sqrt(rx * rx + ry * ry + rz * rz);
-}
-
 std::string worldcrowd_clip_group_for_actor(
     std::string_view venue_event, std::string_view lighter_group,
     size_t actor_ordinal, size_t actor_count) {
@@ -13996,7 +13943,8 @@ struct VenueMiloAssembly {
 };
 
 bool venue_milo_entry_is_visual(std::string_view type) {
-    return type == "Mesh" || type == "Trans" || type == "Mat" ||
+    return type == "Mesh" || type == "MultiMesh" ||
+           type == "Trans" || type == "Mat" ||
            type == "Cam" || type == "Waypoint" || type == "Spotlight" ||
            type == "Light" || type == "Environ" || type == "Group" ||
            type == "BandPlacer" || type == "ParticleSys" ||
@@ -14212,6 +14160,10 @@ void append_scene_for_venue_subdir(ghogx::milo_scene::Scene& dst,
     dst.meshes.insert(dst.meshes.end(),
                       std::make_move_iterator(src.meshes.begin()),
                       std::make_move_iterator(src.meshes.end()));
+    dst.multi_meshes.insert(
+        dst.multi_meshes.end(),
+        std::make_move_iterator(src.multi_meshes.begin()),
+        std::make_move_iterator(src.multi_meshes.end()));
     dst.mats.insert(dst.mats.end(), std::make_move_iterator(src.mats.begin()),
                     std::make_move_iterator(src.mats.end()));
     dst.cams.insert(dst.cams.end(), std::make_move_iterator(src.cams.begin()),
@@ -14243,6 +14195,17 @@ void append_scene_for_venue_subdir(ghogx::milo_scene::Scene& dst,
     dst.world_crowds.insert(dst.world_crowds.end(),
                             std::make_move_iterator(src.world_crowds.begin()),
                             std::make_move_iterator(src.world_crowds.end()));
+    dst.draw_order.insert(dst.draw_order.end(),
+                          std::make_move_iterator(src.draw_order.begin()),
+                          std::make_move_iterator(src.draw_order.end()));
+    dst.grouped_meshes.insert(
+        dst.grouped_meshes.end(),
+        std::make_move_iterator(src.grouped_meshes.begin()),
+        std::make_move_iterator(src.grouped_meshes.end()));
+    dst.grouped_multi_meshes.insert(
+        dst.grouped_multi_meshes.end(),
+        std::make_move_iterator(src.grouped_multi_meshes.begin()),
+        std::make_move_iterator(src.grouped_multi_meshes.end()));
 }
 
 void append_scene_lighting_objects(ghogx::milo_scene::Scene& dst,
@@ -14269,359 +14232,6 @@ void append_scene_lighting_objects(ghogx::milo_scene::Scene& dst,
             dst.environs.push_back(env);
         }
     }
-}
-
-size_t append_worldcrowd_floor_meshes_for_venue_chars(
-    ghogx::milo_scene::Scene& dst, const ghogx::milo_scene::Scene& chars_scene) {
-    std::unordered_set<std::string> placement_mesh_refs;
-    for (const auto& crowd : chars_scene.world_crowds) {
-        if (!crowd.decoded || crowd.area_mesh.empty()) continue;
-        placement_mesh_refs.insert(canonical_milo_ref(crowd.area_mesh));
-    }
-    if (placement_mesh_refs.empty()) return 0;
-
-    auto dst_has_mesh = [&](const std::string& mesh_name) {
-        const std::string ref = canonical_milo_ref(mesh_name);
-        return std::any_of(dst.meshes.begin(), dst.meshes.end(),
-                           [&](const ghogx::milo_scene::MeshObj& mesh) {
-                               return canonical_milo_ref(mesh.name) == ref;
-                           });
-    };
-    auto dst_has_mat = [&](const std::string& mat_name) {
-        const std::string ref = canonical_milo_ref(mat_name);
-        return std::any_of(dst.mats.begin(), dst.mats.end(),
-                           [&](const ghogx::milo_scene::MatObj& mat) {
-                               return canonical_milo_ref(mat.name) == ref;
-                           });
-    };
-    auto dst_floor_mat = [&]() -> std::optional<std::string> {
-        for (const char* name :
-             {"floor.mat", "tile_dark.mat", "street_asphalt.mat"}) {
-            if (dst_has_mat(name)) return std::string(name);
-        }
-        return std::nullopt;
-    };
-    auto dst_floor_tint =
-        [&](const std::string& mat_name) -> std::optional<std::array<float, 4>> {
-        const std::string ref = canonical_milo_ref(mat_name);
-        for (const auto& floor_mesh : dst.meshes) {
-            if (!floor_mesh.decoded || !floor_mesh.showing ||
-                canonical_milo_ref(floor_mesh.material) != ref) {
-                continue;
-            }
-            for (const auto& vertex : floor_mesh.verts) {
-                const std::array<float, 4> tint = {vertex.r, vertex.g, vertex.b,
-                                                   vertex.a};
-                const bool non_white =
-                    std::fabs(tint[0] - 1.0f) > 0.001f ||
-                    std::fabs(tint[1] - 1.0f) > 0.001f ||
-                    std::fabs(tint[2] - 1.0f) > 0.001f;
-                const bool sane =
-                    std::isfinite(tint[0]) && std::isfinite(tint[1]) &&
-                    std::isfinite(tint[2]) && std::isfinite(tint[3]) &&
-                    tint[0] >= 0.0f && tint[1] >= 0.0f && tint[2] >= 0.0f &&
-                    tint[3] > 0.0f;
-                if (non_white && sane) {
-                    if (debug_venue_filters_enabled()) {
-                        std::fprintf(stderr,
-                                     "[world] venue WorldCrowd floor tint source: "
-                                     "mesh=%s material=%s rgba=(%.3f %.3f %.3f %.3f)\n",
-                                     floor_mesh.name.c_str(),
-                                     floor_mesh.material.c_str(), tint[0],
-                                     tint[1], tint[2], tint[3]);
-                    }
-                    return tint;
-                }
-            }
-        }
-        return std::nullopt;
-    };
-    auto dst_mesh_environments = [&]() {
-        std::map<std::string, const ghogx::milo_scene::GroupObj*> groups;
-        for (const auto& group : dst.groups) {
-            groups[canonical_milo_ref(group.name)] = &group;
-        }
-        std::map<std::string, std::string> mesh_environments;
-        auto assign_group_environments =
-            [&](auto&& self, const std::string& group_name,
-                std::string current_env,
-                std::unordered_set<std::string>& visiting) -> void {
-            const std::string group_ref = canonical_milo_ref(group_name);
-            if (!visiting.insert(group_ref).second) return;
-            const auto group_it = groups.find(group_ref);
-            if (group_it == groups.end() || !group_it->second) {
-                visiting.erase(group_ref);
-                return;
-            }
-            const auto& group = *group_it->second;
-            if (!group.showing) {
-                visiting.erase(group_ref);
-                return;
-            }
-            if (!group.environment_ref.empty()) current_env = group.environment_ref;
-            const auto assign_child = [&](const std::string& child) {
-                const std::string child_ref = canonical_milo_ref(child);
-                const std::string child_l = lower_ascii(child_ref);
-                if (child_l.size() >= 5 &&
-                    child_l.compare(child_l.size() - 5, 5, ".mesh") == 0) {
-                    if (!current_env.empty())
-                        mesh_environments.emplace(child_ref, current_env);
-                } else if (child_l.size() >= 4 &&
-                           child_l.compare(child_l.size() - 4, 4, ".grp") == 0) {
-                    self(self, child_ref, current_env, visiting);
-                }
-            };
-            if (!group.draw_only.empty()) {
-                assign_child(group.draw_only);
-            } else {
-                for (const auto& child : group.children) assign_child(child);
-            }
-            visiting.erase(group_ref);
-        };
-        for (const auto& group : dst.groups) {
-            std::unordered_set<std::string> visiting;
-            assign_group_environments(assign_group_environments, group.name, {},
-                                      visiting);
-        }
-        return mesh_environments;
-    };
-    const std::map<std::string, std::string> floor_mesh_environments =
-        dst_mesh_environments();
-    auto dst_floor_environment =
-        [&](const std::string& mat_name) -> std::optional<std::string> {
-        const std::string mat_ref = canonical_milo_ref(mat_name);
-        for (const auto& floor_mesh : dst.meshes) {
-            if (!floor_mesh.decoded || !floor_mesh.showing ||
-                canonical_milo_ref(floor_mesh.material) != mat_ref ||
-                canonical_milo_ref(floor_mesh.name) == "Crowd_area.mesh") {
-                continue;
-            }
-            const auto env_it =
-                floor_mesh_environments.find(canonical_milo_ref(floor_mesh.name));
-            if (env_it == floor_mesh_environments.end() ||
-                env_it->second.empty()) {
-                continue;
-            }
-            if (debug_venue_filters_enabled()) {
-                std::fprintf(
-                    stderr,
-                    "[world] venue WorldCrowd floor environment source: "
-                    "mesh=%s material=%s env=%s\n",
-                    floor_mesh.name.c_str(), floor_mesh.material.c_str(),
-                    env_it->second.c_str());
-            }
-            return env_it->second;
-        }
-        return std::nullopt;
-    };
-    struct FloorUvProjection {
-        std::string source_mesh;
-        std::array<float, 3> u = {0.0f, 0.0f, 0.0f};
-        std::array<float, 3> v = {0.0f, 0.0f, 0.0f};
-        float score = 0.0f;
-    };
-    auto dst_floor_uv_projection =
-        [&](const std::string& mat_name,
-            const ghogx::milo_scene::MeshObj& target_mesh,
-            const ghogx::milo_scene::Scene& target_scene)
-        -> std::optional<FloorUvProjection> {
-        const auto target_world = target_scene.world_matrix(target_mesh);
-        float target_min_z = std::numeric_limits<float>::infinity();
-        float target_max_z = -std::numeric_limits<float>::infinity();
-        for (const auto& vertex : target_mesh.verts) {
-            const auto world = mat4_xform_point_game(
-                target_world, {vertex.px, vertex.py, vertex.pz});
-            target_min_z = std::min(target_min_z, world[2]);
-            target_max_z = std::max(target_max_z, world[2]);
-        }
-        if (!std::isfinite(target_min_z) || !std::isfinite(target_max_z))
-            return std::nullopt;
-        const float target_z = (target_min_z + target_max_z) * 0.5f;
-        const std::string mat_ref = canonical_milo_ref(mat_name);
-        std::optional<FloorUvProjection> best;
-        for (const auto& floor_mesh : dst.meshes) {
-            if (!floor_mesh.decoded || !floor_mesh.showing ||
-                floor_mesh.verts.size() < 3 ||
-                canonical_milo_ref(floor_mesh.material) != mat_ref ||
-                canonical_milo_ref(floor_mesh.name) == "Crowd_area.mesh") {
-                continue;
-            }
-            float avg_nz = 0.0f;
-            float min_u = std::numeric_limits<float>::infinity();
-            float min_v = std::numeric_limits<float>::infinity();
-            float max_u = -std::numeric_limits<float>::infinity();
-            float max_v = -std::numeric_limits<float>::infinity();
-            for (const auto& vertex : floor_mesh.verts) {
-                avg_nz += vertex.nz;
-                min_u = std::min(min_u, vertex.u);
-                min_v = std::min(min_v, vertex.v);
-                max_u = std::max(max_u, vertex.u);
-                max_v = std::max(max_v, vertex.v);
-            }
-            avg_nz /= static_cast<float>(floor_mesh.verts.size());
-            const bool uv_repeats =
-                min_u < -0.05f || min_v < -0.05f || max_u > 1.05f ||
-                max_v > 1.05f;
-            if (!uv_repeats || std::fabs(avg_nz) < 0.20f) continue;
-
-            const auto source_world = dst.world_matrix(floor_mesh);
-            float min_x = std::numeric_limits<float>::infinity();
-            float min_y = std::numeric_limits<float>::infinity();
-            float min_z = std::numeric_limits<float>::infinity();
-            float max_x = -std::numeric_limits<float>::infinity();
-            float max_y = -std::numeric_limits<float>::infinity();
-            float max_z = -std::numeric_limits<float>::infinity();
-            for (const auto& vertex : floor_mesh.verts) {
-                const auto world = mat4_xform_point_game(
-                    source_world, {vertex.px, vertex.py, vertex.pz});
-                min_x = std::min(min_x, world[0]);
-                min_y = std::min(min_y, world[1]);
-                min_z = std::min(min_z, world[2]);
-                max_x = std::max(max_x, world[0]);
-                max_y = std::max(max_y, world[1]);
-                max_z = std::max(max_z, world[2]);
-            }
-            const float source_width = max_x - min_x;
-            const float source_depth = max_y - min_y;
-            const float source_u_span = max_u - min_u;
-            const float source_v_span = max_v - min_v;
-            if (source_width <= 1.0f || source_depth <= 1.0f ||
-                source_u_span <= 0.001f || source_v_span <= 0.001f) {
-                continue;
-            }
-            const float source_scale_u = source_u_span / source_width;
-            const float source_scale_v = source_v_span / source_depth;
-            const float area =
-                std::max(0.0f, source_width) * std::max(0.0f, source_depth);
-            const float source_z = (min_z + max_z) * 0.5f;
-            const float height_weight =
-                1.0f / (1.0f + std::fabs(source_z - target_z) / 75.0f);
-            FloorUvProjection projection;
-            projection.source_mesh = floor_mesh.name;
-            projection.u = {source_scale_u, 0.0f,
-                            min_u - min_x * source_scale_u};
-            projection.v = {0.0f, source_scale_v,
-                            min_v - min_y * source_scale_v};
-            projection.score = area * height_weight;
-            if (!best || projection.score > best->score)
-                best = std::move(projection);
-        }
-        return best;
-    };
-    auto source_mat = [&](const std::string& mat_name)
-        -> const ghogx::milo_scene::MatObj* {
-        const std::string ref = canonical_milo_ref(mat_name);
-        for (const auto& mat : chars_scene.mats) {
-            if (canonical_milo_ref(mat.name) == ref) return &mat;
-        }
-        return nullptr;
-    };
-
-    size_t appended = 0;
-    for (const auto& mesh : chars_scene.meshes) {
-        if (!mesh.decoded) continue;
-        if (placement_mesh_refs.find(canonical_milo_ref(mesh.name)) ==
-            placement_mesh_refs.end()) {
-            continue;
-        }
-        const std::string material = lower_ascii(mesh.material);
-        if (material == "ray_blocker.mat" || material == "invisible.mat") {
-            continue;
-        }
-        if (dst_has_mesh(mesh.name)) continue;
-        if (!mesh.material.empty() && !dst_has_mat(mesh.material)) {
-            if (const auto* mat = source_mat(mesh.material)) dst.mats.push_back(*mat);
-        }
-        auto draw_mesh = mesh;
-        // ihatecompvir's WorldCrowd owns mPlacementMesh and WorldDir sync calls
-        // CleanUpCrowdFloor on each crowd. GH2 keeps the visible crowd floor in
-        // the chars MILO beside the actor placements, not in big_geom. The
-        // decoded Crowd_area.mat is an untextured placement color, so the native
-        // cleanup pairs the placement footprint with a venue-authored floor mat.
-        if (lower_ascii(draw_mesh.material) == "crowd_area.mat") {
-            if (const auto floor_mat = dst_floor_mat()) {
-                const std::string original_material = draw_mesh.material;
-                const auto floor_env = dst_floor_environment(*floor_mat);
-                const auto floor_uv =
-                    dst_floor_uv_projection(*floor_mat, mesh, chars_scene);
-                draw_mesh.material = *floor_mat;
-                if (floor_uv) {
-                    const auto target_world = chars_scene.world_matrix(mesh);
-                    float min_u = std::numeric_limits<float>::infinity();
-                    float min_v = std::numeric_limits<float>::infinity();
-                    float max_u = -std::numeric_limits<float>::infinity();
-                    float max_v = -std::numeric_limits<float>::infinity();
-                    for (auto& vertex : draw_mesh.verts) {
-                        const auto world = mat4_xform_point_game(
-                            target_world, {vertex.px, vertex.py, vertex.pz});
-                        vertex.u = world[0] * floor_uv->u[0] +
-                                   world[1] * floor_uv->u[1] +
-                                   floor_uv->u[2];
-                        vertex.v = world[0] * floor_uv->v[0] +
-                                   world[1] * floor_uv->v[1] +
-                                   floor_uv->v[2];
-                        min_u = std::min(min_u, vertex.u);
-                        min_v = std::min(min_v, vertex.v);
-                        max_u = std::max(max_u, vertex.u);
-                        max_v = std::max(max_v, vertex.v);
-                    }
-                    if (debug_venue_filters_enabled()) {
-                        std::fprintf(
-                            stderr,
-                            "[world] venue WorldCrowd floor uv cleanup: mesh=%s "
-                            "source=%s uv=(%.3f..%.3f %.3f..%.3f)\n",
-                            draw_mesh.name.c_str(),
-                            floor_uv->source_mesh.c_str(), min_u, max_u, min_v,
-                            max_v);
-                    }
-                }
-                if (floor_env) {
-                    ghogx::milo_scene::GroupObj cleanup_group;
-                    cleanup_group.name = "__worldcrowd_floor_env_" +
-                                         std::to_string(appended) + ".grp";
-                    cleanup_group.decoded = true;
-                    cleanup_group.showing = true;
-                    cleanup_group.environment_ref = *floor_env;
-                    cleanup_group.children.push_back(draw_mesh.name);
-                    cleanup_group.draw_order = draw_mesh.draw_order;
-                    cleanup_group.dir_index = draw_mesh.dir_index;
-                    dst.groups.push_back(std::move(cleanup_group));
-                }
-                if (const auto floor_tint = dst_floor_tint(*floor_mat)) {
-                    for (auto& vertex : draw_mesh.verts) {
-                        vertex.r = (*floor_tint)[0];
-                        vertex.g = (*floor_tint)[1];
-                        vertex.b = (*floor_tint)[2];
-                        vertex.a = (*floor_tint)[3];
-                    }
-                    if (debug_venue_filters_enabled()) {
-                        std::fprintf(
-                            stderr,
-                            "[world] venue WorldCrowd floor cleanup: mesh=%s "
-                            "material=%s->%s vertices=%zu copied_tint=1 "
-                            "env=%s rgba=(%.3f %.3f %.3f %.3f)\n",
-                            draw_mesh.name.c_str(), original_material.c_str(),
-                            draw_mesh.material.c_str(), draw_mesh.verts.size(),
-                            floor_env ? floor_env->c_str() : "(none)",
-                            (*floor_tint)[0], (*floor_tint)[1],
-                            (*floor_tint)[2], (*floor_tint)[3]);
-                    }
-                } else if (debug_venue_filters_enabled()) {
-                    std::fprintf(
-                        stderr,
-                        "[world] venue WorldCrowd floor cleanup: mesh=%s "
-                        "material=%s->%s vertices=%zu copied_tint=0 env=%s\n",
-                        draw_mesh.name.c_str(), original_material.c_str(),
-                        draw_mesh.material.c_str(), draw_mesh.verts.size(),
-                        floor_env ? floor_env->c_str() : "(none)");
-                }
-            }
-        }
-        draw_mesh.showing = true;
-        dst.meshes.push_back(std::move(draw_mesh));
-        ++appended;
-    }
-    return appended;
 }
 
 void log_venue_floor_meshes(
@@ -30170,7 +29780,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_anim_group_children_.clear();
     venue_transform_parent_overrides_.clear();
     venue_flare_steps_.clear();
-    venue_crowd_meshes_.clear();
+    venue_worldcrowd_refs_.clear();
+    venue_crowd_drawable_refs_.clear();
     venue_mesh_names_.clear();
     venue_group_meshes_.clear();
     venue_camera_target_worlds_.clear();
@@ -30657,7 +30268,10 @@ void Gameplay::apply_camera_crowd_visibility(
         return refs;
     };
     bool next_hide_crowd = key.hide_crowd;
-    if (key.hide_crowd) next_hidden = venue_crowd_meshes_;
+    if (next_hide_crowd) {
+        next_hidden.insert(venue_crowd_drawable_refs_.begin(),
+                           venue_crowd_drawable_refs_.end());
+    }
     std::vector<CameraKey::CrowdRef> next_crowd_selections =
         camera_crowd_selections_like_source(key);
     bool next_has_crowd_selection = false;
@@ -30669,23 +30283,26 @@ void Gameplay::apply_camera_crowd_visibility(
     auto collect_camera_visibility_ref =
         [&](const std::string& raw_ref, bool hide_ref) {
         const std::string ref = canonical_milo_ref(raw_ref);
-        if (crowd_ref_name(ref)) {
+        if (venue_worldcrowd_refs_.find(ref) !=
+            venue_worldcrowd_refs_.end()) {
             if (hide_ref) {
                 next_hide_crowd = true;
-                next_hidden.insert(venue_crowd_meshes_.begin(),
-                                   venue_crowd_meshes_.end());
             } else {
                 next_hide_crowd = false;
-                next_shown.insert(venue_crowd_meshes_.begin(),
-                                  venue_crowd_meshes_.end());
             }
+        }
+        if (venue_crowd_drawable_refs_.find(ref) !=
+            venue_crowd_drawable_refs_.end()) {
+            auto& drawable_set = hide_ref ? next_hidden : next_shown;
+            drawable_set.insert(ref);
         }
         const auto group_it = venue_group_meshes_.find(ref);
         if (group_it != venue_group_meshes_.end()) {
             auto& mesh_set = hide_ref ? next_hidden : next_shown;
             mesh_set.insert(group_it->second.begin(), group_it->second.end());
         }
-        if (ref.rfind(".mesh") != std::string::npos &&
+        if ((ref.rfind(".mesh") != std::string::npos ||
+             ref.rfind(".mm") != std::string::npos) &&
             (venue_mesh_names_.empty() ||
              venue_mesh_names_.find(ref) != venue_mesh_names_.end())) {
             auto& mesh_set = hide_ref ? next_hidden : next_shown;
@@ -30805,9 +30422,7 @@ void Gameplay::apply_camera_crowd_visibility(
                      venue_camera_hide_crowd_ ? 1 : 0,
                      venue_camera_crowd_face_camera_ ? 1 : 0,
                      source_script_has_crowd ? 1 : 0,
-                     venue_camera_crowd_face_camera_
-                         ? venue_crowd_meshes_.size()
-                         : 0u,
+                     size_t{0},
                      skip_script_crowd_update ? 1 : 0,
                      venue_camera_has_crowd_selection_ ? 1 : 0,
                      venue_camera_crowd_selections_.size(),
@@ -30819,9 +30434,10 @@ void Gameplay::apply_camera_crowd_visibility(
                      key.postproc_override_refs.size(),
                      key.camera_anim_refs.size(), key.glow_spot_ref.c_str());
     }
-    world_->set_face_camera_meshes(venue_camera_crowd_face_camera_
-                                       ? venue_crowd_meshes_
-                                       : std::unordered_set<std::string>{});
+    // WorldCrowd::BuildBillboard owns face-camera behavior for generated
+    // audience cards. Never rotate authored venue geometry (for example
+    // arena's crowd_distant.grp strips) based on a name guess.
+    world_->set_face_camera_meshes({});
     world_->set_hidden_meshes(composed_venue_hidden_meshes());
 }
 
@@ -38819,8 +38435,6 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
         runtime.world_fxes = load_character_world_fx_runtime(
             win, hdr_path_, ark_path_, *actor_path, runtime_character,
             set.actor_name);
-        runtime.visible_bounds_radius =
-            worldcrowd_actor_visible_bounds_radius(runtime_character);
 
         auto inserted = worldcrowd_actor_runtime_.emplace(
             *actor_path, std::move(runtime));
@@ -38956,7 +38570,6 @@ void Gameplay::update_worldcrowd_actor_runtime(float dt) {
             }
             runtime.active_group = desired_clip->first;
             runtime.clip = desired_clip->second;
-            auto& character = runtime.renderer->character();
             if (runtime.type_script) {
                 std::string script_error;
                 if (!runtime.type_script->run_clip_event(
@@ -38969,8 +38582,6 @@ void Gameplay::update_worldcrowd_actor_runtime(float dt) {
                                  script_error.c_str());
                 }
             }
-            runtime.visible_bounds_radius =
-                worldcrowd_actor_visible_bounds_radius(character);
             runtime.player.play(runtime.clip,
                                 ghogx::character::kCharPlayLoop |
                                     ghogx::character::kCharPlayNoBlend);
@@ -39141,8 +38752,7 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                 stderr,
                 "[world] WorldCrowd draw: enabled=0 actors=%zu placements=%zu "
                 "drawn_3d=0 drawn_flat=0 culled_fullness=0 "
-                "culled_camera=0 hidden_flat=0 "
-                "basis=%s face_camera=%d "
+                "hidden_flat=0 basis=%s face_camera=%d "
                 "event=%s groups=%s eye=(0.000 0.000 0.000) t=%.3f\n",
                 worldcrowd_actor_runtime_.size(),
                 worldcrowd_actor_runtime_placements_,
@@ -39157,44 +38767,6 @@ void Gameplay::draw_worldcrowd_actor_runtime(
     float eye[3] = {0.0f, 0.0f, 0.0f};
     cam.eye(eye);
     const std::array<float, 3> camera_ref = {eye[0], eye[1], eye[2]};
-    auto camera_forward =
-        cam.result_frame.valid
-            ? std::array<float, 3>{cam.result_frame.forward[0],
-                                   cam.result_frame.forward[1],
-                                   cam.result_frame.forward[2]}
-            : std::array<float, 3>{(cam.authored ? cam.authored_at[0]
-                                                 : cam.target[0]) -
-                                       eye[0],
-                                   (cam.authored ? cam.authored_at[1]
-                                                 : cam.target[1]) -
-                                       eye[1],
-                                   (cam.authored ? cam.authored_at[2]
-                                                 : cam.target[2]) -
-                                       eye[2]};
-    auto camera_up =
-        cam.result_frame.valid
-            ? std::array<float, 3>{cam.result_frame.up[0],
-                                   cam.result_frame.up[1],
-                                   cam.result_frame.up[2]}
-            : (cam.authored
-                   ? std::array<float, 3>{cam.authored_up[0],
-                                          cam.authored_up[1],
-                                          cam.authored_up[2]}
-                   : std::array<float, 3>{0.0f, 0.0f, 1.0f});
-    camera_forward =
-        camera_normalized_axis(camera_forward, {0.0f, 1.0f, 0.0f});
-    camera_up = camera_normalized_axis(camera_up, {0.0f, 0.0f, 1.0f});
-    auto camera_right = camera_normalized_axis(
-        camera_cross_axis(camera_up, camera_forward), {1.0f, 0.0f, 0.0f});
-    camera_up = camera_normalized_axis(
-        camera_cross_axis(camera_forward, camera_right), camera_up);
-    const bool camera_cull_enabled =
-        !env_value("GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL") &&
-        !(cam.result_frame.valid && cam.result_frame.has_custom_projection);
-    const float tan_y = std::tan(cam.fov * 0.5f) * 1.35f;
-    const float tan_x =
-        tan_y * (worldcrowd_widescreen_ ? (16.0f / 9.0f)
-                                        : kNativeValidationAspect);
     auto crowd_selection_draws_3d =
         [&](const WorldCrowdActorRuntime& runtime,
             size_t placement_index) -> bool {
@@ -39231,7 +38803,6 @@ void Gameplay::draw_worldcrowd_actor_runtime(
     size_t drawn_3d = 0;
     size_t drawn_flat = 0;
     size_t culled_fullness = 0;
-    size_t culled_camera = 0;
     size_t hidden_flat = 0;
     size_t missing_impostor = 0;
     if (world_) world_->apply_environment_lighting_state("crowd.env");
@@ -39292,32 +38863,6 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                 ++culled_fullness;
                 ++placement_index;
                 continue;
-            }
-            if (camera_cull_enabled && std::isfinite(tan_x) &&
-                std::isfinite(tan_y) && tan_x > 0.0f && tan_y > 0.0f) {
-                const float radius =
-                    std::max(10.0f,
-                             std::max(runtime.visible_bounds_radius,
-                                      placement_source_height(placement_index)) +
-                                 3.0f);
-                const std::array<float, 3> delta = {
-                    placement_world[12] - eye[0], placement_world[13] - eye[1],
-                    placement_world[14] - eye[2]};
-                const float depth = camera_dot_axis(delta, camera_forward);
-                const float side = std::abs(camera_dot_axis(delta, camera_right));
-                const float vertical = std::abs(camera_dot_axis(delta, camera_up));
-                const bool behind = depth + radius < 0.0f;
-                const bool beyond_far = cam.far_z > 0.0f &&
-                                        depth - radius > cam.far_z * 1.10f;
-                const bool outside_x =
-                    depth > radius && side - radius > depth * tan_x;
-                const bool outside_y =
-                    depth > radius && vertical - radius > depth * tan_y;
-                if (behind || beyond_far || outside_x || outside_y) {
-                    ++culled_camera;
-                    ++placement_index;
-                    continue;
-                }
             }
             if (draw_as_3d) {
                 // The second loop in GH2 retail WorldCrowd::DrawShowing
@@ -39409,8 +38954,8 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                      "[world] WorldCrowd draw: enabled=1 actors=%zu "
                      "placements=%zu drawn_3d=%zu drawn_flat=%zu "
                      "selection=%d:%s:%zu entries=%zu total_pairs=%zu "
-                     "culled_fullness=%zu culled_camera=%zu "
-                     "hidden_flat=%zu missing_impostor=%zu basis=%s "
+                     "culled_fullness=%zu hidden_flat=%zu missing_impostor=%zu "
+                     "basis=%s "
                      "face_camera=%d event=%s groups=%s "
                      "eye=(%.3f %.3f %.3f) t=%.3f\n",
                       worldcrowd_actor_runtime_.size(),
@@ -39422,8 +38967,7 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                       venue_camera_crowd_selections_.size(),
                       camera_crowd_selection_pair_count(
                           venue_camera_crowd_selections_),
-                      culled_fullness, culled_camera, hidden_flat,
-                     missing_impostor,
+                      culled_fullness, hidden_flat, missing_impostor,
                      worldcrowd_render_area_local_basis() ? "area_local"
                                                           : "placement",
                      venue_camera_crowd_face_camera_ ? 1 : 0,
@@ -41461,6 +41005,14 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 chars_scene_loaded = ghogx::milo_scene::load_scene(
                     hdr_path_, ark_path_, chars_milo, venue_chars_scene_for_load);
                 if (chars_scene_loaded) {
+                    venue_worldcrowd_refs_.clear();
+                    for (const auto& crowd :
+                         venue_chars_scene_for_load.world_crowds) {
+                        if (!crowd.decoded) continue;
+                        const std::string ref =
+                            canonical_milo_ref(crowd.name);
+                        if (!ref.empty()) venue_worldcrowd_refs_.insert(ref);
+                    }
                     const size_t venue_charwalk_objects = count_milo_entries_of_type(
                         hdr_path_, ark_path_, chars_milo, "CharWalk");
                     if (debug_camera_enabled() ||
@@ -41499,6 +41051,35 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             chars_milo.c_str());
                     }
                 }
+                // GH1 retail Arena::FinishLoading resolves
+                // "arena::crowd.env" into the Arena crowd slot
+                // (SLUS_212.24 0x001685DC..0x0016862C, stored at Arena+0x9C).
+                // Converted crowd MultiMeshes can live in a separate loaded
+                // RndDir from the lighting Environ, so bind the converter's
+                // exact Arena::Crowd ownership Group after section assembly.
+                // This preserves the source cross-directory relationship
+                // without making an invalid dangling ObjPtr in either MILO.
+                size_t gh1_crowd_environment_groups = 0;
+                if (const auto* crowd_environment =
+                        venue_scene.find_environ("crowd.env");
+                    crowd_environment && crowd_environment->decoded) {
+                    for (auto& group : venue_scene.groups) {
+                        if (group.name !=
+                            "__gh1_runtime_multimeshes.grp") {
+                            continue;
+                        }
+                        group.environment_ref = crowd_environment->name;
+                        ++gh1_crowd_environment_groups;
+                    }
+                }
+                if (gh1_crowd_environment_groups != 0) {
+                    std::fprintf(
+                        stderr,
+                        "[world] GH1 crowd environment bound: groups=%zu "
+                        "environment=crowd.env "
+                        "source=SLUS_212.24:Arena+0x9C\n",
+                        gh1_crowd_environment_groups);
+                }
                 auto hidden_venue_meshes = mesh_names_in_groups(
                     venue_scene, {"coplight_red.grp", "coplight_blue.grp"});
                 const auto source_hidden_venue_meshes =
@@ -41529,12 +41110,28 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         "[world] venue source-hidden Group meshes: %zu\n",
                         source_hidden_venue_meshes.size());
                 }
-                venue_crowd_meshes_ = mesh_names_for_crowd(venue_scene);
-                venue_crowd_meshes_.erase("Crowd_area.mesh");
                 venue_mesh_names_.clear();
-                venue_mesh_names_.reserve(venue_scene.meshes.size());
+                venue_crowd_drawable_refs_.clear();
+                venue_mesh_names_.reserve(venue_scene.meshes.size() +
+                                          venue_scene.multi_meshes.size());
                 for (const auto& mesh : venue_scene.meshes) {
                     venue_mesh_names_.insert(mesh.name);
+                }
+                size_t crowd_instance_count = 0;
+                for (const auto& multi_mesh : venue_scene.multi_meshes) {
+                    venue_mesh_names_.insert(multi_mesh.name);
+                    if (!multi_mesh.decoded) continue;
+                    venue_crowd_drawable_refs_.insert(
+                        canonical_milo_ref(multi_mesh.name));
+                    crowd_instance_count += multi_mesh.instances.size();
+                }
+                if (!venue_crowd_drawable_refs_.empty()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue authored RndMultiMesh crowds: "
+                        "objects=%zu instances=%zu source=decoded_object_type\n",
+                        venue_crowd_drawable_refs_.size(),
+                        crowd_instance_count);
                 }
                 venue_group_meshes_ = mesh_names_by_group(venue_scene);
                 venue_anim_group_children_ =
@@ -41575,10 +41172,10 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 venue_camera_has_crowd_selection_ = false;
                 venue_camera_crowd_selection_ref_.clear();
                 venue_camera_crowd_selection_pairs_.clear();
-                if (!venue_crowd_meshes_.empty()) {
+                if (!venue_worldcrowd_refs_.empty()) {
                     std::fprintf(stderr,
-                                 "[world] venue crowd meshes: %zu\n",
-                                 venue_crowd_meshes_.size());
+                                 "[world] venue WorldCrowd refs: %zu\n",
+                                 venue_worldcrowd_refs_.size());
                 }
                 if (debug_camera_enabled()) {
                     const auto crowd_group =

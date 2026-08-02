@@ -976,6 +976,77 @@ int main() {
             return 1;
         }
 
+        gh::milo::Directory crowd_source;
+        crowd_source.dir_version = 10;
+        crowd_source.boundaries_exact = true;
+        gh::milo_object::Mesh crowd_template;
+        crowd_template.drawable.revision = 1;
+        crowd_template.transformable.parent = "Crowd_A00.mesh";
+        gh::milo::Entry crowd_template_entry;
+        crowd_template_entry.type = "Mesh";
+        crowd_template_entry.name = "Crowd_A00.mesh";
+        crowd_template_entry.body_bytes =
+            gh::milo_object::serialize_mesh(crowd_template);
+        crowd_template_entry.terminator_value = 0xDEADDEADu;
+        crowd_source.entries.push_back(std::move(crowd_template_entry));
+        gh::milo_object::MultiMesh crowd_instances;
+        crowd_instances.drawable.revision = 1;
+        crowd_instances.mesh = "Crowd_A00.mesh";
+        crowd_instances.transforms.push_back(
+            {1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 20, 30});
+        gh::milo::Entry crowd_instances_entry;
+        crowd_instances_entry.type = "MultiMesh";
+        crowd_instances_entry.name = "Crowd01.mm";
+        crowd_instances_entry.body_bytes =
+            gh::milo_object::serialize_multi_mesh(crowd_instances);
+        crowd_instances_entry.terminator_value = 0xDEADDEADu;
+        crowd_source.entries.push_back(std::move(crowd_instances_entry));
+        gh::milo_object::View crowd_view;
+        crowd_view.drawable.revision = 1;
+        crowd_view.children_owner = "crowd.view";
+        crowd_view.transformable.parent = "crowd.view";
+        gh::milo::Entry crowd_view_entry;
+        crowd_view_entry.type = "View";
+        crowd_view_entry.name = "crowd.view";
+        crowd_view_entry.body_bytes =
+            gh::milo_object::serialize_view(crowd_view);
+        crowd_view_entry.terminator_value = 0xDEADDEADu;
+        crowd_source.entries.push_back(std::move(crowd_view_entry));
+        const auto crowd_result =
+            gh::milo_convert::convert_gh1_directory_to_gh2_rnddir(
+                crowd_source, "crowd", "crowd.view");
+        const auto find_crowd_target = [&](const std::string& name) {
+            return std::find_if(
+                crowd_result.directory.entries.begin(),
+                crowd_result.directory.entries.end(),
+                [&](const gh::milo::Entry& entry) {
+                    return entry.name == name;
+                });
+        };
+        const auto runtime_crowd_entry =
+            find_crowd_target("__gh1_runtime_multimeshes.grp");
+        const auto hidden_crowd_entry =
+            find_crowd_target("__gh1_unreachable_drawables.grp");
+        if (!crowd_result.complete ||
+            runtime_crowd_entry == crowd_result.directory.entries.end() ||
+            hidden_crowd_entry != crowd_result.directory.entries.end()) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: runtime crowd ownership missing\n");
+            return 1;
+        }
+        const auto runtime_crowd_group =
+            gh::milo_object::parse_group12(
+                runtime_crowd_entry->body_bytes);
+        if (!runtime_crowd_group.drawable.showing ||
+            runtime_crowd_group.objects !=
+                std::vector<std::string>{"Crowd01.mm"}) {
+            std::fprintf(
+                stderr,
+                "milo_convert_test: runtime crowd Group mismatch\n");
+            return 1;
+        }
+
         gh::milo::Directory model_source;
         model_source.dir_version = 10;
         model_source.boundaries_exact = true;
