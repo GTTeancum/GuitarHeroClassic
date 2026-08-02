@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 from pathlib import Path
 
 from PIL import Image
@@ -35,8 +36,12 @@ def main() -> int:
 
     errors: list[str] = []
     audit_rows: list[dict[str, str | int | float]] = []
+    family_body_hashes: dict[tuple[str, str], set[str]] = {}
+    family_finish_counts: dict[tuple[str, str], int] = {}
     for record in records:
         stem = record["asset_stem"]
+        family = (record["role"], record["catalog_id"])
+        family_finish_counts[family] = family_finish_counts.get(family, 0) + 1
         sources = [
             source
             for source in record.get("texture_sources", "").split(",")
@@ -54,6 +59,11 @@ def main() -> int:
         body = images_dir / "body.png"
         if body.is_file():
             emitted.append(body)
+            family_body_hashes.setdefault(family, set()).add(
+                hashlib.sha256(body.read_bytes()).hexdigest()
+            )
+            if not record.get("palette_primary", ""):
+                errors.append(f"{stem}: customizable finish has no palette index")
         if not emitted:
             errors.append(f"{stem}: no emitted diffuse images")
             continue
@@ -83,7 +93,16 @@ def main() -> int:
                 max(pixel[:3]) - min(pixel[:3]) >= 192 for pixel in pixels
             )
             max_unique = max(max_unique, len(set(pixels)))
-        if max_unique < 2:
+        # Several retail Paint defaults explicitly select guitar.pal[0]
+        # (black) for a single-channel material. The CPU-composed diffuse is
+        # therefore intentionally flat black; runtime material lighting gives
+        # it shape. Factory finish diversity is checked per family below.
+        authored_flat_black_paint = (
+            record.get("palette_primary") == "0"
+            and not record.get("palette_secondary", "")
+            and record.get("skin_id", "").endswith("_paint")
+        )
+        if max_unique < 2 and not authored_flat_black_paint:
             errors.append(f"{stem}: every emitted diffuse is a flat color")
         audit_rows.append(
             {
@@ -103,6 +122,14 @@ def main() -> int:
                 "status": "pass",
             }
         )
+    for family, finish_count in family_finish_counts.items():
+        if finish_count <= 1 or family not in family_body_hashes:
+            continue
+        if len(family_body_hashes[family]) <= 1:
+            errors.append(
+                f"{family[0]}/{family[1]}: {finish_count} finishes emitted "
+                "one identical body texture"
+            )
 
     report = root / "texture_decode_audit.tsv"
     with report.open("w", encoding="utf-8", newline="") as stream:

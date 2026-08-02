@@ -71,15 +71,18 @@ try {
             for ($channel = 0; $channel -lt 3; $channel++) {
                 $blend = [Math]::Floor(
                     (
-                        $baseChannels[$channel] * $primary[$channel] +
-                        (255 - $baseChannels[$channel]) * $secondary[$channel] +
+                        (255 - $base.A) * $primary[$channel] +
+                        $base.A * $secondary[$channel] +
                         127
                     ) / 255
+                )
+                $tinted = [Math]::Floor(
+                    ($baseChannels[$channel] * $blend + 127) / 255
                 )
                 $outChannels[$channel] = [Math]::Floor(
                     (
                         $baseChannels[$channel] * $maskChannels[$channel] +
-                        $blend * (255 - $maskChannels[$channel]) +
+                        $tinted * (255 - $maskChannels[$channel]) +
                         127
                     ) / 255
                 )

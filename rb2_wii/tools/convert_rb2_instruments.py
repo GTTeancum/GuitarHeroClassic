@@ -12,7 +12,7 @@ import struct
 import subprocess
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 from rb2_native_assets import (
     FormatError,
@@ -211,6 +211,80 @@ def clean_markup(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def parse_color_palette(path: Path) -> list[tuple[int, int, int]]:
+    """Decode an extracted RB2 ColorPalette object into 8-bit RGB values."""
+    data = path.read_bytes()
+    if len(data) < 21:
+        raise RuntimeError(f"truncated ColorPalette: {path}")
+    count = struct.unpack_from("<I", data, 17)[0]
+    expected_size = 21 + count * 16
+    if len(data) != expected_size:
+        raise RuntimeError(
+            f"unsupported ColorPalette layout: {path} "
+            f"size={len(data)} expected={expected_size}"
+        )
+    colors: list[tuple[int, int, int]] = []
+    for index in range(count):
+        rgb = struct.unpack_from("<3f", data, 21 + index * 16)
+        colors.append(
+            tuple(
+                round(max(0.0, min(1.0, channel)) * 255.0)
+                for channel in rgb
+            )
+        )
+    return colors
+
+
+def parse_outfit_color_indices(
+    path: Path,
+) -> dict[str, dict[str, int]]:
+    """Map each retail outfit stem to its guitar.pal channel indices."""
+    text = path.read_text(encoding="utf-8")
+    result: dict[str, dict[str, int]] = {}
+    blocks = re.finditer(
+        r"(?ms)^   \(outfit\s*$.*?(?=^   \(outfit\s*$|\Z)", text
+    )
+    for block_match in blocks:
+        block = block_match.group(0)
+        file_match = re.search(
+            r'"\./char/instruments/(?:guitar|bass)/([^"/]+)\.milo"',
+            block,
+        )
+        if not file_match:
+            continue
+        channel_indices: dict[str, int] = {}
+        color_matches = list(
+            re.finditer(r"\(colorindex\s+(\d+)\)", block)
+        )
+        for match_index, color_match in enumerate(color_matches):
+            end = (
+                color_matches[match_index + 1].start()
+                if match_index + 1 < len(color_matches)
+                else len(block)
+            )
+            option = block[color_match.end():end]
+            color_index = int(color_match.group(1))
+            if "(primary_palette" in option:
+                channel_indices["primary"] = color_index
+            if "(secondary_palette" in option:
+                channel_indices["secondary"] = color_index
+        if channel_indices:
+            result[file_match.group(1).lower()] = channel_indices
+    return result
+
+
+def compose_single_color(
+    diffuse: Image.Image, color: tuple[int, int, int]
+) -> Image.Image:
+    """Apply RB2's single material-color channel while retaining alpha."""
+    base = diffuse.convert("RGBA")
+    tinted = ImageChops.multiply(
+        base.convert("RGB"), Image.new("RGB", base.size, color)
+    ).convert("RGBA")
+    tinted.putalpha(base.getchannel("A"))
+    return tinted
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -256,7 +330,18 @@ def main() -> int:
         if args.output_root
         else rb2_root / "batch_build" / "rb2_retail_default_v1"
     )
-    for required in [inventory, milo_tool, template, superfreq]:
+    color_index_path = rb2_root / "source_ark" / "config" / "colorindex.dta"
+    color_palette_milo = (
+        rb2_root / "source_ark" / "char" / "gen" / "colorpalettes.milo_wii"
+    )
+    for required in [
+        inventory,
+        milo_tool,
+        template,
+        superfreq,
+        color_index_path,
+        color_palette_milo,
+    ]:
         if not required.exists():
             raise FileNotFoundError(required)
     if output_root.exists() and not args.resume:
@@ -312,6 +397,23 @@ def main() -> int:
         logs / "qualified_fender.log",
         repo_root,
     )
+    color_palette_output = output_root / "_colorpalettes"
+    if color_palette_output.exists():
+        shutil.rmtree(color_palette_output)
+    color_palette_entries = extract_milo(
+        milo_tool,
+        color_palette_milo,
+        color_palette_output,
+        logs / "colorpalettes.log",
+        repo_root,
+    )
+    guitar_palette_path = color_palette_entries.get(
+        ("colorpalette", "guitar.pal")
+    )
+    if guitar_palette_path is None:
+        raise RuntimeError("guitar.pal was not found in colorpalettes.milo_wii")
+    guitar_palette = parse_color_palette(guitar_palette_path)
+    outfit_colors = parse_outfit_color_indices(color_index_path)
 
     record_path = output_root / "conversion_records.tsv"
     records: list[dict[str, str | int]] = []
@@ -432,6 +534,8 @@ def main() -> int:
 
         material_targets: dict[str, tuple[str, str]] = {}
         texture_sources: list[str] = []
+        palette_primary: str | int = ""
+        palette_secondary: str | int = ""
         customizable = variant.resolve() != resource.resolve()
         if customizable:
             if len(body_meshes) != 1:
@@ -477,7 +581,29 @@ def main() -> int:
             )
             texture_sources.append(diffuses[0])
             diffuse.save(images / "body_diffuse.png")
-            body_image = diffuse
+            channel_indices = outfit_colors.get(skin_id.lower())
+            if channel_indices is None:
+                raise RuntimeError(
+                    f"{role}/{catalog_id}/{skin_id}: no retail color mapping"
+                )
+            primary_index = channel_indices["primary"]
+            secondary_index = channel_indices.get("secondary", 0)
+            palette_primary = primary_index
+            palette_secondary = (
+                secondary_index if "secondary" in channel_indices else ""
+            )
+            if (
+                primary_index >= len(guitar_palette)
+                or secondary_index >= len(guitar_palette)
+            ):
+                raise RuntimeError(
+                    f"{role}/{catalog_id}/{skin_id}: palette index out of range "
+                    f"primary={primary_index} secondary={secondary_index} "
+                    f"count={len(guitar_palette)}"
+                )
+            primary_color = guitar_palette[primary_index]
+            secondary_color = guitar_palette[secondary_index]
+            body_image = compose_single_color(diffuse, primary_color)
             if masks:
                 if len(configs) != 1:
                     raise RuntimeError(
@@ -488,17 +614,16 @@ def main() -> int:
                 ].read_bytes()
                 if len(config) < 16:
                     raise RuntimeError("truncated OutfitConfig")
-                colors = struct.unpack_from("<ii", config, 8)
-                if colors != (0, 0):
-                    raise RuntimeError(
-                        f"{role}/{catalog_id}/{skin_id}: unsupported retail "
-                        f"palette indices {colors}"
-                    )
                 mask = decode_embedded_wii_bitmap(
                     variant_entries[("tex", masks[0])].read_bytes()
                 )
                 mask.save(images / "body_mask.png")
-                body_image = compose_two_color(diffuse, mask)
+                body_image = compose_two_color(
+                    diffuse,
+                    mask,
+                    primary=primary_color,
+                    secondary=secondary_color,
+                )
             if composites:
                 # Keep the source compositing input as an inspection artifact.
                 # It is shader data, not an RGBA decal and must not be drawn
@@ -507,17 +632,15 @@ def main() -> int:
                     variant_entries[("tex", composites[0])].read_bytes()
                 )
                 composite.save(images / "body_comp.png")
-            # The diffuse alpha identifies fixed-color detail that RB2 keeps
-            # out of the paint recolor pass. On telecaster01 this is exactly
-            # the white pickguard. Restore the original diffuse RGB under that
-            # mask before flattening the GH2 target texture to opaque.
-            fixed_detail_mask = diffuse.getchannel("A")
-            fixed_detail_mask.save(images / "body_fixed_detail_mask.png")
-            body_image = Image.composite(
-                diffuse.convert("RGBA"),
-                body_image.convert("RGBA"),
-                fixed_detail_mask,
-            )
+            # In RB2's two-color shader, diffuse alpha interpolates between
+            # the two palette colors. It is not opacity or a fixed-detail
+            # mask. The separate *_mask texture preserves fixed detail such as
+            # the Telecaster pickguard. Keep alpha as an audit artifact before
+            # flattening the opaque GH2 target.
+            if masks:
+                diffuse.getchannel("A").save(
+                    images / "body_color_interpolation.png"
+                )
             # The GH2 target body material is opaque.  Several RB2 Wii
             # customizable diffuses store unrelated payload data in alpha
             # (often zero across most UV islands); carrying that channel into
@@ -773,6 +896,8 @@ def main() -> int:
                 ),
                 "is_default_skin": str(is_default_skin).lower(),
                 "texture_sources": ",".join(dict.fromkeys(texture_sources)),
+                "palette_primary": palette_primary,
+                "palette_secondary": palette_secondary,
                 "source_cost": int(row["source_cost"]),
                 "half_cost": int(row["half_cost"]),
                 "body_vertices": sum(

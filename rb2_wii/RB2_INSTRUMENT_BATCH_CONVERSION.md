@@ -15,19 +15,19 @@ GH2-style packages for this repository's game:
 The current audited build is:
 
 ```text
-rb2_wii/batch_build/rb2_retail_finishes_v11
+rb2_wii/batch_build/rb2_retail_factory_colors_v12
 ```
 
 Its package overlay is deliberately not the acceptance oracle. A model is
 finished only after store purchase/equip and gameplay checks in the active
 game.
 
-The complete v11 overlay is deployed. All 546 active entries read back
+The complete v12 overlay is deployed. All 546 active entries read back
 byte-identically: 543 finish packages, `guitars.dtb`, `store.dtb`, and
 `ui/eng/gen/locale.dtb`. The per-entry proof is:
 
 ```text
-rb2_wii/batch_build/rb2_retail_finishes_v11/active_readback_audit.tsv
+rb2_wii/batch_build/rb2_retail_factory_colors_v12/active_readback_audit.tsv
 ```
 
 ## Finish inventory and runtime selection
@@ -38,6 +38,13 @@ finish names. The generated `catalog/rb2_instrument_finishes.tsv` has one row
 per finish MILO. Fixed fantasy instruments have one resource finish;
 customizable families expose Paint, Sparkle, Sunburst, Triburst, wood, and
 pickguard combinations exactly as authored.
+
+Those outfit names do not define their visible colors. RB2 stores the authored
+primary/secondary palette indices separately in `config/colorindex.dta`, and
+the RGB palette itself in `char/gen/colorpalettes.milo_wii` as `guitar.pal`.
+The converter must join all three sources. `Paint` remains the customizable
+two-channel choice; Sparkle, Sunburst, Triburst, wood, and pickguard entries
+are the factory finishes and retain their authored color pairs.
 
 The game keeps model purchase and finish selection separate. Buying an RB2
 model at `floor(RB2 cost / 2)` makes its full retail finish list available;
@@ -111,7 +118,7 @@ python rb2_wii/tools/build_instrument_finish_inventory.py `
 python rb2_wii/tools/convert_rb2_instruments.py `
   --rb2-root ..\rb2_wii `
   --inventory ../rb2_wii/catalog/rb2_instrument_finishes.tsv `
-  --output-root ../rb2_wii/batch_build/rb2_retail_finishes_v11
+  --output-root ../rb2_wii/batch_build/rb2_retail_factory_colors_v12
 ```
 
 The converter uses native command-line tools (`milo_tool`, `superfreq`) and
@@ -142,11 +149,15 @@ For each instrument it:
    ranking. This prevents RB2 shader payloads from appearing as neon confetti
    on Chainsaw, SkeleTone Bass, Axe Bass, Batwing, Jupiter, Neon, The Hand,
    and the other affected fantasy instruments.
-9. Reconstructs customizable finishes in RB2 shader order. It recolors the
-   paintable area, then restores the original diffuse RGB wherever the
-   diffuse alpha marks fixed-color detail. On `telecaster01` that alpha island
-   is the white pickguard. Only after that composition is the GH2 body texture
-   flattened opaque.
+9. Extracts the 51-entry `guitar.pal` RGB table and joins each outfit to its
+   exact primary/secondary indices from `config/colorindex.dta`. It then
+   reconstructs RB2's two-color shader: diffuse RGB supplies authored
+   lighting/detail, diffuse alpha interpolates primary to secondary, and the
+   separate RGB mask preserves fixed-color pixels per channel. This distinction
+   is what produces a real dark-edged sunburst while retaining Telecaster
+   pickguard detail. Treating diffuse alpha as opacity or fixed detail creates
+   white body sections and broken gradients. The completed GH2 body texture is
+   flattened opaque only after composition.
 10. Preserves the RB2 body material's cull flag. Most RB2 instrument shells are
    authored two-sided; replacing that state with the stock SG's `cull=true`
    removes thin neck, headstock, pickguard, and hardware faces.
@@ -284,7 +295,7 @@ Approved executable SHA-256:
 
 ## Audit
 
-`batch_build/rb2_retail_finishes_v11/native_batch_audit.tsv` records:
+`batch_build/rb2_retail_factory_colors_v12/native_batch_audit.tsv` records:
 
 - 543/543 finish-package hashes matched;
 - 1,098 required staged body/string meshes were present;
@@ -391,7 +402,7 @@ Example invocation from the repository root:
 python rb2_wii/tools/capture_rb2_instrument_proofs.py `
   --exe ..\gh2_ps2_hybrid_assets\ghogx_app.exe `
   --game-dir ..\gh2_ps2_hybrid_assets `
-  --records ..\rb2_wii\batch_build\rb2_retail_finishes_v11\conversion_records.tsv `
+  --records ..\rb2_wii\batch_build\rb2_retail_factory_colors_v12\conversion_records.tsv `
   --output-dir ..\proofs\rb2-instruments-all-92-review `
   --jobs 4
 ```

@@ -783,6 +783,13 @@ def compose_two_color(
     primary: tuple[int, int, int] = (0, 0, 0),
     secondary: tuple[int, int, int] = (0, 0, 0),
 ) -> Image.Image:
+    """Reproduce RB2's two-color material composition.
+
+    The diffuse RGB carries authored lighting/detail. Its alpha channel is the
+    primary/secondary interpolation value (zero selects primary, 255 selects
+    secondary). The separate RGB mask keeps fixed-color pixels from the
+    recolor pass on a per-channel basis.
+    """
     base = diffuse.convert("RGBA")
     resized_mask = mask.convert("RGB").resize(base.size, Image.Resampling.NEAREST)
     base_bytes = bytearray(base.tobytes())
@@ -791,16 +798,20 @@ def compose_two_color(
     for pixel in range(base.width * base.height):
         base_offset = pixel * 4
         mask_offset = pixel * 3
+        interpolation = base_bytes[base_offset + 3]
         for channel in range(3):
             source = base_bytes[base_offset + channel]
             blend = (
-                source * primary[channel]
-                + (255 - source) * secondary[channel]
+                (255 - interpolation) * primary[channel]
+                + interpolation * secondary[channel]
                 + 127
             ) // 255
+            tinted = (source * blend + 127) // 255
             mask_value = mask_bytes[mask_offset + channel]
             output[base_offset + channel] = (
-                source * mask_value + blend * (255 - mask_value) + 127
+                source * mask_value
+                + tinted * (255 - mask_value)
+                + 127
             ) // 255
         output[base_offset + 3] = base_bytes[base_offset + 3]
     return Image.frombytes("RGBA", base.size, bytes(output))
