@@ -1,5 +1,28 @@
 # Deferred Notes
 
+## Open Gameplay / Runtime TODO
+
+1. Deferred retail pause/fail presentation: pause and failure menus should be
+  centered overlays which do not consume the full screen; the live venue and
+  characters must remain visible in the background. Recover the retail panel
+  bounds, overlay behavior, and gameplay-render lifetime before changing it.
+2. Audio Settings adjustment direction is reversed. Retail expectation for the
+  current vertical control mapping is Up -> right/increase and
+  Down -> left/decrease.
+3. Default input/audio calibration needs measurement and correction. On Easy,
+  first-tier live play registered roughly 5% of attempted notes. Determine
+  audio output latency, render/input timing, chart window, and calibration
+  defaults from measured clocks before widening hit windows.
+4. Smooth choppy transitions in some authored flyby camera shots without removing or replacing the PS2 camera behavior.
+5. Consider adding a distinct HOPO glow in the style of Guitar Hero III and later games.
+6. Complete whammy deformation/action on sustain tails.
+7. Add original-Xbox support for Xbox 360 guitar hardware through controller-port-to-female-USB adapters:
+  1. Implement the wired Xbox 360 X-Plorer first. Add its USB VID/PID, initialization and report parsing, then map frets, strum, Start/Back, whammy, and tilt/star power where exposed.
+  2. Implement the Xbox 360 Wireless Receiver second. Handle receiver enumeration/initialization, connection and disconnection reports, input packets, pairing/sync behavior, and only the status/LED commands actually required.
+  3. Deliberately support one receiver and one active wireless instrument/controller per physical original-Xbox controller port. Bind the first compatible connected slot, ignore additional receiver slots, and allow a new device to claim the port after disconnect. Do not implement multitap-style fanout.
+  4. Use public protocol behavior and hardware captures for a clean implementation; Linux `xpad` is a useful behavioral reference, but do not copy GPL implementation code unless licensing is explicitly compatible.
+  5. Treat PS2-to-Xbox guitar adapters as active protocol translators when they enumerate as standard Xbox controllers. They should normally need only adapter-specific input mapping/whammy validation, not a PS2 controller protocol driver. Escalate to driver work only for nonstandard descriptors or initialization.
+
 ## Architectural Constraints
 
 1. GH2 is always the primary/base game and owns every gameplay visual and UI
@@ -34,29 +57,6 @@
   only for its songs, and import GH80s for its songs and characters. GH2
   remains the base archive and continues to own gameplay, UI, HUD, and other
   primary presentation.
-
-## Open Gameplay / Runtime TODO
-
-1. Deferred retail pause/fail presentation: pause and failure menus should be
-  centered overlays which do not consume the full screen; the live venue and
-  characters must remain visible in the background. Recover the retail panel
-  bounds, overlay behavior, and gameplay-render lifetime before changing it.
-2. Audio Settings adjustment direction is reversed. Retail expectation for the
-  current vertical control mapping is Up -> right/increase and
-  Down -> left/decrease.
-3. Default input/audio calibration needs measurement and correction. On Easy,
-  first-tier live play registered roughly 5% of attempted notes. Determine
-  audio output latency, render/input timing, chart window, and calibration
-  defaults from measured clocks before widening hit windows.
-4. Smooth choppy transitions in some authored flyby camera shots without removing or replacing the PS2 camera behavior.
-5. Consider adding a distinct HOPO glow in the style of Guitar Hero III and later games.
-6. Complete whammy deformation/action on sustain tails.
-7. Add original-Xbox support for Xbox 360 guitar hardware through controller-port-to-female-USB adapters:
-  1. Implement the wired Xbox 360 X-Plorer first. Add its USB VID/PID, initialization and report parsing, then map frets, strum, Start/Back, whammy, and tilt/star power where exposed.
-  2. Implement the Xbox 360 Wireless Receiver second. Handle receiver enumeration/initialization, connection and disconnection reports, input packets, pairing/sync behavior, and only the status/LED commands actually required.
-  3. Deliberately support one receiver and one active wireless instrument/controller per physical original-Xbox controller port. Bind the first compatible connected slot, ignore additional receiver slots, and allow a new device to claim the port after disconnect. Do not implement multitap-style fanout.
-  4. Use public protocol behavior and hardware captures for a clean implementation; Linux `xpad` is a useful behavioral reference, but do not copy GPL implementation code unless licensing is explicitly compatible.
-  5. Treat PS2-to-Xbox guitar adapters as active protocol translators when they enumerate as standard Xbox controllers. They should normally need only adapter-specific input mapping/whammy validation, not a PS2 controller protocol driver. Escalate to driver work only for nonstandard descriptors or initialization.
 
 ## Open Native Conversion Parity TODO
 
