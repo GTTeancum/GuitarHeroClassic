@@ -625,7 +625,11 @@ serialized reference.
 The accompanying texture audit proves that conversion must not normalize
 crowd alpha. Seven packages share a binary-alpha bitmap with 25,220 transparent
 and 7,548 opaque pixels. Theatre's source bitmap carries the same RGB but is
-fully opaque. Both source forms remain bitmap-identical after conversion.
+fully opaque. Both source forms remain byte-identical to their respective raw
+payload after conversion. Runtime treats all indexed storage as CLUT-alpha;
+only a fully opaque image used by an alpha-blended `MultiMesh0` template
+receives the exact binary silhouette established by the seven matching source
+packages. This fixes Theatre without a venue/name rule or a global black key.
 Runtime coverage submits all 2,265 GH1 instances with zero missing templates;
 the native GH2 path separately retains 49 `WorldCrowd6` actors and 4,080
 placements. Details and proof are in

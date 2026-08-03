@@ -61,6 +61,10 @@ int main(int argc, char** argv) {
             std::printf("height     : %u\n", bm.height);
             std::printf("bpl        : %u\n", bm.bpl);
             std::printf("payload    : %zu bytes\n", bm.raw.size());
+            std::printf("alpha mode : %s\n",
+                        gh::tex::uses_ps2_transparent_black(bm)
+                            ? "ps2-transparent-black"
+                            : "authored-alpha");
             const auto rgba = gh::tex::decode_to_rgba(bm);
             uint8_t alpha_min = 0xFF;
             uint8_t alpha_max = 0;

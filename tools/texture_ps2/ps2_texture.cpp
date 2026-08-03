@@ -42,6 +42,10 @@ uint8_t deinterleave_8bpp(uint8_t i) {
         (i & 0xE7) | ((i & 0x08) << 1) | ((i & 0x10) >> 1));
 }
 
+bool is_rgb_zero(const uint8_t* color) {
+    return color[0] == 0 && color[1] == 0 && color[2] == 0;
+}
+
 }  // anonymous namespace
 
 HmxBitmap parse(const std::vector<uint8_t>& src) {
@@ -67,6 +71,29 @@ HmxBitmap parse(const std::vector<uint8_t>& src) {
 
     b.raw.assign(src.begin() + kHeaderSize, src.end());
     return b;
+}
+
+bool uses_ps2_transparent_black(const HmxBitmap& b) {
+    if (b.encoding != 3 || b.width == 0 || b.height == 0) return false;
+
+    const size_t base_pixels = static_cast<size_t>(b.width) * b.height;
+    // GH1 PsTex::Sync sets TEX0.TCC for every format except RGB24. Indexed
+    // textures therefore consume their CLUT alpha even when all used entries
+    // happen to be opaque; that condition is not an alpha-less flag.
+    return b.bpp == 24 && b.raw.size() >= base_pixels * 3;
+}
+
+size_t apply_transparent_black_alpha(std::vector<uint8_t>& rgba) {
+    size_t changed = 0;
+    for (size_t i = 0; i + 3 < rgba.size(); i += 4) {
+        uint8_t* color = rgba.data() + i;
+        const uint8_t alpha = is_rgb_zero(color) ? 0x00 : 0xff;
+        if (color[3] != alpha) {
+            color[3] = alpha;
+            ++changed;
+        }
+    }
+    return changed;
 }
 
 std::vector<uint8_t> decode_to_rgba(const HmxBitmap& b) {
@@ -107,7 +134,9 @@ std::vector<uint8_t> decode_to_rgba(const HmxBitmap& b) {
                 d[0] = s[0];
                 d[1] = s[1];
                 d[2] = s[2];
-                d[3] = 0xFF;
+                // PS2 RGB24 has no stored alpha. TEXA expands it, with AEM
+                // making exact RGB zero transparent.
+                d[3] = is_rgb_zero(s) ? 0x00 : 0xFF;
             }
         }
         return out;
@@ -143,7 +172,6 @@ std::vector<uint8_t> decode_to_rgba(const HmxBitmap& b) {
 
     const uint8_t* pix = b.raw.data() + pal_sz;
     std::vector<uint8_t> out(base_pixels * 4);
-
     if (b.bpp == 8) {
         for (size_t i = 0; i < base_pixels; ++i) {
             uint8_t idx = deinterleave_8bpp(pix[i]);

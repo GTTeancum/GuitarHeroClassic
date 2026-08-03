@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <exception>
+#include <vector>
 
 namespace {
 
@@ -52,6 +53,48 @@ int main() {
         check(rgba24[0] == 1 && rgba24[1] == 2 && rgba24[2] == 3 &&
                   rgba24[3] == 0xFF,
               "1x1 24bpp direct-color channel order and opaque alpha");
+
+        gh::tex::HmxBitmap black24 = one24;
+        black24.raw = {0, 0, 0};
+        auto rgba_black24 = gh::tex::decode_to_rgba(black24);
+        check(gh::tex::uses_ps2_transparent_black(black24),
+              "RGB24 selects the PS2 transparent-black expansion path");
+        check(rgba_black24[3] == 0,
+              "RGB24 exact black follows TEXA/AEM transparent expansion");
+
+        gh::tex::HmxBitmap opaque8{};
+        opaque8.magic = 0x01;
+        opaque8.bpp = 8;
+        opaque8.encoding = 3;
+        opaque8.width = 2;
+        opaque8.height = 1;
+        opaque8.raw.resize(256 * 4 + 2, 0);
+        // Palette entries 0 and 1 are exact black and red. All palette alpha
+        // is opaque, matching the cached Theatre crowd source.
+        for (size_t i = 0; i < 256; ++i)
+            opaque8.raw[i * 4 + 3] = 0x80;
+        opaque8.raw[1 * 4 + 0] = 0x7f;
+        opaque8.raw[256 * 4 + 0] = 0;
+        opaque8.raw[256 * 4 + 1] = 1;
+        auto rgba_opaque8 = gh::tex::decode_to_rgba(opaque8);
+        check(!gh::tex::uses_ps2_transparent_black(opaque8),
+              "indexed bitmap retains CLUT alpha even when fully opaque");
+        check(rgba_opaque8[3] == 0xff && rgba_opaque8[7] == 0xff,
+              "indexed decode does not infer transparent black");
+        check(gh::tex::apply_transparent_black_alpha(rgba_opaque8) == 1,
+              "explicit transparent-black operation changes exact black");
+        check(rgba_opaque8[3] == 0 && rgba_opaque8[7] == 0xff,
+              "explicit transparent-black operation preserves nonblack");
+
+        gh::tex::HmxBitmap authored8 = opaque8;
+        // A used translucent palette entry proves this is an alpha-bearing
+        // bitmap; its opaque black must remain opaque.
+        authored8.raw[1 * 4 + 3] = 0x40;
+        auto rgba_authored8 = gh::tex::decode_to_rgba(authored8);
+        check(!gh::tex::uses_ps2_transparent_black(authored8),
+              "authored indexed alpha stays on CLUT-alpha path");
+        check(rgba_authored8[3] == 0xff && rgba_authored8[7] == 0x80,
+              "authored alpha preserves opaque black and translucent color");
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "unexpected exception: %s\n", ex.what());
         return 1;

@@ -316,6 +316,38 @@ bool debug_texture_load_enabled() {
   return enabled;
 }
 
+bool debug_ps2_alpha_enabled() {
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_LOG_PS2_ALPHA") == 0 && value &&
+      value[0];
+  std::free(value);
+  return enabled;
+}
+
+void log_ps2_alpha_contract(const std::string& label,
+                            const gh::tex::HmxBitmap& bitmap,
+                            const std::vector<uint8_t>& rgba) {
+  if (!debug_ps2_alpha_enabled()) return;
+  size_t zero_alpha = 0;
+  size_t exact_black = 0;
+  for (size_t i = 0; i + 3 < rgba.size(); i += 4) {
+    if (rgba[i + 3] == 0) ++zero_alpha;
+    if (rgba[i] == 0 && rgba[i + 1] == 0 && rgba[i + 2] == 0)
+      ++exact_black;
+  }
+  std::fprintf(
+      stderr,
+      "[asset] ps2-alpha source=%s bpp=%u mode=%s zero_alpha=%zu "
+      "exact_black=%zu pixels=%zu\n",
+      label.c_str(), bitmap.bpp,
+      gh::tex::uses_ps2_transparent_black(bitmap)
+          ? "transparent_black"
+          : "authored",
+      zero_alpha, exact_black, rgba.size() / 4);
+}
+
 std::string normalize_outfit_surface_key(std::string key) {
   std::replace(key.begin(), key.end(), '\\', '/');
   const size_t slash = key.find_last_of('/');
@@ -364,6 +396,7 @@ TextureSourceStats load_milo_textures_from_source(
       if (tex.bitmap.encoding != 3) continue;  // external-flagged still embeds bitmap
       Image img;
       img.rgba = gh::tex::decode_to_rgba(tex.bitmap);
+      log_ps2_alpha_contract(milo_path + "/" + de.name, tex.bitmap, img.rgba);
       img.width = tex.bitmap.width;
       img.height = tex.bitmap.height;
       if (img.valid()) {
@@ -432,6 +465,8 @@ Image load_milo_texture(const std::string& hdr_path, const std::string& ark_path
         if (area <= best_area) continue;  // keep only the largest
 
         best.rgba = gh::tex::decode_to_rgba(tex.bitmap);
+        log_ps2_alpha_contract(
+            milo_path + "/" + de.name, tex.bitmap, best.rgba);
         best.width = tex.bitmap.width;
         best.height = tex.bitmap.height;
         best_area = area;
@@ -479,6 +514,8 @@ Image load_milo_texture_named(const std::string& hdr_path,
         auto tex = ghogx::milo::parse_tex_entry(de.name, tex_bytes);
         if (tex.bitmap.encoding != 3) break;  // external-flagged still embeds bitmap
         out.rgba   = gh::tex::decode_to_rgba(tex.bitmap);
+        log_ps2_alpha_contract(
+            milo_path + "/" + entry_name, tex.bitmap, out.rgba);
         out.width  = tex.bitmap.width;
         out.height = tex.bitmap.height;
         std::fprintf(stderr, "[asset] %s/%s -> %dx%d\n",
@@ -571,6 +608,7 @@ Image load_ps2_bitmap_from_ark(const std::string& hdr_path,
     const auto bytes = ark.read_entry(*entry, {ark_path});
     const auto bitmap = gh::tex::parse(bytes);
     out.rgba = gh::tex::decode_to_rgba(bitmap);
+    log_ps2_alpha_contract(entry_path, bitmap, out.rgba);
     out.width = bitmap.width;
     out.height = bitmap.height;
     if (out.valid()) {

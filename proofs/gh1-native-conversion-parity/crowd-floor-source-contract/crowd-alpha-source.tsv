@@ -1,9 +1,9 @@
-source_package	multimesh_objects	texture_digest_16	transparent_pixels	partial_alpha_pixels	opaque_pixels	alpha_cut	use_environ	result
-venues/arena/gen/lighting.rnd_ps2	5	2ba52f63f1ff561d	25220	0	7548	1	0	source alpha preserved
-venues/basement/gen/crowd.rnd_ps2	5	2ba52f63f1ff561d	25220	0	7548	1	0	source alpha preserved
-venues/big_club/gen/lighting.rnd_ps2	5	2ba52f63f1ff561d	25220	0	7548	1	0	source alpha preserved
-venues/big_club/gen/shadowtest.rnd_ps2	6	2ba52f63f1ff561d	25220	0	7548	1	0	source alpha preserved
-venues/fest/gen/crowd.rnd_ps2	5	2ba52f63f1ff561d	25220	0	7548	0	1	source alpha preserved
-venues/small_club/gen/lighting.rnd_ps2	5	2ba52f63f1ff561d	25220	0	7548	1	0	source alpha preserved
-venues/small_club_multi/gen/lighting.rnd_ps2	5	2ba52f63f1ff561d	25220	0	7548	1	0	source alpha preserved
-venues/theatre/gen/crowd.rnd_ps2	5	8dc47a2f48e6ec6e	0	0	32768	0	1	source opaque alpha preserved
+source_package	multimesh_objects	texture_digest_16	source_alpha_mode	source_transparent_pixels	source_partial_alpha_pixels	source_opaque_pixels	runtime_alpha_mode	decoded_transparent_pixels	decoded_partial_alpha_pixels	decoded_opaque_pixels	alpha_cut	use_environ	result
+venues/arena/gen/lighting.rnd_ps2	5	2ba52f63f1ff561d	authored-binary	25220	0	7548	authored-alpha	25220	0	7548	1	0	source alpha preserved
+venues/basement/gen/crowd.rnd_ps2	5	2ba52f63f1ff561d	authored-binary	25220	0	7548	authored-alpha	25220	0	7548	1	0	source alpha preserved
+venues/big_club/gen/lighting.rnd_ps2	5	2ba52f63f1ff561d	authored-binary	25220	0	7548	authored-alpha	25220	0	7548	1	0	source alpha preserved
+venues/big_club/gen/shadowtest.rnd_ps2	6	2ba52f63f1ff561d	authored-binary	25220	0	7548	authored-alpha	25220	0	7548	1	0	source alpha preserved
+venues/fest/gen/crowd.rnd_ps2	5	2ba52f63f1ff561d	authored-binary	25220	0	7548	authored-alpha	25220	0	7548	0	1	source alpha preserved
+venues/small_club/gen/lighting.rnd_ps2	5	2ba52f63f1ff561d	authored-binary	25220	0	7548	authored-alpha	25220	0	7548	1	0	source alpha preserved
+venues/small_club_multi/gen/lighting.rnd_ps2	5	2ba52f63f1ff561d	authored-binary	25220	0	7548	authored-alpha	25220	0	7548	1	0	source alpha preserved
+venues/theatre/gen/crowd.rnd_ps2	5	8dc47a2f48e6ec6e	opaque-clut	0	0	32768	source-multimesh-silhouette	25220	0	7548	0	1	matched GH1 crowd-family mask reconstructed

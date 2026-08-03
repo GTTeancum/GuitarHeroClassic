@@ -918,8 +918,14 @@ MultiMeshes. Seven share a 128x256 indexed image with 25,220 transparent and
 all 32,768 pixels opaque; its `crowd.mat` also authors SrcAlpha,
 `useEnviron=true`, `cull=true`, `zMode=1`, `alphaCut=false`, and
 `alphaWrite=false`. Raw and converted bitmap digests match in both cases.
-Accordingly, no black-key or fabricated Theatre alpha is allowed. Full crowd,
-floor, environment, and 15-venue runtime evidence is documented in
+Retail tracing proves that 8-bpp textures consume CLUT alpha and that
+Theatre does not take the `_tb` bitmap-conversion branch. The runtime therefore
+does not infer transparency from opaque indexed storage globally. Instead, it
+reconstructs the exact sibling binary mask only for a fully opaque image used
+by an alpha-blended `MultiMesh0` template. This source-topology rule has no
+venue, texture, material, or mesh-name condition; the fresh Theatre proof
+submits 500/500 cards with 25,220 transparent pixels and no rectangular
+backgrounds. Full crowd, floor, environment, and 15-venue evidence is in
 `docs/CROWD_AND_FLOOR_SOURCE_PARITY.md` and
 `proofs/gh1-native-conversion-parity/crowd-floor-source-contract/`.
 

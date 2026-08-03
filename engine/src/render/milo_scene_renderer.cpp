@@ -4,6 +4,7 @@
 #include "render/window_d3d9.h"
 #include "render/scene_d3d9.h"   // Mat4
 #include "asset/milo_image.h"
+#include "ps2_texture.h"
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -257,6 +258,43 @@ BlendState blend_state_for(uint8_t blend) {
     default:
       return {};
   }
+}
+
+bool image_alpha_is_fully_opaque(const ghogx::asset::Image& image) {
+  if (!image.valid()) return false;
+  for (size_t i = 3; i < image.rgba.size(); i += 4) {
+    if (image.rgba[i] != 0xff) return false;
+  }
+  return true;
+}
+
+std::unordered_set<std::string> source_multimesh_alpha_textures(
+    const milo_scene::Scene& scene) {
+  std::unordered_map<std::string, const milo_scene::MeshObj*> meshes;
+  meshes.reserve(scene.meshes.size());
+  for (const auto& mesh : scene.meshes) meshes.emplace(mesh.name, &mesh);
+
+  std::unordered_map<std::string, const milo_scene::MatObj*> materials;
+  materials.reserve(scene.mats.size());
+  for (const auto& material : scene.mats)
+    materials.emplace(material.name, &material);
+
+  std::unordered_set<std::string> textures;
+  for (const auto& multi_mesh : scene.multi_meshes) {
+    if (!multi_mesh.decoded) continue;
+    const auto mesh_it = meshes.find(multi_mesh.mesh);
+    if (mesh_it == meshes.end() || !mesh_it->second) continue;
+    const auto material_it = materials.find(mesh_it->second->material);
+    if (material_it == materials.end() || !material_it->second) continue;
+    const auto& material = *material_it->second;
+    if (material.diffuse_tex.empty() ||
+        (material.blend != kBlendSrcAlpha &&
+         material.blend != kBlendSrcAlphaAdd)) {
+      continue;
+    }
+    textures.insert(material.diffuse_tex);
+  }
+  return textures;
 }
 
 std::string read_env_string_raw(const char* name) {
@@ -3633,8 +3671,36 @@ void MiloSceneRenderer::set_scene(
   for (auto& kv : tex_)
     if (kv.second) kv.second->Release();
   tex_.clear();
+  const auto multimesh_alpha_textures =
+      source_multimesh_alpha_textures(scene_);
   for (const auto& kv : textures) {
-    IDirect3DTexture9* t = upload(kv.second);
+    const ghogx::asset::Image* upload_image = &kv.second;
+    ghogx::asset::Image reconstructed;
+    if (multimesh_alpha_textures.find(kv.first) !=
+            multimesh_alpha_textures.end() &&
+        image_alpha_is_fully_opaque(kv.second)) {
+      // All audited GH1 RndMultiMesh0 objects are crowd cards. Seven source
+      // packages carry the same binary silhouette alpha; Theatre decodes to
+      // the same RGB image with an all-opaque cached CLUT. Apply
+      // the established source-family silhouette only to an alpha-blended
+      // RndMultiMesh template. Indexed textures outside this exact serialized
+      // topology retain their authored CLUT alpha.
+      reconstructed = kv.second;
+      const size_t changed =
+          gh::tex::apply_transparent_black_alpha(reconstructed.rgba);
+      if (changed != 0) {
+        upload_image = &reconstructed;
+        if (env_enabled("GHOGX_LOG_PS2_ALPHA")) {
+          std::fprintf(
+              stderr,
+              "[milo_scene] ps2-alpha texture=%s "
+              "mode=source_multimesh_silhouette changed=%zu pixels=%zu "
+              "source=RndMultiMesh0+alpha_blend+matched_GH1_RGB\n",
+              kv.first.c_str(), changed, reconstructed.rgba.size() / 4);
+        }
+      }
+    }
+    IDirect3DTexture9* t = upload(*upload_image);
     if (t) tex_[kv.first] = t;
   }
   std::fprintf(stderr, "[scene3d] uploaded %zu/%zu textures\n", tex_.size(),

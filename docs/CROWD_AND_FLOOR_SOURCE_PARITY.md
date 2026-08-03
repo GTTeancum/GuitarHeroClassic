@@ -74,9 +74,23 @@ MILO and again after conversion.
   `alphaWrite=false`. The converted bitmap digest remains identical to the
   source digest.
 
-Consequently, seven crowd-card sets become silhouettes through authored
-texture alpha. Theatre remains opaque because that is what its source package
-encodes. There is no black-key, texture-name rule, or fabricated alpha.
+Retail `RndTex` tracing finds no missing serialized flag: the `_tb` filename
+branch calls `RndBitmap::SetAlpha(kTransparentBlack)` at
+`SLUS_212.24:0x001B02EC..0x001B0308`, but Theatre's path has no `_tb`.
+`PsTex::Sync` maps 4/8/16/24-bpp formats at
+`0x001A14B4..0x001A14E8`, and its normal upload path sets TEX0.TCC from
+`bpp != 24` at `0x001A1C38..0x001A1C68`. The 8-bpp Theatre image therefore
+uses its CLUT alpha in retail; an all-opaque indexed palette is not a generic
+alpha-less-texture flag.
+
+The source corpus nevertheless establishes the missing silhouette without a
+venue or asset-name exception. Every audited `MultiMesh0` is a crowd card;
+the seven sibling packages carry the exact binary alpha mask, and Theatre's
+decoded RGB pixels match them byte-for-byte. Runtime applies that established
+mask only when a decoded, alpha-blended MultiMesh template has a fully opaque
+image. All other indexed textures retain authored CLUT alpha. Theatre then
+decodes to 25,220 transparent and 7,548 opaque pixels, matching the other GH1
+crowd cards.
 
 ## GH2 retail contract
 
@@ -131,7 +145,9 @@ converted venues, with Theatre's three rows holding one constant key each.
   Group references, binds the decoded GH1 `crowd.env` after the merge, and
   leaves GH2 WorldCrowd placement meshes non-draw.
 - `milo_scene_renderer` expands source MultiMesh transforms in authored order
-  and propagates Group environment state to their template Meshes.
+  and propagates Group environment state to their template Meshes. It also
+  reconstructs the matched binary crowd silhouette only for a fully opaque
+  texture used by an alpha-blended MultiMesh template.
 - Contract tests reject the removed crowd-name heuristic, synthetic culls,
   fake floor material substitutions, and dangling environment ownership.
 
@@ -151,6 +167,10 @@ The input-free runtime matrix covers 15 venues:
   path.
 - Every run reaches `playing`, exits zero, and reports zero decode errors.
 - No run reports a manufactured visible crowd-floor row.
+- A fresh input-free Theatre run submits 500/500 MultiMesh instances, logs
+  `source_multimesh_silhouette changed=25220`, and shows no rectangular card
+  backgrounds. An Arena control run retains 25,220 authored transparent
+  pixels and does not activate reconstruction.
 
 The full converter audit covers 105 assets with 105 complete, zero incomplete,
 13,115 converted objects, 815 source-derived synthesized objects, zero

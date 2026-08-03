@@ -37,8 +37,20 @@ HmxBitmap parse(const std::vector<uint8_t>& bytes);
 // Decode the base mip to RGBA32 (top-left origin, 4 bytes per pixel).
 // Handles 4/8bpp PS2 indexed textures and 24/32bpp direct-color textures.
 // Returns width*height*4 bytes. PS2 alpha (0..128 = transparent..opaque) is
-// rescaled to 0..255 for alpha-bearing formats.
+// rescaled to 0..255 for alpha-bearing formats. RGB24 follows the GS
+// TEXA/AEM contract: exact RGB zero expands to transparent and every other
+// color expands to opaque.
 std::vector<uint8_t> decode_to_rgba(const HmxBitmap& bm);
+
+// True when the source bitmap follows the PS2 alpha-expansion path rather
+// than carrying authored per-pixel alpha. This is source-format state, not a
+// material-, texture-name-, or venue-specific color key.
+bool uses_ps2_transparent_black(const HmxBitmap& bm);
+
+// Apply the explicit kTransparentBlack operation used by RndBitmap::SetAlpha.
+// The caller must establish that operation from source-owned render semantics;
+// indexed bitmap storage alone does not imply it. Returns changed pixel count.
+size_t apply_transparent_black_alpha(std::vector<uint8_t>& rgba);
 
 // File helpers.
 std::vector<uint8_t> read_file(const std::string& path);

@@ -23,9 +23,19 @@ See `runtime-matrix.tsv` for the per-venue ledger.
 ## Transparency result
 
 Seven of eight GH1 MultiMesh-bearing packages contain an authored binary-alpha
-crowd image. Theatre's source image is fully opaque despite having the same
-RGB pixels. Conversion preserves both cases exactly; no black-key or synthetic
-alpha is applied. See `crowd-alpha-source.tsv`.
+crowd image. Theatre's cached source CLUT is fully opaque even though its
+decoded RGB pixels are byte-identical to that source family. Retail executable
+tracing confirms that indexed textures normally consume CLUT alpha and that
+Theatre has no `_tb` filename conversion, so there is no hidden bitmap flag to
+decode.
+
+The runtime correction is consequently scoped by decoded source topology:
+only an alpha-blended `MultiMesh0` template whose image has no authored
+transparency receives the binary silhouette established by the seven matching
+source packages. It does not inspect the venue, texture, material, or mesh
+name, and unrelated indexed textures retain their CLUT alpha. The fresh
+`screens/gh1_theatre.png` capture and `gh1-theatre-alpha-trace.txt` record the
+result. See `crowd-alpha-source.tsv` for the source/runtime split.
 
 ## Screens
 

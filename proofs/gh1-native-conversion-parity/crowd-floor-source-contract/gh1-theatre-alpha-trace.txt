@@ -1,0 +1,52 @@
+GH1 Theatre crowd-card alpha trace
+==================================
+Date: 2026-08-02
+
+Source bitmap
+-------------
+Package: venues/theatre/gen/crowd.rnd_ps2
+Texture: crowd01.tex -> ../textures/crowd01.bmp
+Format: 128x256, indexed 8-bpp, encoding/order 3
+Stored alpha: transparent=0 partial=0 opaque=32768
+Decoded RGB relation: byte-identical to the seven authored-alpha GH1 crowd
+packages.
+Sibling mask: transparent=25220 partial=0 opaque=7548
+All 25220 sibling-transparent pixels are exact RGB black in Theatre.
+
+Retail executable
+-----------------
+SLUS_212.24 0x001B02EC..0x001B0308:
+  `_tb` suffix branch calls RndBitmap::SetAlpha(kTransparentBlack).
+Theatre path has no `_tb` suffix.
+SLUS_212.24 0x001A14B4..0x001A14E8:
+  PsTex maps 4/8/16/24-bpp to GS PSM 0x14/0x13/0x02/0x01.
+SLUS_212.24 0x001A1C38..0x001A1C68:
+  TEX0.TCC = (bpp != 24); indexed Theatre consumes CLUT alpha.
+Conclusion: an all-opaque indexed CLUT is not a generic alpha-less flag.
+
+Runtime source-topology rule
+----------------------------
+Requirements:
+1. Decoded object is a MultiMesh0 template.
+2. Template material is source alpha-blended.
+3. Decoded image has no authored transparent/partial pixels.
+Only then is the exact sibling binary silhouette applied.
+No venue, texture, material, or mesh name participates.
+
+Fresh input-free Theatre run
+----------------------------
+Command mode: --diagnostic-venue gh1_theatre --venue-only --mute-audio
+               --fixed-dt 0.0166667 --screenshot-frame 600 --frames 603
+Synthetic input: none
+Exit: 0
+MultiMesh0: objects=5 instances=500 submitted=500 missing_templates=0
+Source decode: mode=authored zero_alpha=0 pixels=32768
+Reconstruction: mode=source_multimesh_silhouette changed=25220 pixels=32768
+Final alpha: transparent=25220 partial=0 opaque=7548
+Screenshot: screens/gh1_theatre.png
+
+Control and focused test
+------------------------
+GH1 Arena source alpha: transparent=25220 partial=0 opaque=7548
+GH1 Arena reconstruction activations: 0
+ps2_texture_test: PASS
