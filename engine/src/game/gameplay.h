@@ -924,6 +924,14 @@ class Gameplay {
     diagnostic_performer_overrides_[std::move(role)] =
         std::move(character_reference);
   }
+  // Decouples a diagnostic performer's animation owner from its rendered
+  // model. The reference uses the same archive-qualified `source:model` form
+  // as the performer override and is resolved through normal source assets.
+  void set_diagnostic_performer_animation_override(
+      std::string role, std::string character_reference) {
+    diagnostic_performer_animation_overrides_[std::move(role)] =
+        std::move(character_reference);
+  }
   // Diagnostic venue breadth helper: keeps song/band data from songs.dtb, but
   // routes world/lighting/characters/drums through another authored venue.
   void set_diagnostic_venue_override(const std::string& venue) {
@@ -1305,6 +1313,9 @@ class Gameplay {
     std::string prop_milo_ref;
     std::string prop_attach_bone;
     bool gh1_character_runtime = false;
+    bool external_animation_retarget = false;
+    std::unique_ptr<ghogx::character::Character> retarget_source_character;
+    std::unique_ptr<ghogx::character::Character> retarget_target_character;
     bool charwalk_runtime = false;
     std::unique_ptr<ghogx::character::CharRenderer> renderer;
     std::unique_ptr<ghogx::character::CharacterTypeScriptInstance>
@@ -1912,6 +1923,8 @@ class Gameplay {
   std::string diagnostic_character_archive_id_;
   std::unordered_map<std::string, std::string>
       diagnostic_performer_overrides_;
+  std::unordered_map<std::string, std::string>
+      diagnostic_performer_animation_overrides_;
   std::string diagnostic_venue_override_;
   std::string selected_venue_;
   std::string intro_camera_category_ = "INTRO";

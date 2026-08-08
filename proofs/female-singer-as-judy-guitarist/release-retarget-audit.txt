@@ -1,0 +1,57 @@
+Release proportion-aware guitarist retarget audit
+Captured input-free at fixed dt=0.083333333 during chart-driven playing.
+
+Active-performance proof segment
+- body group: normal
+- body clip: alterna_stand_fast_02
+- diagnostic autoplay hits in run: 19
+- strum selections during captured segment: 9
+- fret-hand selections during captured segment: 9
+- strum clips include short and long authored variants
+- neck targets traversed: fret 1, 4, 9, 11, and 18
+- intro-gated/seek-idle captures were rejected and are not the retained video
+
+Female singer target, Judy Nails animation owner
+- exact hand controllers installed: 2
+- exact MIDI hand controller installed: 1
+- hand drivers installed: 2
+- imported attachment roots normalized: 1
+- target/source arm-reach ratio: 0.91715
+- target arm reach: 19.32109
+- observed hand-target distance: <= 18.49654
+- solver weight: 1
+- target blend weight: 1
+- target upper-arm twist controllers active: left and right
+- source left-hand weighted centroid: (2.94778, 0.19211, -0.19322)
+- target left-hand weighted centroid: (1.72409, 1.55184, -1.11524)
+- source grip sample: 253 weighted vertices across 7 highest-detail meshes
+- target grip sample: 122 weighted vertices in 1 highest-detail mesh
+- fret-hand contact correction installed: 1
+- maximum observed corrected left-hand target distance: 19.08134
+- strum hand retains authored wrist/pick target (no palm-centroid shift)
+
+Male singer target, Judy Nails animation owner
+- exact hand controllers installed: 2
+- exact MIDI hand controller installed: 1
+- hand drivers installed: 2
+- imported attachment roots normalized: 1
+- target/source arm-reach ratio: 1.03099
+- target arm reach: 21.71919
+- observed hand-target distance: <= 18.53957
+- solver weight: 1
+- target blend weight: 1
+- target upper-arm twist controllers active: left and right
+
+Synthetic unequal-proportion contract
+- source arm reach: 20
+- target arm reach: 16
+- imported attachment ratio: 0.8
+- imported attachment offset: 12 -> 9.6
+
+Compatibility boundary
+- Requires exact target hand -> forearm -> upper-arm chains.
+- Requires exact authored instrument fret/strum targets.
+- Target-authored controllers win.
+- Only imported attachment-root translation is normalized.
+- Guitar geometry, scale, and target skeleton are not resized.
+- Missing finger chains remain rigid; no bones or motion are invented.

@@ -40758,6 +40758,23 @@ const ghogx::character::CharClip* Gameplay::resolve_performer_driver_node(
         runtime.hdr_path, runtime.ark_path, catalog->milo_path,
         catalog->name);
     if (!clip.loaded) return nullptr;
+    if (performer.external_animation_retarget && performer.renderer &&
+        performer.retarget_source_character &&
+        performer.retarget_target_character) {
+      const auto audit = ghogx::character::retarget_clip_to_character(
+          clip, *performer.retarget_source_character,
+          *performer.retarget_target_character);
+      std::fprintf(
+          stderr,
+          "[world] runtime performer retarget: role=%s driver=%s "
+          "clip=%s frames=%zu channels=%zu matched_outputs=%zu/%zu "
+          "max_pos=%.3f max_scale=%.3f nonfinite=%zu\n",
+          performer.role.c_str(), std::string(driver_name).c_str(),
+          clip.name.c_str(), audit.frames, audit.channels,
+          audit.matched_outputs, audit.source_outputs,
+          audit.max_abs_position, audit.max_scale,
+          audit.nonfinite_values);
+    }
     decoded =
         runtime.decoded_clips.emplace(*selected_name, std::move(clip)).first;
     return &decoded->second;
@@ -42505,6 +42522,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 const bool selected_guitarist_variant =
                     role == "guitarist0" &&
                     diagnostic_character_override_.empty() &&
+                    diagnostic_performer_overrides_.find(role) ==
+                        diagnostic_performer_overrides_.end() &&
                     !selected_character_selection_.empty() &&
                     character_name == selected_character_selection_ &&
                     !selected_character_model_path_.empty();
@@ -42631,6 +42650,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         archive_source_id(
                             auxiliary_asset_paths_[archive_index].first));
                 }
+                const auto all_character_archives = character_archives;
                 if (preferred_archive_id.empty() && role == "guitarist0" &&
                     !diagnostic_character_archive_id_.empty()) {
                     preferred_archive_id =
@@ -42760,16 +42780,111 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                  role.c_str(), model_name.c_str(),
                                  performer_highway_surface_ref.c_str());
                 }
-                const auto character_drivers = character.drivers;
+                std::string animation_model_name = model_name;
+                std::string animation_char_milo = char_milo;
+                std::string animation_hdr_path = character_hdr_path;
+                std::string animation_ark_path = character_ark_path;
+                std::string animation_dir_type = character.dir_type;
+                std::string animation_root_object_type =
+                    character.root_object_type;
+                bool animation_gh1_content_layout = gh1_content_layout;
+                auto animation_drivers = character.drivers;
+                std::unique_ptr<ghogx::character::Character>
+                    animation_source_character;
+                if (const auto animation_override =
+                        diagnostic_performer_animation_overrides_.find(role);
+                    animation_override !=
+                    diagnostic_performer_animation_overrides_.end()) {
+                    std::string animation_reference =
+                        animation_override->second;
+                    std::string animation_archive_id;
+                    if (const size_t separator =
+                            animation_reference.find(':');
+                        separator != std::string::npos && separator > 0 &&
+                        separator + 1 < animation_reference.size()) {
+                        animation_archive_id = lower_ascii(
+                            animation_reference.substr(0, separator));
+                        animation_reference.erase(0, separator + 1);
+                    }
+                    const std::string gh2_animation_character_milo =
+                        "char/" + animation_reference + "/og/gen/" +
+                        animation_reference + ".milo_ps2";
+                    const std::string gh1_animation_character_milo =
+                        "charsys/" + animation_reference + "/gen/" +
+                        animation_reference + ".milo_ps2";
+                    bool animation_source_loaded = false;
+                    std::string animation_archive_role;
+                    std::string animation_archive_source_id;
+                    ghogx::character::Character animation_character;
+                    for (const auto& archive : all_character_archives) {
+                        if (!animation_archive_id.empty() &&
+                            archive.source_id != animation_archive_id) {
+                            continue;
+                        }
+                        animation_character = ghogx::character::Character{};
+                        if (ghogx::character::load_character(
+                                archive.hdr, archive.ark,
+                                gh2_animation_character_milo,
+                                animation_character)) {
+                            animation_char_milo =
+                                gh2_animation_character_milo;
+                            animation_gh1_content_layout = false;
+                        } else {
+                            if (require_native_assets_enabled()) continue;
+                            animation_character =
+                                ghogx::character::Character{};
+                            if (!ghogx::character::load_character(
+                                    archive.hdr, archive.ark,
+                                    gh1_animation_character_milo,
+                                    animation_character)) {
+                                continue;
+                            }
+                            animation_char_milo =
+                                gh1_animation_character_milo;
+                            animation_gh1_content_layout = true;
+                        }
+                        animation_model_name = animation_reference;
+                        animation_hdr_path = archive.hdr;
+                        animation_ark_path = archive.ark;
+                        animation_archive_role = archive.role;
+                        animation_archive_source_id = archive.source_id;
+                        animation_drivers = animation_character.drivers;
+                        animation_dir_type = animation_character.dir_type;
+                        animation_root_object_type =
+                            animation_character.root_object_type;
+                        animation_source_character = std::make_unique<
+                            ghogx::character::Character>(
+                            std::move(animation_character));
+                        animation_source_loaded = true;
+                        break;
+                    }
+                    if (!animation_source_loaded) {
+                        throw std::runtime_error(
+                            "diagnostic performer animation source missing "
+                            "for role " +
+                            role + ": " + animation_override->second);
+                    }
+                    std::fprintf(
+                        stderr,
+                        "[world] diagnostic performer animation source: "
+                        "role=%s target=%s source=%s archive=%s "
+                        "source_id=%s layout=%s model_asset=%s\n",
+                        role.c_str(), model_name.c_str(),
+                        animation_model_name.c_str(),
+                        animation_archive_role.c_str(),
+                        animation_archive_source_id.c_str(),
+                        animation_gh1_content_layout ? "GH1" : "GH2",
+                        animation_char_milo.c_str());
+                }
                 auto driver_realign_for =
                     [&](std::string_view driver_name) {
                         const auto found = std::find_if(
-                            character_drivers.begin(),
-                            character_drivers.end(),
+                            animation_drivers.begin(),
+                            animation_drivers.end(),
                             [&](const ghogx::character::CharDriver& driver) {
                                 return driver.name == driver_name;
                             });
-                        return found != character_drivers.end() &&
+                        return found != animation_drivers.end() &&
                                found->realign;
                     };
                 const auto facefx_servos = character.lip_sync_servos;
@@ -42785,18 +42900,17 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         for (const char* name : clip_names)
                             if (name && name[0])
                                 requested.emplace_back(name);
-                        const auto native_names =
-                            native_driver_clip_candidates(requested,
-                                                          model_name);
-                        for (const auto& driver : character_drivers) {
+                        const auto native_names = native_driver_clip_candidates(
+                            requested, animation_model_name);
+                        for (const auto& driver : animation_drivers) {
                             if (driver.name != driver_name ||
                                 driver.clip_milo.empty())
                                 continue;
                             for (const auto& candidate :
                                  driver_milo_candidates_game(
-                                     char_milo, driver.clip_milo)) {
-                                if (load_clip_first(out, character_hdr_path,
-                                                    character_ark_path,
+                                     animation_char_milo, driver.clip_milo)) {
+                                if (load_clip_first(out, animation_hdr_path,
+                                                    animation_ark_path,
                                                     candidate, native_names)) {
                                     return true;
                                 }
@@ -42808,18 +42922,17 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     [&](ghogx::character::CharClip& out,
                         const std::string& driver_name,
                         const std::vector<std::string>& clip_names) {
-                        const auto native_names =
-                            native_driver_clip_candidates(clip_names,
-                                                          model_name);
-                        for (const auto& driver : character_drivers) {
+                        const auto native_names = native_driver_clip_candidates(
+                            clip_names, animation_model_name);
+                        for (const auto& driver : animation_drivers) {
                             if (driver.name != driver_name ||
                                 driver.clip_milo.empty())
                                 continue;
                             for (const auto& candidate :
                                  driver_milo_candidates_game(
-                                     char_milo, driver.clip_milo)) {
-                                if (load_clip_first(out, character_hdr_path,
-                                                    character_ark_path,
+                                     animation_char_milo, driver.clip_milo)) {
+                                if (load_clip_first(out, animation_hdr_path,
+                                                    animation_ark_path,
                                                     candidate, native_names)) {
                                     return true;
                                 }
@@ -42829,11 +42942,11 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     };
                 auto driver_milos_for = [&](const std::string& driver_name) {
                     std::vector<std::string> milos;
-                    for (const auto& driver : character_drivers) {
+                    for (const auto& driver : animation_drivers) {
                         if (driver.name != driver_name || driver.clip_milo.empty())
                             continue;
                         for (const auto& candidate :
-                             driver_milo_candidates_game(char_milo,
+                             driver_milo_candidates_game(animation_char_milo,
                                                          driver.clip_milo)) {
                             if (std::find(milos.begin(), milos.end(),
                                           candidate) == milos.end()) {
@@ -42870,6 +42983,76 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 perf.prop_attach_bone =
                     attach_external_prop ? prop_attach_bone : std::string{};
                 perf.gh1_character_runtime = gh1_content_layout;
+                perf.external_animation_retarget =
+                    diagnostic_performer_animation_overrides_.find(perf.role) !=
+                    diagnostic_performer_animation_overrides_.end();
+                perf.retarget_source_character =
+                    std::move(animation_source_character);
+                if (perf.external_animation_retarget &&
+                    perf.retarget_source_character &&
+                    !prop_attach_bone.empty()) {
+                    auto same_transform = [](std::string lhs,
+                                             std::string rhs) {
+                        auto strip = [](std::string& value) {
+                            for (const std::string_view suffix :
+                                 {std::string_view(".mesh"),
+                                  std::string_view(".trans")}) {
+                                if (value.size() >= suffix.size() &&
+                                    value.compare(value.size() - suffix.size(),
+                                                  suffix.size(), suffix) == 0) {
+                                    value.resize(value.size() - suffix.size());
+                                    break;
+                                }
+                            }
+                        };
+                        strip(lhs);
+                        strip(rhs);
+                        return lhs == rhs;
+                    };
+                    const bool target_has_attach =
+                        std::any_of(
+                            character.bones.begin(), character.bones.end(),
+                            [&](const auto& bone) {
+                                return same_transform(bone.name,
+                                                      prop_attach_bone);
+                            }) ||
+                        std::any_of(
+                            character.meshes.begin(), character.meshes.end(),
+                            [&](const auto& mesh) {
+                                return same_transform(mesh.name,
+                                                      prop_attach_bone);
+                            });
+                    if (!target_has_attach) {
+                        const auto source_attach = std::find_if(
+                            perf.retarget_source_character->bones.begin(),
+                            perf.retarget_source_character->bones.end(),
+                            [&](const auto& bone) {
+                                return same_transform(bone.name,
+                                                      prop_attach_bone);
+                            });
+                        if (source_attach !=
+                            perf.retarget_source_character->bones.end()) {
+                            ghogx::character::AttachedPropTransformProxy proxy;
+                            proxy.name = source_attach->name;
+                            proxy.parent = source_attach->parent;
+                            proxy.local = source_attach->local;
+                            proxy.bind_local = source_attach->local;
+                            character.attached_prop_transform_proxies.emplace(
+                                proxy.name, proxy);
+                            std::fprintf(
+                                stderr,
+                                "[world] performer retarget attachment bridge: "
+                                "role=%s target=%s source=%s parent=%s\n",
+                                perf.role.c_str(), proxy.name.c_str(),
+                                animation_model_name.c_str(),
+                                proxy.parent.c_str());
+                        }
+                    }
+                }
+                if (perf.external_animation_retarget) {
+                    perf.retarget_target_character = std::make_unique<
+                        ghogx::character::Character>(character);
+                }
                 if (gh1_content_layout) {
                     if (const auto face_config =
                             gh1_face_runtime_config_for_model(
@@ -42935,17 +43118,64 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 perf.renderer->set_proof_lighting(
                     diagnostic_unlit_performers_);
                 auto& runtime_character = perf.renderer->character();
+                if (perf.external_animation_retarget &&
+                    perf.role != "singer") {
+                    auto parent_of = [&](const std::string& name) {
+                        const auto bone = std::find_if(
+                            runtime_character.bones.begin(),
+                            runtime_character.bones.end(),
+                            [&](const auto& candidate) {
+                                return candidate.name == name;
+                            });
+                        if (bone != runtime_character.bones.end())
+                            return bone->parent;
+                        const auto mesh = std::find_if(
+                            runtime_character.meshes.begin(),
+                            runtime_character.meshes.end(),
+                            [&](const auto& candidate) {
+                                return candidate.name == name;
+                            });
+                        return mesh == runtime_character.meshes.end()
+                                   ? std::string{}
+                                   : mesh->parent;
+                    };
+                    size_t hidden_role_props = 0;
+                    for (const auto& mesh : runtime_character.meshes) {
+                        std::string ancestor = mesh.parent;
+                        bool microphone_descendant = false;
+                        for (int guard = 0;
+                             !ancestor.empty() && guard++ < 128;) {
+                            if (ancestor == "bone_pos_mic.mesh" ||
+                                ancestor == "bone_pos_mic.trans" ||
+                                ancestor == "bone_pos_mic") {
+                                microphone_descendant = true;
+                                break;
+                            }
+                            ancestor = parent_of(ancestor);
+                        }
+                        if (microphone_descendant &&
+                            perf.renderer->set_object_showing(mesh.name,
+                                                              false)) {
+                            ++hidden_role_props;
+                        }
+                    }
+                    std::fprintf(
+                        stderr,
+                        "[world] performer retarget role props: role=%s "
+                        "suppressed_mic_descendants=%zu\n",
+                        perf.role.c_str(), hidden_role_props);
+                }
                 const std::string world_fx_owner =
                     perf.role + ":" + model_name;
-                if (!runtime_character.dir_type.empty() &&
-                    !runtime_character.root_object_type.empty()) {
+                if (!animation_dir_type.empty() &&
+                    !animation_root_object_type.empty()) {
                     std::string script_error;
                     auto program =
                         ghogx::character::
                             load_character_type_script_program(
-                                character_hdr_path, character_ark_path,
-                                runtime_character.dir_type,
-                                runtime_character.root_object_type,
+                                animation_hdr_path, animation_ark_path,
+                                animation_dir_type,
+                                animation_root_object_type,
                                 &script_error);
                     if (program) {
                         perf.type_script =
@@ -42968,8 +43198,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             "[world] performer type script unavailable: "
                             "owner=%s class=%s type=%s error=%s\n",
                             world_fx_owner.c_str(),
-                            runtime_character.dir_type.c_str(),
-                            runtime_character.root_object_type.c_str(),
+                            animation_dir_type.c_str(),
+                            animation_root_object_type.c_str(),
                             script_error.c_str());
                     } else {
                         std::fprintf(
@@ -42977,8 +43207,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             "[world] performer type script ready: owner=%s "
                             "class=%s type=%s unhandled=%zu\n",
                             world_fx_owner.c_str(),
-                            runtime_character.dir_type.c_str(),
-                            runtime_character.root_object_type.c_str(),
+                            animation_dir_type.c_str(),
+                            animation_root_object_type.c_str(),
                             perf.type_script->unhandled_messages().size());
                     }
                 }
@@ -43381,7 +43611,13 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     selected_variant &&
                             !selected_main_anim_path.empty()
                         ? selected_main_anim_path
-                        : "char/" + model_name + "/anims/gen/" + anim_stem +
+                        : "char/" + animation_model_name + "/anims/gen/" +
+                              (diagnostic_performer_animation_overrides_.find(
+                                   role) ==
+                                       diagnostic_performer_animation_overrides_
+                                           .end()
+                                   ? anim_stem
+                                   : animation_model_name) +
                               "_main.milo_ps2";
                 const NativeDriverClipSearch main_clip_search =
                     native_driver_clip_search_paths(
@@ -43395,12 +43631,12 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 ghogx::character::CharClipGroup active_group;
                 if (perf.role == "guitarist0") {
                     active_group = ghogx::character::load_clip_group(
-                        character_hdr_path, character_ark_path,
+                        animation_hdr_path, animation_ark_path,
                         main_anim_milos, "normal");
                     active_group_names = active_group.clips;
                     perf.active_group_which = active_group.which;
                 }
-                if (!gh1_content_layout &&
+                if (!animation_gh1_content_layout &&
                     perf.role == "guitarist0") {
                     auto load_native_walk_group =
                         [&](std::string_view group_name,
@@ -43408,15 +43644,15 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                 destination) {
                             const auto group =
                                 ghogx::character::load_clip_group(
-                                    character_hdr_path,
-                                    character_ark_path,
+                                    animation_hdr_path,
+                                    animation_ark_path,
                                     main_anim_milos,
                                     std::string(group_name));
                             for (const auto& clip_name : group.clips) {
                                 ghogx::character::CharClip clip;
                                 if (load_clip_first_from_milos(
-                                        clip, character_hdr_path,
-                                        character_ark_path,
+                                        clip, animation_hdr_path,
+                                        animation_ark_path,
                                         main_anim_milos,
                                         std::vector<std::string>{
                                             clip_name})) {
@@ -43464,15 +43700,15 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 if (!load_driver_clip_first(perf.idle_clip, "main.drv",
                                             idle_names) &&
                     !main_clip_search.driver_authoritative) {
-                    load_clip_first(perf.idle_clip, character_hdr_path,
-                                    character_ark_path,
+                    load_clip_first(perf.idle_clip, animation_hdr_path,
+                                    animation_ark_path,
                                     anim_milo, idle_names);
                 }
                 if (!load_driver_clip_first(perf.intro_clip, "main.drv",
                                             intro_names) &&
                     !main_clip_search.driver_authoritative) {
-                    load_clip_first(perf.intro_clip, character_hdr_path,
-                                    character_ark_path,
+                    load_clip_first(perf.intro_clip, animation_hdr_path,
+                                    animation_ark_path,
                                     anim_milo, intro_names);
                 }
                 const auto ordered_active_names =
@@ -43481,8 +43717,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 if (!load_driver_clip_names(perf.active_clip, "main.drv",
                                             ordered_active_names)) {
                     load_clip_first_from_milos(perf.active_clip,
-                                               character_hdr_path,
-                                               character_ark_path,
+                                               animation_hdr_path,
+                                               animation_ark_path,
                                                main_anim_milos,
                                                ordered_active_names);
                 }
@@ -43495,21 +43731,23 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         if (const auto path =
                                 choose_gh1_acp(inventory, fragments)) {
                             result = ghogx::character::load_acp_clip(
-                                character_hdr_path, character_ark_path,
+                                animation_hdr_path, animation_ark_path,
                                 *path);
                         }
                         return result;
                     };
-                if (gh1_content_layout) {
+                if (animation_gh1_content_layout) {
                     gh1_body_acps = gh1_acp_inventory(
-                        character_hdr_path, model_name, "anims/gen/");
+                        animation_hdr_path, animation_model_name,
+                        "anims/gen/");
                     gh1_finger_acps = gh1_acp_inventory(
-                        character_hdr_path, model_name, "anims/finger/gen/");
+                        animation_hdr_path, animation_model_name,
+                        "anims/finger/gen/");
                     const std::string tempo =
                         rig_anim_tempo == "kTempoFast" ? "fast" : "medium";
                     const auto animation_defs =
                         gh1_animation_defs_for_inventory(
-                            character_hdr_path, character_ark_path,
+                            animation_hdr_path, animation_ark_path,
                             gh1_body_acps);
                     std::map<std::string, std::string> acp_by_name;
                     for (const auto& path : gh1_body_acps)
@@ -43521,7 +43759,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             if (path == acp_by_name.end())
                                 return ghogx::character::CharClip{};
                             auto clip = ghogx::character::load_acp_clip(
-                                character_hdr_path, character_ark_path,
+                                animation_hdr_path, animation_ark_path,
                                 path->second);
                             if (clip.loaded &&
                                 gh1_animation_has_play_flag(
@@ -43719,7 +43957,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                     std::string::npos)
                                     continue;
                                 auto clip = ghogx::character::load_acp_clip(
-                                    character_hdr_path, character_ark_path,
+                                    animation_hdr_path, animation_ark_path,
                                     path);
                                 if (clip.loaded)
                                     perf.star_power_group_clips.push_back(
@@ -43732,7 +43970,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         "[world] GH1 ACP inventory: role=%s model=%s "
                         "body=%zu finger=%zu anim_defs=%zu win=%d lose=%d "
                         "final=%d special=%zu\n",
-                        perf.role.c_str(), model_name.c_str(),
+                        perf.role.c_str(), animation_model_name.c_str(),
                         gh1_body_acps.size(), gh1_finger_acps.size(),
                         animation_defs.size(),
                         perf.win_clip.loaded ? 1 : 0,
@@ -43741,8 +43979,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         perf.star_power_group_clips.size());
                     if (perf.role == "guitarist0") {
                         const auto walk_config = gh1_walk_runtime_config(
-                            character_hdr_path, character_ark_path,
-                            hdr_path_, ark_path_, model_name,
+                            animation_hdr_path, animation_ark_path,
+                            hdr_path_, ark_path_, animation_model_name,
                             gh1_animation_venue);
                         size_t decoded_walk_points = 0;
                         for (const auto& target :
@@ -43971,8 +44209,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     for (const auto& clip_name : active_group_names) {
                         ghogx::character::CharClip clip;
                         if (load_clip_first_from_milos(
-                                clip, character_hdr_path,
-                                character_ark_path, main_anim_milos,
+                                clip, animation_hdr_path,
+                                animation_ark_path, main_anim_milos,
                                 std::vector<std::string>{clip_name})) {
                             perf.active_group_clips.push_back(std::move(clip));
                         } else {
@@ -43997,15 +44235,15 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 if (perf.role == "guitarist0") {
                     const auto star_power_group =
                         ghogx::character::load_clip_group(
-                            character_hdr_path, character_ark_path,
+                            animation_hdr_path, animation_ark_path,
                             main_anim_milos,
                             "star_power");
                     perf.star_power_group_which = star_power_group.which;
                     for (const auto& clip_name : star_power_group.clips) {
                         ghogx::character::CharClip clip;
                         if (load_clip_first_from_milos(
-                                clip, character_hdr_path,
-                                character_ark_path, main_anim_milos,
+                                clip, animation_hdr_path,
+                                animation_ark_path, main_anim_milos,
                                 std::vector<std::string>{clip_name})) {
                             perf.star_power_group_clips.push_back(
                                 std::move(clip));
@@ -44018,8 +44256,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         perf.star_power_group_clips.size());
                 }
                 std::vector<std::string> band_jump_names =
-                    load_char_clip_group(character_hdr_path,
-                                         character_ark_path,
+                    load_char_clip_group(animation_hdr_path,
+                                         animation_ark_path,
                                          main_anim_milos, "sync_jump");
                 if (band_jump_names.empty()) {
                     if (perf.role == "bassist") {
@@ -44034,8 +44272,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     if (!load_driver_clip_names(perf.band_jump_clip, "main.drv",
                                                 band_jump_names)) {
                         load_clip_first_from_milos(perf.band_jump_clip,
-                                                   character_hdr_path,
-                                                   character_ark_path,
+                                                   animation_hdr_path,
+                                                   animation_ark_path,
                                                    main_anim_milos,
                                                    band_jump_names);
                     }
@@ -44058,8 +44296,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                                 "main.drv",
                                                 drummer_active_allbeat_names)) {
                         load_clip_first_from_milos(
-                            perf.active_allbeat_clip, character_hdr_path,
-                            character_ark_path,
+                            perf.active_allbeat_clip, animation_hdr_path,
+                            animation_ark_path,
                             main_anim_milos, drummer_active_allbeat_names);
                     }
                     const auto drummer_active_double_names =
@@ -44071,8 +44309,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                                 "main.drv",
                                                 drummer_active_double_names)) {
                         load_clip_first_from_milos(
-                            perf.active_double_clip, character_hdr_path,
-                            character_ark_path,
+                            perf.active_double_clip, animation_hdr_path,
+                            animation_ark_path,
                             main_anim_milos, drummer_active_double_names);
                     }
                     const auto drummer_active_half_names =
@@ -44084,8 +44322,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                                 "main.drv",
                                                 drummer_active_half_names)) {
                         load_clip_first_from_milos(
-                            perf.active_half_clip, character_hdr_path,
-                            character_ark_path,
+                            perf.active_half_clip, animation_hdr_path,
+                            animation_ark_path,
                             main_anim_milos, drummer_active_half_names);
                     }
                     const auto drummer_active_nosnare_names =
@@ -44097,11 +44335,11 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                                 "main.drv",
                                                 drummer_active_nosnare_names)) {
                         load_clip_first_from_milos(
-                            perf.active_nosnare_clip, character_hdr_path,
-                            character_ark_path,
+                            perf.active_nosnare_clip, animation_hdr_path,
+                            animation_ark_path,
                             main_anim_milos, drummer_active_nosnare_names);
                     }
-                    if (gh1_content_layout) {
+                    if (animation_gh1_content_layout) {
                         const std::string tempo =
                             rig_anim_tempo == "kTempoFast" ? "fast" : "medium";
                         perf.active_allbeat_clip = load_gh1_inventory_clip(
@@ -44127,6 +44365,41 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     }
                 }
                 auto& hand_character = perf.renderer->character();
+                if (perf.external_animation_retarget &&
+                    perf.retarget_source_character) {
+                    const auto graph_audit = ghogx::character::
+                        install_external_retarget_controller_graph(
+                            *perf.retarget_source_character, hand_character);
+                    // Prop transform proxies are installed by
+                    // set_attached_prop immediately above. Snapshot the full
+                    // factual target bind graph only after that shared
+                    // ObjectDir has been assembled.
+                    perf.retarget_target_character = std::make_unique<
+                        ghogx::character::Character>(hand_character);
+                    std::fprintf(
+                        stderr,
+                        "[world] performer retarget controller graph: "
+                        "role=%s ikHands=%zu retainedHands=%zu "
+                        "missingChains=%zu missingTargets=%zu ikMidis=%zu "
+                        "handDrivers=%zu weightSetters=%zu "
+                        "upperTwists=%zu foreTwists=%zu "
+                        "attachmentRoots=%zu orientationCorrections=%zu "
+                        "contactCorrections=%zu "
+                        "armReachRatio=%.5f\n",
+                        perf.role.c_str(), graph_audit.installed_ik_hands,
+                        graph_audit.retained_target_ik_hands,
+                        graph_audit.skipped_missing_hand_chain,
+                        graph_audit.skipped_missing_target,
+                        graph_audit.installed_ik_midis,
+                        graph_audit.installed_hand_drivers,
+                        graph_audit.installed_weight_setters,
+                        graph_audit.installed_upper_twists,
+                        graph_audit.installed_fore_twists,
+                        graph_audit.normalized_attachment_roots,
+                        graph_audit.orientation_corrected_ik_hands,
+                        graph_audit.contact_corrected_ik_hands,
+                        graph_audit.mean_arm_reach_ratio);
+                }
                 if (gh1_content_layout &&
                     hand_character.gh1_fore_twists.empty() &&
                     hand_character.gh1_upper_twists.empty()) {
@@ -44167,15 +44440,16 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     !hand_character.ik_hands.empty() &&
                     !hand_character.ik_midis.empty();
                 const bool graph_has_hand_clip_drivers =
-                    std::any_of(character_drivers.begin(),
-                                character_drivers.end(),
+                    std::any_of(animation_drivers.begin(),
+                                animation_drivers.end(),
                                 [](const auto& driver) {
                                     return (driver.name == "left_hand.drv" ||
                                             driver.name == "right_hand.drv") &&
                                            !driver.clip_milo.empty();
                                 });
                 const bool gh1_acp_hand_driver =
-                    gh1_content_layout && perf.role == "guitarist0" &&
+                    animation_gh1_content_layout &&
+                    perf.role == "guitarist0" &&
                     !gh1_finger_acps.empty();
                 if ((graph_has_midi_hand_driver &&
                      graph_has_hand_clip_drivers) ||
@@ -44184,13 +44458,15 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         selected_variant &&
                                 !selected_strum_anim_path.empty()
                             ? selected_strum_anim_path
-                            : "char/" + model_name + "/anims/gen/" +
+                            : "char/" + animation_model_name +
+                                  "/anims/gen/" +
                                   anim_stem + "_strum.milo_ps2";
                     const std::string fret_milo =
                         selected_variant &&
                                 !selected_fret_anim_path.empty()
                             ? selected_fret_anim_path
-                            : "char/" + model_name + "/anims/gen/" +
+                            : "char/" + animation_model_name +
+                                  "/anims/gen/" +
                                   anim_stem + "_fret.milo_ps2";
                     auto load_gh1_finger =
                         [&](const std::vector<std::string>& fragments) {
@@ -44205,8 +44481,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                 load_gh1_finger({"strum_open"});
                         else
                             load_clip_first(perf.strum_open_clip,
-                                            character_hdr_path,
-                                            character_ark_path, strum_milo,
+                                            animation_hdr_path,
+                                            animation_ark_path, strum_milo,
                                             {"strum_open"});
                     }
                     keep_hand_overlay_channels(perf.strum_open_clip);
@@ -44220,8 +44496,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                  "strum_down_long"});
                         else
                             load_clip_first(
-                                perf.strum_clip, character_hdr_path,
-                                character_ark_path,
+                                perf.strum_clip, animation_hdr_path,
+                                animation_ark_path,
                                 strum_milo,
                                 {"strum_short_01", "strum_long_01",
                                  "strum_pick_01"});
@@ -44240,8 +44516,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                     load_gh1_finger({clip_name});
                             else
                                 load_clip_first(
-                                    named_clip, character_hdr_path,
-                                    character_ark_path, strum_milo, names);
+                                    named_clip, animation_hdr_path,
+                                    animation_ark_path, strum_milo, names);
                         }
                         if (named_clip.loaded) {
                             keep_hand_overlay_channels(named_clip);
@@ -44261,8 +44537,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                 lane_clip = load_gh1_finger({clip_name});
                             else
                                 load_clip_first(
-                                    lane_clip, character_hdr_path,
-                                    character_ark_path, fret_milo,
+                                    lane_clip, animation_hdr_path,
+                                    animation_ark_path, fret_milo,
                                     {clip_name});
                         }
                         keep_hand_overlay_channels(lane_clip);
@@ -44276,8 +44552,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                 load_gh1_finger({"finger_open"});
                         else
                             load_clip_first(perf.fret_open_clip,
-                                            character_hdr_path,
-                                            character_ark_path, fret_milo,
+                                            animation_hdr_path,
+                                            animation_ark_path, fret_milo,
                                             {"finger_open"});
                     }
                     keep_hand_overlay_channels(perf.fret_open_clip);
@@ -44291,8 +44567,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                  "finger_open"});
                         else
                             load_clip_first(
-                                perf.fret_clip, character_hdr_path,
-                                character_ark_path, fret_milo,
+                                perf.fret_clip, animation_hdr_path,
+                                animation_ark_path, fret_milo,
                                 {"finger_powerchord_1", "finger_chord_bar",
                                  "finger_open"});
                     }
@@ -44308,8 +44584,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                     load_gh1_finger({clip_name});
                             else
                                 load_clip_first(
-                                    named_clip, character_hdr_path,
-                                    character_ark_path, fret_milo, names);
+                                    named_clip, animation_hdr_path,
+                                    animation_ark_path, fret_milo, names);
                         }
                         if (named_clip.loaded) {
                             keep_hand_overlay_channels(named_clip);
@@ -44384,8 +44660,75 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             "[world] diagnostic performer clip override "
                             "missing: role=%s char=%s clip=%s\n",
                             perf.role.c_str(), perf.character_name.c_str(),
-                            requested->c_str());
+                        requested->c_str());
                     }
+                }
+                if (diagnostic_performer_animation_overrides_.find(
+                        perf.role) !=
+                    diagnostic_performer_animation_overrides_.end()) {
+                    size_t retargeted_clips = 0;
+                    size_t retargeted_frames = 0;
+                    size_t retargeted_channels = 0;
+                    size_t matched_outputs = 0;
+                    size_t source_outputs = 0;
+                    auto retarget_clip =
+                        [&](ghogx::character::CharClip& clip) {
+                            if (!clip.loaded) return;
+                            const auto audit =
+                                ghogx::character::retarget_clip_to_character(
+                                    clip, *perf.retarget_source_character,
+                                    *perf.retarget_target_character);
+                            ++retargeted_clips;
+                            retargeted_frames += audit.frames;
+                            retargeted_channels += audit.channels;
+                            matched_outputs += audit.matched_outputs;
+                            source_outputs += audit.source_outputs;
+                        };
+                    retarget_clip(perf.idle_clip);
+                    retarget_clip(perf.intro_clip);
+                    retarget_clip(perf.active_clip);
+                    retarget_clip(perf.active_bad_clip);
+                    retarget_clip(perf.active_extreme_clip);
+                    retarget_clip(perf.active_allbeat_clip);
+                    retarget_clip(perf.active_double_clip);
+                    retarget_clip(perf.active_half_clip);
+                    retarget_clip(perf.active_nosnare_clip);
+                    retarget_clip(perf.band_jump_clip);
+                    retarget_clip(perf.win_clip);
+                    retarget_clip(perf.lose_clip);
+                    retarget_clip(perf.win_final_clip);
+                    retarget_clip(perf.strum_open_clip);
+                    retarget_clip(perf.strum_clip);
+                    retarget_clip(perf.fret_open_clip);
+                    retarget_clip(perf.fret_clip);
+                    for (auto& clip : perf.active_group_clips)
+                        retarget_clip(clip);
+                    for (auto& clip : perf.star_power_group_clips)
+                        retarget_clip(clip);
+                    for (auto& clip : perf.fret_lane_clips)
+                        retarget_clip(clip);
+                    for (auto& [name, clip] : perf.strum_named_clips) {
+                        (void)name;
+                        retarget_clip(clip);
+                    }
+                    for (auto& [name, clip] : perf.fret_named_clips) {
+                        (void)name;
+                        retarget_clip(clip);
+                    }
+                    for (auto* pool : {&perf.gh1_walk_turn_clips,
+                                       &perf.gh1_walk_loop_clips,
+                                       &perf.gh1_walk_stop_clips}) {
+                        for (auto& walk : *pool) retarget_clip(walk.clip);
+                    }
+                    std::fprintf(
+                        stderr,
+                        "[world] performer retarget audit: role=%s "
+                        "target=%s source=%s clips=%zu frames=%zu "
+                        "channels=%zu matched_outputs=%zu/%zu\n",
+                        perf.role.c_str(), model_name.c_str(),
+                        animation_model_name.c_str(), retargeted_clips,
+                        retargeted_frames, retargeted_channels,
+                        matched_outputs, source_outputs);
                 }
                 std::fprintf(stderr,
                              "[world] performer clip sources: role=%s char=%s idle=%s intro=%s active=%s band_jump=%s strum=%s fret=%s\n",
@@ -44425,22 +44768,22 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 perf.fret_player.set_source_realign(
                     left_hand_driver_realign);
                 size_t authored_driver_order = 0;
-                for (const auto& driver : character_drivers) {
+                for (const auto& driver : animation_drivers) {
                     if (driver.name.empty() || driver.clip_milo.empty())
                         continue;
                     Performer::AuthoredDriver runtime;
-                    runtime.hdr_path = character_hdr_path;
-                    runtime.ark_path = character_ark_path;
+                    runtime.hdr_path = animation_hdr_path;
+                    runtime.ark_path = animation_ark_path;
                     runtime.source_order = authored_driver_order++;
                     runtime.player.set_source_realign(driver.realign);
                     runtime.milo_paths = driver_milos_for(driver.name);
                     runtime.clip_catalog =
                         ghogx::character::load_clip_catalog(
-                            character_hdr_path, character_ark_path,
+                            animation_hdr_path, animation_ark_path,
                             runtime.milo_paths);
                     for (auto group :
                          ghogx::character::load_clip_group_catalog(
-                             character_hdr_path, character_ark_path,
+                             animation_hdr_path, animation_ark_path,
                              runtime.milo_paths)) {
                         runtime.groups.emplace(group.name, std::move(group));
                     }
@@ -49160,8 +49503,10 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         ? std::atan2(facing[0], -facing[1])
                         : 0.0f;
                 cam.pitch = 0.06f;
-                cam.distance = 105.0f;
-                cam.fov = 0.58f;
+                cam.distance = env_float(
+                    "GHOGX_DIAGNOSTIC_FRONT_CAMERA_DISTANCE", 105.0f);
+                cam.fov = env_float(
+                    "GHOGX_DIAGNOSTIC_FRONT_CAMERA_FOV", 0.58f);
                 cam.near_z = 1.0f;
                 cam.far_z = 12000.0f;
                 if (!diagnostic_front_camera_reported_) {

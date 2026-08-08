@@ -46,6 +46,9 @@
 //   ghogx_app --diagnostic-performer <role>=<source:model>
 //                                      route any performer through an archive-qualified
 //                                      character reference without changing gameplay/UI
+//   ghogx_app --diagnostic-performer-animation <role>=<source:model>
+//                                      animate that role from a separately resolved
+//                                      character source for retarget proofs
 //   ghogx_app --diagnostic-venue <v>   route capture through another GH2 venue
 //   ghogx_app --venue-only             render venue/camera only; suppress HUD,
 //                                      highway, props, and performers
@@ -953,6 +956,12 @@ class AppEngine : public ghogx::Engine {
   void set_diagnostic_performer_override(
       const std::string& role, const std::string& character_reference) {
     gameplay_.set_diagnostic_performer_override(role, character_reference);
+  }
+
+  void set_diagnostic_performer_animation_override(
+      const std::string& role, const std::string& character_reference) {
+    gameplay_.set_diagnostic_performer_animation_override(
+        role, character_reference);
   }
 
   void set_diagnostic_venue_override(const std::string& venue) {
@@ -2897,6 +2906,8 @@ int main(int argc, char** argv) {
   std::string diagnostic_character;
   std::vector<std::pair<std::string, std::string>>
       diagnostic_performer_overrides;
+  std::vector<std::pair<std::string, std::string>>
+      diagnostic_performer_animation_overrides;
   std::string diagnostic_venue;
   bool venue_only = false;
   std::string diagnostic_guitar;
@@ -3063,6 +3074,21 @@ int main(int argc, char** argv) {
         return 2;
       }
       diagnostic_performer_overrides.emplace_back(
+          value.substr(0, equals), value.substr(equals + 1));
+    } else if (std::strcmp(argv[i],
+                           "--diagnostic-performer-animation") == 0 &&
+               i + 1 < argc) {
+      std::string value = argv[++i];
+      const size_t equals = value.find('=');
+      if (equals == std::string::npos || equals == 0 ||
+          equals + 1 >= value.size()) {
+        std::fprintf(
+            stderr,
+            "[ghogx] --diagnostic-performer-animation expects "
+            "role=source:model\n");
+        return 2;
+      }
+      diagnostic_performer_animation_overrides.emplace_back(
           value.substr(0, equals), value.substr(equals + 1));
     } else if (std::strcmp(argv[i], "--diagnostic-venue") == 0 && i + 1 < argc) {
       diagnostic_venue = argv[++i];
@@ -3465,6 +3491,15 @@ int main(int argc, char** argv) {
     std::fprintf(stderr,
                  "[ghogx] diagnostic performer override: role=%s ref=%s\n",
                  role.c_str(), character_reference.c_str());
+  }
+  for (const auto& [role, character_reference] :
+       diagnostic_performer_animation_overrides) {
+    engine.set_diagnostic_performer_animation_override(role,
+                                                       character_reference);
+    std::fprintf(
+        stderr,
+        "[ghogx] diagnostic performer animation override: role=%s ref=%s\n",
+        role.c_str(), character_reference.c_str());
   }
   if (!diagnostic_venue.empty()) {
     engine.set_diagnostic_venue_override(diagnostic_venue);

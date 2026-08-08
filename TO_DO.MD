@@ -22,6 +22,10 @@
   3. Deliberately support one receiver and one active wireless instrument/controller per physical original-Xbox controller port. Bind the first compatible connected slot, ignore additional receiver slots, and allow a new device to claim the port after disconnect. Do not implement multitap-style fanout.
   4. Use public protocol behavior and hardware captures for a clean implementation; Linux `xpad` is a useful behavioral reference, but do not copy GPL implementation code unless licensing is explicitly compatible.
   5. Treat PS2-to-Xbox guitar adapters as active protocol translators when they enumerate as standard Xbox controllers. They should normally need only adapter-specific input mapping/whammy validation, not a PS2 controller protocol driver. Escalate to driver work only for nonstandard descriptors or initialization.
+8. Add the converted GH1 female singer as an unlockable playable guitarist.
+  Her Judy Nails GH1 animation-retarget proof is accepted; defer the actual
+  unlock condition and roster presentation until the unlockable-character
+  design pass.
 
 ## Architectural Constraints
 

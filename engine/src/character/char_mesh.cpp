@@ -11684,6 +11684,14 @@ bool find_source_xfm(const Character& c, const std::string& name,
     out.parent = c.meshes[i].parent;
     return true;
   }
+  for (const auto& [proxy_name, proxy] :
+       c.attached_prop_transform_proxies) {
+    if (proxy_name != name) continue;
+    out.current = &proxy.local;
+    out.bind = &proxy.bind_local;
+    out.parent = proxy.parent;
+    return true;
+  }
   for (const auto& group : c.groups) {
     if (group.name != name || !group.has_transform) continue;
     out.current = &group.local;

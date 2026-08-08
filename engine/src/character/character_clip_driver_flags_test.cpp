@@ -1662,6 +1662,8 @@ bool expect_clip_driver_helpers() {
   const auto prop_target_world =
       prop_target_character.runtime_pose_output_worlds.find(
           "bone_prop_target");
+  const auto prop_target_live_world =
+      prop_target_character.bone_world_local_chain("bone_prop_target.mesh");
   if (!nearf(acquired_prop_target.local.pos[0], 12.5f) ||
       !nearf(acquired_prop_target.local.pos[1], 25.0f) ||
       !nearf(acquired_prop_target.local.pos[2], 37.5f) ||
@@ -1669,8 +1671,194 @@ bool expect_clip_driver_helpers() {
           prop_target_character.runtime_pose_output_worlds.end() ||
       !nearf(prop_target_world->second[12], 112.5f) ||
       !nearf(prop_target_world->second[13], 25.0f) ||
-      !nearf(prop_target_world->second[14], 37.5f)) {
+      !nearf(prop_target_world->second[14], 37.5f) ||
+      !nearf(prop_target_live_world[12], 112.5f) ||
+      !nearf(prop_target_live_world[13], 25.0f) ||
+      !nearf(prop_target_live_world[14], 37.5f)) {
     std::cerr << "typed publisher did not acquire the shared prop transform namespace\n";
+    ok = false;
+  }
+
+  // External animation owners publish absolute locals in their own bind
+  // skeleton. Retargeting must preserve the source bind delta while starting
+  // from the receiving character's factual bind local.
+  ghogx::character::Character retarget_source_character;
+  ghogx::milo_scene::TransObj retarget_source_bone;
+  retarget_source_bone.name = "bone_retarget.mesh";
+  retarget_source_bone.local.pos[0] = 1.0f;
+  retarget_source_character.bones.push_back(retarget_source_bone);
+  ghogx::character::Character retarget_target_character;
+  ghogx::milo_scene::TransObj retarget_target_bone;
+  retarget_target_bone.name = "bone_retarget.mesh";
+  retarget_target_bone.local.rot[0][0] = 0.0f;
+  retarget_target_bone.local.rot[0][1] = 1.0f;
+  retarget_target_bone.local.rot[1][0] = -1.0f;
+  retarget_target_bone.local.rot[1][1] = 0.0f;
+  retarget_target_bone.local.pos[0] = 10.0f;
+  retarget_target_character.bones.push_back(retarget_target_bone);
+  ghogx::character::CharClip retarget_clip;
+  retarget_clip.loaded = true;
+  retarget_clip.frames.resize(1);
+  ghogx::character::ClipChannel retarget_pos;
+  retarget_pos.type = ghogx::character::ClipChannel::kPos;
+  retarget_pos.bone_name = "bone_retarget.mesh";
+  retarget_pos.pos[0] = 3.0f;
+  ghogx::character::ClipChannel retarget_quat;
+  retarget_quat.type = ghogx::character::ClipChannel::kQuat;
+  retarget_quat.bone_name = "bone_retarget.mesh";
+  retarget_quat.quat[2] = 0.70710678f;
+  retarget_quat.quat[3] = 0.70710678f;
+  retarget_clip.frames[0] = {retarget_pos, retarget_quat};
+  ghogx::character::CharClip::OutputBone retarget_output;
+  retarget_output.name = "bone_retarget.trans";
+  retarget_clip.output_bones.push_back(retarget_output);
+  const auto retarget_audit = ghogx::character::retarget_clip_to_character(
+      retarget_clip, retarget_source_character, retarget_target_character);
+  ghogx::character::apply_clip_frame(retarget_clip, 0,
+                                     retarget_target_character);
+  const auto& retargeted_local = retarget_target_character.bones[0].local;
+  if (retarget_audit.source_outputs != 1 ||
+      retarget_audit.matched_outputs != 1 || retarget_audit.frames != 1 ||
+      retarget_audit.channels != 2 || retarget_audit.nonfinite_values != 0 ||
+      !nearf(retargeted_local.pos[0], 12.0f) ||
+      !nearf(retargeted_local.rot[0][0], -1.0f) ||
+      !nearf(retargeted_local.rot[1][1], -1.0f)) {
+    std::cerr << "external clip retarget did not preserve the source bind delta\n";
+    ok = false;
+  }
+
+  ghogx::character::Character retarget_graph_source;
+  ghogx::character::CharIKHand retarget_left_ik;
+  retarget_left_ik.name = "fret.ik";
+  retarget_left_ik.hand = "bone_L-hand.mesh";
+  retarget_left_ik.target = "bone_fret_hand.mesh";
+  retarget_left_ik.weight_prop = "left_hand.weight";
+  retarget_graph_source.ik_hands.push_back(retarget_left_ik);
+  ghogx::character::CharIKHand retarget_missing_ik = retarget_left_ik;
+  retarget_missing_ik.name = "strum.ik";
+  retarget_missing_ik.hand = "bone_R-hand.mesh";
+  retarget_graph_source.ik_hands.push_back(retarget_missing_ik);
+  ghogx::character::CharIKMidi retarget_midi;
+  retarget_midi.name = "fret.midi";
+  retarget_midi.bone = "bone_fret_hand.mesh";
+  retarget_graph_source.ik_midis.push_back(retarget_midi);
+  ghogx::character::CharDriver retarget_main_driver;
+  retarget_main_driver.name = "main.drv";
+  ghogx::character::CharDriver retarget_left_driver;
+  retarget_left_driver.name = "left_hand.drv";
+  ghogx::character::CharDriver retarget_right_driver;
+  retarget_right_driver.name = "right_hand.drv";
+  retarget_graph_source.drivers = {retarget_main_driver, retarget_left_driver,
+                                   retarget_right_driver};
+  ghogx::character::CharWeightSetter retarget_weight_setter;
+  retarget_weight_setter.name = "left_hand.weight";
+  retarget_weight_setter.driver = "left_hand.drv";
+  retarget_graph_source.weight_setters.push_back(retarget_weight_setter);
+  ghogx::milo_scene::TransObj retarget_source_upper;
+  retarget_source_upper.name = "bone_L-upperArm.mesh";
+  ghogx::milo_scene::TransObj retarget_source_fore;
+  retarget_source_fore.name = "bone_L-foreArm.mesh";
+  retarget_source_fore.parent = retarget_source_upper.name;
+  retarget_source_fore.local.pos[0] = 10.0f;
+  ghogx::milo_scene::TransObj retarget_source_hand;
+  retarget_source_hand.name = "bone_L-hand.mesh";
+  retarget_source_hand.parent = retarget_source_fore.name;
+  retarget_source_hand.local.pos[0] = 10.0f;
+  retarget_graph_source.bones = {retarget_source_upper, retarget_source_fore,
+                                 retarget_source_hand};
+  ghogx::character::SkinnedMesh retarget_source_hand_geo;
+  retarget_source_hand_geo.name = "source_hand_geo.mesh";
+  retarget_source_hand_geo.bone_palette = {retarget_source_hand.name};
+  ghogx::character::SkinVertex retarget_source_contact{};
+  retarget_source_contact.px = 21.0f;
+  retarget_source_contact.w[0] = 1.0f;
+  retarget_source_hand_geo.verts.push_back(retarget_source_contact);
+  retarget_graph_source.meshes.push_back(retarget_source_hand_geo);
+
+  ghogx::character::Character retarget_graph_target;
+  ghogx::milo_scene::TransObj retarget_pelvis;
+  retarget_pelvis.name = "bone_pelvis.mesh";
+  ghogx::milo_scene::TransObj retarget_upper;
+  retarget_upper.name = "bone_L-upperArm.mesh";
+  ghogx::milo_scene::TransObj retarget_fore;
+  retarget_fore.name = "bone_L-foreArm.mesh";
+  retarget_fore.parent = retarget_upper.name;
+  retarget_fore.local.pos[0] = 7.0f;
+  ghogx::milo_scene::TransObj retarget_hand;
+  retarget_hand.name = "bone_L-hand.mesh";
+  retarget_hand.parent = retarget_fore.name;
+  retarget_hand.local.pos[0] = 9.0f;
+  retarget_hand.local.rot[0][0] = 0.0f;
+  retarget_hand.local.rot[0][1] = 1.0f;
+  retarget_hand.local.rot[1][0] = -1.0f;
+  retarget_hand.local.rot[1][1] = 0.0f;
+  retarget_graph_target.bones = {retarget_pelvis, retarget_upper, retarget_fore,
+                                 retarget_hand};
+  ghogx::character::SkinnedMesh retarget_target_hand_geo;
+  retarget_target_hand_geo.name = "target_hand_geo.mesh";
+  retarget_target_hand_geo.bone_palette = {retarget_hand.name};
+  ghogx::character::SkinVertex retarget_target_contact{};
+  retarget_target_contact.px = 16.0f;
+  retarget_target_contact.py = 2.0f;
+  retarget_target_contact.w[0] = 1.0f;
+  retarget_target_hand_geo.verts.push_back(retarget_target_contact);
+  retarget_graph_target.meshes.push_back(retarget_target_hand_geo);
+  ghogx::character::AttachedPropTransformProxy retarget_guitar_root;
+  retarget_guitar_root.name = "bone_pos_guitar.mesh";
+  retarget_guitar_root.parent = retarget_pelvis.name;
+  retarget_guitar_root.local.pos[0] = 12.0f;
+  retarget_guitar_root.bind_local = retarget_guitar_root.local;
+  retarget_graph_target.attached_prop_transform_proxies.emplace(
+      retarget_guitar_root.name, retarget_guitar_root);
+  ghogx::character::AttachedPropTransformProxy retarget_fret_target;
+  retarget_fret_target.name = "bone_fret_hand.mesh";
+  retarget_fret_target.parent = retarget_guitar_root.name;
+  retarget_fret_target.local.pos[0] = 12.0f;
+  retarget_fret_target.bind_local = retarget_fret_target.local;
+  retarget_graph_target.attached_prop_transform_proxies.emplace(
+      retarget_fret_target.name, retarget_fret_target);
+  retarget_graph_target.drivers.push_back(retarget_main_driver);
+  const auto retarget_graph_audit =
+      ghogx::character::install_external_retarget_controller_graph(
+          retarget_graph_source, retarget_graph_target);
+  if (retarget_graph_audit.installed_ik_hands != 1 ||
+      retarget_graph_audit.skipped_missing_hand_chain != 1 ||
+      retarget_graph_audit.installed_ik_midis != 1 ||
+      retarget_graph_audit.installed_hand_drivers != 2 ||
+      retarget_graph_audit.installed_weight_setters != 1 ||
+      retarget_graph_audit.normalized_attachment_roots != 1 ||
+      retarget_graph_audit.orientation_corrected_ik_hands != 1 ||
+      retarget_graph_audit.contact_corrected_ik_hands != 1 ||
+      !nearf(retarget_graph_audit.mean_arm_reach_ratio, 0.8f) ||
+      retarget_graph_target.ik_hands.size() != 1 ||
+      retarget_graph_target.ik_midis.size() != 1 ||
+      retarget_graph_target.drivers.size() != 3 ||
+      retarget_graph_target.weight_setters.size() != 1 ||
+      !retarget_graph_target.ik_hands[0]
+           .external_retarget_orientation_correction ||
+      !retarget_graph_target.ik_hands[0]
+           .external_retarget_contact_correction ||
+      !nearf(retarget_graph_target.ik_hands[0]
+                 .external_retarget_source_contact[0],
+             1.0f) ||
+      !nearf(retarget_graph_target.ik_hands[0]
+                 .external_retarget_target_contact[0],
+             2.0f) ||
+      !nearf(retarget_graph_target.ik_hands[0]
+                 .external_retarget_orientation[0][1],
+             1.0f) ||
+      !nearf(retarget_graph_target.ik_hands[0]
+                 .external_retarget_orientation[1][0],
+             -1.0f) ||
+      !nearf(retarget_graph_target.attached_prop_transform_proxies
+                 .at("bone_pos_guitar.mesh")
+                 .local.pos[0],
+             9.6f) ||
+      !nearf(retarget_graph_target.attached_prop_transform_proxies
+                 .at("bone_pos_guitar.mesh")
+                 .bind_local.pos[0],
+             9.6f)) {
+    std::cerr << "external retarget graph did not install factual hand semantics\n";
     ok = false;
   }
 

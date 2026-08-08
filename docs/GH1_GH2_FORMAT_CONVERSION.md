@@ -2439,3 +2439,113 @@ without reducing connected-device polling. No source or target asset name
 selects any of these paths. The machine-readable matrix, bounded logs, and
 reproducible runner are in
 `proofs/gh1-native-conversion-parity/frame-pacing-full-matrix/`.
+
+## Cross-character animation retarget proof
+
+The runtime now separates a performer's rendered model from its animation
+owner. The diagnostic interface accepts a role-scoped model override and a
+role-scoped animation override, then resolves each package independently from
+the archive. It loads the animation owner's `BandCharacter` program and clip
+archives while retaining the target model's geometry, materials, skin, bind
+skeleton, and morphs. This is a general runtime seam rather than a character
+name replacement.
+
+An input-free proof renders the converted GH1 female singer in the
+`guitarist0` waypoint while Judy Nails (`alterna`) owns the guitarist program
+and clips. Absolute clip locals are rebased from Judy's factual bind skeleton
+onto the singer's factual bind skeleton by identical transform name. The
+conversion preserves each source bind delta, starts from the target bind, and
+reports matched outputs, channels, extrema, and non-finite values. It invents
+no bone aliases. The proof matches 30 of Judy's 63 published outputs and
+reports zero non-finite values.
+
+The singer package has no guitar attachment row, so the runtime imports
+Judy's authored `bone_pos_guitar.mesh` transform and parent chain as a
+transform-only proxy. Attached-prop world resolution now includes those live
+proxy locals, just as typed pose acquisition already does. This keeps the GH2
+guitar attached and animated without a model-specific offset. Conversely,
+the target model's actual parent graph identifies its mic/stand as descendants
+of `bone_pos_mic`; those descendants are suppressed only because this instance
+is assigned a non-singer role.
+
+### Proportion-aware instrument/arm contract
+
+The proof path no longer depends on the source performer's limb proportions.
+After the imported prop hierarchy exists, the runtime installs the animation
+owner's hand-controller graph only when the target supplies the exact factual
+hand -> forearm -> upper-arm chain and the guitar supplies the exact authored
+fret/strum targets. Target-authored controllers take priority. The imported
+graph includes the applicable `CharIKHand`, `CharIKMidi`, standard hand
+drivers, weight setters, and twist controllers; missing requirements reject
+that controller instead of creating aliases or offsets.
+
+For each accepted arm, the runtime measures source and target reach from bind
+translations (`|hand.local.pos| + |forearm.local.pos|`). It groups those facts
+by imported instrument root and scales only that proxy root's bind/local
+translation by the mean target/source reach ratio. The guitar geometry, scale,
+fret/strum targets, and target character skeleton are not resized. Thus the
+instrument establishes the two hand constraints, the two-bone IK solver bends
+each target-sized arm to those constraints, and the target's applicable twist
+controllers run afterward. There are no model names, per-character constants,
+or tuned offsets in this path.
+
+The release proof covers two different target proportions during chart-driven
+playing. The female singer measures 19.321 units of reach and applies a
+0.91715 attachment ratio; the largest observed hand-target distance is 18.497.
+The male singer measures 21.719 units and applies a 1.03099 ratio; the largest
+observed distance is 18.540. Both remain within reach with solver and target
+blend weights at 1, and both upper-arm twist pairs are active. The synthetic
+contract independently verifies that a 16-unit target arm driven by a 20-unit
+source arm moves an imported 12-unit attachment offset to 9.6 (ratio 0.8).
+
+The fret hand also uses a geometry-derived contact correction when source and
+target hand topology differs. The runtime selects the highest-detail authored
+LOD, gathers vertices with nonzero skin weight for the exact hand bone, and
+evaluates every gathered vertex with the renderer's exact bind path:
+`vertex * serialized bone offset * bone bind world`, blended across the four
+serialized weight slots. The resulting model-space point is transformed into
+wrist-bind space before the weighted centroid is accumulated. This matters for
+converted GH1 meshes whose serialized bone offsets do not equal the mesh
+object transform. It moves
+the target wrist so the target cluster centroid coincides with the source
+cluster centroid after bind-frame orientation retargeting. This applies only
+to the authored `bone_fret_hand` grip target: the strumming hand retains its
+source wrist/pick target because a palm-centroid constraint is not the authored
+contact semantic for that hand. Judy's left hand contributes 253 weighted
+vertices across seven highest-detail meshes; the singer contributes 122
+vertices in one rigid hand cluster. No model name or fitted offset is used.
+
+This is release-quality for compatible humanoid rigs with exact named arm
+chains. A target without the source's finger chains retains its own rigid hand
+geometry; the runtime does not fabricate finger bones. A rig with an
+incompatible rest topology (for example, a seated drummer bind used as a
+standing guitarist) must provide a canonical rest profile or be rejected by
+content qualification. Non-identical skeleton naming likewise requires an
+explicit factual mapping in the planned external character configuration.
+
+The input-free playing video, two target-body stills, and compact audit are in
+`proofs/female-singer-as-judy-guitarist/`.
+
+### Male singer driven by GH1 Clive Winston
+
+The same general path now binds the converted GH1 male singer model
+(`metal_singer`) to Clive Winston's converted GH1 animation owner (`classic`).
+The source is resolved from the packed character facts rather than a display
+name: `classic_main.milo_ps2`, `classic_strum.milo_ps2`, and
+`classic_fret.milo_ps2` supply the main, strum, and fret programs. The runtime
+loads 101 clips containing 6,516 frames and 361,094 channels, with 2,569 of
+6,083 published output rows matching the singer's exact transform names.
+
+The corrected bind-skin measurement resolves Clive's left-hand contact to
+`(3.22821, 0.39944, 0.03615)` in wrist space from 234 weighted vertices across
+nine highest-detail meshes. The singer's rigid hand cluster resolves to
+`(2.18178, 0.28600, -0.89748)` from 43 vertices in one mesh. The imported
+guitar root uses the derived 0.98797 arm-reach ratio. Across 480 logged arm
+solver events, the largest hand-target distance is 21.286726 against the male
+singer's 21.719192-unit arm reach, with both solver and target blend weights
+active. Chart events drive five strum selections, five hand-map selections,
+and 56 fret-position changes during the captured run.
+
+The five-second, input-free fixed-step active-playing proof and its compact
+machine audit are in `proofs/male-singer-as-clive-gh1-guitarist/`. The user
+accepted this male-singer/Clive retarget proof on 2026-08-08.

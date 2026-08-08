@@ -2603,6 +2603,18 @@ struct CharIKHand {
   bool legacy_anim_servo_ik = false;
   std::string legacy_chain_root;
   int32_t legacy_chain_bones = 0;
+  // Runtime-only bind-frame correction used when an external animation
+  // owner's authored IK target drives a differently oriented target hand.
+  // This is derived from the two factual bind skeletons; it is not serialized.
+  bool external_retarget_orientation_correction = false;
+  float external_retarget_orientation[3][3] = {
+      {1.0f, 0.0f, 0.0f},
+      {0.0f, 1.0f, 0.0f},
+      {0.0f, 0.0f, 1.0f},
+  };
+  bool external_retarget_contact_correction = false;
+  float external_retarget_source_contact[3] = {};
+  float external_retarget_target_contact[3] = {};
   size_t unread_bytes = 0;
 };
 

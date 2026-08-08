@@ -9991,6 +9991,37 @@ static bool apply_source_ik_hand(Character& character, const CharIKHand& ik) {
     std::array<float, 16> target_world{};
     if (!transform_local_chain_world(character, ik.target, target_world))
       return false;
+    if (ik.external_retarget_orientation_correction) {
+      const std::array<float, 16> source_target_world = target_world;
+      std::array<float, 16> correction = {
+          ik.external_retarget_orientation[0][0],
+          ik.external_retarget_orientation[0][1],
+          ik.external_retarget_orientation[0][2], 0.0f,
+          ik.external_retarget_orientation[1][0],
+          ik.external_retarget_orientation[1][1],
+          ik.external_retarget_orientation[1][2], 0.0f,
+          ik.external_retarget_orientation[2][0],
+          ik.external_retarget_orientation[2][1],
+          ik.external_retarget_orientation[2][2], 0.0f,
+          0.0f, 0.0f, 0.0f, 1.0f};
+      target_world =
+          source_matrix_multiply_rotation(correction, source_target_world);
+      if (ik.external_retarget_contact_correction) {
+        const Vec3 source_contact = source_transform_point(
+            {ik.external_retarget_source_contact[0],
+             ik.external_retarget_source_contact[1],
+             ik.external_retarget_source_contact[2]},
+            source_target_world);
+        const Vec3 target_contact = source_transform_point(
+            {ik.external_retarget_target_contact[0],
+             ik.external_retarget_target_contact[1],
+             ik.external_retarget_target_contact[2]},
+            target_world);
+        target_world[12] += source_contact.x - target_contact.x;
+        target_world[13] += source_contact.y - target_contact.y;
+        target_world[14] += source_contact.z - target_contact.z;
+      }
+    }
 
     const milo_scene::Xfm upper_local0 = *upper.local;
     const milo_scene::Xfm fore_local0 = *fore.local;
@@ -11047,6 +11078,618 @@ static void apply_gh2_typed_pose(const PendingPose& pose, float frame_weight,
   }
 
   target_local = materialized;
+}
+
+ClipRetargetAudit retarget_clip_to_character(CharClip& clip,
+                                             Character& source_character,
+                                             Character& target_character) {
+  ClipRetargetAudit audit;
+  audit.source_outputs = clip.output_bones.size();
+  audit.frames = clip.frames.size();
+  if (!clip.loaded || clip.output_bones.empty() || clip.relative) return audit;
+
+  const auto source_outputs = clip.output_bones;
+  std::unordered_map<std::string, size_t> output_by_key;
+  std::vector<milo_scene::Xfm> source_binds(source_outputs.size());
+  std::vector<milo_scene::Xfm> target_binds(source_outputs.size());
+  std::vector<bool> matched(source_outputs.size(), false);
+  for (size_t i = 0; i < source_outputs.size(); ++i) {
+    const std::string key = strip_transform_suffix(source_outputs[i].name);
+    output_by_key.emplace(key, i);
+    Gh2PoseTarget source = resolve_gh2_pose_target(source_character, key);
+    Gh2PoseTarget target = resolve_gh2_pose_target(target_character, key);
+    if (!source.local || !target.local) continue;
+    source_binds[i] = *source.local;
+    target_binds[i] = *target.local;
+    matched[i] = true;
+    ++audit.matched_outputs;
+  }
+
+  auto normalized_rotation = [](const milo_scene::Xfm& xfm) {
+    std::array<float, 9> out{};
+    for (int r = 0; r < 3; ++r) {
+      const float length = std::max(1.0e-8f, xfm_row_length(xfm, r));
+      for (int c = 0; c < 3; ++c)
+        out[static_cast<size_t>(r * 3 + c)] = xfm.rot[r][c] / length;
+    }
+    return out;
+  };
+  auto multiply_rotation = [](const std::array<float, 9>& a,
+                              const std::array<float, 9>& b) {
+    std::array<float, 9> out{};
+    for (int r = 0; r < 3; ++r)
+      for (int c = 0; c < 3; ++c)
+        for (int k = 0; k < 3; ++k)
+          out[static_cast<size_t>(r * 3 + c)] +=
+              a[static_cast<size_t>(r * 3 + k)] *
+              b[static_cast<size_t>(k * 3 + c)];
+    return out;
+  };
+  auto transpose_rotation = [](const std::array<float, 9>& value) {
+    std::array<float, 9> out{};
+    for (int r = 0; r < 3; ++r)
+      for (int c = 0; c < 3; ++c)
+        out[static_cast<size_t>(r * 3 + c)] =
+            value[static_cast<size_t>(c * 3 + r)];
+    return out;
+  };
+  auto retarget_local = [&](const milo_scene::Xfm& source_bind,
+                            const milo_scene::Xfm& source_pose,
+                            const milo_scene::Xfm& target_bind) {
+    milo_scene::Xfm target_pose = target_bind;
+    const auto source_bind_rotation = normalized_rotation(source_bind);
+    const auto source_pose_rotation = normalized_rotation(source_pose);
+    const auto target_bind_rotation = normalized_rotation(target_bind);
+    const auto delta = multiply_rotation(
+        transpose_rotation(source_bind_rotation), source_pose_rotation);
+    const auto rotation = multiply_rotation(target_bind_rotation, delta);
+    for (int r = 0; r < 3; ++r) {
+      const float source_bind_scale =
+          std::max(1.0e-8f, xfm_row_length(source_bind, r));
+      const float scale_ratio =
+          xfm_row_length(source_pose, r) / source_bind_scale;
+      const float target_scale = xfm_row_length(target_bind, r) * scale_ratio;
+      for (int c = 0; c < 3; ++c)
+        target_pose.rot[r][c] =
+            rotation[static_cast<size_t>(r * 3 + c)] * target_scale;
+      target_pose.pos[r] = target_bind.pos[r] + source_pose.pos[r] -
+                           source_bind.pos[r];
+    }
+    return target_pose;
+  };
+
+  for (auto& frame : clip.frames) {
+    std::vector<PendingPose> poses(source_outputs.size());
+    std::vector<bool> driven(source_outputs.size(), false);
+    for (const auto& channel : frame) {
+      const auto output = output_by_key.find(
+          strip_transform_suffix(channel.bone_name));
+      if (output == output_by_key.end() || !matched[output->second]) continue;
+      PendingPose& pose = poses[output->second];
+      driven[output->second] = true;
+      switch (channel.type) {
+        case ClipChannel::kPos: pose.pos = &channel; break;
+        case ClipChannel::kScale: pose.scale = &channel; break;
+        case ClipChannel::kQuat: pose.quat = &channel; break;
+        case ClipChannel::kRotX: pose.rotx = &channel; break;
+        case ClipChannel::kRotY: pose.roty = &channel; break;
+        case ClipChannel::kRotZ: pose.rotz = &channel; break;
+        case ClipChannel::kDeltaX: pose.dx = &channel; break;
+        case ClipChannel::kDeltaY: pose.dy = &channel; break;
+        case ClipChannel::kDeltaZ: pose.dz = &channel; break;
+      }
+    }
+
+    std::vector<milo_scene::Xfm> target_poses(source_outputs.size());
+    for (size_t i = 0; i < source_outputs.size(); ++i) {
+      if (!matched[i] || !driven[i]) continue;
+      milo_scene::Xfm source_pose = source_binds[i];
+      apply_gh2_typed_pose(poses[i], 1.0f, source_pose);
+      target_poses[i] = retarget_local(source_binds[i], source_pose,
+                                       target_binds[i]);
+    }
+
+    std::vector<ClipChannel> retargeted;
+    retargeted.reserve(frame.size());
+    std::unordered_set<size_t> emitted_rotation;
+    for (const auto& channel : frame) {
+      const auto output = output_by_key.find(
+          strip_transform_suffix(channel.bone_name));
+      if (output == output_by_key.end() || !matched[output->second] ||
+          !driven[output->second]) {
+        retargeted.push_back(channel);
+        continue;
+      }
+      const size_t index = output->second;
+      ClipChannel converted = channel;
+      switch (channel.type) {
+        case ClipChannel::kPos:
+          for (int axis = 0; axis < 3; ++axis) {
+            converted.pos[axis] = target_poses[index].pos[axis];
+            if (std::isfinite(converted.pos[axis]))
+              audit.max_abs_position = std::max(
+                  audit.max_abs_position, std::fabs(converted.pos[axis]));
+            else
+              ++audit.nonfinite_values;
+          }
+          retargeted.push_back(std::move(converted));
+          break;
+        case ClipChannel::kScale:
+          for (int axis = 0; axis < 3; ++axis) {
+            converted.scale[axis] = xfm_row_length(target_poses[index], axis);
+            if (std::isfinite(converted.scale[axis]))
+              audit.max_scale =
+                  std::max(audit.max_scale, std::fabs(converted.scale[axis]));
+            else
+              ++audit.nonfinite_values;
+          }
+          retargeted.push_back(std::move(converted));
+          break;
+        case ClipChannel::kQuat:
+        case ClipChannel::kRotX:
+        case ClipChannel::kRotY:
+        case ClipChannel::kRotZ:
+        case ClipChannel::kDeltaX:
+        case ClipChannel::kDeltaY:
+        case ClipChannel::kDeltaZ:
+          if (emitted_rotation.insert(index).second) {
+            converted.type = ClipChannel::kQuat;
+            converted.source_weight = 1.0f;
+            xfm_rotation_quat(target_poses[index], converted.quat);
+            retargeted.push_back(std::move(converted));
+          }
+          break;
+      }
+    }
+    audit.channels += retargeted.size();
+    frame = std::move(retargeted);
+  }
+
+  for (size_t i = 0; i < clip.output_bones.size(); ++i) {
+    if (matched[i]) clip.output_bones[i].local = target_binds[i];
+  }
+  return audit;
+}
+
+ExternalRetargetGraphAudit install_external_retarget_controller_graph(
+    const Character& source_character, Character& target_character) {
+  ExternalRetargetGraphAudit audit;
+
+  auto find_const_transform = [](const Character& character,
+                                 const std::string& name,
+                                 const milo_scene::Xfm*& local,
+                                 std::string& parent) {
+    for (const auto& bone : character.bones) {
+      if (!channel_matches_bone(bone.name, name)) continue;
+      local = &bone.local;
+      parent = bone.parent;
+      return true;
+    }
+    for (const auto& mesh : character.meshes) {
+      if (!channel_matches_bone(mesh.name, name)) continue;
+      local = &mesh.local;
+      parent = mesh.parent;
+      return true;
+    }
+    for (const auto& [proxy_name, proxy] :
+         character.attached_prop_transform_proxies) {
+      if (!channel_matches_bone(proxy_name, name)) continue;
+      local = &proxy.local;
+      parent = proxy.parent;
+      return true;
+    }
+    return false;
+  };
+  auto arm_reach = [&](const Character& character,
+                       const std::string& hand_name, float& reach) {
+    const milo_scene::Xfm* hand = nullptr;
+    const milo_scene::Xfm* fore = nullptr;
+    const milo_scene::Xfm* upper = nullptr;
+    std::string hand_parent;
+    std::string fore_parent;
+    std::string upper_parent;
+    if (!find_const_transform(character, hand_name, hand, hand_parent) ||
+        hand_parent.empty() ||
+        !find_const_transform(character, hand_parent, fore, fore_parent) ||
+        fore_parent.empty() ||
+        !find_const_transform(character, fore_parent, upper, upper_parent)) {
+      return false;
+    }
+    auto local_length = [](const milo_scene::Xfm& xfm) {
+      return std::sqrt(xfm.pos[0] * xfm.pos[0] +
+                       xfm.pos[1] * xfm.pos[1] +
+                       xfm.pos[2] * xfm.pos[2]);
+    };
+    reach = local_length(*hand) + local_length(*fore);
+    return std::isfinite(reach) && reach > 1.0e-4f;
+  };
+  auto proxy_for = [&](const std::string& name) {
+    return std::find_if(
+        target_character.attached_prop_transform_proxies.begin(),
+        target_character.attached_prop_transform_proxies.end(),
+        [&](const auto& entry) {
+          return channel_matches_bone(entry.first, name);
+        });
+  };
+  auto has_transform = [&](const std::string& name) {
+    if (name.empty()) return false;
+    return resolve_gh2_pose_target(target_character,
+                                   strip_transform_suffix(name))
+               .local != nullptr;
+  };
+  auto attachment_proxy_root = [&](const std::string& target_name) {
+    std::string current = target_name;
+    std::string root;
+    for (int guard = 0; guard++ < 128;) {
+      const auto proxy = proxy_for(current);
+      if (proxy == target_character.attached_prop_transform_proxies.end())
+        break;
+      root = proxy->first;
+      current = proxy->second.parent;
+    }
+    if (root.empty() || current.empty() || !has_transform(current))
+      return std::string{};
+    return root;
+  };
+  auto has_arm_chain = [&](const std::string& hand_name) {
+    MutableCharacterTransform hand;
+    MutableCharacterTransform fore;
+    MutableCharacterTransform upper;
+    return resolve_mutable_character_transform(target_character, hand_name,
+                                                hand) &&
+           !hand.parent.empty() &&
+           resolve_mutable_character_transform(target_character, hand.parent,
+                                                fore) &&
+           !fore.parent.empty() &&
+           resolve_mutable_character_transform(target_character, fore.parent,
+                                                upper);
+  };
+
+  std::unordered_set<std::string> installed_weight_props;
+  std::map<std::string, std::pair<float, size_t>> attachment_reach_ratios;
+  auto normalized_world_rotation = [](std::array<float, 16> world) {
+    normalize_mat3_rows(world);
+    world[12] = world[13] = world[14] = 0.0f;
+    world[15] = 1.0f;
+    return world;
+  };
+  auto transpose_world_rotation = [](const std::array<float, 16>& world) {
+    std::array<float, 16> out = {1, 0, 0, 0, 0, 1, 0, 0,
+                                 0, 0, 1, 0, 0, 0, 0, 1};
+    for (int r = 0; r < 3; ++r)
+      for (int c = 0; c < 3; ++c)
+        out[r * 4 + c] = world[c * 4 + r];
+    return out;
+  };
+  auto audit_hand_geometry = [](const Character& character,
+                                const std::string& hand,
+                                const char* owner) {
+    if (!debug_ik_enabled()) return;
+    for (const auto& mesh : character.meshes) {
+      const bool name_match = channel_matches_bone(mesh.name, hand);
+      const bool parent_match = channel_matches_bone(mesh.parent, hand);
+      const bool palette_match = std::any_of(
+          mesh.bone_palette.begin(), mesh.bone_palette.end(),
+          [&](const std::string& bone) {
+            return channel_matches_bone(bone, hand);
+          });
+      if (!name_match && !parent_match && !palette_match) continue;
+      std::fprintf(
+          stderr,
+          "[retarget-hand-geometry] owner=%s hand=%s mesh=%s parent=%s "
+          "verts=%zu nameMatch=%d parentMatch=%d paletteMatch=%d "
+          "bounds=(%.5f %.5f %.5f)..(%.5f %.5f %.5f)\n",
+          owner, hand.c_str(), mesh.name.c_str(), mesh.parent.c_str(),
+          mesh.verts.size(), name_match ? 1 : 0, parent_match ? 1 : 0,
+          palette_match ? 1 : 0, mesh.bb_min[0], mesh.bb_min[1],
+          mesh.bb_min[2], mesh.bb_max[0], mesh.bb_max[1], mesh.bb_max[2]);
+    }
+  };
+  struct HandContactCentroid {
+    bool found = false;
+    Vec3 local{};
+    size_t meshes = 0;
+    size_t vertices = 0;
+    float total_weight = 0.0f;
+  };
+  auto hand_contact_centroid = [](const Character& character,
+                                  const std::string& hand) {
+    HandContactCentroid out;
+    std::unordered_set<std::string> lod_objects;
+    if (!character.root_lods.empty()) {
+      const auto best_lod = std::max_element(
+          character.root_lods.begin(), character.root_lods.end(),
+          [](const CharacterLod& a, const CharacterLod& b) {
+            return a.screen_size < b.screen_size;
+          });
+      std::vector<std::string> pending = {best_lod->group};
+      for (size_t next = 0; next < pending.size() && next < 1024; ++next) {
+        if (!lod_objects.insert(pending[next]).second) continue;
+        for (const auto& group : character.groups) {
+          if (!channel_matches_bone(group.name, pending[next])) continue;
+          for (const auto& child : group.children) pending.push_back(child);
+        }
+      }
+    }
+    std::vector<const SkinnedMesh*> candidates;
+    std::vector<size_t> palette_slots;
+    auto collect = [&](bool require_lod) {
+      candidates.clear();
+      palette_slots.clear();
+      for (const auto& mesh : character.meshes) {
+        if (require_lod && !lod_objects.empty() &&
+            lod_objects.find(mesh.name) == lod_objects.end()) {
+          continue;
+        }
+        const auto palette = std::find_if(
+            mesh.bone_palette.begin(), mesh.bone_palette.end(),
+            [&](const std::string& bone) {
+              return channel_matches_bone(bone, hand);
+            });
+        if (palette == mesh.bone_palette.end()) continue;
+        const size_t slot = static_cast<size_t>(
+            std::distance(mesh.bone_palette.begin(), palette));
+        if (slot >= 4 || mesh.verts.empty()) continue;
+        candidates.push_back(&mesh);
+        palette_slots.push_back(slot);
+      }
+    };
+    collect(true);
+    if (candidates.empty()) collect(false);
+    if (candidates.empty()) return out;
+
+    const auto hand_world = character.bone_world_local_chain(hand);
+    const auto hand_inverse = affine_inverse(hand_world);
+    Vec3 sum{};
+    for (size_t i = 0; i < candidates.size(); ++i) {
+      const auto& mesh = *candidates[i];
+      const size_t bone_count = mesh.bone_palette.size();
+      const bool has_source_offsets = mesh.bind.size() >= bone_count;
+      const std::array<float, 16> identity = {
+          1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+      std::vector<std::array<float, 16>> bind_skin(bone_count, identity);
+      if (has_source_offsets) {
+        for (size_t slot = 0; slot < bone_count; ++slot) {
+          const std::string& bone = mesh.bone_palette[slot];
+          if (bone.empty() || !character.has_transform(bone)) continue;
+          bind_skin[slot] = mat4_mul(
+              xfm_to_mat4_local(mesh.bind[slot]),
+              character.bone_world_bind_local_chain(bone));
+        }
+      }
+      bool used_mesh = false;
+      for (const auto& vertex : mesh.verts) {
+        const float weight = std::abs(vertex.w[palette_slots[i]]);
+        if (!std::isfinite(weight) || weight <= 1.0e-5f) continue;
+        const Vec3 raw{vertex.px, vertex.py, vertex.pz};
+        Vec3 world = raw;
+        if (has_source_offsets) {
+          world = {};
+          bool any = false;
+          for (size_t slot = 0; slot < bone_count && slot < 4; ++slot) {
+            const float slot_weight = vertex.w[slot];
+            if (slot_weight == 0.0f) continue;
+            world = vadd(
+                world,
+                vscale(source_transform_point(raw, bind_skin[slot]),
+                       slot_weight));
+            any = true;
+          }
+          if (!any) world = raw;
+        }
+        const Vec3 local = source_transform_point(world, hand_inverse);
+        sum = vadd(sum, vscale(local, weight));
+        out.total_weight += weight;
+        ++out.vertices;
+        used_mesh = true;
+      }
+      if (used_mesh) ++out.meshes;
+    }
+    if (out.total_weight <= 1.0e-5f) return out;
+    out.local = vscale(sum, 1.0f / out.total_weight);
+    out.found = std::isfinite(out.local.x) && std::isfinite(out.local.y) &&
+                std::isfinite(out.local.z);
+    return out;
+  };
+  for (const auto& source_ik : source_character.ik_hands) {
+    const bool target_already_owns_hand = std::any_of(
+        target_character.ik_hands.begin(), target_character.ik_hands.end(),
+        [&](const CharIKHand& target_ik) {
+          return channel_matches_bone(target_ik.hand, source_ik.hand);
+        });
+    if (target_already_owns_hand) {
+      ++audit.retained_target_ik_hands;
+      continue;
+    }
+    if (!has_arm_chain(source_ik.hand)) {
+      ++audit.skipped_missing_hand_chain;
+      continue;
+    }
+
+    CharIKHand installed = source_ik;
+    audit_hand_geometry(source_character, source_ik.hand, "source");
+    audit_hand_geometry(target_character, installed.hand, "target");
+    installed.targets.erase(
+        std::remove_if(installed.targets.begin(), installed.targets.end(),
+                       [&](const CharIKTarget& candidate) {
+                         return !has_transform(candidate.target);
+                       }),
+        installed.targets.end());
+    if (!has_transform(installed.target)) {
+      if (installed.targets.empty()) {
+        ++audit.skipped_missing_target;
+        continue;
+      }
+      installed.target = installed.targets.front().target;
+    }
+    if (!installed.weight_prop.empty())
+      installed_weight_props.insert(installed.weight_prop);
+    if (installed.orientation) {
+      const auto source_hand_bind = normalized_world_rotation(
+          source_character.bone_world_local_chain(source_ik.hand));
+      const auto target_hand_bind = normalized_world_rotation(
+          target_character.bone_world_local_chain(installed.hand));
+      const auto correction = mat4_mul(
+          target_hand_bind, transpose_world_rotation(source_hand_bind));
+      for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 3; ++c)
+          installed.external_retarget_orientation[r][c] =
+              correction[r * 4 + c];
+      installed.external_retarget_orientation_correction = true;
+      ++audit.orientation_corrected_ik_hands;
+      const HandContactCentroid source_contact =
+          hand_contact_centroid(source_character, source_ik.hand);
+      const HandContactCentroid target_contact =
+          hand_contact_centroid(target_character, installed.hand);
+      const bool fret_grip_target =
+          channel_matches_bone(installed.target, "bone_fret_hand.mesh");
+      if (fret_grip_target && source_contact.found && target_contact.found) {
+        installed.external_retarget_contact_correction = true;
+        installed.external_retarget_source_contact[0] = source_contact.local.x;
+        installed.external_retarget_source_contact[1] = source_contact.local.y;
+        installed.external_retarget_source_contact[2] = source_contact.local.z;
+        installed.external_retarget_target_contact[0] = target_contact.local.x;
+        installed.external_retarget_target_contact[1] = target_contact.local.y;
+        installed.external_retarget_target_contact[2] = target_contact.local.z;
+        ++audit.contact_corrected_ik_hands;
+        if (debug_ik_enabled()) {
+          std::fprintf(
+              stderr,
+              "[retarget-hand-contact] hand=%s source=(%.5f %.5f %.5f) "
+              "target=(%.5f %.5f %.5f) sourceMeshes=%zu sourceVerts=%zu "
+              "targetMeshes=%zu targetVerts=%zu\n",
+              installed.hand.c_str(), source_contact.local.x,
+              source_contact.local.y, source_contact.local.z,
+              target_contact.local.x, target_contact.local.y,
+              target_contact.local.z, source_contact.meshes,
+              source_contact.vertices, target_contact.meshes,
+              target_contact.vertices);
+        }
+      }
+    }
+    float source_reach = 0.0f;
+    float target_reach = 0.0f;
+    const std::string attachment_root =
+        attachment_proxy_root(installed.target);
+    if (!attachment_root.empty() &&
+        arm_reach(source_character, source_ik.hand, source_reach) &&
+        arm_reach(target_character, installed.hand, target_reach)) {
+      auto& ratio = attachment_reach_ratios[attachment_root];
+      ratio.first += target_reach / source_reach;
+      ++ratio.second;
+    }
+    target_character.ik_hands.push_back(std::move(installed));
+    ++audit.installed_ik_hands;
+  }
+
+  float ratio_sum = 0.0f;
+  for (const auto& [root_name, accumulated] : attachment_reach_ratios) {
+    if (accumulated.second == 0) continue;
+    const float ratio = accumulated.first /
+                        static_cast<float>(accumulated.second);
+    if (!std::isfinite(ratio) || ratio <= 0.0f) continue;
+    const auto proxy = proxy_for(root_name);
+    if (proxy == target_character.attached_prop_transform_proxies.end())
+      continue;
+    for (int axis = 0; axis < 3; ++axis) {
+      proxy->second.local.pos[axis] *= ratio;
+      proxy->second.bind_local.pos[axis] *= ratio;
+    }
+    ratio_sum += ratio;
+    ++audit.normalized_attachment_roots;
+  }
+  if (audit.normalized_attachment_roots != 0) {
+    audit.mean_arm_reach_ratio =
+        ratio_sum / static_cast<float>(audit.normalized_attachment_roots);
+  }
+
+  for (const auto& source_midi : source_character.ik_midis) {
+    if (!has_transform(source_midi.bone)) continue;
+    const bool already_present = std::any_of(
+        target_character.ik_midis.begin(), target_character.ik_midis.end(),
+        [&](const CharIKMidi& target_midi) {
+          return target_midi.name == source_midi.name ||
+                 channel_matches_bone(target_midi.bone, source_midi.bone);
+        });
+    if (already_present) continue;
+    target_character.ik_midis.push_back(source_midi);
+    ++audit.installed_ik_midis;
+  }
+
+  std::unordered_set<std::string> installed_driver_names;
+  for (const auto& source_driver : source_character.drivers) {
+    if (source_driver.name != "left_hand.drv" &&
+        source_driver.name != "right_hand.drv") {
+      continue;
+    }
+    const bool already_present = std::any_of(
+        target_character.drivers.begin(), target_character.drivers.end(),
+        [&](const CharDriver& target_driver) {
+          return target_driver.name == source_driver.name;
+        });
+    if (already_present) continue;
+    target_character.drivers.push_back(source_driver);
+    installed_driver_names.insert(source_driver.name);
+    ++audit.installed_hand_drivers;
+  }
+
+  for (const auto& source_setter : source_character.weight_setters) {
+    const bool hand_driver =
+        installed_driver_names.find(source_setter.driver) !=
+        installed_driver_names.end();
+    const bool hand_weight =
+        installed_weight_props.find(source_setter.weight_owner) !=
+            installed_weight_props.end() ||
+        installed_weight_props.find(source_setter.weight_prop) !=
+            installed_weight_props.end() ||
+        installed_weight_props.find(source_setter.name) !=
+            installed_weight_props.end();
+    if (!hand_driver && !hand_weight) continue;
+    const bool already_present = std::any_of(
+        target_character.weight_setters.begin(),
+        target_character.weight_setters.end(),
+        [&](const CharWeightSetter& target_setter) {
+          return target_setter.name == source_setter.name;
+        });
+    if (already_present) continue;
+    target_character.weight_setters.push_back(source_setter);
+    ++audit.installed_weight_setters;
+  }
+
+  for (const auto& source_twist : source_character.upper_twists) {
+    if (!has_transform(source_twist.upper_arm) ||
+        !has_transform(source_twist.twist1) ||
+        !has_transform(source_twist.twist2)) {
+      continue;
+    }
+    const bool already_present = std::any_of(
+        target_character.upper_twists.begin(),
+        target_character.upper_twists.end(),
+        [&](const CharUpperTwist& target_twist) {
+          return channel_matches_bone(target_twist.upper_arm,
+                                      source_twist.upper_arm);
+        });
+    if (already_present) continue;
+    target_character.upper_twists.push_back(source_twist);
+    ++audit.installed_upper_twists;
+  }
+  for (const auto& source_twist : source_character.fore_twists) {
+    if (!has_transform(source_twist.hand) ||
+        !has_transform(source_twist.twist2)) {
+      continue;
+    }
+    const bool already_present = std::any_of(
+        target_character.fore_twists.begin(),
+        target_character.fore_twists.end(),
+        [&](const CharForeTwist& target_twist) {
+          return channel_matches_bone(target_twist.hand, source_twist.hand);
+        });
+    if (already_present) continue;
+    target_character.fore_twists.push_back(source_twist);
+    ++audit.installed_fore_twists;
+  }
+
+  return audit;
 }
 
 static void dump_charbone_output_map(

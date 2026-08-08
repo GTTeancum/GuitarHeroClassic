@@ -4232,6 +4232,44 @@ bool apply_materialized_typed_pose(
     const std::vector<CharClip::OutputBone>& output_bones,
     Character& character);
 
+// Rebase an absolute local-space clip from its authored output-bone bind pose
+// onto another character's matching transform graph. This is name-driven and
+// leaves missing targets untouched; it does not invent bone aliases.
+struct ClipRetargetAudit {
+  size_t source_outputs = 0;
+  size_t matched_outputs = 0;
+  size_t frames = 0;
+  size_t channels = 0;
+  size_t nonfinite_values = 0;
+  float max_abs_position = 0.0f;
+  float max_scale = 0.0f;
+};
+ClipRetargetAudit retarget_clip_to_character(CharClip& clip,
+                                             Character& source_character,
+                                             Character& target_character);
+
+// Install the animation owner's hand-controller semantics onto a differently
+// proportioned target rig. Controllers are admitted only when the target has
+// the exact hand chain and instrument transforms they reference. Existing
+// target-authored controllers win; no aliases or numeric offsets are created.
+struct ExternalRetargetGraphAudit {
+  size_t installed_ik_hands = 0;
+  size_t retained_target_ik_hands = 0;
+  size_t skipped_missing_hand_chain = 0;
+  size_t skipped_missing_target = 0;
+  size_t installed_ik_midis = 0;
+  size_t installed_hand_drivers = 0;
+  size_t installed_weight_setters = 0;
+  size_t installed_upper_twists = 0;
+  size_t installed_fore_twists = 0;
+  size_t normalized_attachment_roots = 0;
+  size_t orientation_corrected_ik_hands = 0;
+  size_t contact_corrected_ik_hands = 0;
+  float mean_arm_reach_ratio = 1.0f;
+};
+ExternalRetargetGraphAudit install_external_retarget_controller_graph(
+    const Character& source_character, Character& target_character);
+
 // Apply decoded character-level controllers that sit outside CharClipSamples.
 // Call after clip poses for the frame.
 void apply_character_controllers(Character& character, float time_seconds);

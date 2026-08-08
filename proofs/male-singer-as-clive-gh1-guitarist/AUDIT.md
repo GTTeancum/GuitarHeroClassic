@@ -1,0 +1,21 @@
+# Male singer as GH1 Clive Winston guitarist
+
+- Rendered model: `metal_singer`
+- Animation owner: `classic`
+- Main/strum/fret archives: `classic_main`, `classic_strum`, `classic_fret`
+- Source clips / frames / channels: 101 / 6,516 / 361,094
+- Matched animation outputs: 2,569 / 6,083
+- Imported controller graph: 2 hand IK controllers, 1 IK MIDI, 2 hand drivers
+- Orientation corrections: 2
+- Fret-hand contact corrections: 1
+- Clive left-hand wrist centroid: `(3.22821, 0.39944, 0.03615)` from 234 weighted vertices across 9 meshes
+- Male singer left-hand wrist centroid: `(2.18178, 0.28600, -0.89748)` from 43 weighted vertices in 1 mesh
+- Derived attachment reach ratio: 0.98797
+- Male singer arm reach: 21.719192
+- Maximum logged hand-target distance: 21.286726
+- Logged arm solver events: 480
+- Chart-driven events during the run: 5 strum-map, 5 hand-map, 56 fret-position
+- Main active clip shown: `classic_stand_fast_02`, followed by Clive's authored medium-standing cycle
+- Capture: hidden window, fixed timestep, diagnostic autoplay; no synthetic or forced input
+- Deployed executable SHA-256: `2C2B653ADFD7CF2A5772C07AE51BEB912217F8CDF08B10CFD6D171D2F02FA943`
+- Video: `clive-driven-active-play.mp4` (H.264, 960x720, 12 fps, 60 frames, 5 seconds)
