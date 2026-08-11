@@ -1226,6 +1226,17 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
       }
       return true;
     }
+    if (std::strcmp(m, "refresh_outfit_window") == 0) {
+      Object* config = player_config();
+      if (config) {
+        const int selected =
+            config->get_property(Symbol("outfit_index"))
+                .as_int()
+                .value_or(0);
+        refresh_outfit_window(config, selected);
+      }
+      return true;
+    }
     if (std::strcmp(m, "is_ready") == 0) {
       out = DataNode::Int(node_bool(get_property(Symbol("ready"))) ? 1 : 0);
       return true;

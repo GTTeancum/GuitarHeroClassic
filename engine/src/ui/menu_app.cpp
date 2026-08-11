@@ -411,6 +411,9 @@ void apply_quickplay_setlist_scroll(const std::string& hdr,
     if (shifted.find(mesh.name) != shifted.end()) mesh.world_stored.pos[2] += dz;
 }
 
+void namespace_scene_nodes(milo_scene::Scene& scene,
+                           const std::string& suffix);
+
 void add_panel_milo(const std::string& hdr, const std::string& ark,
                     ScreenManager& mgr, const ConfigDb& db,
                     const std::string& file, milo_scene::Scene& combined,
@@ -422,6 +425,11 @@ void add_panel_milo(const std::string& hdr, const std::string& ark,
   const std::string path = "ui/gen/" + file + "_ps2";  // "main.milo" -> ".milo_ps2"
   milo_scene::Scene s;
   if (!milo_scene::load_scene(hdr, ark, path, s)) return;
+  // Both multiplayer outfit panels use the same source-local object names.
+  // RndDir keeps those identities in separate directories; the renderer's
+  // combined scene is flat, so preserve that source separation explicitly.
+  if (file == "multi_char_outfit2.milo")
+    namespace_scene_nodes(s, "__multi_outfit_p2");
   apply_quickplay_setlist_scroll(hdr, ark, mgr, db, file, s);
 
   if (s.panel_dir_config_valid && !combined.panel_dir_config_valid) {
@@ -1399,8 +1407,8 @@ bool guitar_display_support_mesh(const std::string& name) {
   return name == "shadow_guitar.mesh";
 }
 
-void namespace_guitar_scene_nodes(milo_scene::Scene& scene,
-                                  const std::string& suffix) {
+void namespace_scene_nodes(milo_scene::Scene& scene,
+                           const std::string& suffix) {
   if (suffix.empty()) return;
   std::unordered_map<std::string, std::string> renamed;
   auto rename = [&](std::string& name) {
@@ -1759,13 +1767,13 @@ bool build_live_guitar_display_scene(const std::string& hdr, const std::string& 
       default_environment = "guitar_setup.env";
     }
     if (baked_shared_display) {
-      namespace_guitar_scene_nodes(
+      namespace_scene_nodes(
           guitar_scene, players.size() > 1
                             ? ("__p" + std::to_string(std::max(0, player)))
                             : "");
     } else if (!display_parent.empty()) {
       parent_root_nodes_to_display(guitar_scene, display_parent);
-      namespace_guitar_scene_nodes(
+      namespace_scene_nodes(
           guitar_scene, players.size() > 1
                             ? ("__p" + std::to_string(std::max(0, player)))
                             : "");
@@ -1774,7 +1782,7 @@ bool build_live_guitar_display_scene(const std::string& hdr, const std::string& 
       // the renderer follows the new local-parent chain.
       dirty_reparented_scene_worlds(guitar_scene);
     } else if (players.size() > 1) {
-      namespace_guitar_scene_nodes(
+      namespace_scene_nodes(
           guitar_scene, "__p" + std::to_string(std::max(0, player)));
     }
     for (auto& mesh : guitar_scene.meshes) {
@@ -6601,7 +6609,10 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
                                  outfit_scene)) {
         for (const auto& mesh : outfit_scene.meshes)
         {
-          foreground_panel_meshes.insert(mesh.name);
+          foreground_panel_meshes.insert(
+              file == "multi_char_outfit2.milo"
+                  ? mesh.name + "__multi_outfit_p2"
+                  : mesh.name);
           if (std::getenv("GHOGX_MENU_LABEL_TRACE"))
             std::fprintf(stderr, "[menu-outfit-foreground] owner=%s mesh=%s\n",
                          pn.c_str(), mesh.name.c_str());
@@ -6652,6 +6663,18 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
     }
     for (const auto& label : labels)
       if (label.type == "BandTextEntry") text_entries.push_back(label);
+    std::string panel_focused = focused;
+    // MultiSelectScreen has one independently focused panel per player rather
+    // than a single screen.focus chain. Apply each active panel's local focus
+    // while building its own labels so P1 and P2 can highlight different
+    // outfit rows without confirming either selection.
+    if (panel->class_name() == Symbol("MultiSelectPanel") &&
+        node_bool(panel->get_property(Symbol("active"))) &&
+        !node_bool(panel->get_property(Symbol("ready")))) {
+      const Symbol local_focus =
+          symbol_value(panel->get_property(Symbol("focus")));
+      if (local_focus.valid()) panel_focused = local_focus.c_str();
+    }
     std::unordered_set<std::string> panel_fonts;
     // HelpBarPanel expands its display array into per-control resource slots;
     // help_bar.txt is that template, not an additional static footer label.
@@ -6664,7 +6687,8 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
     }
     for (const std::string& family : panel_fonts) {
       if (const MenuFont* source_font = fonts.get(family)) {
-        append_text_quads(labels, *source_font, family, mgr, locale, focused,
+        append_text_quads(labels, *source_font, family, mgr, locale,
+                          panel_focused,
                           disabled, label_verts[family],
                           label_transform_spans[family]);
       }
@@ -7079,6 +7103,106 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                      "[menu] seeded stock unlock venue campaign status=1\n");
       }
       mgr.goto_screen(start_screen);
+      // A direct-start outfit proof represents the live highlighted cursor,
+      // not a confirmed choice. Screen entry intentionally normalizes each
+      // player to outfit zero, so restore the requested diagnostic cursor only
+      // after the stock MultiCharSelPanel enter path has run. Activate the
+      // authored outfit panels, focus the matching row, and ask CharsysPanel to
+      // preview it while leaving both ready flags clear.
+      if (start_screen == Symbol("multi_sel_character_screen")) {
+        const auto highlight_seeded_outfit =
+            [&](int player, const char* character_env,
+                const char* outfit_env) {
+              const char* seeded_character = std::getenv(character_env);
+              const char* seeded_outfit = std::getenv(outfit_env);
+              if (!seeded_character || !seeded_outfit) return;
+              const Symbol character(seeded_character);
+              const Symbol outfit(seeded_outfit);
+              const auto variants = db.character_variants(character);
+              const auto selected = std::find_if(
+                  variants.begin(), variants.end(),
+                  [&](const CharacterVariant& variant) {
+                    return variant.selection == outfit;
+                  });
+              if (selected == variants.end()) return;
+              const int outfit_index =
+                  static_cast<int>(selected - variants.begin());
+
+              if (Object* screen = mgr.current_screen()) {
+                DataArray activate;
+                activate.push(DataNode::Int(player));
+                screen->handle_property(Symbol("multi_char_selected"),
+                                        activate);
+              }
+
+              Object* config = nullptr;
+              if (Object* game = mgr.resolve_object(Symbol("game"))) {
+                DataArray player_args;
+                player_args.push(DataNode::Int(player));
+                config = game->handle_property(Symbol("get_player_config"),
+                                               player_args)
+                             .as_object();
+              }
+              if (!config) return;
+              config->set_property(Symbol("character"),
+                                   DataNode::Sym(character));
+              DataArray select_index;
+              select_index.push(DataNode::Int(outfit_index));
+              const Symbol preview_outfit = symbol_value(
+                  config->handle_property(Symbol("set_outfit_index"),
+                                          select_index));
+
+              Object* outfit_panel = mgr.find_object(Symbol(
+                  ("multi_char_outfit" + std::to_string(player)).c_str()));
+              if (outfit_panel) {
+                outfit_panel->set_property(Symbol("player_num"),
+                                           DataNode::Int(player));
+                outfit_panel->handle_property(Symbol("set_active"),
+                                              one_arg(DataNode::Int(1)));
+                outfit_panel->set_property(Symbol("ready"), DataNode::Int(0));
+                outfit_panel->handle_property(Symbol("refresh_outfit_window"),
+                                              DataArray());
+                const int row = variants.size() > 2 ? 0 : outfit_index;
+                set_panel_focus(mgr, outfit_panel,
+                                row == 0 ? "outfit1.btn" : "outfit2.btn");
+                // FOCUS_MSG is the stock visual cursor path and may execute
+                // authored selection expressions against the character reel.
+                // Reassert the diagnostic preview afterward, then repopulate
+                // this player's local outfit labels without confirming it.
+                config->set_property(Symbol("character"),
+                                     DataNode::Sym(character));
+                config->handle_property(Symbol("set_outfit_index"),
+                                        select_index);
+                outfit_panel->set_property(Symbol("ready"), DataNode::Int(0));
+                outfit_panel->handle_property(Symbol("refresh_outfit_window"),
+                                              DataArray());
+              }
+              if (Object* chars = mgr.resolve_object(Symbol("char_multi"))) {
+                DataArray show;
+                show.push(DataNode::Int(player));
+                show.push(DataNode::Sym(preview_outfit));
+                chars->handle_property(Symbol("show_char"), show);
+                DataArray event;
+                event.push(DataNode::Int(player));
+                event.push(DataNode::Sym(Symbol("select")));
+                chars->handle_property(Symbol("char_event"), event);
+              }
+              std::fprintf(
+                  stderr,
+                  "[menu] highlighted diagnostic outfit: player=%d "
+                  "character=%s outfit=%s index=%d ready=0 "
+                  "config_character=%s config_outfit=%s\n",
+                  player, character.c_str(), preview_outfit.c_str(),
+                  outfit_index,
+                  symbol_value(config->get_property(Symbol("character"))).c_str(),
+                  symbol_value(
+                      config->get_property(Symbol("character_outfit"))).c_str());
+            };
+        highlight_seeded_outfit(0, "GHOGX_MENU_SEED_CHARACTER",
+                                "GHOGX_MENU_SEED_OUTFIT");
+        highlight_seeded_outfit(1, "GHOGX_MENU_SEED_CHARACTER_P2",
+                                "GHOGX_MENU_SEED_OUTFIT_P2");
+      }
       std::fprintf(stderr, "[menu] capture start screen = %s\n", start);
     }
   }
