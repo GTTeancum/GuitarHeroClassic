@@ -437,8 +437,10 @@ int main() {
                  "OutfitLoader PostLoad dump range remains documented");
   ok &= contains(doc, "`OutfitLoader::Save`\n(`0x803AC728 -> 0x803AC8F0`)",
                  "OutfitLoader Save dump range remains documented");
-  ok &= contains(doc, "Native keeps both rows opaque until a reviewable\nloader body or direct original-game trace",
-                 "CharWalk and OutfitLoader stay opaque without source loader body");
+  ok &= contains(doc, "Native now decodes and round-trips both row families.",
+                 "retail traces close CharWalk and OutfitLoader serialized layouts");
+  ok &= contains(doc, "It does not claim the unrecovered `CharWalk::Poll` movement algorithm or\nOutfitLoader runtime switching behavior from those format facts.",
+                 "serialized layout evidence remains fenced from unrecovered runtime behavior");
   ok &= contains(doc, "`CharClipSamples.cpp` | `ghogx_character_char_bones_source_test` | `rb2-dump-runtime-map`",
                  "CharClipSamples RB2 runtime map remains explicit");
   ok &= contains(doc, "`src/arkless.cpp` | `ghogx_character_ihatecompvir_inventory_test` | `re-gh2-arkless-file-hook-only`",

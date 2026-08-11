@@ -2441,6 +2441,27 @@ int main(int argc, char** argv) {
     CHECK(false);
   }
 
+  // Stock lose.dta declares (panels GAME_PANELS lose_panel helpbar), and
+  // game.dta expands GAME_PANELS with world_panel.  The runtime uses that
+  // decoded panel ownership to retain the live venue behind the centered
+  // failure overlay, rather than special-casing the lose-screen name.
+  mgr.goto_screen(Symbol("lose_screen"));
+  Object* lose_screen = mgr.current_screen();
+  CHECK(lose_screen != nullptr &&
+        lose_screen->name() == Symbol("lose_screen"));
+  if (lose_screen) {
+    CHECK(array_contains_symbol(lose_screen->get_property(Symbol("panels")),
+                                Symbol("world_panel")));
+    CHECK(array_contains_symbol(lose_screen->get_property(Symbol("panels")),
+                                Symbol("lose_panel")));
+    CHECK(lose_screen->get_property(Symbol("clear_vram"))
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("TRUE"));
+    CHECK(lose_screen->get_property(Symbol("animate_transition"))
+              .as_symbol()
+              .value_or(Symbol()) == Symbol("FALSE"));
+  }
+
   if (Object* options = mgr.resolve_object(Symbol("options"))) {
     DataArray set_wide;
     set_wide.push(DataNode::Int(1));

@@ -1159,11 +1159,25 @@ class StubObject : public Object {
         return get_int("guitar_volume_idx", 11);
       if (std::strcmp(m, "get_fx_volume_idx") == 0)
         return get_int("fx_volume_idx", 11);
-      if (std::strcmp(m, "get_sync_offset") == 0)
+      if (std::strcmp(m, "get_sync_offset") == 0) {
+        if (Object* campaign = mgr_->resolve_object(Symbol("campaign"));
+            campaign && campaign != this) {
+          DataNode persisted = campaign->handle_property(
+              Symbol("get_sync_offset"), DataArray());
+          if (persisted.as_int()) return persisted;
+        }
         return get_int("sync_offset", 0);
+      }
       if (std::strcmp(m, "set_sync_offset") == 0) {
+        const int offset = std::clamp(arg_int(args, 0, 0), -500, 500);
         set_property(Symbol("sync_offset"),
-                     DataNode::Int(arg_int(args, 0, 0)));
+                     DataNode::Int(offset));
+        if (Object* campaign = mgr_->resolve_object(Symbol("campaign"));
+            campaign && campaign != this) {
+          DataArray persist_args;
+          persist_args.push(DataNode::Int(offset));
+          campaign->handle_property(Symbol("set_sync_offset"), persist_args);
+        }
         return DataNode();
       }
       if (std::strcmp(m, "get_volume_from_idx") == 0) {

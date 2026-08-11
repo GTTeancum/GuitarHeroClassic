@@ -17,6 +17,16 @@ namespace gh::ark {
 
 namespace {
 
+std::mutex& loose_mount_mutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+
+std::vector<LooseFileMount>& loose_mount_storage() {
+    static std::vector<LooseFileMount> mounts;
+    return mounts;
+}
+
 std::string ark_part_path_from_seed(const std::string& seed, size_t part) {
     namespace fs = std::filesystem;
     const fs::path seed_path(seed);
@@ -448,6 +458,18 @@ ArkV3Reader ArkV3Reader::load(const std::string& hdr_path) {
 
 std::vector<uint8_t> ArkV3Reader::read_entry(const Entry& e,
                                              const std::vector<std::string>& ark_paths) const {
+    if (!e.loose_path.empty()) {
+        std::ifstream f(e.loose_path, std::ios::binary | std::ios::ate);
+        if (!f) throw std::runtime_error("cannot open loose file " + e.loose_path);
+        const std::streamoff size = f.tellg();
+        if (size < 0) throw std::runtime_error("cannot size loose file " + e.loose_path);
+        f.seekg(0);
+        std::vector<uint8_t> buf(static_cast<size_t>(size));
+        if (!buf.empty())
+            f.read(reinterpret_cast<char*>(buf.data()), size);
+        if (!f) throw std::runtime_error("short read on loose file " + e.loose_path);
+        return buf;
+    }
     const std::vector<std::string> expanded_paths =
         expand_ark_paths_from_first_part(ark_paths, ark_part_sizes_.size());
     if (e.ark_part >= expanded_paths.size() ||
@@ -465,6 +487,37 @@ std::vector<uint8_t> ArkV3Reader::read_entry(const Entry& e,
 }
 
 std::optional<Entry> ArkV3Reader::find(std::string_view full_path) const {
+    {
+        std::lock_guard<std::mutex> lock(loose_mount_mutex());
+        const auto& mounts = loose_mount_storage();
+        const auto mounted = std::lower_bound(
+            mounts.begin(), mounts.end(), full_path,
+            [](const LooseFileMount& mount, std::string_view path) {
+                return mount.virtual_path < path;
+            });
+        if (mounted != mounts.end() && mounted->virtual_path == full_path) {
+            Entry entry{};
+            entry.ark_part = 0;
+            entry.offset = 0;
+            std::error_code size_error;
+            const uintmax_t mounted_size =
+                std::filesystem::file_size(mounted->file_path, size_error);
+            if (size_error || mounted_size > std::numeric_limits<uint32_t>::max())
+                return std::optional<Entry>{};
+            entry.size = static_cast<uint32_t>(mounted_size);
+            entry.inflated_size = 0;
+            entry.full_path = mounted->virtual_path;
+            const size_t slash = entry.full_path.rfind('/');
+            entry.name = slash == std::string::npos
+                             ? entry.full_path
+                             : entry.full_path.substr(slash + 1);
+            entry.folder = slash == std::string::npos
+                               ? std::string{}
+                               : entry.full_path.substr(0, slash);
+            entry.loose_path = mounted->file_path.string();
+            return entry;
+        }
+    }
     const auto find_exact = [&](std::string_view path) {
         return std::find_if(entries_.begin(), entries_.end(),
                             [&](const Entry& e) { return e.full_path == path; });
@@ -498,6 +551,24 @@ std::optional<Entry> ArkV3Reader::find(std::string_view full_path) const {
     }
 
     return std::nullopt;
+}
+
+void ArkV3Reader::set_loose_file_mounts(std::vector<LooseFileMount> mounts) {
+    std::sort(mounts.begin(), mounts.end(),
+              [](const LooseFileMount& lhs, const LooseFileMount& rhs) {
+                  return lhs.virtual_path < rhs.virtual_path;
+              });
+    std::lock_guard<std::mutex> lock(loose_mount_mutex());
+    loose_mount_storage() = std::move(mounts);
+}
+
+void ArkV3Reader::clear_loose_file_mounts() {
+    set_loose_file_mounts({});
+}
+
+std::vector<LooseFileMount> ArkV3Reader::loose_file_mounts() {
+    std::lock_guard<std::mutex> lock(loose_mount_mutex());
+    return loose_mount_storage();
 }
 
 }  // namespace gh::ark

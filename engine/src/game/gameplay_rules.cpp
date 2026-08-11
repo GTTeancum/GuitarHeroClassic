@@ -206,6 +206,11 @@ int fofix_sustain_score(double held_seconds,
   return base_score * std::max(1, multiplier);
 }
 
+double calibrated_judgement_time(double audio_time_sec, int sync_offset_ms) {
+  return audio_time_sec +
+         static_cast<double>(sync_offset_ms) / kMillisecondsPerSecond;
+}
+
 std::vector<std::string> native_driver_clip_candidates(
     const std::vector<std::string>& requested,
     std::string_view character_namespace) {

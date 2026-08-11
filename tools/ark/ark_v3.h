@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <fstream>
+#include <filesystem>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -29,6 +30,16 @@ struct Entry {
     std::string name;        // resolved leaf name
     std::string folder;      // resolved folder; empty for root
     std::string full_path;   // folder + "/" + name (or just name)
+    // Non-empty only for a runtime loose-content mount.  Loose entries use
+    // the same virtual ARK path contract as packed entries while retaining
+    // their package-owned file on disk.
+    std::string loose_path;
+};
+
+struct LooseFileMount {
+    std::string virtual_path;
+    std::filesystem::path file_path;
+    std::string package_id;
 };
 
 struct IndexEntry {
@@ -83,6 +94,14 @@ public:
                                     const std::vector<std::string>& ark_paths) const;
 
     std::optional<Entry> find(std::string_view full_path) const;
+
+    // Runtime DLC is mounted after the base DTBs have loaded.  Every reader
+    // then resolves the same process-wide, read-only virtual path map, so
+    // gameplay, UI, audio, and character loaders do not need package-specific
+    // branches.  Callers must validate conflicts before replacing the map.
+    static void set_loose_file_mounts(std::vector<LooseFileMount> mounts);
+    static void clear_loose_file_mounts();
+    static std::vector<LooseFileMount> loose_file_mounts();
 
 private:
     uint32_t version_ = 0;

@@ -458,6 +458,12 @@ uint32_t Window::guitar_input_held() const {
   return impl_->gh_now & (0x1Fu | (1u << 7));
 }
 
+void Window::show_no_activate() {
+  if (!impl_ || !impl_->hwnd) return;
+  ShowWindow(impl_->hwnd, SW_SHOWNOACTIVATE);
+  UpdateWindow(impl_->hwnd);
+}
+
 float Window::guitar_whammy_axis() const {
   return impl_->gh_whammy_axis;
 }

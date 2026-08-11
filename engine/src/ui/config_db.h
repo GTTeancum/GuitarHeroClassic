@@ -20,6 +20,7 @@
 
 #include <map>
 #include <memory>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,37 @@ struct CharacterVariant {
   std::string strum_anim_path;
   std::string fret_anim_path;
   std::string highway_surface_path;
+  std::string portrait_path;
+  // Optional model whose animation/controller graph drives this outfit.
+  // This is the general cross-skeleton retarget contract used by external
+  // characters as well as the two singer-as-guitarist variants.
+  std::string animation_source_model_path;
+  bool retarget_animation = false;
+  // Object roots hidden only while this variant fills a guitarist role.
+  // Descendants are resolved from the loaded model hierarchy at runtime.
+  std::vector<std::string> guitarist_hidden_roots;
+  Symbol unlock_requirement;
+  std::string character_label;
+  std::string character_blurb;
+  // Add-on outfits own their copy. An empty value intentionally renders an
+  // empty description instead of synthesizing a stock localization token.
+  bool addon_defined = false;
+  std::string outfit_blurb;
+};
+
+struct DlcPackageSummary {
+  std::string id;
+  std::string name;
+  std::string version;
+  std::filesystem::path directory;
+  std::size_t mounted_files = 0;
+};
+
+struct DlcSetlist {
+  Symbol id;
+  std::string label;
+  std::vector<Symbol> songs;
+  bool include_in_quickplay = false;
 };
 
 class ConfigDb {
@@ -44,6 +76,11 @@ class ConfigDb {
   // Load the named config/gen DTBs from the ARK. Missing/unparsable files are
   // skipped (logged), so this never aborts.
   void load(const gh::ark::ArkV3Reader& ark, const std::vector<std::string>& ark_paths);
+  // Merge self-contained external addon manifests after built-in DTB data.
+  // Each direct child of addon_root may provide one manifest.json.
+  void load_addon_manifests(
+      const std::filesystem::path& addon_root,
+      const gh::ark::ArkV3Reader* base_ark = nullptr);
   // Replace only the song catalog from a mounted content archive while
   // retaining the front-end's guitars/store/campaign/UI configuration.
   void load_songs(const gh::ark::ArkV3Reader& ark,
@@ -58,6 +95,13 @@ class ConfigDb {
   Symbol song_key(std::size_t index) const;            // the Nth song's symbol key
   int song_index(Symbol song) const;                   // zero-based, -1 when absent
   DataNode song_field(std::size_t index, Symbol field) const;  // name/artist/...
+  // Stock campaign order followed by the authored store-song order. This is
+  // the one quickplay identity sequence used by both presentation and loading.
+  std::vector<Symbol> quickplay_songs() const;
+  // Authored `(song (name ...))` / `(song (midi_file ...))` paths. The audio
+  // path has no extension in songs.dtb.
+  std::string song_audio_path(Symbol song) const;
+  std::string song_midi_path(Symbol song) const;
   DataNode store_field(Symbol category, Symbol item, Symbol field) const;
   std::size_t store_item_count(Symbol category) const;
   Symbol store_item(Symbol category, std::size_t index) const;
@@ -91,6 +135,14 @@ class ConfigDb {
   std::vector<CharacterVariant> character_variants(Symbol character) const;
   const CharacterVariant* character_variant(Symbol selection) const;
   Symbol character_for_variant(Symbol selection) const;
+  std::string character_label(Symbol character) const;
+  std::string character_portrait(Symbol character) const;
+
+  const std::vector<DlcPackageSummary>& dlc_packages() const {
+    return dlc_packages_;
+  }
+  std::vector<Symbol> setlists() const;
+  std::vector<Symbol> setlist_songs(Symbol setlist) const;
 
   // Generic keyed-record field: record's `find_keyed(field)` value (at(1)).
   static DataNode field(const DataArray* record, Symbol key);
@@ -102,6 +154,10 @@ class ConfigDb {
   std::map<const void*, std::shared_ptr<DataArray>> tables_;
   std::vector<Symbol> practice_sections_;
   std::vector<CharacterVariant> character_variants_;
+  std::vector<Symbol> addon_venues_;
+  std::vector<Symbol> addon_quickplay_songs_;
+  std::vector<DlcSetlist> addon_setlists_;
+  std::vector<DlcPackageSummary> dlc_packages_;
 };
 
 }  // namespace ghogx::ui

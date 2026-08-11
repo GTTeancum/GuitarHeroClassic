@@ -3,10 +3,29 @@
 ## Runtime contract
 
 GH2 remains the primary game. Character selection presents one canonical
-character entry and a chronological list of that character's GH1, GH2, and
-GH80s variants. Selecting a variant carries its exact model, animation set,
+character entry and an ordered list of that character's GH2, GH1, and GH80s
+variants, so GH2 supplies the default whenever it exists. Selecting a variant
+carries its exact model, animation set,
 and unique highway texture into gameplay; it does not replace GH2 gameplay,
 HUD, title-card, or menu presentation.
+
+The live catalog is layered. Runtime loads the packed built-in
+`config/gen/character_variants.dtb` first, then merges self-contained packages
+from `DLC/*/manifest.json` or `GHOGX_ADDONS_DIR`. The merged
+`character_provider` owns roster length, order, labels, variant selection, and
+portrait paths for the character-select UI. Each package's `content/` tree is
+mounted process-wide at the same virtual paths an ARK would expose, so existing
+character, venue, song, texture, and audio loaders do not need a second asset
+path system.
+
+The stock fixed rack is not used as the roster. Its source card geometry,
+materials, camera, and background remain authoritative, while runtime creates
+a cyclic film reel from the provider: five visible cards for single-player and
+independent three-card columns for Player 1 and Player 2. The selected entry is
+fixed in the center while values wrap and scroll through it. Runtime-created
+cards reset the copied serialized-world cache to local before parent
+composition; retaining a source card's old world cache collapses every dynamic
+row onto one position.
 
 The costume selector has a fixed two-value viewport. For a character with more
 than two variants, the selected value is the top row and the next chronological
@@ -23,8 +42,8 @@ maintaining a character-name table:
    macros.
 2. Resolve each selection's authored localized display name.
 3. Join equal authored display names into a canonical identity.
-4. Preserve each source game's authored variant order inside the chronology
-   GH1, GH2, GH80s.
+4. Preserve each source game's authored variant order inside the project order
+   GH2, GH1, GH80s.
 5. Use the authored outfit label where one exists, then apply the
    project-authored selection labels in
    `config/character_variant_labels.tsv`. The manifest is keyed by canonical
@@ -33,8 +52,65 @@ maintaining a character-name table:
 6. Resolve model, UI model, UI/main/strum/fret animation, and highway paths
    from the source archive inventories.
 
-The current facts produce 11 canonical characters and 33 selectable variants:
-8 from GH1, 19 from GH2, and 6 from GH80s.
+The source archives produce 11 canonical characters and 33 selectable source
+variants: 8 from GH1, 19 from GH2, and 6 from GH80s. The built-in
+`DLC/core.singers` package adds two identities and four outfits, for a deployed
+total of 13 characters and 37 selectable variants after campaign completion.
+
+## Project playable characters
+
+`config/playable_character_variants.tsv` remains a build-time extension point
+for content that must be packed into the generated catalog. Runtime-owned
+project content uses the same public DLC contract as community content instead
+of requiring an ARK overlay.
+
+`DLC/core.singers` adds the female and male singers as distinct guitarist
+identities. Each lists the clean GH2 singer model first and the converted GH1
+model second. Female animation retargeting is driven by Judy Nails (`alterna`);
+male animation retargeting is driven by Clive Winston (`classic`). Both declare
+the exact authored `bone_pos_mic.mesh` root in `guitarist_hidden_roots`, which
+hides the embedded mic stand only for the guitarist role. Guitar attachment,
+two-hand IK, vocalist use of the same models, and all normal prop behavior stay
+generic. Both identities retain the persistent `won_campaign` requirement.
+
+External downloads use one `manifest.json` per addon folder, not a global
+user-maintained catalog. A character addon may declare:
+
+```json
+{
+  "schema_version": 1,
+  "id": "community.example",
+  "characters": [{
+    "id": "example_character",
+    "label": "Example Character",
+    "portrait": "ui/image/dlc/example/portrait.bmp_ps2",
+    "outfits": [{
+      "selection": "example_character_default",
+      "label": "Standard",
+      "model": "char/example/og/gen/example.milo_ps2",
+      "ui_model": "char/example/og/gen/example_ui.milo_ps2",
+      "ui_anim": "char/example/anims/gen/example_ui.milo_ps2",
+      "main_anim": "char/example/anims/gen/example_main.milo_ps2",
+      "strum_anim": "char/example/anims/gen/example_strum.milo_ps2",
+      "fret_anim": "char/example/anims/gen/example_fret.milo_ps2"
+    }]
+  }]
+}
+```
+
+Top-level `outfits` may extend an existing character by naming `character`.
+One schema may also declare guitars, top-level finishes, venues, songs, and
+setlists in any combination. Duplicate package/content/selection/catalog IDs
+are rejected. A package cannot replace a base-ARK path unless that exact path
+appears in its `replaces` array. Package application is transactional: a late
+validation error rolls back earlier character, song, guitar, finish, venue,
+quickplay, and setlist mutations from that manifest.
+
+All manifest asset values are normalized ARK-relative paths. Files live under
+`DLC/<package>/content/<same path>`; references may also resolve an unchanged
+base-ARK asset. See `DLC/README.md` and
+`DLC/examples/everything/manifest.json` for the complete schema and folder
+layout.
 
 ## Project-authored outfit names
 
@@ -76,6 +152,12 @@ Each canonical-character node contains ordered variant nodes with:
 - `strum_anim`
 - `fret_anim`
 - `highway_surface`
+- `portrait`
+- `animation_source_model`
+- `retarget_animation`
+- `guitarist_hidden_roots`
+- `unlock`
+- `character_label`
 
 The runtime reads this catalog through `ConfigDb` and exposes it through
 `character_provider`. UI and gameplay therefore consume the same exact
@@ -177,7 +259,7 @@ Current visual and numeric proof is in:
 
 `ghogx_character_variant_catalog_test` loads the deployed archive and checks:
 
-1. Canonical and variant counts.
+1. Canonical and variant counts, including project-manifest rows.
 2. GH1/GH2/GH80s chronological order.
 3. Unique selection symbols.
 4. Provider order and labels.
@@ -190,11 +272,13 @@ Current visual and numeric proof is in:
 9. The recovered `MakeRotMatrix(pi/2, 0, z)` external-door bridge, including
    the mandatory X quarter-turn and preservation of character Z.
 10. Deployed DTB readback matches all 17 project-authored labels exactly.
+11. The converted female singer is hidden before `won_campaign`, visible after
+    it, and resolves the declared model and animation owners exactly.
 
 Current result:
 
 ```text
-PASS character catalog characters=11 variants=33 gh1=8 gh2=19 gh80=6 order=chronological wrap=both viewport=2 door_bridge=euler_pi_over_2_0_z door_direct=25 door_open_pose_fallback=8
+PASS character catalog characters=12 variants=34 gh1=9 gh2=19 gh80=6 order=chronological wrap=both viewport=2 door_bridge=euler_pi_over_2_0_z door_direct=25 door_open_pose_fallback=9
 ```
 
 The 2026-07-30 naming deployment replaced only

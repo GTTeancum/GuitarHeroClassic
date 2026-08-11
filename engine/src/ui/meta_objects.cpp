@@ -23,10 +23,15 @@ namespace ghogx::ui {
 namespace {
 namespace fs = std::filesystem;
 
-struct PersistentProfileState {
+struct PersistentProfileRecord {
+  bool used = false;
+  std::string name;
   int cash = 0;
   std::string guitar;
   std::string guitar_skin;
+  std::string character;
+  std::string character_outfit;
+  std::string last_difficulty;
   int paint_primary = -1;
   int paint_secondary = -1;
   std::array<std::string, 2> player_guitar;
@@ -34,6 +39,12 @@ struct PersistentProfileState {
   std::array<int, 2> player_paint_primary = {-1, -1};
   std::array<int, 2> player_paint_secondary = {-1, -1};
   std::set<std::string> unlocked;
+  std::map<std::string, int> values;
+};
+
+struct PersistentProfileState : PersistentProfileRecord {
+  int active_slot = -1;
+  std::array<PersistentProfileRecord, 8> profiles;
 };
 
 bool profile_persistence_enabled() {
@@ -50,83 +61,114 @@ fs::path persistent_profile_path() {
   return fs::path("save") / "ghogx_profile_v1.txt";
 }
 
+int persisted_int(const std::string& value, int fallback) {
+  try {
+    return std::stoi(value);
+  } catch (...) {
+    return fallback;
+  }
+}
+
+void parse_profile_field(PersistentProfileRecord& profile,
+                         const std::string& key,
+                         const std::string& value) {
+  if (key == "used")
+    profile.used = persisted_int(value, 0) != 0;
+  else if (key == "name")
+    profile.name = value;
+  else if (key == "cash")
+    profile.cash = std::max(0, persisted_int(value, 0));
+  else if (key == "guitar")
+    profile.guitar = value;
+  else if (key == "guitar_skin")
+    profile.guitar_skin = value;
+  else if (key == "character")
+    profile.character = value;
+  else if (key == "character_outfit")
+    profile.character_outfit = value;
+  else if (key == "last_difficulty")
+    profile.last_difficulty = value;
+  else if (key == "paint_primary")
+    profile.paint_primary = persisted_int(value, -1);
+  else if (key == "paint_secondary")
+    profile.paint_secondary = persisted_int(value, -1);
+  else if (key == "player0_guitar")
+    profile.player_guitar[0] = value;
+  else if (key == "player0_guitar_skin")
+    profile.player_guitar_skin[0] = value;
+  else if (key == "player1_guitar")
+    profile.player_guitar[1] = value;
+  else if (key == "player1_guitar_skin")
+    profile.player_guitar_skin[1] = value;
+  else if (key == "player0_paint_primary")
+    profile.player_paint_primary[0] = persisted_int(value, -1);
+  else if (key == "player0_paint_secondary")
+    profile.player_paint_secondary[0] = persisted_int(value, -1);
+  else if (key == "player1_paint_primary")
+    profile.player_paint_primary[1] = persisted_int(value, -1);
+  else if (key == "player1_paint_secondary")
+    profile.player_paint_secondary[1] = persisted_int(value, -1);
+  else if (key == "unlock" && !value.empty())
+    profile.unlocked.insert(value);
+  else if (key.rfind("value.", 0) == 0 && key.size() > 6)
+    profile.values[key.substr(6)] = persisted_int(value, 0);
+}
+
 PersistentProfileState load_persistent_profile_state() {
   PersistentProfileState state;
   if (!profile_persistence_enabled()) return state;
   const fs::path path = persistent_profile_path();
   std::ifstream stream(path);
-  std::string line;
-  if (!stream || !std::getline(stream, line) ||
-      line != "GHOGX_PROFILE_V1")
+  std::string header;
+  if (!stream || !std::getline(stream, header) ||
+      (header != "GHOGX_PROFILE_V1" && header != "GHOGX_PROFILE_V2"))
     return state;
+  const bool version2 = header == "GHOGX_PROFILE_V2";
+  std::string line;
   while (std::getline(stream, line)) {
     const std::size_t split = line.find('=');
     if (split == std::string::npos) continue;
-    const std::string key = line.substr(0, split);
+    std::string key = line.substr(0, split);
     const std::string value = line.substr(split + 1);
-    if (key == "cash") {
-      try {
-        state.cash = std::max(0, std::stoi(value));
-      } catch (...) {
-        state.cash = 0;
-      }
-    } else if (key == "guitar") {
-      state.guitar = value;
-    } else if (key == "guitar_skin") {
-      state.guitar_skin = value;
-    } else if (key == "paint_primary") {
-      try {
-        state.paint_primary = std::stoi(value);
-      } catch (...) {
-        state.paint_primary = -1;
-      }
-    } else if (key == "paint_secondary") {
-      try {
-        state.paint_secondary = std::stoi(value);
-      } catch (...) {
-        state.paint_secondary = -1;
-      }
-    } else if (key == "player0_guitar") {
-      state.player_guitar[0] = value;
-    } else if (key == "player0_guitar_skin") {
-      state.player_guitar_skin[0] = value;
-    } else if (key == "player1_guitar") {
-      state.player_guitar[1] = value;
-    } else if (key == "player1_guitar_skin") {
-      state.player_guitar_skin[1] = value;
-    } else if (key == "player0_paint_primary") {
-      try {
-        state.player_paint_primary[0] = std::stoi(value);
-      } catch (...) {
-        state.player_paint_primary[0] = -1;
-      }
-    } else if (key == "player0_paint_secondary") {
-      try {
-        state.player_paint_secondary[0] = std::stoi(value);
-      } catch (...) {
-        state.player_paint_secondary[0] = -1;
-      }
-    } else if (key == "player1_paint_primary") {
-      try {
-        state.player_paint_primary[1] = std::stoi(value);
-      } catch (...) {
-        state.player_paint_primary[1] = -1;
-      }
-    } else if (key == "player1_paint_secondary") {
-      try {
-        state.player_paint_secondary[1] = std::stoi(value);
-      } catch (...) {
-        state.player_paint_secondary[1] = -1;
-      }
-    } else if (key == "unlock" && !value.empty()) {
-      state.unlocked.insert(value);
+    if (!version2) {
+      parse_profile_field(state, key, value);
+      continue;
     }
+    if (key == "active_slot") {
+      state.active_slot = persisted_int(value, -1);
+      continue;
+    }
+    if (key.rfind("root.", 0) == 0) {
+      parse_profile_field(state, key.substr(5), value);
+      continue;
+    }
+    if (key.rfind("profile.", 0) != 0) continue;
+    const std::size_t slot_end = key.find('.', 8);
+    if (slot_end == std::string::npos) continue;
+    const int slot = persisted_int(key.substr(8, slot_end - 8), -1);
+    if (slot < 0 || slot >= static_cast<int>(state.profiles.size())) continue;
+    parse_profile_field(state.profiles[static_cast<std::size_t>(slot)],
+                        key.substr(slot_end + 1), value);
+  }
+  if (state.active_slot >= 0 &&
+      state.active_slot < static_cast<int>(state.profiles.size()) &&
+      state.profiles[static_cast<std::size_t>(state.active_slot)].used) {
+    static_cast<PersistentProfileRecord&>(state) =
+        state.profiles[static_cast<std::size_t>(state.active_slot)];
+  } else {
+    state.active_slot = -1;
   }
   std::fprintf(stderr,
-               "[profile] loaded path=%s cash=%d guitar=%s skin=%s "
-               "unlocks=%zu\n",
-               path.string().c_str(), state.cash, state.guitar.c_str(),
-               state.guitar_skin.c_str(), state.unlocked.size());
+               "[profile] loaded path=%s version=%s active=%d cash=%d "
+               "profiles=%zu unlocks=%zu values=%zu\n",
+               path.string().c_str(), version2 ? "2" : "1",
+               state.active_slot, state.cash,
+               static_cast<std::size_t>(std::count_if(
+                   state.profiles.begin(), state.profiles.end(),
+                   [](const PersistentProfileRecord& profile) {
+                     return profile.used;
+                   })),
+               state.unlocked.size(), state.values.size());
   return state;
 }
 
@@ -143,27 +185,51 @@ bool save_persistent_profile_state() {
   if (!path.parent_path().empty())
     fs::create_directories(path.parent_path(), error);
   if (error) return false;
-  const PersistentProfileState& state = persistent_profile_state();
+  PersistentProfileState& state = persistent_profile_state();
+  if (state.active_slot >= 0 &&
+      state.active_slot < static_cast<int>(state.profiles.size())) {
+    state.profiles[static_cast<std::size_t>(state.active_slot)] =
+        static_cast<const PersistentProfileRecord&>(state);
+  }
+  auto write_profile = [](std::ostream& stream, const std::string& prefix,
+                          const PersistentProfileRecord& profile) {
+    stream << prefix << "used=" << (profile.used ? 1 : 0) << "\n";
+    stream << prefix << "name=" << profile.name << "\n";
+    stream << prefix << "cash=" << std::max(0, profile.cash) << "\n";
+    stream << prefix << "guitar=" << profile.guitar << "\n";
+    stream << prefix << "guitar_skin=" << profile.guitar_skin << "\n";
+    stream << prefix << "character=" << profile.character << "\n";
+    stream << prefix << "character_outfit=" << profile.character_outfit
+           << "\n";
+    stream << prefix << "last_difficulty=" << profile.last_difficulty
+           << "\n";
+    stream << prefix << "paint_primary=" << profile.paint_primary << "\n";
+    stream << prefix << "paint_secondary=" << profile.paint_secondary
+           << "\n";
+    for (std::size_t i = 0; i < profile.player_guitar.size(); ++i) {
+      stream << prefix << "player" << i << "_guitar="
+             << profile.player_guitar[i] << "\n";
+      stream << prefix << "player" << i << "_guitar_skin="
+             << profile.player_guitar_skin[i] << "\n";
+      stream << prefix << "player" << i << "_paint_primary="
+             << profile.player_paint_primary[i] << "\n";
+      stream << prefix << "player" << i << "_paint_secondary="
+             << profile.player_paint_secondary[i] << "\n";
+    }
+    for (const std::string& item : profile.unlocked)
+      stream << prefix << "unlock=" << item << "\n";
+    for (const auto& [key, value] : profile.values)
+      stream << prefix << "value." << key << "=" << value << "\n";
+  };
   {
     std::ofstream stream(temp, std::ios::trunc);
     if (!stream) return false;
-    stream << "GHOGX_PROFILE_V1\n";
-    stream << "cash=" << std::max(0, state.cash) << "\n";
-    stream << "guitar=" << state.guitar << "\n";
-    stream << "guitar_skin=" << state.guitar_skin << "\n";
-    stream << "paint_primary=" << state.paint_primary << "\n";
-    stream << "paint_secondary=" << state.paint_secondary << "\n";
-    for (std::size_t i = 0; i < state.player_guitar.size(); ++i) {
-      stream << "player" << i << "_guitar=" << state.player_guitar[i] << "\n";
-      stream << "player" << i << "_guitar_skin="
-             << state.player_guitar_skin[i] << "\n";
-      stream << "player" << i << "_paint_primary="
-             << state.player_paint_primary[i] << "\n";
-      stream << "player" << i << "_paint_secondary="
-             << state.player_paint_secondary[i] << "\n";
-    }
-    for (const std::string& item : state.unlocked)
-      stream << "unlock=" << item << "\n";
+    stream << "GHOGX_PROFILE_V2\n";
+    stream << "active_slot=" << state.active_slot << "\n";
+    write_profile(stream, "root.", state);
+    for (std::size_t i = 0; i < state.profiles.size(); ++i)
+      write_profile(stream, "profile." + std::to_string(i) + ".",
+                    state.profiles[i]);
     if (!stream) return false;
   }
   fs::remove(path, error);
@@ -174,10 +240,10 @@ bool save_persistent_profile_state() {
     return false;
   }
   std::fprintf(stderr,
-               "[profile] saved path=%s cash=%d guitar=%s skin=%s "
-               "unlocks=%zu\n",
-               path.string().c_str(), state.cash, state.guitar.c_str(),
-               state.guitar_skin.c_str(), state.unlocked.size());
+               "[profile] saved path=%s version=2 active=%d cash=%d "
+               "unlocks=%zu values=%zu\n",
+               path.string().c_str(), state.active_slot, state.cash,
+               state.unlocked.size(), state.values.size());
   return true;
 }
 
@@ -232,7 +298,7 @@ Symbol canonical_difficulty_symbol(Symbol difficulty) {
 
 Symbol node_difficulty_or_default(const DataNode& node) {
   Symbol difficulty = node.as_symbol().value_or(Symbol());
-  return difficulty.valid() ? difficulty : default_difficulty();
+  return canonical_difficulty_symbol(difficulty);
 }
 
 bool node_bool(const DataNode& node) {
@@ -283,6 +349,44 @@ std::vector<Symbol> character_symbols(const ConfigDb& db) {
   return characters.empty()
              ? ui_macro_symbols(db, Symbol("CHARACTERS"))
              : characters;
+}
+
+std::vector<Symbol> outfits_for_character(const ConfigDb& db,
+                                          Symbol character);
+
+bool character_variant_available(ScreenManager* mgr,
+                                 const CharacterVariant& variant) {
+  if (!variant.unlock_requirement.valid()) return true;
+  if (!mgr) return false;
+  Object* campaign = mgr->resolve_object(Symbol("campaign"));
+  if (!campaign) return false;
+  if (variant.unlock_requirement == Symbol("won_campaign")) {
+    return node_bool(campaign->get_property(Symbol("won_campaign")));
+  }
+  DataArray args;
+  args.push(DataNode::Sym(variant.unlock_requirement));
+  return node_bool(campaign->handle_property(Symbol("is_unlocked"), args));
+}
+
+std::vector<Symbol> available_outfits_for_character(
+    ScreenManager* mgr, const ConfigDb& db, Symbol character) {
+  std::vector<Symbol> out;
+  for (const auto& variant : db.character_variants(character)) {
+    if (character_variant_available(mgr, variant))
+      out.push_back(variant.selection);
+  }
+  if (!out.empty() || !db.character_variants(character).empty()) return out;
+  return outfits_for_character(db, character);
+}
+
+std::vector<Symbol> available_character_symbols(ScreenManager* mgr,
+                                                const ConfigDb& db) {
+  std::vector<Symbol> out;
+  for (Symbol character : character_symbols(db)) {
+    if (!available_outfits_for_character(mgr, db, character).empty())
+      out.push_back(character);
+  }
+  return out;
 }
 
 std::vector<Symbol> outfits_for_character(const ConfigDb& db,
@@ -573,6 +677,16 @@ Symbol campaign_venue_for_song(const ConfigDb* db, Symbol song) {
   return Symbol();
 }
 
+int campaign_tier_index_for_venue(const ConfigDb* db, Symbol venue) {
+  if (!db || !venue.valid()) return -1;
+  for (std::size_t tier = 0;; ++tier) {
+    const Symbol candidate = db->campaign_venue_at(tier);
+    if (!candidate.valid()) break;
+    if (candidate == venue) return static_cast<int>(tier);
+  }
+  return -1;
+}
+
 bool campaign_regular_song_in_venue(const ConfigDb* db, Symbol venue,
                                     Symbol song) {
   const DataArray* tier = campaign_tier_for_venue(db, venue);
@@ -621,6 +735,16 @@ bool campaign_song_beaten(const Object& campaign, Symbol difficulty,
   if (!difficulty.valid()) difficulty = default_difficulty();
   return node_bool(
       campaign.get_property(campaign_progress_key("beat", difficulty, song)));
+}
+
+bool campaign_song_beaten_on_any_difficulty(const Object& campaign,
+                                            Symbol song) {
+  static constexpr const char* kDifficulties[] = {
+      "kDifficultyEasy", "kDifficultyMedium", "kDifficultyHard",
+      "kDifficultyExpert"};
+  for (const char* difficulty : kDifficulties)
+    if (campaign_song_beaten(campaign, Symbol(difficulty), song)) return true;
+  return false;
 }
 
 int campaign_regular_beaten_count_for_venue(const Object& campaign,
@@ -845,6 +969,19 @@ class SongProvider : public MetaObject {
       out = song.valid() ? DataNode::Sym(song) : DataNode();
       return true;
     }
+    if (std::strcmp(m, "is_active") == 0) {
+      bool active = song.valid();
+      if (active && mgr_) {
+        if (Object* campaign = mgr_->resolve_object(Symbol("campaign"))) {
+          DataArray unlock_args;
+          unlock_args.push(DataNode::Sym(song));
+          active = node_bool(campaign->handle_property(Symbol("is_unlocked"),
+                                                       unlock_args));
+        }
+      }
+      out = DataNode::Int(active ? 1 : 0);
+      return true;
+    }
     if (std::strcmp(m, "get_text") == 0) {
       const int global_index = db_ ? db_->song_index(song) : -1;
       const int column = arg_int(args, 1, 0);
@@ -866,12 +1003,7 @@ class SongProvider : public MetaObject {
     std::vector<Symbol> songs;
     if (!db_) return songs;
     if (node_bool(get_property(Symbol("quickplay")))) {
-      songs.reserve(db_->song_count());
-      for (std::size_t i = 0; i < db_->song_count(); ++i) {
-        Symbol song = db_->song_key(i);
-        if (song.valid()) songs.push_back(song);
-      }
-      return songs;
+      return db_->quickplay_songs();
     }
     Symbol venue;
     if (mgr_) {
@@ -1096,7 +1228,8 @@ class CharacterProvider : public MetaObject {
   bool handle_meta(Symbol msg, const DataArray& args, DataNode& out) override {
     if (!db_) return false;
     const char* m = msg.c_str();
-    const std::vector<Symbol> characters = character_symbols(*db_);
+    const std::vector<Symbol> characters =
+        available_character_symbols(mgr_, *db_);
     if (std::strcmp(m, "list_length") == 0 ||
         std::strcmp(m, "num_data") == 0) {
       out = DataNode::Int(static_cast<int>(characters.size()));
@@ -1122,8 +1255,42 @@ class CharacterProvider : public MetaObject {
       if (index >= static_cast<int>(characters.size()))
         index = characters.empty() ? 0
                                    : static_cast<int>(characters.size() - 1);
-      out = characters.empty() ? DataNode()
-                               : DataNode::Sym(characters[index]);
+      if (characters.empty()) {
+        out = DataNode();
+      } else if (std::strcmp(m, "get_text") == 0) {
+        const std::string label = db_->character_label(characters[index]);
+        out = label.empty() ? DataNode::Sym(characters[index])
+                            : DataNode::Str(label);
+      } else {
+        out = DataNode::Sym(characters[index]);
+      }
+      return true;
+    }
+    if (std::strcmp(m, "get_portrait") == 0) {
+      int index = arg_int(args, 0, 0);
+      if (index < 0) index = 0;
+      if (index >= static_cast<int>(characters.size()))
+        index = characters.empty() ? 0
+                                   : static_cast<int>(characters.size() - 1);
+      const std::string portrait =
+          characters.empty() ? std::string()
+                             : db_->character_portrait(characters[index]);
+      out = portrait.empty() ? DataNode() : DataNode::Str(portrait);
+      return true;
+    }
+    if (std::strcmp(m, "get_character_blurb") == 0) {
+      int index = arg_int(args, 0, 0);
+      if (index < 0) index = 0;
+      if (index >= static_cast<int>(characters.size()))
+        index = characters.empty() ? 0
+                                   : static_cast<int>(characters.size() - 1);
+      const auto variants =
+          characters.empty()
+              ? std::vector<CharacterVariant>()
+              : db_->character_variants(characters[index]);
+      out = variants.empty() || !variants.front().addon_defined
+                ? DataNode()
+                : DataNode::Str(variants.front().character_blurb);
       return true;
     }
     if (std::strcmp(m, "is_active") == 0) {
@@ -1132,7 +1299,7 @@ class CharacterProvider : public MetaObject {
     }
     const Symbol character = arg_symbol(args, 0);
     const std::vector<Symbol> outfits =
-        outfits_for_character(*db_, character);
+        available_outfits_for_character(mgr_, *db_, character);
     if (std::strcmp(m, "num_outfits") == 0) {
       out = DataNode::Int(static_cast<int>(outfits.size()));
       return true;
@@ -1162,6 +1329,10 @@ class CharacterProvider : public MetaObject {
         index = outfits.empty() ? 0 : static_cast<int>(outfits.size() - 1);
       const CharacterVariant* variant =
           outfits.empty() ? nullptr : db_->character_variant(outfits[index]);
+      if (variant && variant->addon_defined) {
+        out = DataNode::Str(variant->outfit_blurb);
+        return true;
+      }
       // Imported variants have no GH2-authored outfit copy. Keep that absence
       // explicit instead of borrowing another game's or the character bio.
       if (!variant || variant->source_game != Symbol("gh2")) {
@@ -1404,6 +1575,9 @@ class StatsProvider : public MetaObject {
 // --- GameConfig ------------------------------------------------------------
 GameConfig::GameConfig(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("game"), mgr, db) {
   set_property(Symbol("song_index"), DataNode::Int(0));
+  set_property(Symbol("song_list_index"), DataNode::Int(0));
+  if (db_ && db_->song_count() > 0)
+    set_property(Symbol("song"), DataNode::Sym(db_->song_key(0)));
   set_property(Symbol("game_screen"), DataNode::Sym(Symbol("game_screen")));
   set_property(Symbol("continue_screen"), DataNode::Sym(Symbol("main_screen")));
   set_property(Symbol("lose_screen"), DataNode::Sym(Symbol("lose_screen")));
@@ -1452,6 +1626,67 @@ GameConfig::GameConfig(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("ga
 bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
   const char* m = msg.c_str();
 
+  if (std::strcmp(m, "set_song_index") == 0) {
+    const int requested = std::max(0, arg_int(args, 0, 0));
+    Symbol song;
+    if (mgr_) {
+      if (Object* provider = mgr_->resolve_object(Symbol("song_provider"))) {
+        DataArray provider_args;
+        provider_args.push(DataNode::Int(requested));
+        song = node_symbol_or_string(
+            provider->handle_property(Symbol("get_symbol"), provider_args));
+      }
+    }
+    int global_index = db_ ? db_->song_index(song) : -1;
+    if (global_index < 0 && db_ && db_->song_count() > 0) {
+      global_index = std::min<int>(requested,
+                                   static_cast<int>(db_->song_count()) - 1);
+      song = db_->song_key(static_cast<std::size_t>(global_index));
+    }
+    set_property(Symbol("song_list_index"), DataNode::Int(requested));
+    set_property(Symbol("song_index"), DataNode::Int(global_index));
+    set_property(Symbol("song"),
+                 song.valid() ? DataNode::Sym(song) : DataNode());
+    out = DataNode::Int(global_index);
+    return true;
+  }
+  if (std::strcmp(m, "get_song_index") == 0) {
+    out = get_property(Symbol("song_list_index"));
+    return true;
+  }
+  if (std::strcmp(m, "set_song") == 0) {
+    const Symbol song = arg_symbol(args, 0);
+    const int global_index = db_ ? db_->song_index(song) : -1;
+    set_property(Symbol("song"),
+                 song.valid() ? DataNode::Sym(song) : DataNode());
+    set_property(Symbol("song_index"), DataNode::Int(global_index));
+    int list_index = global_index;
+    if (mgr_) {
+      if (Object* provider = mgr_->resolve_object(Symbol("song_provider"))) {
+        const int count = provider->handle_property(Symbol("list_length"),
+                                                    DataArray())
+                              .as_int()
+                              .value_or(0);
+        for (int i = 0; i < count; ++i) {
+          DataArray provider_args;
+          provider_args.push(DataNode::Int(i));
+          if (node_symbol_or_string(provider->handle_property(
+                  Symbol("get_symbol"), provider_args)) == song) {
+            list_index = i;
+            break;
+          }
+        }
+      }
+    }
+    set_property(Symbol("song_list_index"), DataNode::Int(list_index));
+    out = song.valid() ? DataNode::Sym(song) : DataNode();
+    return true;
+  }
+  if (std::strcmp(m, "get_song") == 0) {
+    out = get_property(Symbol("song"));
+    return true;
+  }
+
   if (std::strcmp(m, "set") == 0 && arg_symbol(args, 0) == Symbol("mode")) {
     const Symbol mode = arg_symbol(args, 1);
     set_property(Symbol("mode"),
@@ -1496,6 +1731,10 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
       }
       if (character.valid())
         set_property(Symbol("character"), DataNode::Sym(character));
+      PersistentProfileState& profile = persistent_profile_state();
+      profile.character = character.valid() ? character.c_str() : "";
+      profile.character_outfit = outfit.c_str();
+      save_persistent_profile_state();
     }
     return true;
   }
@@ -1796,14 +2035,237 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
 // --- Campaign --------------------------------------------------------------
 Campaign::Campaign(ScreenManager* mgr, ConfigDb* db)
     : MetaObject(Symbol("campaign"), mgr, db) {
+  const PersistentProfileState& state = persistent_profile_state();
+  profiles_.resize(state.profiles.size());
+  for (std::size_t i = 0; i < state.profiles.size(); ++i) {
+    profiles_[i].used = state.profiles[i].used;
+    profiles_[i].name = state.profiles[i].name;
+  }
+  set_property(Symbol("profile_slot"), DataNode::Int(state.active_slot));
+  apply_persistent_profile();
+  save_persistent_profile_state();
+}
+
+void Campaign::capture_persistent_profile() {
+  PersistentProfileState& profile = persistent_profile_state();
+  profile.cash = std::max(0, get_property(Symbol("cash")).as_int().value_or(0));
+  profile.last_difficulty =
+      node_difficulty_or_default(get_property(Symbol("last_difficulty"))).c_str();
+  if (mgr_) {
+    if (Object* game = mgr_->resolve_object(Symbol("game"))) {
+      const Symbol character =
+          node_symbol_or_string(game->get_property(Symbol("character")));
+      const Symbol outfit =
+          node_symbol_or_string(game->get_property(Symbol("character_outfit")));
+      profile.character = character.valid() ? character.c_str() : "";
+      profile.character_outfit = outfit.valid() ? outfit.c_str() : "";
+      const Symbol guitar =
+          node_symbol_or_string(game->get_property(Symbol("guitar")));
+      const Symbol skin =
+          node_symbol_or_string(game->get_property(Symbol("guitar_skin")));
+      profile.guitar = guitar.valid() ? guitar.c_str() : "";
+      profile.guitar_skin = skin.valid() ? skin.c_str() : "";
+      profile.paint_primary =
+          game->get_property(Symbol("paint_primary")).as_int().value_or(-1);
+      profile.paint_secondary =
+          game->get_property(Symbol("paint_secondary")).as_int().value_or(-1);
+      for (int player_index = 0; player_index < 2; ++player_index) {
+        DataArray player_args;
+        player_args.push(DataNode::Int(player_index));
+        Object* player = game->handle_property(Symbol("get_player_config"),
+                                               player_args)
+                             .as_object();
+        if (!player) continue;
+        const Symbol player_guitar =
+            node_symbol_or_string(player->get_property(Symbol("guitar")));
+        const Symbol player_skin =
+            node_symbol_or_string(player->get_property(Symbol("guitar_skin")));
+        profile.player_guitar[static_cast<std::size_t>(player_index)] =
+            player_guitar.valid() ? player_guitar.c_str() : "";
+        profile.player_guitar_skin[static_cast<std::size_t>(player_index)] =
+            player_skin.valid() ? player_skin.c_str() : "";
+        profile.player_paint_primary[static_cast<std::size_t>(player_index)] =
+            player->get_property(Symbol("paint_primary"))
+                .as_int()
+                .value_or(-1);
+        profile.player_paint_secondary[static_cast<std::size_t>(player_index)] =
+            player->get_property(Symbol("paint_secondary"))
+                .as_int()
+                .value_or(-1);
+      }
+    }
+  }
+
+  profile.values.clear();
+  static constexpr const char* kScalarKeys[] = {
+      "status", "career_score", "won_campaign", "tutorials_done",
+      "sync_offset"};
+  for (const char* key : kScalarKeys) {
+    const int value = get_property(Symbol(key)).as_int().value_or(0);
+    if (value != 0) profile.values[key] = value;
+  }
+  static constexpr const char* kDifficulties[] = {
+      "kDifficultyEasy", "kDifficultyMedium", "kDifficultyHard",
+      "kDifficultyExpert"};
+  for (const char* difficulty : kDifficulties) {
+    for (Symbol song : campaign_song_order(db_)) {
+      for (const char* prefix : {"beat", "score"}) {
+        const Symbol key = campaign_progress_key(prefix, Symbol(difficulty), song);
+        const int value = get_property(key).as_int().value_or(0);
+        if (value != 0) profile.values[key.c_str()] = value;
+      }
+    }
+  }
+  for (Symbol award : campaign_reward_guitars(db_)) {
+    const Symbol pending = campaign_pending_guitar_award_key(award);
+    if (node_bool(get_property(pending))) profile.values[pending.c_str()] = 1;
+  }
+
+  static constexpr const char* kStoreCategories[] = {
+      "guitar", "skin", "song", "character", "outfit", "video"};
+  for (const char* category : kStoreCategories) {
+    if (!db_) break;
+    for (Symbol item : db_->store_items(Symbol(category))) {
+      if (node_bool(get_property(item))) profile.unlocked.insert(item.c_str());
+    }
+  }
+  if (const DataArray* campaign = db_ ? db_->table(Symbol("campaign")) : nullptr) {
+    if (auto modes = campaign->find_keyed(Symbol("unlock_game_modes"))) {
+      for (std::size_t i = 1; i < modes->size(); ++i) {
+        const Symbol mode = modes->at(i).as_symbol().value_or(Symbol());
+        if (mode.valid() && node_bool(get_property(mode)))
+          profile.unlocked.insert(mode.c_str());
+      }
+    }
+  }
+  if (profile.active_slot >= 0 &&
+      profile.active_slot < static_cast<int>(profile.profiles.size())) {
+    const std::size_t slot = static_cast<std::size_t>(profile.active_slot);
+    profile.used = profiles_[slot].used;
+    profile.name = profiles_[slot].name;
+    profile.profiles[slot] = profile;
+  }
+}
+
+void Campaign::apply_persistent_profile() {
   const PersistentProfileState& profile = persistent_profile_state();
   set_property(Symbol("cash"), DataNode::Int(profile.cash));
+  set_property(Symbol("new_campaign"), DataNode::Int(0));
+  set_property(Symbol("last_difficulty"),
+               DataNode::Sym(profile.last_difficulty.empty()
+                                 ? default_difficulty()
+                                 : Symbol(profile.last_difficulty)));
+  static constexpr const char* kScalarKeys[] = {
+      "status", "career_score", "won_campaign", "tutorials_done",
+      "sync_offset"};
+  for (const char* key : kScalarKeys) set_property(Symbol(key), DataNode::Int(0));
+  static constexpr const char* kDifficulties[] = {
+      "kDifficultyEasy", "kDifficultyMedium", "kDifficultyHard",
+      "kDifficultyExpert"};
+  for (const char* difficulty : kDifficulties) {
+    for (Symbol song : campaign_song_order(db_)) {
+      set_property(campaign_progress_key("beat", Symbol(difficulty), song),
+                   DataNode::Int(0));
+      set_property(campaign_progress_key("score", Symbol(difficulty), song),
+                   DataNode::Int(0));
+      set_property(song, DataNode::Int(0));
+    }
+  }
+  for (Symbol award : campaign_reward_guitars(db_))
+    set_property(campaign_pending_guitar_award_key(award), DataNode::Int(0));
+  for (const auto& [key, value] : profile.values)
+    set_property(Symbol(key), DataNode::Int(value));
+
+  static constexpr const char* kStoreCategories[] = {
+      "guitar", "skin", "song", "character", "outfit", "video"};
+  for (const char* category : kStoreCategories) {
+    if (!db_) break;
+    for (Symbol item : db_->store_items(Symbol(category)))
+      set_property(item, DataNode::Int(profile.unlocked.count(item.c_str()) ? 1
+                                                                           : 0));
+  }
+  if (const DataArray* campaign = db_ ? db_->table(Symbol("campaign")) : nullptr) {
+    if (auto modes = campaign->find_keyed(Symbol("unlock_game_modes"))) {
+      for (std::size_t i = 1; i < modes->size(); ++i) {
+        const Symbol mode = modes->at(i).as_symbol().value_or(Symbol());
+        if (mode.valid()) set_property(mode, DataNode::Int(0));
+      }
+    }
+  }
   for (const std::string& item : profile.unlocked)
     set_property(Symbol(item), DataNode::Int(1));
+
+  if (mgr_) {
+    if (Object* game = mgr_->resolve_object(Symbol("game"))) {
+      if (!profile.character.empty())
+        game->set_property(Symbol("character"),
+                           DataNode::Sym(Symbol(profile.character)));
+      if (!profile.character_outfit.empty())
+        game->set_property(Symbol("character_outfit"),
+                           DataNode::Sym(Symbol(profile.character_outfit)));
+      if (!profile.guitar.empty())
+        game->set_property(Symbol("guitar"), DataNode::Sym(Symbol(profile.guitar)));
+      if (!profile.guitar_skin.empty())
+        game->set_property(Symbol("guitar_skin"),
+                           DataNode::Sym(Symbol(profile.guitar_skin)));
+      game->set_property(Symbol("paint_primary"),
+                         DataNode::Int(profile.paint_primary));
+      game->set_property(Symbol("paint_secondary"),
+                         DataNode::Int(profile.paint_secondary));
+      for (int player_index = 0; player_index < 2; ++player_index) {
+        DataArray player_args;
+        player_args.push(DataNode::Int(player_index));
+        Object* player = game->handle_property(Symbol("get_player_config"),
+                                               player_args)
+                             .as_object();
+        if (!player) continue;
+        const std::size_t i = static_cast<std::size_t>(player_index);
+        if (!profile.player_guitar[i].empty())
+          player->set_property(Symbol("guitar"),
+                               DataNode::Sym(Symbol(profile.player_guitar[i])));
+        if (!profile.player_guitar_skin[i].empty())
+          player->set_property(
+              Symbol("guitar_skin"),
+              DataNode::Sym(Symbol(profile.player_guitar_skin[i])));
+        player->set_property(Symbol("paint_primary"),
+                             DataNode::Int(profile.player_paint_primary[i]));
+        player->set_property(Symbol("paint_secondary"),
+                             DataNode::Int(profile.player_paint_secondary[i]));
+      }
+    }
+  }
+}
+
+void Campaign::activate_profile_slot(int slot) {
+  capture_persistent_profile();
+  PersistentProfileState& state = persistent_profile_state();
+  if (slot >= 0 && slot < static_cast<int>(state.profiles.size())) {
+    state.active_slot = slot;
+    static_cast<PersistentProfileRecord&>(state) =
+        state.profiles[static_cast<std::size_t>(slot)];
+  } else {
+    state.active_slot = -1;
+    static_cast<PersistentProfileRecord&>(state) = PersistentProfileRecord{};
+  }
+  set_property(Symbol("profile_slot"), DataNode::Int(state.active_slot));
+  apply_persistent_profile();
 }
 
 bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
   const char* m = msg.c_str();
+  if (std::strcmp(m, "get_sync_offset") == 0) {
+    out = DataNode::Int(std::clamp(
+        get_property(Symbol("sync_offset")).as_int().value_or(0),
+        -500, 500));
+    return true;
+  }
+  if (std::strcmp(m, "set_sync_offset") == 0) {
+    const int offset = std::clamp(arg_int(args, 0, 0), -500, 500);
+    set_property(Symbol("sync_offset"), DataNode::Int(offset));
+    capture_persistent_profile();
+    save_persistent_profile_state();
+    return true;
+  }
   if (std::strcmp(m, "num_profiles") == 0) {
     int count = 0;
     for (const auto& profile : profiles_)
@@ -1812,7 +2274,7 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     return true;
   }
   if (std::strcmp(m, "set_profile_slot") == 0) {
-    set_property(Symbol("profile_slot"), args.size() ? args.at(0) : DataNode::Int(-1));
+    activate_profile_slot(arg_int(args, 0, -1));
     return true;
   }
   if (std::strcmp(m, "profile_slot") == 0) {
@@ -1877,6 +2339,13 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
       set_property(Symbol("profile_dirty"), DataNode::Int(1));
       set_property(Symbol("new_campaign"),
                    DataNode::Int(was_empty && !name.empty() ? 1 : 0));
+      PersistentProfileState& state = persistent_profile_state();
+      state.active_slot = slot;
+      state.used = profiles_[slot].used;
+      state.name = profiles_[slot].name;
+      state.profiles[static_cast<std::size_t>(slot)] = state;
+      capture_persistent_profile();
+      save_persistent_profile_state();
     }
     return true;
   }
@@ -1888,8 +2357,12 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
       profiles_[slot] = Profile{};
       set_property(Symbol("last_deleted_slot"), DataNode::Int(slot));
       if (get_property(Symbol("profile_slot")).as_int().value_or(-1) == slot)
-        set_property(Symbol("profile_slot"), DataNode::Int(-1));
+        activate_profile_slot(-1);
+      PersistentProfileState& state = persistent_profile_state();
+      state.profiles[static_cast<std::size_t>(slot)] =
+          PersistentProfileRecord{};
       set_property(Symbol("profile_dirty"), DataNode::Int(1));
+      save_persistent_profile_state();
     }
     return true;
   }
@@ -1901,6 +2374,7 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
                                    .as_int()
                                    .value_or(0) +
                                 1));
+    capture_persistent_profile();
     save_persistent_profile_state();
     return true;
   }
@@ -1977,6 +2451,11 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
   }
   if (std::strcmp(m, "next_guitar_award") == 0) {
     Symbol award = campaign_next_guitar_award(*this, db_);
+    if (award.valid()) {
+      persistent_profile_state().unlocked.insert(award.c_str());
+      capture_persistent_profile();
+      save_persistent_profile_state();
+    }
     out = award.valid() ? DataNode::Sym(award) : DataNode();
     return true;
   }
@@ -2082,8 +2561,14 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     const Symbol item = arg_symbol(args, 0);
     const int fallback_price = store_price_for_item(db_, item);
     const int price = arg_int(args, 1, fallback_price);
-    const int next =
-        get_property(Symbol("cash")).as_int().value_or(0) - std::max(0, price);
+    const int current =
+        std::max(0, get_property(Symbol("cash")).as_int().value_or(0));
+    if (!item.valid() || node_bool(get_property(item)) || price < 0 ||
+        current < price) {
+      out = DataNode::Int(current);
+      return true;
+    }
+    const int next = current - price;
     set_property(Symbol("cash"), DataNode::Int(next));
     if (item.valid()) set_property(item, DataNode::Int(1));
     PersistentProfileState& profile = persistent_profile_state();
@@ -2137,23 +2622,55 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
   }
   if (std::strcmp(m, "is_unlocked") == 0) {
     const Symbol key = arg_symbol(args, 0);
-    // TEMPORARY REVIEW CHEAT (user-requested): expose every authored song,
-    // including the store's bonus tracks, so the complete setlist can be
-    // scrolled and visually audited.
-    // This is deliberately always on and has no command-line/environment
-    // switch. Remove it after the setlist review is accepted.
-    if (key.valid() && db_) {
-      for (std::size_t i = 0; i < db_->song_count(); ++i) {
-        if (db_->song_key(i) != key) continue;
-        out = DataNode::Int(1);
-        return true;
-      }
-    }
-    if (key.valid() && db_ && db_->is_venue(key)) {
-      out = DataNode::Int(1);
+    if (!key.valid()) {
+      out = DataNode::Int(0);
       return true;
     }
-    out = DataNode::Int(key.valid() && node_bool(get_property(key)) ? 1 : 0);
+    const int status = std::max(
+        0, get_property(Symbol("status")).as_int().value_or(0));
+    if (db_ && db_->is_venue(key)) {
+      const int tier = campaign_tier_index_for_venue(db_, key);
+      out = DataNode::Int(tier >= 0 && tier <= status ? 1 : 0);
+      return true;
+    }
+    if (db_ && campaign_contains_song(db_, key)) {
+      const Symbol venue = campaign_venue_for_song(db_, key);
+      const int tier = campaign_tier_index_for_venue(db_, venue);
+      bool unlocked = campaign_song_beaten_on_any_difficulty(*this, key);
+      if (!unlocked && tier >= 0 && tier < status) {
+        unlocked = true;
+      } else if (!unlocked && tier == status) {
+        if (!campaign_encore_song(db_, key)) {
+          unlocked = true;
+        } else {
+          const Symbol difficulty = node_difficulty_or_default(
+              get_property(Symbol("last_difficulty")));
+          unlocked = campaign_regular_beaten_count_for_venue(
+                         *this, db_, difficulty, venue) >=
+                     campaign_required_songs_for_encore(db_, difficulty);
+        }
+      }
+      out = DataNode::Int(unlocked ? 1 : 0);
+      return true;
+    }
+    if (db_ && !db_->store_field(Symbol("song"), key, Symbol("price")).empty()) {
+      out = DataNode::Int(node_bool(get_property(key)) ? 1 : 0);
+      return true;
+    }
+    if (const DataArray* campaign = db_ ? db_->table(Symbol("campaign")) : nullptr) {
+      if (auto modes = campaign->find_keyed(Symbol("unlock_game_modes"))) {
+        for (std::size_t i = 1; i < modes->size(); ++i) {
+          if (modes->at(i).as_symbol().value_or(Symbol()) != key) continue;
+          out = DataNode::Int(
+              node_bool(get_property(key)) ||
+                      node_bool(get_property(Symbol("won_campaign")))
+                  ? 1
+                  : 0);
+          return true;
+        }
+      }
+    }
+    out = DataNode::Int(node_bool(get_property(key)) ? 1 : 0);
     return true;
   }
   return false;

@@ -21,6 +21,11 @@ DEFAULT_LABEL_MANIFEST = (
     / "config"
     / "character_variant_labels.tsv"
 )
+DEFAULT_PLAYABLE_MANIFEST = (
+    Path(__file__).resolve().parents[1]
+    / "config"
+    / "playable_character_variants.tsv"
+)
 
 
 @dataclass(frozen=True)
@@ -46,6 +51,8 @@ class Variant:
     strum_anim: str
     fret_anim: str
     highway_surface: str
+    unlock: str = ""
+    character_label: str = ""
 
 
 def run_text(command: list[str]) -> str:
@@ -199,6 +206,72 @@ def gh1_variants(
                 [f"track/surfaces/gen/{outfit}_keep.bmp_ps2"]),
         ))
     return variants
+
+
+def append_project_playable_variants(
+    path: Path, characters: list[str], variants: list[Variant],
+    merged_paths: set[str]
+) -> int:
+    """Add project-owned playable roles from fact-derived archive routes.
+
+    These rows are deliberately data, not runtime character-name branches.
+    Model and animation owners must already exist in the merged archive, and
+    every required route is resolved from that inventory.
+    """
+    expected_fields = [
+        "character", "character_label", "selection", "source", "label", "model_owner",
+        "animation_owner", "unlock",
+    ]
+    count = 0
+    with path.open(newline="", encoding="utf-8") as stream:
+        reader = csv.DictReader(stream, delimiter="\t")
+        if reader.fieldnames != expected_fields:
+            raise RuntimeError(
+                f"{path}: expected tab-separated header "
+                f"{' '.join(expected_fields)}")
+        known_selections = {variant.selection for variant in variants}
+        for line_number, row in enumerate(reader, start=2):
+            values = {key: row[key].strip() for key in expected_fields}
+            required = expected_fields[:-1]
+            if any(not values[key] for key in required):
+                raise RuntimeError(
+                    f"{path}:{line_number}: empty required field")
+            selection = values["selection"]
+            if selection in known_selections:
+                raise RuntimeError(
+                    f"{path}:{line_number}: duplicate selection {selection}")
+            model_owner = values["model_owner"]
+            animation_owner = values["animation_owner"]
+            model_dir = f"char/{model_owner}/og/gen"
+            anim_dir = f"char/{animation_owner}/anims/gen"
+            model = inventory_file(merged_paths, [
+                f"{model_dir}/{model_owner}.milo_ps2"])
+            if not model:
+                raise RuntimeError(
+                    f"{path}:{line_number}: missing model for {model_owner}")
+            main_anim = inventory_anim(
+                merged_paths, anim_dir, "_main.milo_ps2")
+            strum_anim = inventory_anim(
+                merged_paths, anim_dir, "_strum.milo_ps2")
+            fret_anim = inventory_anim(
+                merged_paths, anim_dir, "_fret.milo_ps2")
+            if not all((main_anim, strum_anim, fret_anim)):
+                raise RuntimeError(
+                    f"{path}:{line_number}: incomplete guitarist animation "
+                    f"owner {animation_owner}")
+            character = values["character"]
+            if character not in characters:
+                characters.append(character)
+            variants.append(Variant(
+                character, selection, values["source"], values["label"],
+                model, model,
+                inventory_anim(merged_paths, anim_dir, "_ui.milo_ps2"),
+                main_anim, strum_anim, fret_anim, "", values["unlock"],
+                values["character_label"],
+            ))
+            known_selections.add(selection)
+            count += 1
+    return count
 
 
 def extract_entry(ark_tool: Path, source: Source, source_path: str,
@@ -402,6 +475,8 @@ def write_catalog(path: Path, characters: list[str],
                 ("strum_anim", variant.strum_anim),
                 ("fret_anim", variant.fret_anim),
                 ("highway_surface", variant.highway_surface),
+                ("unlock", variant.unlock),
+                ("character_label", variant.character_label),
             ):
                 lines.append(f"    ({key} {dta_string(value)})")
             lines.append("  )")
@@ -423,6 +498,9 @@ def main() -> int:
     parser.add_argument("--out-root", type=Path, required=True)
     parser.add_argument(
         "--label-manifest", type=Path, default=DEFAULT_LABEL_MANIFEST)
+    parser.add_argument(
+        "--playable-manifest", type=Path,
+        default=DEFAULT_PLAYABLE_MANIFEST)
     args = parser.parse_args()
 
     gh1 = Source("gh1", args.gh1_gen, "ghui/gen/ui.dtb",
@@ -474,7 +552,13 @@ def main() -> int:
 
     # Source chronology is the primary order. Each game's authored macro order
     # remains intact inside its own slice.
-    rows = gh1_rows + gh2_rows + gh80_rows
+    # Roster-owned defaults are chronological from the GH2 base outward:
+    # GH2 first (therefore default), then GH1, then GH80s.  External manifest
+    # variants append after this built-in sequence.
+    rows = gh2_rows + gh1_rows + gh80_rows
+    project_playable_count = append_project_playable_variants(
+        args.playable_manifest, characters, rows,
+        source_paths["gh2_merged"])
     label_override_count = apply_label_manifest(
         args.label_manifest, rows)
     catalog_dta = args.out_root / "config/gen/character_variants.dta"
@@ -495,6 +579,7 @@ def main() -> int:
         f"characters={len(characters)} variants={len(rows)} "
         f"gh1={len(gh1_rows)} gh2={len(gh2_rows)} "
         f"gh80={len(gh80_rows)} "
+        f"project_playable={project_playable_count} "
         f"label_overrides={label_override_count} "
         f"overlay_files={len(set(overlay_paths))}")
     return 0

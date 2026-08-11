@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "example.everything",
+  "name": "Everything Package Example",
+  "version": "1.0.0",
+  "content_root": "content",
+  "characters": [{
+    "id": "example_guitarist",
+    "label": "Example Guitarist",
+    "portrait": "ui/image/dlc/example/portrait.bmp_ps2",
+    "outfits": [{
+      "selection": "example_guitarist_default",
+      "label": "Default",
+      "model": "char/example_guitarist/og/gen/example_guitarist.milo_ps2",
+      "main_anim": "char/example_guitarist/anims/gen/example_guitarist_main.milo_ps2",
+      "strum_anim": "char/example_guitarist/anims/gen/example_guitarist_strum.milo_ps2",
+      "fret_anim": "char/example_guitarist/anims/gen/example_guitarist_fret.milo_ps2",
+      "highway_surface": "track/surfaces/gen/example_guitarist_keep.bmp_ps2"
+    }]
+  }],
+  "outfits": [{
+    "character": "rock",
+    "selection": "example_rock_outfit",
+    "label": "Example",
+    "model": "char/example_rock/og/gen/example_rock.milo_ps2"
+  }],
+  "guitars": [{
+    "id": "example_guitar",
+    "type": "guitar",
+    "name": "Example Guitar",
+    "milo": "world/guitars/example_guitar/gen/example_guitar.milo_ps2",
+    "skins": [{"id": "example_guitar_red", "name": "Red"}]
+  }],
+  "finishes": [{
+    "guitar": "flying_v",
+    "id": "example_flying_v_finish",
+    "name": "Example Finish",
+    "mat": "example_finish.mat"
+  }],
+  "venues": [{"id": "example_venue", "name": "Example Venue"}],
+  "songs": [{
+    "id": "example_song",
+    "title": "Example Song",
+    "artist": "Example Artist",
+    "song": {
+      "name": "songs/example_song/example_song",
+      "midi_file": "songs/example_song/example_song.mid"
+    },
+    "quickplay": true
+  }],
+  "setlists": [{
+    "id": "example_setlist",
+    "label": "Example Setlist",
+    "songs": ["example_song"],
+    "include_in_quickplay": true
+  }]
+}

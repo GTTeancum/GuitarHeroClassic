@@ -7,23 +7,59 @@
 #include "ark_v3.h"
 #include "character/char_clip.h"
 #include "character/char_mesh.h"
+#include "asset/milo_image.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <set>
 #include <string>
 #include <vector>
 
 using namespace ghogx;
+namespace fs = std::filesystem;
 
 namespace {
+std::string first_existing(const std::string& dir,
+                           std::vector<std::string> names) {
+  for (auto& name : names) {
+    std::string path = dir + "/" + name;
+    if (fs::exists(path)) return path;
+  }
+  return {};
+}
+
 int source_rank(Symbol source) {
-  if (source == Symbol("gh1")) return 1;
-  if (source == Symbol("gh2")) return 2;
+  if (source == Symbol("gh2")) return 1;
+  if (source == Symbol("gh1")) return 2;
   if (source == Symbol("gh80")) return 3;
+  if (source == Symbol("addon")) return 4;
   return 99;
 }
+
+std::string json_escape(const std::string& text) {
+  std::string out;
+  for (const char ch : text) {
+    if (ch == '"' || ch == '\\') out.push_back('\\');
+    out.push_back(ch);
+  }
+  return out;
+}
+
+struct TempTree {
+  explicit TempTree(fs::path root) : path(std::move(root)) {
+    std::error_code error;
+    fs::remove_all(path, error);
+    fs::create_directories(path, error);
+  }
+  ~TempTree() {
+    std::error_code error;
+    fs::remove_all(path, error);
+  }
+  fs::path path;
+};
 
 std::string transform_base_name(std::string name) {
   for (const std::string suffix : {".trans", ".mesh"}) {
@@ -48,15 +84,137 @@ bool clip_drives_transform(const character::CharClip& clip,
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 3) {
+  if (argc != 1 && argc != 3) {
     std::fprintf(stderr,
                  "usage: ghogx_character_variant_catalog_test "
-                 "<main.hdr> <main_0.ark>\n");
+                 "[<main.hdr> <main_0.ark>]\n");
     return 2;
   }
-  const auto ark = gh::ark::ArkV3Reader::load(argv[1]);
+#ifdef _WIN32
+  _putenv_s("GHOGX_DISABLE_PROFILE_PERSISTENCE", "1");
+#else
+  setenv("GHOGX_DISABLE_PROFILE_PERSISTENCE", "1", 1);
+#endif
+  const std::string default_ark_dir =
+      "C:/Programming/GitHub/Guitar Hero II/gh2_ps2_hybrid_assets/gen";
+  const std::string hdr =
+      argc == 3 ? argv[1]
+                : first_existing(default_ark_dir, {"MAIN.HDR", "main.hdr"});
+  const std::string ark0 =
+      argc == 3 ? argv[2]
+                : first_existing(default_ark_dir, {"MAIN_0.ARK", "main_0.ark"});
+  if (hdr.empty() || ark0.empty()) {
+    std::printf(
+        "ghogx_character_variant_catalog_test: SKIP (no merged ARK at %s)\n",
+        default_ark_dir.c_str());
+    return 0;
+  }
+  const auto ark = gh::ark::ArkV3Reader::load(hdr);
+  TempTree boot_addon_root(fs::temp_directory_path() /
+                           "ghogx-empty-dlc-boot-test");
+#ifdef _WIN32
+  _putenv_s("GHOGX_ADDONS_DIR", boot_addon_root.path.string().c_str());
+#else
+  setenv("GHOGX_ADDONS_DIR", boot_addon_root.path.string().c_str(), 1);
+#endif
   ui::ConfigDb db;
-  db.load(ark, {argv[2]});
+  db.load(ark, {ark0});
+  db.load_addon_manifests(
+      fs::path(GHOGX_SOURCE_ROOT) / "DLC" / "core.singers", &ark);
+  const auto seed_characters = db.characters();
+  if (seed_characters.empty()) {
+    std::fprintf(stderr, "FAIL built-in character catalog is empty\n");
+    return 1;
+  }
+  const auto seed_variants = db.character_variants(seed_characters.front());
+  if (seed_variants.empty()) {
+    std::fprintf(stderr, "FAIL built-in character has no seed variant\n");
+    return 1;
+  }
+  const ui::CharacterVariant& seed = seed_variants.front();
+  TempTree addon_root(fs::temp_directory_path() /
+                      "ghogx-character-addon-manifest-test");
+  const fs::path addon_dir = addon_root.path / "community.addon_test";
+  fs::create_directories(addon_dir / "content" / "portraits");
+  {
+    std::ofstream portrait(addon_dir / "content" / "portraits" /
+                               "addon.bmp_ps2",
+                           std::ios::binary);
+    portrait << "loose-portrait-test";
+  }
+  {
+    std::ofstream manifest(addon_dir / "manifest.json");
+    manifest
+        << "{\n"
+        << "  \"schema_version\": 1,\n"
+        << "  \"id\": \"community.addon_test\",\n"
+        << "  \"characters\": [{\n"
+        << "    \"id\": \"addon_test\",\n"
+        << "    \"label\": \"Addon Test\",\n"
+        << "    \"portrait\": \"portraits/addon.bmp_ps2\",\n"
+        << "    \"outfits\": [{\n"
+        << "      \"selection\": \"addon_test_default\",\n"
+        << "      \"label\": \"Standard\",\n"
+        << "      \"model\": \"" << json_escape(seed.model_path) << "\",\n"
+        << "      \"ui_model\": \"" << json_escape(seed.ui_model_path)
+        << "\",\n"
+        << "      \"ui_anim\": \"" << json_escape(seed.ui_anim_path)
+        << "\",\n"
+        << "      \"main_anim\": \"" << json_escape(seed.main_anim_path)
+        << "\",\n"
+        << "      \"strum_anim\": \"" << json_escape(seed.strum_anim_path)
+        << "\",\n"
+        << "      \"fret_anim\": \"" << json_escape(seed.fret_anim_path)
+        << "\",\n"
+        << "      \"unlock\": \"won_campaign\"\n"
+        << "    }]\n"
+        << "  }],\n"
+        << "  \"guitars\": [{\n"
+        << "    \"id\": \"addon_test_guitar\",\n"
+        << "    \"type\": \"guitar\",\n"
+        << "    \"name\": \"Addon Test Guitar\",\n"
+        << "    \"skins\": [{\"id\": \"addon_test_finish\", "
+           "\"name\": \"Black\"}]\n"
+        << "  }],\n"
+        << "  \"finishes\": [{\"guitar\": \"addon_test_guitar\", "
+           "\"id\": \"addon_test_finish_2\", \"name\": \"White\"}],\n"
+        << "  \"venues\": [{\"id\": \"addon_test_venue\"}],\n"
+        << "  \"songs\": [{\n"
+        << "    \"id\": \"addon_test_song\",\n"
+        << "    \"title\": \"Addon Test Song\",\n"
+        << "    \"artist\": \"Addon Artist\",\n"
+        << "    \"song\": {\"name\": \"songs/addon_test/song\", "
+           "\"midi_file\": \"songs/addon_test/song.mid\"}\n"
+        << "  }],\n"
+        << "  \"setlists\": [{\"id\": \"addon_test_setlist\", "
+           "\"label\": \"Addon Setlist\", "
+           "\"songs\": [\"addon_test_song\"], "
+           "\"include_in_quickplay\": true}]\n"
+        << "}\n";
+  }
+  const fs::path rejected_dir = addon_root.path / "community.z_rejected";
+  fs::create_directories(rejected_dir);
+  {
+    std::ofstream manifest(rejected_dir / "manifest.json");
+    manifest
+        << "{\n"
+        << "  \"schema_version\": 1e0,\n"
+        << "  \"id\": \"community.z_rejected\",\n"
+        << "  \"characters\": [{\"id\": \"rollback_\\u00e9\", "
+           "\"label\": \"Rollback\", \"outfits\": [{"
+           "\"selection\": \"rollback_variant\", \"label\": "
+           "\"Standard\", \"model\": \""
+        << json_escape(seed.model_path) << "\"}]}],\n"
+        << "  \"songs\": [{\"id\": \"rollback_song\", "
+           "\"title\": \"Rollback Song\"}],\n"
+        << "  \"guitars\": [{\"id\": \"rollback_guitar\", "
+           "\"type\": \"guitar\"}],\n"
+        << "  \"venues\": [{\"id\": \"rollback_venue\"}],\n"
+        << "  \"setlists\": [{\"id\": \"rollback_setlist\", "
+           "\"songs\": [\"missing_song\"]}]\n"
+        << "}\n";
+  }
+  db.load_addon_manifests(addon_root.path, &ark);
   const std::vector<Symbol> characters = db.characters();
   if (characters.empty()) {
     std::fprintf(stderr, "FAIL character catalog is empty\n");
@@ -69,6 +227,151 @@ int main(int argc, char** argv) {
   Object* provider = mgr.resolve_object(Symbol("character_provider"));
   if (!provider) {
     std::fprintf(stderr, "FAIL character_provider is missing\n");
+    return 1;
+  }
+  const auto playable_singer_rows =
+      db.character_variants(Symbol("female_singer"));
+  if (playable_singer_rows.size() != 2 ||
+      playable_singer_rows[0].selection != Symbol("gh2_female_singer") ||
+      playable_singer_rows[1].selection != Symbol("gh1_female_singer") ||
+      playable_singer_rows[0].model_path !=
+          "char/gh2_female_singer/og/gen/female_singer.milo_ps2" ||
+      playable_singer_rows.front().main_anim_path.find(
+          "char/alterna/anims/gen/") != 0 ||
+      !playable_singer_rows.front().retarget_animation ||
+      playable_singer_rows.front().guitarist_hidden_roots !=
+          std::vector<std::string>{"bone_pos_mic.mesh"} ||
+      !playable_singer_rows.front().addon_defined ||
+      !playable_singer_rows.front().character_blurb.empty() ||
+      !playable_singer_rows.front().outfit_blurb.empty() ||
+      playable_singer_rows.front().unlock_requirement !=
+          Symbol("won_campaign") ||
+      db.character_label(Symbol("female_singer")) != "Female Singer") {
+    std::fprintf(stderr,
+                 "FAIL data-driven female singer/Judy unlock route\n");
+    return 1;
+  }
+  const auto male_singer_rows = db.character_variants(Symbol("male_singer"));
+  if (male_singer_rows.size() != 2 ||
+      male_singer_rows[0].selection != Symbol("gh2_male_singer") ||
+      male_singer_rows[1].selection != Symbol("gh1_male_singer") ||
+      male_singer_rows.front().animation_source_model_path !=
+          "char/classic/og/gen/classic.milo_ps2") {
+    std::fprintf(stderr, "FAIL data-driven male singer/Clive route\n");
+    return 1;
+  }
+  for (const char* portrait_path : {
+           "ui/image/dlc/core_singers/female_singer.bmp_ps2",
+           "ui/image/dlc/core_singers/male_singer.bmp_ps2"}) {
+    const auto portrait =
+        ghogx::asset::load_ps2_bitmap_from_ark(hdr, ark0, portrait_path);
+    if (!portrait.valid() || portrait.width != 64 || portrait.height != 128) {
+      std::fprintf(stderr, "FAIL singer portrait %s\n", portrait_path);
+      return 1;
+    }
+  }
+  const auto addon_rows = db.character_variants(Symbol("addon_test"));
+  if (addon_rows.size() != 1 ||
+      addon_rows.front().selection != Symbol("addon_test_default") ||
+      addon_rows.front().source_game != Symbol("addon") ||
+      addon_rows.front().character_label != "Addon Test" ||
+      addon_rows.front().portrait_path != "portraits/addon.bmp_ps2") {
+    std::fprintf(stderr, "FAIL per-addon manifest character merge\n");
+    return 1;
+  }
+  const auto loose_portrait = ark.find("portraits/addon.bmp_ps2");
+  if (!loose_portrait || loose_portrait->loose_path.empty() ||
+      ark.read_entry(*loose_portrait, {ark0}) !=
+          std::vector<uint8_t>({'l', 'o', 'o', 's', 'e', '-', 'p', 'o',
+                                'r', 't', 'r', 'a', 'i', 't', '-', 't',
+                                'e', 's', 't'})) {
+    std::fprintf(stderr, "FAIL loose ARK-path mount\n");
+    return 1;
+  }
+  const auto quickplay = db.quickplay_songs();
+  if (!db.character_variants(Symbol("rollback_\xc3\xa9")).empty() ||
+      db.song_index(Symbol("rollback_song")) >= 0 ||
+      db.guitar(Symbol("rollback_guitar")) ||
+      db.is_venue(Symbol("rollback_venue")) ||
+      !db.setlist_songs(Symbol("rollback_setlist")).empty()) {
+    std::fprintf(stderr, "FAIL rejected package was not transactional\n");
+    return 1;
+  }
+  if (!db.guitar(Symbol("addon_test_guitar")) ||
+      db.guitar_skin_count(Symbol("addon_test_guitar")) != 2 ||
+      !db.is_venue(Symbol("addon_test_venue")) ||
+      db.song_index(Symbol("addon_test_song")) < 0 ||
+      db.song_audio_path(Symbol("addon_test_song")) !=
+          "songs/addon_test/song" ||
+      db.setlist_songs(Symbol("addon_test_setlist")) !=
+          std::vector<Symbol>{Symbol("addon_test_song")} ||
+      std::find(quickplay.begin(), quickplay.end(),
+                Symbol("addon_test_song")) == quickplay.end()) {
+    std::fprintf(stderr,
+                 "FAIL package guitar/finish/venue/song/setlist merge\n");
+    return 1;
+  }
+  Object* campaign = mgr.resolve_object(Symbol("campaign"));
+  if (!campaign) {
+    std::fprintf(stderr, "FAIL campaign singleton is missing\n");
+    return 1;
+  }
+  const int locked_character_count =
+      provider->handle_property(Symbol("list_length"), DataArray())
+          .as_int()
+          .value_or(-1);
+  if (locked_character_count != static_cast<int>(characters.size() - 3)) {
+    std::fprintf(stderr,
+                 "FAIL locked DLC characters are visible before campaign unlock\n");
+    return 1;
+  }
+  campaign->set_property(Symbol("won_campaign"), DataNode::Int(1));
+  const int unlocked_character_count =
+      provider->handle_property(Symbol("list_length"), DataArray())
+          .as_int()
+          .value_or(-1);
+  if (unlocked_character_count != static_cast<int>(characters.size())) {
+    std::fprintf(stderr,
+                 "FAIL female singer does not appear after campaign unlock\n");
+    return 1;
+  }
+  DataArray singer_index_args;
+  singer_index_args.push(DataNode::Sym(Symbol("female_singer")));
+  const int singer_index =
+      provider->handle_property(Symbol("get_index"), singer_index_args)
+          .as_int()
+          .value_or(-1);
+  DataArray singer_text_args;
+  singer_text_args.push(DataNode::Int(singer_index));
+  if (provider->handle_property(Symbol("get_text"), singer_text_args)
+          .as_string()
+          .value_or("") != "Female Singer") {
+    std::fprintf(stderr,
+                 "FAIL project playable character label is not presented\n");
+    return 1;
+  }
+  if (!provider
+           ->handle_property(Symbol("get_character_blurb"), singer_text_args)
+           .as_string()
+           .value_or("")
+           .empty()) {
+    std::fprintf(stderr,
+                 "FAIL project playable character blurb is not blank\n");
+    return 1;
+  }
+  DataArray addon_index_args;
+  addon_index_args.push(DataNode::Sym(Symbol("addon_test")));
+  const int addon_index =
+      provider->handle_property(Symbol("get_index"), addon_index_args)
+          .as_int()
+          .value_or(-1);
+  DataArray addon_portrait_args;
+  addon_portrait_args.push(DataNode::Int(addon_index));
+  if (provider->handle_property(Symbol("get_portrait"), addon_portrait_args)
+          .as_string()
+          .value_or("") != addon_rows.front().portrait_path) {
+    std::fprintf(stderr,
+                 "FAIL provider does not expose addon portrait path\n");
     return 1;
   }
 
@@ -138,7 +441,7 @@ int main(int argc, char** argv) {
       }
       ghogx::character::Character preview_character;
       if (!ghogx::character::load_character(
-              argv[1], argv[2],
+              hdr, ark0,
               row.ui_model_path.empty() ? row.model_path
                                         : row.ui_model_path,
               preview_character)) {
@@ -147,7 +450,7 @@ int main(int argc, char** argv) {
         return 1;
       }
       const auto clips = ghogx::character::load_clip_catalog(
-          argv[1], argv[2], {row.ui_anim_path});
+          hdr, ark0, {row.ui_anim_path});
       const auto named_loop = std::find_if(
           clips.begin(), clips.end(),
           [](const auto& clip) { return clip.name == "ui_loop"; });
@@ -167,7 +470,7 @@ int main(int argc, char** argv) {
           selected_clip == clips.end()
               ? ghogx::character::CharClip{}
               : ghogx::character::load_clip(
-                    argv[1], argv[2], selected_clip->milo_path,
+                    hdr, ark0, selected_clip->milo_path,
                     selected_clip->name);
       if (!ui_loop.loaded) {
         std::fprintf(stderr, "FAIL ui_loop %s from %s\n",
@@ -193,7 +496,13 @@ int main(int argc, char** argv) {
       }
       const DataNode provider_blurb =
           provider->handle_property(Symbol("get_outfit_blurb"), get_args);
-      if (row.source_game == Symbol("gh2")) {
+      if (row.addon_defined) {
+        if (!provider_blurb.as_string().value_or("").empty()) {
+          std::fprintf(stderr, "FAIL addon outfit blurb %s index=%zu\n",
+                       character.c_str(), index);
+          return 1;
+        }
+      } else if (row.source_game == Symbol("gh2")) {
         const std::string expected =
             std::string(character.c_str()) + "_outfit_blurb";
         if (provider_blurb.as_symbol().value_or(Symbol()) !=

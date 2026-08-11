@@ -8,14 +8,25 @@
 #include "dtb.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <cstdio>
 #include <exception>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <map>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <set>
+#include <unordered_set>
 
 namespace ghogx::ui {
 
 namespace {
+namespace fs = std::filesystem;
 
 bool starts_with(std::string_view s, std::string_view prefix) {
   return s.size() >= prefix.size() && s.substr(0, prefix.size()) == prefix;
@@ -34,9 +45,408 @@ Symbol first_campaign_song(const ConfigDb& db) {
   return Symbol("shoutatthedevil");
 }
 
+struct JsonValue {
+  enum class Type { kNull, kBool, kNumber, kString, kArray, kObject };
+  Type type = Type::kNull;
+  bool boolean = false;
+  double number = 0.0;
+  std::string string;
+  std::vector<JsonValue> array;
+  std::map<std::string, JsonValue> object;
+};
+
+class JsonParser {
+ public:
+  explicit JsonParser(std::string_view input) : input_(input) {}
+
+  JsonValue parse() {
+    JsonValue value = parse_value();
+    skip_ws();
+    if (pos_ != input_.size()) fail("trailing data");
+    return value;
+  }
+
+ private:
+  [[noreturn]] void fail(const char* message) const {
+    throw std::runtime_error(std::string("json: ") + message);
+  }
+
+  void skip_ws() {
+    while (pos_ < input_.size() &&
+           std::isspace(static_cast<unsigned char>(input_[pos_])))
+      ++pos_;
+  }
+
+  char peek() {
+    skip_ws();
+    return pos_ < input_.size() ? input_[pos_] : '\0';
+  }
+
+  bool consume(char ch) {
+    skip_ws();
+    if (pos_ >= input_.size() || input_[pos_] != ch) return false;
+    ++pos_;
+    return true;
+  }
+
+  void expect(char ch) {
+    if (!consume(ch)) fail("unexpected token");
+  }
+
+  JsonValue parse_value() {
+    skip_ws();
+    if (pos_ >= input_.size()) fail("unexpected end");
+    const char ch = input_[pos_];
+    if (ch == '"') return parse_string_value();
+    if (ch == '{') return parse_object();
+    if (ch == '[') return parse_array();
+    if (ch == '-' || std::isdigit(static_cast<unsigned char>(ch)))
+      return parse_number();
+    if (match_literal("true")) {
+      JsonValue value;
+      value.type = JsonValue::Type::kBool;
+      value.boolean = true;
+      return value;
+    }
+    if (match_literal("false")) {
+      JsonValue value;
+      value.type = JsonValue::Type::kBool;
+      return value;
+    }
+    if (match_literal("null")) return JsonValue();
+    fail("invalid value");
+  }
+
+  bool match_literal(std::string_view literal) {
+    skip_ws();
+    if (input_.substr(pos_, literal.size()) != literal) return false;
+    pos_ += literal.size();
+    return true;
+  }
+
+  JsonValue parse_string_value() {
+    JsonValue value;
+    value.type = JsonValue::Type::kString;
+    value.string = parse_string();
+    return value;
+  }
+
+  unsigned parse_hex4() {
+    unsigned value = 0;
+    for (int i = 0; i < 4; ++i) {
+      if (pos_ >= input_.size()) fail("short unicode escape");
+      const char ch = input_[pos_++];
+      value <<= 4;
+      if (ch >= '0' && ch <= '9')
+        value |= static_cast<unsigned>(ch - '0');
+      else if (ch >= 'a' && ch <= 'f')
+        value |= static_cast<unsigned>(ch - 'a' + 10);
+      else if (ch >= 'A' && ch <= 'F')
+        value |= static_cast<unsigned>(ch - 'A' + 10);
+      else
+        fail("invalid unicode escape");
+    }
+    return value;
+  }
+
+  static void append_utf8(std::string& out, unsigned codepoint) {
+    if (codepoint <= 0x7f) {
+      out.push_back(static_cast<char>(codepoint));
+    } else if (codepoint <= 0x7ff) {
+      out.push_back(static_cast<char>(0xc0 | (codepoint >> 6)));
+      out.push_back(static_cast<char>(0x80 | (codepoint & 0x3f)));
+    } else if (codepoint <= 0xffff) {
+      out.push_back(static_cast<char>(0xe0 | (codepoint >> 12)));
+      out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+      out.push_back(static_cast<char>(0x80 | (codepoint & 0x3f)));
+    } else {
+      out.push_back(static_cast<char>(0xf0 | (codepoint >> 18)));
+      out.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3f)));
+      out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+      out.push_back(static_cast<char>(0x80 | (codepoint & 0x3f)));
+    }
+  }
+
+  std::string parse_string() {
+    expect('"');
+    std::string out;
+    while (pos_ < input_.size()) {
+      const char ch = input_[pos_++];
+      if (ch == '"') return out;
+      if (ch != '\\') {
+        if (static_cast<unsigned char>(ch) < 0x20)
+          fail("unescaped control character");
+        out.push_back(ch);
+        continue;
+      }
+      if (pos_ >= input_.size()) fail("bad escape");
+      const char esc = input_[pos_++];
+      switch (esc) {
+        case '"':
+        case '\\':
+        case '/':
+          out.push_back(esc);
+          break;
+        case 'b':
+          out.push_back('\b');
+          break;
+        case 'f':
+          out.push_back('\f');
+          break;
+        case 'n':
+          out.push_back('\n');
+          break;
+        case 'r':
+          out.push_back('\r');
+          break;
+        case 't':
+          out.push_back('\t');
+          break;
+        case 'u': {
+          unsigned codepoint = parse_hex4();
+          if (codepoint >= 0xd800 && codepoint <= 0xdbff) {
+            if (pos_ + 2 > input_.size() || input_[pos_] != '\\' ||
+                input_[pos_ + 1] != 'u')
+              fail("missing low surrogate");
+            pos_ += 2;
+            const unsigned low = parse_hex4();
+            if (low < 0xdc00 || low > 0xdfff)
+              fail("invalid low surrogate");
+            codepoint = 0x10000 + ((codepoint - 0xd800) << 10) +
+                        (low - 0xdc00);
+          } else if (codepoint >= 0xdc00 && codepoint <= 0xdfff) {
+            fail("unexpected low surrogate");
+          }
+          append_utf8(out, codepoint);
+          break;
+        }
+        default:
+          fail("unsupported escape");
+      }
+    }
+    fail("unterminated string");
+  }
+
+  JsonValue parse_number() {
+    const std::size_t start = pos_;
+    if (input_[pos_] == '-') ++pos_;
+    if (pos_ >= input_.size()) fail("invalid number");
+    if (input_[pos_] == '0') {
+      ++pos_;
+      if (pos_ < input_.size() &&
+          std::isdigit(static_cast<unsigned char>(input_[pos_])))
+        fail("leading zero in number");
+    } else {
+      if (!std::isdigit(static_cast<unsigned char>(input_[pos_])))
+        fail("invalid number");
+      while (pos_ < input_.size() &&
+             std::isdigit(static_cast<unsigned char>(input_[pos_])))
+        ++pos_;
+    }
+    if (pos_ < input_.size() && input_[pos_] == '.') {
+      ++pos_;
+      if (pos_ >= input_.size() ||
+          !std::isdigit(static_cast<unsigned char>(input_[pos_])))
+        fail("invalid fraction");
+      while (pos_ < input_.size() &&
+             std::isdigit(static_cast<unsigned char>(input_[pos_])))
+        ++pos_;
+    }
+    if (pos_ < input_.size() &&
+        (input_[pos_] == 'e' || input_[pos_] == 'E')) {
+      ++pos_;
+      if (pos_ < input_.size() &&
+          (input_[pos_] == '+' || input_[pos_] == '-'))
+        ++pos_;
+      if (pos_ >= input_.size() ||
+          !std::isdigit(static_cast<unsigned char>(input_[pos_])))
+        fail("invalid exponent");
+      while (pos_ < input_.size() &&
+             std::isdigit(static_cast<unsigned char>(input_[pos_])))
+        ++pos_;
+    }
+    JsonValue value;
+    value.type = JsonValue::Type::kNumber;
+    value.number = std::stod(std::string(input_.substr(start, pos_ - start)));
+    return value;
+  }
+
+  JsonValue parse_array() {
+    JsonValue value;
+    value.type = JsonValue::Type::kArray;
+    expect('[');
+    if (consume(']')) return value;
+    for (;;) {
+      value.array.push_back(parse_value());
+      if (consume(']')) return value;
+      expect(',');
+    }
+  }
+
+  JsonValue parse_object() {
+    JsonValue value;
+    value.type = JsonValue::Type::kObject;
+    expect('{');
+    if (consume('}')) return value;
+    for (;;) {
+      skip_ws();
+      if (peek() != '"') fail("object key must be a string");
+      std::string key = parse_string();
+      expect(':');
+      value.object.emplace(std::move(key), parse_value());
+      if (consume('}')) return value;
+      expect(',');
+    }
+  }
+
+  std::string_view input_;
+  std::size_t pos_ = 0;
+};
+
+const JsonValue* json_member(const JsonValue& value, const char* key) {
+  if (value.type != JsonValue::Type::kObject) return nullptr;
+  const auto found = value.object.find(key);
+  return found == value.object.end() ? nullptr : &found->second;
+}
+
+std::string json_string(const JsonValue& value, const char* key) {
+  const JsonValue* member = json_member(value, key);
+  return member && member->type == JsonValue::Type::kString ? member->string
+                                                            : std::string();
+}
+
+const std::vector<JsonValue>* json_array(const JsonValue& value,
+                                         const char* key) {
+  const JsonValue* member = json_member(value, key);
+  return member && member->type == JsonValue::Type::kArray ? &member->array
+                                                           : nullptr;
+}
+
+bool json_bool(const JsonValue& value, const char* key,
+               bool fallback = false) {
+  const JsonValue* member = json_member(value, key);
+  return member && member->type == JsonValue::Type::kBool
+             ? member->boolean
+             : fallback;
+}
+
+int json_int(const JsonValue& value, const char* key, int fallback = 0) {
+  const JsonValue* member = json_member(value, key);
+  return member && member->type == JsonValue::Type::kNumber
+             ? static_cast<int>(member->number)
+             : fallback;
+}
+
+std::vector<std::string> json_strings(const JsonValue& value,
+                                      const char* key) {
+  std::vector<std::string> out;
+  const auto* values = json_array(value, key);
+  if (!values) return out;
+  for (const JsonValue& item : *values) {
+    if (item.type != JsonValue::Type::kString)
+      throw std::runtime_error(std::string(key) + " must contain strings");
+    out.push_back(item.string);
+  }
+  return out;
+}
+
+std::string normalized_virtual_path(const std::string& value) {
+  if (value.empty()) return {};
+  std::string path = value;
+  std::replace(path.begin(), path.end(), '\\', '/');
+  while (starts_with(path, "./")) path.erase(0, 2);
+  const fs::path parsed(path);
+  if (parsed.is_absolute() || parsed.has_root_name())
+    throw std::runtime_error("asset path must be ARK-relative: " + value);
+  const std::string normalized = parsed.lexically_normal().generic_string();
+  if (normalized.empty() || normalized == "." || normalized == ".." ||
+      starts_with(normalized, "../"))
+    throw std::runtime_error("asset path escapes package content: " + value);
+  return normalized;
+}
+
+std::string normalized_manifest_path(const fs::path& addon_dir,
+                                     const std::string& value) {
+  (void)addon_dir;
+  if (value.empty()) return {};
+  return normalized_virtual_path(value);
+}
+
+std::shared_ptr<DataArray> keyed_node(Symbol key, DataNode value) {
+  auto row = std::make_shared<DataArray>();
+  row->push(DataNode::Sym(key));
+  row->push(std::move(value));
+  return row;
+}
+
+void push_keyed(DataArray& record, Symbol key, DataNode value) {
+  record.push(DataNode::Array(keyed_node(key, std::move(value))));
+}
+
+std::shared_ptr<DataArray> json_record(Symbol id, const JsonValue& object,
+                                       const std::set<std::string>& skip = {}) {
+  if (object.type != JsonValue::Type::kObject)
+    throw std::runtime_error("catalog row must be an object");
+  auto record = std::make_shared<DataArray>();
+  record->push(DataNode::Sym(id));
+  const std::set<std::string> symbol_fields = {
+      "type", "character", "character_outfit", "guitar", "outfit",
+      "mat", "venue", "require", "difficulty", "source"};
+  for (const auto& [key, value] : object.object) {
+    if (key == "id" || skip.count(key)) continue;
+    if (value.type == JsonValue::Type::kString) {
+      push_keyed(*record, Symbol(key),
+                 symbol_fields.count(key) ? DataNode::Sym(Symbol(value.string))
+                                          : DataNode::Str(value.string));
+    } else if (value.type == JsonValue::Type::kBool) {
+      push_keyed(*record, Symbol(key), DataNode::Int(value.boolean ? 1 : 0));
+    } else if (value.type == JsonValue::Type::kNumber) {
+      const int integer = static_cast<int>(value.number);
+      push_keyed(*record, Symbol(key),
+                 value.number == static_cast<double>(integer)
+                     ? DataNode::Int(integer)
+                     : DataNode::Float(static_cast<float>(value.number)));
+    } else if (value.type == JsonValue::Type::kObject) {
+      record->push(DataNode::Array(json_record(Symbol(key), value)));
+    } else if (value.type == JsonValue::Type::kArray) {
+      auto array = std::make_shared<DataArray>();
+      array->push(DataNode::Sym(Symbol(key)));
+      for (const JsonValue& item : value.array) {
+        if (item.type == JsonValue::Type::kString) {
+          array->push(DataNode::Sym(Symbol(item.string)));
+        } else if (item.type == JsonValue::Type::kObject) {
+          const std::string item_id = json_string(item, "id");
+          if (item_id.empty())
+            throw std::runtime_error(key + " object requires id");
+          array->push(DataNode::Array(json_record(Symbol(item_id), item)));
+        } else {
+          throw std::runtime_error(key + " array has unsupported item");
+        }
+      }
+      record->push(DataNode::Array(array));
+    }
+  }
+  return record;
+}
+
+bool has_selection(const std::vector<CharacterVariant>& variants,
+                   Symbol selection) {
+  return std::any_of(variants.begin(), variants.end(),
+                     [&](const CharacterVariant& variant) {
+                       return variant.selection == selection;
+                     });
+}
+
 }  // namespace
 
 void ConfigDb::load(const gh::ark::ArkV3Reader& ark, const std::vector<std::string>& ark_paths) {
+  // A new front-end boot owns a new deterministic DLC mount set.  Base DTBs
+  // are intentionally parsed before any loose content becomes visible.
+  gh::ark::ArkV3Reader::clear_loose_file_mounts();
+  addon_venues_.clear();
+  addon_quickplay_songs_.clear();
+  addon_setlists_.clear();
+  dlc_packages_.clear();
   static const struct { const char* name; const char* path; } kFiles[] = {
       {"songs", "config/gen/songs.dtb"},     {"guitars", "config/gen/guitars.dtb"},
       {"store", "config/gen/store.dtb"},     {"campaign", "config/gen/campaign.dtb"},
@@ -99,17 +509,387 @@ void ConfigDb::load(const gh::ark::ArkV3Reader& ark, const std::vector<std::stri
             text_field(variant_record.get(), Symbol("fret_anim"));
         variant.highway_surface_path =
             text_field(variant_record.get(), Symbol("highway_surface"));
+        variant.portrait_path =
+            text_field(variant_record.get(), Symbol("portrait"));
+        variant.animation_source_model_path = text_field(
+            variant_record.get(), Symbol("animation_source_model"));
+        variant.retarget_animation =
+            field(variant_record.get(), Symbol("retarget_animation"))
+                    .as_int()
+                    .value_or(0) != 0;
+        if (auto roots = variant_record->find_keyed(
+                Symbol("guitarist_hidden_roots"))) {
+          for (std::size_t root_index = 1; root_index < roots->size();
+               ++root_index) {
+            if (auto root = roots->at(root_index).as_string())
+              variant.guitarist_hidden_roots.emplace_back(*root);
+          }
+        }
+        const std::string unlock =
+            text_field(variant_record.get(), Symbol("unlock"));
+        variant.unlock_requirement =
+            unlock.empty() ? Symbol() : Symbol(unlock);
+        variant.character_label =
+            text_field(variant_record.get(), Symbol("character_label"));
         if (variant.selection.valid() && !variant.model_path.empty())
           character_variants_.push_back(std::move(variant));
       }
     }
   }
+  const char* addon_root = std::getenv("GHOGX_ADDONS_DIR");
+  load_addon_manifests(addon_root && *addon_root ? fs::path(addon_root)
+                                                 : fs::path("DLC"),
+                       &ark);
   if (!character_variants_.empty()) {
     std::fprintf(stderr,
                  "[configdb] character catalog: characters=%zu variants=%zu\n",
                  characters().size(), character_variants_.size());
   }
   load_practice_sections(ark, ark_paths);
+}
+
+void ConfigDb::load_addon_manifests(
+    const fs::path& addon_root,
+    const gh::ark::ArkV3Reader* base_ark) {
+  std::vector<fs::path> manifests;
+  std::vector<gh::ark::LooseFileMount> mounts =
+      gh::ark::ArkV3Reader::loose_file_mounts();
+  std::map<std::string, std::string> mounted_by_package;
+  for (const auto& mount : mounts)
+    mounted_by_package.emplace(mount.virtual_path, mount.package_id);
+  std::unordered_set<std::string> base_paths;
+  if (base_ark) {
+    for (const auto& entry : base_ark->entries())
+      base_paths.insert(entry.full_path);
+  }
+  std::error_code error;
+  if (fs::is_regular_file(addon_root / "manifest.json", error))
+    manifests.push_back(addon_root / "manifest.json");
+  if (fs::is_directory(addon_root, error)) {
+    for (const auto& entry : fs::directory_iterator(addon_root, error)) {
+      if (error) break;
+      if (!entry.is_directory(error)) continue;
+      const fs::path manifest = entry.path() / "manifest.json";
+      if (fs::is_regular_file(manifest, error)) manifests.push_back(manifest);
+    }
+  }
+  std::sort(manifests.begin(), manifests.end());
+  for (const fs::path& manifest : manifests) {
+    const std::size_t variants_before = character_variants_.size();
+    const std::size_t venues_before = addon_venues_.size();
+    const std::size_t quickplay_before = addon_quickplay_songs_.size();
+    const std::size_t setlists_before = addon_setlists_.size();
+    std::vector<std::pair<DataArray*, std::size_t>> modified_arrays;
+    auto record_array_before_mutation = [&](DataArray* array) {
+      if (!array) return;
+      if (std::none_of(modified_arrays.begin(), modified_arrays.end(),
+                       [&](const auto& row) { return row.first == array; }))
+        modified_arrays.emplace_back(array, array->size());
+    };
+    try {
+      std::ifstream stream(manifest);
+      std::string text((std::istreambuf_iterator<char>(stream)),
+                       std::istreambuf_iterator<char>());
+      if (text.empty()) continue;
+      const JsonValue root = JsonParser(text).parse();
+      if (root.type != JsonValue::Type::kObject)
+        throw std::runtime_error("manifest root must be an object");
+      if (json_int(root, "schema_version", 0) != 1)
+        throw std::runtime_error("schema_version must be 1");
+      const std::string package_id = json_string(root, "id");
+      if (package_id.empty())
+        throw std::runtime_error("manifest id is required");
+      if (std::any_of(dlc_packages_.begin(), dlc_packages_.end(),
+                      [&](const DlcPackageSummary& package) {
+                        return package.id == package_id;
+                      }))
+        throw std::runtime_error("duplicate package id " + package_id);
+      const fs::path addon_dir = manifest.parent_path();
+      std::string content_root_name = json_string(root, "content_root");
+      if (content_root_name.empty()) content_root_name = "content";
+      const std::string normalized_content_root =
+          normalized_virtual_path(content_root_name);
+      const fs::path content_root =
+          (addon_dir / fs::path(normalized_content_root)).lexically_normal();
+      std::unordered_set<std::string> replacements;
+      for (const std::string& replacement : json_strings(root, "replaces"))
+        replacements.insert(normalized_virtual_path(replacement));
+
+      std::vector<gh::ark::LooseFileMount> package_mounts;
+      if (fs::is_directory(content_root, error)) {
+        for (fs::recursive_directory_iterator it(content_root, error), end;
+             it != end && !error; it.increment(error)) {
+          if (!it->is_regular_file(error)) continue;
+          const std::string virtual_path = normalized_virtual_path(
+              fs::relative(it->path(), content_root, error).generic_string());
+          if (error) break;
+          if (base_paths.count(virtual_path) &&
+              !replacements.count(virtual_path)) {
+            throw std::runtime_error(
+                "content path already exists in base ARK; declare it in "
+                "replaces to override: " + virtual_path);
+          }
+          const auto duplicate = mounted_by_package.find(virtual_path);
+          if (duplicate != mounted_by_package.end()) {
+            throw std::runtime_error(
+                "content path conflicts with package " + duplicate->second +
+                ": " + virtual_path);
+          }
+          package_mounts.push_back(
+              {virtual_path, fs::absolute(it->path()).lexically_normal(),
+               package_id});
+        }
+        if (error)
+          throw std::runtime_error("cannot enumerate content directory");
+      }
+      const auto asset_exists = [&](const std::string& virtual_path) {
+        if (virtual_path.empty()) return true;
+        if (std::any_of(package_mounts.begin(), package_mounts.end(),
+                        [&](const gh::ark::LooseFileMount& mount) {
+                          return mount.virtual_path == virtual_path;
+                        }))
+          return true;
+        return base_ark && base_ark->find(virtual_path).has_value();
+      };
+
+      auto append_variant = [&](const JsonValue& row,
+                                const std::string& inherited_character,
+                                const std::string& inherited_label,
+                                const std::string& inherited_blurb,
+                                const std::string& inherited_portrait) {
+        CharacterVariant variant;
+        const std::string character =
+            json_string(row, "character").empty()
+                ? inherited_character
+                : json_string(row, "character");
+        const std::string selection = json_string(row, "selection");
+        if (character.empty() || selection.empty())
+          throw std::runtime_error("character and selection are required");
+        variant.character = Symbol(character);
+        variant.selection = Symbol(selection);
+        if (has_selection(character_variants_, variant.selection))
+          throw std::runtime_error("duplicate selection " + selection);
+        std::string source = json_string(row, "source");
+        variant.source_game = Symbol(source.empty() ? "addon" : source);
+        variant.label = json_string(row, "label");
+        variant.model_path = normalized_manifest_path(
+            addon_dir, json_string(row, "model"));
+        variant.ui_model_path = normalized_manifest_path(
+            addon_dir, json_string(row, "ui_model"));
+        variant.ui_anim_path = normalized_manifest_path(
+            addon_dir, json_string(row, "ui_anim"));
+        variant.main_anim_path = normalized_manifest_path(
+            addon_dir, json_string(row, "main_anim"));
+        variant.strum_anim_path = normalized_manifest_path(
+            addon_dir, json_string(row, "strum_anim"));
+        variant.fret_anim_path = normalized_manifest_path(
+            addon_dir, json_string(row, "fret_anim"));
+        variant.highway_surface_path = normalized_manifest_path(
+            addon_dir, json_string(row, "highway_surface"));
+        std::string portrait = json_string(row, "portrait");
+        if (portrait.empty()) portrait = inherited_portrait;
+        variant.portrait_path = normalized_manifest_path(addon_dir, portrait);
+        variant.animation_source_model_path = normalized_manifest_path(
+            addon_dir, json_string(row, "animation_source_model"));
+        variant.retarget_animation =
+            json_bool(row, "retarget_animation", false);
+        variant.guitarist_hidden_roots =
+            json_strings(row, "guitarist_hidden_roots");
+        if (variant.retarget_animation &&
+            variant.animation_source_model_path.empty()) {
+          throw std::runtime_error(
+              "animation_source_model is required when retarget_animation "
+              "is true for " + selection);
+        }
+        std::string unlock = json_string(row, "unlock");
+        variant.unlock_requirement = unlock.empty() ? Symbol() : Symbol(unlock);
+        variant.character_label = json_string(row, "character_label");
+        if (variant.character_label.empty())
+          variant.character_label = inherited_label;
+        variant.character_blurb = inherited_blurb;
+        variant.addon_defined = true;
+        variant.outfit_blurb = json_string(row, "description");
+        if (variant.label.empty()) variant.label = variant.character_label;
+        if (variant.model_path.empty())
+          throw std::runtime_error("model is required for " + selection);
+        for (const std::string* path :
+             {&variant.model_path, &variant.ui_model_path,
+              &variant.ui_anim_path, &variant.main_anim_path,
+              &variant.strum_anim_path, &variant.fret_anim_path,
+              &variant.highway_surface_path, &variant.portrait_path,
+              &variant.animation_source_model_path}) {
+          if (!path->empty() && !asset_exists(*path))
+            throw std::runtime_error("missing asset for " + selection +
+                                     ": " + *path);
+        }
+        character_variants_.push_back(std::move(variant));
+      };
+
+      if (const auto* characters = json_array(root, "characters")) {
+        for (const JsonValue& character : *characters) {
+          const std::string id = json_string(character, "id");
+          if (id.empty()) throw std::runtime_error("character id is required");
+          const std::string label = json_string(character, "label");
+          const std::string description =
+              json_string(character, "description");
+          const std::string portrait = json_string(character, "portrait");
+          const auto* outfits = json_array(character, "outfits");
+          if (!outfits || outfits->empty())
+            throw std::runtime_error("character " + id +
+                                     " has no outfits");
+          for (const JsonValue& outfit : *outfits)
+            append_variant(outfit, id, label, description, portrait);
+        }
+      }
+      if (const auto* outfits = json_array(root, "outfits")) {
+        for (const JsonValue& outfit : *outfits)
+          append_variant(outfit, {}, {}, {}, {});
+      }
+
+      if (const auto* songs = json_array(root, "songs")) {
+        DataArray* songs_table = nullptr;
+        auto found = tables_.find(Symbol("songs").id());
+        if (found != tables_.end()) songs_table = found->second.get();
+        if (!songs_table)
+          throw std::runtime_error("base songs table is unavailable");
+        record_array_before_mutation(songs_table);
+        for (JsonValue song_row : *songs) {
+          const std::string id = json_string(song_row, "id");
+          if (id.empty()) throw std::runtime_error("song id is required");
+          if (song_index(Symbol(id)) >= 0)
+            throw std::runtime_error("duplicate song " + id);
+          if (json_string(song_row, "name").empty()) {
+            const std::string title = json_string(song_row, "title");
+            if (!title.empty()) {
+              JsonValue title_value;
+              title_value.type = JsonValue::Type::kString;
+              title_value.string = title;
+              song_row.object["name"] = std::move(title_value);
+            }
+          }
+          songs_table->push(DataNode::Array(
+              json_record(Symbol(id), song_row, {"title", "quickplay"})));
+          if (json_bool(song_row, "quickplay", true))
+            addon_quickplay_songs_.push_back(Symbol(id));
+        }
+      }
+
+      if (const auto* guitars = json_array(root, "guitars")) {
+        DataArray* guitar_table = nullptr;
+        auto found = tables_.find(Symbol("guitars").id());
+        if (found != tables_.end()) guitar_table = found->second.get();
+        if (!guitar_table)
+          throw std::runtime_error("base guitars table is unavailable");
+        record_array_before_mutation(guitar_table);
+        for (const JsonValue& guitar_row : *guitars) {
+          const std::string id = json_string(guitar_row, "id");
+          if (id.empty()) throw std::runtime_error("guitar id is required");
+          if (guitar(Symbol(id)))
+            throw std::runtime_error("duplicate guitar " + id);
+          guitar_table->push(
+              DataNode::Array(json_record(Symbol(id), guitar_row)));
+        }
+      }
+
+      if (const auto* finishes = json_array(root, "finishes")) {
+        for (const JsonValue& finish_row : *finishes) {
+          const std::string guitar_id = json_string(finish_row, "guitar");
+          const std::string finish_id = json_string(finish_row, "id");
+          if (guitar_id.empty() || finish_id.empty())
+            throw std::runtime_error("finish guitar and id are required");
+          const DataArray* guitar_record = guitar(Symbol(guitar_id));
+          if (!guitar_record)
+            throw std::runtime_error("finish targets unknown guitar " +
+                                     guitar_id);
+          auto skins = guitar_record->find_keyed(Symbol("skins"));
+          if (!skins) {
+            auto mutable_record = const_cast<DataArray*>(guitar_record);
+            record_array_before_mutation(mutable_record);
+            skins = std::make_shared<DataArray>();
+            skins->push(DataNode::Sym(Symbol("skins")));
+            mutable_record->push(DataNode::Array(skins));
+          }
+          if (skins->find_keyed(Symbol(finish_id)))
+            throw std::runtime_error("duplicate finish " + finish_id);
+          record_array_before_mutation(skins.get());
+          skins->push(DataNode::Array(json_record(
+              Symbol(finish_id), finish_row, {"guitar"})));
+        }
+      }
+
+      if (const auto* venues = json_array(root, "venues")) {
+        for (const JsonValue& venue_row : *venues) {
+          const std::string id = json_string(venue_row, "id");
+          if (id.empty()) throw std::runtime_error("venue id is required");
+          const Symbol venue(id);
+          if (is_venue(venue))
+            throw std::runtime_error("duplicate venue " + id);
+          addon_venues_.push_back(venue);
+        }
+      }
+
+      if (const auto* setlists = json_array(root, "setlists")) {
+        for (const JsonValue& setlist_row : *setlists) {
+          const std::string id = json_string(setlist_row, "id");
+          if (id.empty()) throw std::runtime_error("setlist id is required");
+          if (std::any_of(addon_setlists_.begin(), addon_setlists_.end(),
+                          [&](const DlcSetlist& row) {
+                            return row.id == Symbol(id);
+                          }))
+            throw std::runtime_error("duplicate setlist " + id);
+          DlcSetlist setlist;
+          setlist.id = Symbol(id);
+          setlist.label = json_string(setlist_row, "label");
+          setlist.include_in_quickplay =
+              json_bool(setlist_row, "include_in_quickplay", false);
+          for (const std::string& song :
+               json_strings(setlist_row, "songs")) {
+            if (song_index(Symbol(song)) < 0)
+              throw std::runtime_error("setlist " + id +
+                                       " references unknown song " + song);
+            setlist.songs.push_back(Symbol(song));
+            if (setlist.include_in_quickplay &&
+                std::find(addon_quickplay_songs_.begin(),
+                          addon_quickplay_songs_.end(), Symbol(song)) ==
+                    addon_quickplay_songs_.end()) {
+              addon_quickplay_songs_.push_back(Symbol(song));
+            }
+          }
+          addon_setlists_.push_back(std::move(setlist));
+        }
+      }
+
+      for (const auto& mount : package_mounts) {
+        mounted_by_package.emplace(mount.virtual_path, package_id);
+        mounts.push_back(mount);
+      }
+      dlc_packages_.push_back(
+          {package_id, json_string(root, "name"),
+           json_string(root, "version"), addon_dir,
+           package_mounts.size()});
+      std::fprintf(stderr, "[configdb] addon manifest: %s\n",
+                   manifest.generic_string().c_str());
+    } catch (const std::exception& ex) {
+      for (auto it = modified_arrays.rbegin(); it != modified_arrays.rend();
+           ++it)
+        it->first->resize(it->second);
+      character_variants_.resize(variants_before);
+      addon_venues_.resize(venues_before);
+      addon_quickplay_songs_.resize(quickplay_before);
+      addon_setlists_.resize(setlists_before);
+      std::fprintf(stderr, "[configdb] addon %s: %s\n",
+                   manifest.generic_string().c_str(), ex.what());
+    }
+  }
+  gh::ark::ArkV3Reader::set_loose_file_mounts(std::move(mounts));
+  if (!dlc_packages_.empty()) {
+    std::fprintf(stderr,
+                 "[configdb] DLC catalog: packages=%zu files=%zu "
+                 "setlists=%zu\n",
+                 dlc_packages_.size(),
+                 gh::ark::ArkV3Reader::loose_file_mounts().size(),
+                 addon_setlists_.size());
+  }
 }
 
 void ConfigDb::load_songs(
@@ -165,6 +945,64 @@ DataNode ConfigDb::song_field(std::size_t index, Symbol field_name) const {
   return field(song(index), field_name);
 }
 
+std::vector<Symbol> ConfigDb::quickplay_songs() const {
+  std::vector<Symbol> out;
+  const DataArray* campaign = table(Symbol("campaign"));
+  auto order = campaign ? campaign->find_keyed(Symbol("order")) : nullptr;
+  if (order) {
+    for (std::size_t i = 1; i < order->size(); ++i) {
+      auto tier = order->at(i).as_array();
+      if (!tier) continue;
+      for (std::size_t j = 1; j < tier->size(); ++j) {
+        const Symbol key = tier->at(j).as_symbol().value_or(Symbol());
+        if (key.valid() && song_index(key) >= 0 &&
+            std::find(out.begin(), out.end(), key) == out.end())
+          out.push_back(key);
+      }
+    }
+  }
+  for (const Symbol key : store_items(Symbol("song"))) {
+    if (key.valid() && song_index(key) >= 0 &&
+        std::find(out.begin(), out.end(), key) == out.end())
+      out.push_back(key);
+  }
+  if (out.empty()) {
+    out.reserve(song_count());
+    for (std::size_t i = 0; i < song_count(); ++i) {
+      const Symbol key = song_key(i);
+      if (key.valid()) out.push_back(key);
+    }
+  }
+  for (Symbol song : addon_quickplay_songs_) {
+    if (song.valid() && song_index(song) >= 0 &&
+        std::find(out.begin(), out.end(), song) == out.end())
+      out.push_back(song);
+  }
+  return out;
+}
+
+std::string ConfigDb::song_audio_path(Symbol song_name) const {
+  const int index = song_index(song_name);
+  const DataArray* record = index >= 0 ? song(static_cast<std::size_t>(index))
+                                      : nullptr;
+  auto source = record ? record->find_keyed(Symbol("song")) : nullptr;
+  const DataNode value = field(source.get(), Symbol("name"));
+  if (auto text = value.as_string()) return std::string(*text);
+  if (auto symbol = value.as_symbol()) return std::string(symbol->c_str());
+  return {};
+}
+
+std::string ConfigDb::song_midi_path(Symbol song_name) const {
+  const int index = song_index(song_name);
+  const DataArray* record = index >= 0 ? song(static_cast<std::size_t>(index))
+                                      : nullptr;
+  auto source = record ? record->find_keyed(Symbol("song")) : nullptr;
+  const DataNode value = field(source.get(), Symbol("midi_file"));
+  if (auto text = value.as_string()) return std::string(*text);
+  if (auto symbol = value.as_symbol()) return std::string(symbol->c_str());
+  return {};
+}
+
 DataNode ConfigDb::store_field(Symbol category, Symbol item, Symbol field_name) const {
   const DataArray* store = table(Symbol("store"));
   if (!store) return DataNode();
@@ -201,13 +1039,19 @@ Symbol ConfigDb::store_item(Symbol category, std::size_t index) const {
 std::vector<Symbol> ConfigDb::venues() const {
   std::vector<Symbol> out;
   const DataArray* gh2 = table(Symbol("gh2"));
-  if (!gh2) return out;
-  auto row = gh2->find_keyed(Symbol("venues"));
-  if (!row || row->size() <= 1) return out;
-  for (std::size_t i = 1; i < row->size(); ++i) {
-    Symbol key = row->at(i).as_symbol().value_or(Symbol());
-    if (key.valid()) out.push_back(key);
+  if (gh2) {
+    auto row = gh2->find_keyed(Symbol("venues"));
+    if (row) {
+      for (std::size_t i = 1; i < row->size(); ++i) {
+        Symbol key = row->at(i).as_symbol().value_or(Symbol());
+        if (key.valid()) out.push_back(key);
+      }
+    }
   }
+  for (Symbol venue : addon_venues_)
+    if (venue.valid() &&
+        std::find(out.begin(), out.end(), venue) == out.end())
+      out.push_back(venue);
   return out;
 }
 
@@ -404,6 +1248,37 @@ const CharacterVariant* ConfigDb::character_variant(Symbol selection) const {
 Symbol ConfigDb::character_for_variant(Symbol selection) const {
   const CharacterVariant* variant = character_variant(selection);
   return variant ? variant->character : Symbol();
+}
+
+std::string ConfigDb::character_label(Symbol character) const {
+  for (const CharacterVariant& variant : character_variants_) {
+    if (variant.character == character && !variant.character_label.empty())
+      return variant.character_label;
+  }
+  return {};
+}
+
+std::string ConfigDb::character_portrait(Symbol character) const {
+  for (const CharacterVariant& variant : character_variants_) {
+    if (variant.character == character && !variant.portrait_path.empty())
+      return variant.portrait_path;
+  }
+  return {};
+}
+
+std::vector<Symbol> ConfigDb::setlists() const {
+  std::vector<Symbol> out;
+  out.reserve(addon_setlists_.size());
+  for (const DlcSetlist& setlist : addon_setlists_) out.push_back(setlist.id);
+  return out;
+}
+
+std::vector<Symbol> ConfigDb::setlist_songs(Symbol setlist) const {
+  const auto found = std::find_if(
+      addon_setlists_.begin(), addon_setlists_.end(),
+      [&](const DlcSetlist& row) { return row.id == setlist; });
+  return found == addon_setlists_.end() ? std::vector<Symbol>{}
+                                        : found->songs;
 }
 
 DataNode ConfigDb::field(const DataArray* record, Symbol key) {

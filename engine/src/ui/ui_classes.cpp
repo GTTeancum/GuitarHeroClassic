@@ -1320,7 +1320,28 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
 
   if (cls_ == Symbol("MultiCharSelPanel")) {
     auto navigator = [&]() {
-      return symbol_array(get_property(Symbol("char_navigator")));
+      std::vector<Symbol> dynamic;
+      Object* provider =
+          mgr_ ? mgr_->resolve_object(Symbol("character_provider")) : nullptr;
+      const int count = provider
+                            ? std::max(
+                                  0, provider
+                                         ->handle_property(Symbol("list_length"),
+                                                           DataArray())
+                                         .as_int()
+                                         .value_or(0))
+                            : 0;
+      dynamic.reserve(static_cast<std::size_t>(count));
+      for (int index = 0; index < count; ++index) {
+        DataArray args;
+        args.push(DataNode::Int(index));
+        const Symbol character = node_symbol_value(
+            provider->handle_property(Symbol("get_symbol"), args));
+        if (character.valid()) dynamic.push_back(character);
+      }
+      return dynamic.empty()
+                 ? symbol_array(get_property(Symbol("char_navigator")))
+                 : dynamic;
     };
     auto player_config = [&](int player) -> Object* {
       if (!mgr_) return nullptr;

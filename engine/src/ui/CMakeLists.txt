@@ -106,12 +106,16 @@ add_executable(ghogx_character_variant_catalog_test
     character_variant_catalog_test.cpp)
 target_link_libraries(ghogx_character_variant_catalog_test PRIVATE
     ghogx_ui_core ghogx_character)
+target_compile_definitions(ghogx_character_variant_catalog_test PRIVATE
+    GHOGX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}/..")
 if(MSVC)
     target_compile_options(ghogx_character_variant_catalog_test PRIVATE /W4)
 else()
     target_compile_options(ghogx_character_variant_catalog_test PRIVATE
         -Wall -Wextra)
 endif()
+add_test(NAME ghogx_character_variant_catalog_test
+         COMMAND ghogx_character_variant_catalog_test)
 
 add_executable(ghogx_band_text_entry_test band_text_entry_test.cpp)
 target_link_libraries(ghogx_band_text_entry_test PRIVATE ghogx_ui_core)
@@ -119,4 +123,17 @@ if(MSVC)
     target_compile_options(ghogx_band_text_entry_test PRIVATE /W4)
 else()
     target_compile_options(ghogx_band_text_entry_test PRIVATE -Wall -Wextra)
+endif()
+
+# Deliberately not registered as a passing CTest gate until the release
+# persistence findings it reports are closed. The release audit runs its
+# write/read modes as separate processes against an isolated profile path.
+add_executable(ghogx_release_progression_audit
+    release_progression_audit.cpp)
+target_link_libraries(ghogx_release_progression_audit PRIVATE ghogx_ui_core)
+if(MSVC)
+    target_compile_options(ghogx_release_progression_audit PRIVATE /W4)
+else()
+    target_compile_options(ghogx_release_progression_audit PRIVATE
+        -Wall -Wextra)
 endif()

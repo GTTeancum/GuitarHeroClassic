@@ -34,6 +34,10 @@ class Window {
   void pump();
   bool should_close() const;
   void set_title(const char* title);
+  // Reveal a window created under GHOGX_HIDE_WINDOW without taking keyboard
+  // focus. Used by long-loading diagnostic runs so only the live proof segment
+  // is presented to the user.
+  void show_no_activate();
 
   // High-level menu input actions, mapped from keyboard + an Xbox controller
   // (player 1). Edge-triggered: true only on the frame the action went from

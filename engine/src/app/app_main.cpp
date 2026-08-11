@@ -85,6 +85,8 @@
 //                                       state for diagnostic screenshots)
 //   ghogx_app --hud-tune <file>       load saved HUD layout in gameplay/capture
 //   ghogx_app --show-window           keep screenshot runs visible/interactive
+//   ghogx_app --defer-window-show     reveal only after auto-start loading,
+//                                     without taking keyboard focus
 //   ghogx_app --mute-audio            keep the audio graph running silently
 //   ghogx_app --screenshot-dir <dir> --screenshot-frames <csv>
 //                                      capture numbered BMPs in gameplay mode
@@ -2926,6 +2928,7 @@ int main(int argc, char** argv) {
   bool diagnostic_star_power_active = false;
   RenderSize render_size;
   bool show_window = false;
+  bool defer_window_show = false;
   bool mute_audio = false;
   CamOverride cam_ovr;  // optional --cam-* overrides for the scene viewer
 
@@ -3153,6 +3156,8 @@ int main(int argc, char** argv) {
       require_native_assets = true;
     } else if (std::strcmp(argv[i], "--show-window") == 0) {
       show_window = true;
+    } else if (std::strcmp(argv[i], "--defer-window-show") == 0) {
+      defer_window_show = true;
     } else if (std::strcmp(argv[i], "--mute-audio") == 0) {
       mute_audio = true;
     } else if (std::strcmp(argv[i], "--char") == 0 && i + 1 < argc) {
@@ -3302,7 +3307,7 @@ int main(int argc, char** argv) {
   std::fprintf(stderr, "[ghogx] render size: %dx%d\n",
                render_size.width, render_size.height);
 
-  if (capture_enabled && !show_window) {
+  if ((capture_enabled && !show_window) || defer_window_show) {
     _putenv_s("GHOGX_HIDE_WINDOW", "1");
   }
   if (mute_audio) {
@@ -3697,6 +3702,7 @@ int main(int argc, char** argv) {
 
   bool diagnostic_camera_cycle_shot_dispatched = false;
   bool diagnostic_camera_iterate_shot_dispatched = false;
+  bool deferred_window_revealed = false;
   const auto loop_wall_start = clock::now();
   constexpr uint64_t kPerformanceWarmupFrames = 30;
   std::optional<clock::time_point> steady_wall_start;
@@ -3740,6 +3746,13 @@ int main(int argc, char** argv) {
     }
 
     engine.tick(dt);
+    if (defer_window_show && !deferred_window_revealed &&
+        engine.frame_count() > 0) {
+      win->show_no_activate();
+      deferred_window_revealed = true;
+      std::fprintf(stderr,
+                   "[ghogx] deferred window revealed after first frame without activation\n");
+    }
     if (!steady_wall_start &&
         engine.frame_count() >= kPerformanceWarmupFrames) {
       steady_wall_start = clock::now();

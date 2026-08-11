@@ -74,6 +74,10 @@ class Campaign : public MetaObject {
   bool handle_meta(Symbol msg, const DataArray& args, DataNode& out) override;
 
  private:
+  void capture_persistent_profile();
+  void apply_persistent_profile();
+  void activate_profile_slot(int slot);
+
   struct Profile {
     bool used = false;
     std::string name;

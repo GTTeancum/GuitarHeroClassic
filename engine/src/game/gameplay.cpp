@@ -432,6 +432,25 @@ std::vector<std::string> split_symbol_tokens(std::string_view symbol) {
     return out;
 }
 
+std::optional<ghogx::catalog::Song> resolve_song_catalog_entry(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& shortname) {
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find("config/gen/songs.dtb");
+        if (!entry) return std::nullopt;
+        const auto bytes = ark.read_entry(*entry, {ark_path});
+        for (auto& song :
+             ghogx::catalog::extract_songs(gh::dtb::parse(bytes))) {
+            if (song.shortname == shortname) return std::move(song);
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[gameplay] config/gen/songs.dtb: %s\n",
+                     ex.what());
+    }
+    return std::nullopt;
+}
+
 std::optional<Gameplay::QuickplayRig> resolve_quickplay_rig(
     const std::string& hdr_path, const std::string& ark_path,
     const std::string& shortname) {
@@ -12358,6 +12377,13 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
             out.push_back(std::move(pos));
         }
         if (out.empty()) return out;
+        // Keep the original key pages on the first returned record so the
+        // owning CamShot can evaluate RndTransAnim at the live CalcFrame.
+        // The merged samples below remain as a compact inspection/proof view;
+        // they are not an adequate runtime substitute for spline evaluation.
+        out.front().path_source_translation_page = resolved.trans_keys;
+        out.front().path_source_rotation_page = resolved.rot_keys;
+        out.front().path_source_scale_page = resolved.scale_keys;
         const size_t added_source_frames =
             sample_frames.size() > resolved.trans_keys.size()
                 ? sample_frames.size() - resolved.trans_keys.size()
@@ -18196,6 +18222,12 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     load_camera_position_keys(hdr_path, ark_path, venue,
                                               c.key.path_anim);
                 if (!path_positions.empty()) {
+                    c.key.path_source_translation_page = std::move(
+                        path_positions.front().path_source_translation_page);
+                    c.key.path_source_rotation_page = std::move(
+                        path_positions.front().path_source_rotation_page);
+                    c.key.path_source_scale_page = std::move(
+                        path_positions.front().path_source_scale_page);
                     c.key.source_camshot_keyframes = c.key.positions;
                     c.key.positions.clear();
                     c.key.positions.reserve(path_positions.size());
@@ -24312,6 +24344,74 @@ std::vector<Gameplay::CameraKey> regular_camera_path_keys(
     const float source_frame =
         camera_source_local_frame(shot, song_time, start_time, chart);
     const float first_frame = shot.positions.front().frame;
+    const bool has_source_pages =
+        !shot.path_source_translation_page.empty() ||
+        !shot.path_source_rotation_page.empty() ||
+        !shot.path_source_scale_page.empty();
+    if (has_source_pages) {
+        // RndTransAnim::SetFrame evaluates its owned key pages at the current
+        // CameraManager::CalcFrame.  Replaying only the merged authored knots
+        // made spline flybys piecewise-linear and produced visible velocity
+        // changes at each knot.  Evaluate the decoded pages directly instead;
+        // this preserves the authored spline, repeat, and quaternion mode and
+        // does not blend across CamShots or add a native-only smoothing pass.
+        Gameplay::CameraKey sampled = shot.positions.front();
+        const float authored_frame = first_frame + source_frame;
+        if (!shot.path_source_translation_page.empty()) {
+            const auto eye = sample_rnd_transanim_trans_keys(
+                shot.path_source_translation_page, authored_frame,
+                shot.path_trans_spline, shot.path_repeat_trans);
+            for (int axis = 0; axis < 3; ++axis) sampled.eye[axis] = eye[axis];
+        }
+        if (!shot.path_source_rotation_page.empty()) {
+            const auto quat = sample_rnd_transanim_rot_keys(
+                shot.path_source_rotation_page, authored_frame,
+                shot.path_rot_slerp);
+            for (int axis = 0; axis < 4; ++axis)
+                sampled.quat[axis] = quat[axis];
+            sampled.has_quat = true;
+        }
+        if (!shot.path_source_scale_page.empty()) {
+            const auto scale = sample_rnd_transanim_scale_keys(
+                shot.path_source_scale_page, authored_frame,
+                shot.path_scale_spline);
+            for (int axis = 0; axis < 3; ++axis)
+                sampled.path_scale[axis] = scale[axis];
+            sampled.has_path_scale = true;
+        }
+        // The retained rows belong to the serialized path knot copied above.
+        // RndTransAnim::SetFrame has now replaced that knot's transform with
+        // the live source-page sample, so refresh the rows consumed by the
+        // CamShot SetPos/BuildTransform path as well.  Leaving the old rows in
+        // place pinned every runtime frame to the first authored knot.
+        populate_camera_generated_source_rows(sampled);
+        if (env_value("GHOGX_DEBUG_CAMERA_MOTION")) {
+            const int bucket = static_cast<int>(std::floor(now_frame / 30.0f));
+            static std::string last_motion_sample;
+            const std::string report_key =
+                shot.name + ":" + std::to_string(bucket);
+            if (last_motion_sample != report_key) {
+                last_motion_sample = report_key;
+                std::fprintf(
+                    stderr,
+                    "[camera-motion] sampled shot=%s local=%.3f authored=%.3f eye=(%.3f %.3f %.3f)\n",
+                    shot.name.c_str(), source_frame, authored_frame,
+                    sampled.eye[0], sampled.eye[1], sampled.eye[2]);
+            }
+        }
+        sampled.source_path_local_frame = source_frame;
+        sampled.source_path_first_frame = first_frame;
+        sampled.source_path_authored_frame = authored_frame;
+        sampled.frame = now_frame;
+        sampled.source_path_submitted_frame = now_frame;
+        sampled.has_source_path_frame_mapping = true;
+        if (shape.has_sample) {
+            for (int axis = 0; axis < 3; ++axis)
+                sampled.path_pose_span[axis] = shape.span[axis];
+            sampled.has_path_pose_span = true;
+        }
+        return {std::move(sampled)};
+    }
     for (auto key : shot.positions) {
         const float authored_frame = key.frame;
         key.source_path_local_frame = source_frame;
@@ -24488,6 +24588,10 @@ std::string camera_result_builder_frame_identity(
         identity += ":pose@" + std::to_string(key.camshot_pose_body_offset);
     } else if (key.has_source_frame_key_index) {
         identity += ":frame#" + std::to_string(key.source_frame_key_index);
+    } else if (key.has_source_path_frame_mapping) {
+        // RndTransAnim evaluates one continuously changing transform.  Its
+        // target cache belongs to the path/shot, not to every sampled frame.
+        identity += ":path@" + canonical_milo_ref(key.path_anim);
     } else {
         identity += ":object#" + std::to_string(key.source_object_order) +
                     ":at=" + std::to_string(key.frame);
@@ -25870,6 +25974,23 @@ void apply_camera_keys(
         cam, has_shake_fields, shake_noise_amp, shake_noise_freq,
         max_angular_offset_x, max_angular_offset_y);
     apply_camera_result_frame(cam, submitted_result);
+    if (env_value("GHOGX_DEBUG_CAMERA_MOTION") &&
+        (a->has_source_path_frame_mapping ||
+         b->has_source_path_frame_mapping)) {
+        const int bucket = static_cast<int>(std::floor(frame / 30.0f));
+        static std::string last_motion_result;
+        const std::string report_key =
+            a->name + ":" + b->name + ":" + std::to_string(bucket);
+        if (last_motion_result != report_key) {
+            last_motion_result = report_key;
+            std::fprintf(
+                stderr,
+                "[camera-motion] submitted shot=%s local=%.3f final=(%.3f %.3f %.3f) source=%s\n",
+                a->name.c_str(), source_calc_frame_value(*a),
+                submitted_result.position[0], submitted_result.position[1],
+                submitted_result.position[2], submitted_result.source.c_str());
+        }
+    }
     if (submitted_ps2_projection_candidate || submitted_ps2_matrix_candidate) {
         const auto eval_a = evaluate_retained_ps2_source_record_trace_context(*a);
         const auto eval_b = evaluate_retained_ps2_source_record_trace_context(*b);
@@ -29940,8 +30061,14 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
         return false;
     }
 
+    const auto authored_song =
+        resolve_song_catalog_entry(hdr_path, ark_path, shortname);
+
     // --- MIDI chart ---
-    const std::string mid_path = "songs/" + shortname + "/" + shortname + ".mid";
+    const std::string mid_path =
+        authored_song && !authored_song->midi_path.empty()
+            ? authored_song->midi_path
+            : "songs/" + shortname + "/" + shortname + ".mid";
     std::fprintf(stderr, "[gameplay] loading chart: %s\n", mid_path.c_str());
 
     std::vector<uint8_t> mid_bytes;
@@ -30005,7 +30132,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     }
 
     // --- Audio ---
-    const std::string vgs_path = "songs/" + shortname + "/" + shortname + ".vgs";
+    const std::string vgs_path =
+        authored_song && !authored_song->master_audio_path.empty()
+            ? authored_song->master_audio_path + ".vgs"
+            : "songs/" + shortname + "/" + shortname + ".vgs";
+    std::fprintf(stderr, "[gameplay] loading audio: %s\n", vgs_path.c_str());
     audio_.load_vgs(hdr_path, ark_path, vgs_path);  // non-fatal on failure
 
     const std::string voc_path = "songs/" + shortname + "/" + shortname + ".voc";
@@ -39641,10 +39772,13 @@ Gameplay::build_diagnostic_guitar_script_from_chart(
 bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                                               bool emit_presentation,
                                               bool session_already_ticked,
-                                              float whammy_axis) {
+                                              float whammy_axis,
+                                              double judgement_time) {
     if (!gameplay_session_mirror_) return false;
+    if (judgement_time < 0.0) judgement_time = song_time_;
     if (!session_already_ticked) {
-        gameplay_session_mirror_->tick(song_time_, fret_mask, whammy_axis);
+        gameplay_session_mirror_->tick(judgement_time, fret_mask,
+                                       whammy_axis);
     }
 
     bool bad_gameplay_feedback = false;
@@ -39952,6 +40086,10 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         song_time_ = audio_.position_sec();
     else
         song_time_ += static_cast<double>(dt);
+    const double input_judgement_time =
+        diagnostic_autoplay_
+            ? song_time_
+            : calibrated_judgement_time(song_time_, sync_offset_ms_);
 
     if (track_intro_active_ && !deterministic_clock_) {
         while (next_track_intro_sfx_stage_ >= 1 &&
@@ -40223,7 +40361,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         active_sustains_.clear();
         bad_gameplay_feedback_this_frame =
             update_gameplay_session_mirror(fret_mask, true, false,
-                                           live_whammy_axis);
+                                           live_whammy_axis,
+                                           input_judgement_time);
         update_presentation_after_gameplay();
         prev_fret_mask_ = fret_mask;
         prev_whammy_axis_ = live_whammy_axis;
@@ -40250,7 +40389,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         bad_gameplay_feedback_this_frame =
             update_gameplay_session_mirror(
                 fret_mask, true, gameplay_session_already_ticked,
-                live_whammy_axis);
+                live_whammy_axis, input_judgement_time);
         update_presentation_after_gameplay();
         prev_fret_mask_ = fret_mask;
         prev_whammy_axis_ = live_whammy_axis;
@@ -40369,12 +40508,12 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         std::vector<ActiveSustain> keep;
         keep.reserve(active_sustains_.size());
         for (const ActiveSustain& sustain : active_sustains_) {
-            if (song_time_ >= sustain.end_time) {
+            if (input_judgement_time >= sustain.end_time) {
                 award_sustain(sustain, sustain.end_time, "end");
                 continue;
             }
             if (!fofix_match_frets(held_frets, sustain.mask)) {
-                award_sustain(sustain, song_time_, "release");
+                award_sustain(sustain, input_judgement_time, "release");
                 continue;
             }
             keep.push_back(sustain);
@@ -40402,7 +40541,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         ActiveSustain sustain;
         sustain.mask = sustain_mask;
         sustain.gem_count = sustain_gems;
-        sustain.start_time = std::max(song_time_, note_sec);
+        sustain.start_time = std::max(input_judgement_time, note_sec);
         sustain.end_time = std::max(sustain.start_time, sustain_end);
         sustain.beat_seconds = beat_seconds_at_tick(chart_, notes[start].tick_on);
         active_sustains_.push_back(sustain);
@@ -40515,7 +40654,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         const size_t end = note_group_end(next_note_idx_);
         const double note_sec = chart_.tick_to_sec(n.tick_on);
         const FoFiXHitWindow window = hit_window_at_tick(chart_, n.tick_on);
-        if (fofix_note_missed(song_time_, note_sec, window)) {
+        if (fofix_note_missed(input_judgement_time, note_sec, window)) {
             const bool missed_star_group =
                 group_has_star_power(next_note_idx_, end);
             observe_star_phrase_group(next_note_idx_, end, false);
@@ -40570,7 +40709,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         const FoFiXHitWindow window = hit_window_at_tick(chart_, n.tick_on);
 
         // Past the lookahead window — stop processing.
-        if (note_sec > song_time_ + window.early_sec) break;
+        if (note_sec > input_judgement_time + window.early_sec) break;
 
         uint32_t required_mask = 0;
         int gem_count = 0;
@@ -40592,7 +40731,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask, float whammy_axis) {
         }
 
         // Within FoFiX hit window.
-        if (!fofix_note_in_window(song_time_, note_sec, window)) {
+        if (!fofix_note_in_window(input_judgement_time, note_sec, window)) {
             i = end - 1;
             continue;
         }
@@ -42551,6 +42690,16 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     selected_bassist_variant
                         ? selected_bassist_fret_anim_path_
                         : selected_character_fret_anim_path_;
+                const std::string& selected_animation_source_model_path =
+                    selected_bassist_variant
+                        ? selected_bassist_animation_source_model_path_
+                        : selected_character_animation_source_model_path_;
+                const bool selected_retarget_animation =
+                    selected_bassist_variant
+                        ? selected_bassist_retarget_animation_
+                        : selected_character_retarget_animation_;
+                const std::vector<std::string>& selected_guitarist_hidden_roots =
+                    selected_character_guitarist_hidden_roots_;
                 if (selected_variant) {
                     model_name = std::filesystem::path(
                                      selected_model_path)
@@ -42791,6 +42940,56 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 auto animation_drivers = character.drivers;
                 std::unique_ptr<ghogx::character::Character>
                     animation_source_character;
+                if (selected_variant && selected_retarget_animation) {
+                    if (selected_animation_source_model_path.empty()) {
+                        throw std::runtime_error(
+                            "selected retarget variant lacks an animation "
+                            "source model: " + character_name);
+                    }
+                    bool animation_source_loaded = false;
+                    ghogx::character::Character animation_character;
+                    for (const auto& archive : all_character_archives) {
+                        animation_character =
+                            ghogx::character::Character{};
+                        if (!ghogx::character::load_character(
+                                archive.hdr, archive.ark,
+                                selected_animation_source_model_path,
+                                animation_character)) {
+                            continue;
+                        }
+                        animation_model_name =
+                            std::filesystem::path(
+                                selected_animation_source_model_path)
+                                .stem()
+                                .string();
+                        animation_char_milo =
+                            selected_animation_source_model_path;
+                        animation_hdr_path = archive.hdr;
+                        animation_ark_path = archive.ark;
+                        animation_dir_type = animation_character.dir_type;
+                        animation_root_object_type =
+                            animation_character.root_object_type;
+                        animation_gh1_content_layout = false;
+                        animation_drivers = animation_character.drivers;
+                        animation_source_character = std::make_unique<
+                            ghogx::character::Character>(
+                            std::move(animation_character));
+                        animation_source_loaded = true;
+                        std::fprintf(
+                            stderr,
+                            "[world] selected variant animation source: "
+                            "role=%s target=%s source=%s asset=%s\n",
+                            role.c_str(), model_name.c_str(),
+                            animation_model_name.c_str(),
+                            animation_char_milo.c_str());
+                        break;
+                    }
+                    if (!animation_source_loaded) {
+                        throw std::runtime_error(
+                            "selected animation source model missing: " +
+                            selected_animation_source_model_path);
+                    }
+                }
                 if (const auto animation_override =
                         diagnostic_performer_animation_overrides_.find(role);
                     animation_override !=
@@ -42984,8 +43183,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     attach_external_prop ? prop_attach_bone : std::string{};
                 perf.gh1_character_runtime = gh1_content_layout;
                 perf.external_animation_retarget =
+                    (selected_variant && selected_retarget_animation) ||
                     diagnostic_performer_animation_overrides_.find(perf.role) !=
-                    diagnostic_performer_animation_overrides_.end();
+                        diagnostic_performer_animation_overrides_.end();
                 perf.retarget_source_character =
                     std::move(animation_source_character);
                 if (perf.external_animation_retarget &&
@@ -43118,8 +43318,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 perf.renderer->set_proof_lighting(
                     diagnostic_unlit_performers_);
                 auto& runtime_character = perf.renderer->character();
-                if (perf.external_animation_retarget &&
-                    perf.role != "singer") {
+                if (perf.role == "guitarist0" && selected_variant &&
+                    !selected_guitarist_hidden_roots.empty()) {
                     auto parent_of = [&](const std::string& name) {
                         const auto bone = std::find_if(
                             runtime_character.bones.begin(),
@@ -43139,21 +43339,43 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                    ? std::string{}
                                    : mesh->parent;
                     };
+                    auto normalized_object_name = [](std::string name) {
+                        for (const std::string_view suffix :
+                             {std::string_view(".mesh"),
+                              std::string_view(".trans")}) {
+                            if (name.size() >= suffix.size() &&
+                                name.compare(name.size() - suffix.size(),
+                                             suffix.size(), suffix) == 0) {
+                                name.resize(name.size() - suffix.size());
+                                break;
+                            }
+                        }
+                        return name;
+                    };
+                    auto matches_hidden_root = [&](const std::string& name) {
+                        const std::string normalized =
+                            normalized_object_name(name);
+                        return std::any_of(
+                            selected_guitarist_hidden_roots.begin(),
+                            selected_guitarist_hidden_roots.end(),
+                            [&](const std::string& root) {
+                                return normalized ==
+                                       normalized_object_name(root);
+                            });
+                    };
                     size_t hidden_role_props = 0;
                     for (const auto& mesh : runtime_character.meshes) {
-                        std::string ancestor = mesh.parent;
-                        bool microphone_descendant = false;
+                        std::string ancestor = mesh.name;
+                        bool hidden_descendant = false;
                         for (int guard = 0;
                              !ancestor.empty() && guard++ < 128;) {
-                            if (ancestor == "bone_pos_mic.mesh" ||
-                                ancestor == "bone_pos_mic.trans" ||
-                                ancestor == "bone_pos_mic") {
-                                microphone_descendant = true;
+                            if (matches_hidden_root(ancestor)) {
+                                hidden_descendant = true;
                                 break;
                             }
                             ancestor = parent_of(ancestor);
                         }
-                        if (microphone_descendant &&
+                        if (hidden_descendant &&
                             perf.renderer->set_object_showing(mesh.name,
                                                               false)) {
                             ++hidden_role_props;
@@ -43162,8 +43384,10 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     std::fprintf(
                         stderr,
                         "[world] performer retarget role props: role=%s "
-                        "suppressed_mic_descendants=%zu\n",
-                        perf.role.c_str(), hidden_role_props);
+                        "roots=%zu suppressed_descendants=%zu\n",
+                        perf.role.c_str(),
+                        selected_guitarist_hidden_roots.size(),
+                        hidden_role_props);
                 }
                 const std::string world_fx_owner =
                     perf.role + ":" + model_name;
@@ -48456,6 +48680,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         source_filters_vector_for_log);
                 bool diagnostic_camera_shot_matched = false;
                 bool diagnostic_camera_shot_missing = false;
+                bool diagnostic_camera_shot_continuous_hold = false;
                 if (!diagnostic_camera_shot_.empty()) {
                     key = find_camera_key_by_name(regular_camera_keys_,
                                                   diagnostic_camera_shot_);
@@ -48467,6 +48692,17 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             diagnostic_camera_shot_.c_str());
                     } else {
                         diagnostic_camera_shot_matched = true;
+                        // The diagnostic name is a selection override, not a
+                        // synthetic stream of ForceCameraShot messages.  Once
+                        // its requested shot owns mCurrentShot, leave it there
+                        // until the diagnostic changes or gameplay reloads.
+                        // Re-queuing the same shot on each normal source pick
+                        // makes CameraManager::PrePoll correctly call
+                        // StartShot_ again, which restarts CalcFrame and
+                        // creates a false snap in camera-motion proofs.
+                        diagnostic_camera_shot_continuous_hold =
+                            pending_regular_camera_.empty() &&
+                            active_regular_camera_ == key->name;
                     }
                 }
                 if (!key) {
@@ -48491,7 +48727,12 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         diagnostic_camera_shot_matched
                             ? diagnostic_camera_path_offset_frames_
                             : 0.0;
-                    if (diagnostic_camera_shot_matched) {
+                    if (diagnostic_camera_shot_continuous_hold) {
+                        std::fprintf(
+                            stderr,
+                            "[world] diagnostic camera shot hold: requested=%s actual=%s result=continue_current_without_mNextShot\n",
+                            diagnostic_camera_shot_.c_str(), key->name.c_str());
+                    } else if (diagnostic_camera_shot_matched) {
                         force_camera_shot_like_source(*key, source_handler,
                                                       source_queue_local_frame);
                     } else {
@@ -48525,7 +48766,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             true, true, kGuitaristWalking);
                     std::fprintf(
                         stderr,
-                        "[world] regular camera sweep: pipeline_scope=normal_gameplay_camera priority=gameplay_camera %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_previous_context=%s source_current=%s source_next_before=%s source_next_after=%s source_current_handle=HANDLE_EXPR source_current_return=%s source_next_handle=HANDLE_EXPR source_next_before_return=%s source_next_after_return=%s source_walking=%d source_walking_gate=%s source_starpower=%d source_starpower_gate=%s flags=0x%08x forced=%d changed=%d source_next=%d force_char_lod=%d bar=%u t=%.3f hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
+                        "[world] regular camera sweep: pipeline_scope=normal_gameplay_camera priority=gameplay_camera %s -> %s category=%s bars_left=%d duration=%s[%d,%d] duration_source=%s duration_draw=%s%zu mode=%s gamecfg_mode=%s faceoff_active_players=%d filter_source=ShotMatches source_category=%s source_filters=\"%s\" source_previous=%s source_previous_context=%s source_current=%s source_next_before=%s source_next_after=%s source_current_handle=HANDLE_EXPR source_current_return=%s source_next_handle=HANDLE_EXPR source_next_before_return=%s source_next_after_return=%s source_walking=%d source_walking_gate=%s source_starpower=%d source_starpower_gate=%s flags=0x%08x forced=%d changed=%d source_next=%d diagnostic_hold=%d force_char_lod=%d bar=%u t=%.3f hidden_gameplay_blockers=%s deferred_gameplay_blockers=%s freecam_priority=deferred_last freecam_affects_gameplay=0\n",
                         previous_regular_camera_for_log.c_str(),
                         key->name.c_str(), key->category.c_str(),
                         camera_bars_left_, duration.first.c_str(),
@@ -48565,8 +48806,10 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         (force_camera || diagnostic_camera_shot_matched) ? 1
                                                                          : 0,
                         shot_changed ? 1 : 0,
-                        source_next_after_queue ? 1 : 0, key->force_char_lod, bar,
-                        song_time_, active_gameplay_blockers.c_str(),
+                        source_next_after_queue ? 1 : 0,
+                        diagnostic_camera_shot_continuous_hold ? 1 : 0,
+                        key->force_char_lod, bar, song_time_,
+                        active_gameplay_blockers.c_str(),
                         deferred_gameplay_blockers.c_str());
                     static bool logged_camera_impl_status = false;
                     if (!logged_camera_impl_status) {
@@ -49274,6 +49517,33 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                 ? b_key.source_path_submitted_frame
                                 : 0.0f);
                         }
+                    } else if (!source_frame_key_route && key->has_path_anim &&
+                               selected_camera.size() == 1 &&
+                               selected_camera.front()
+                                   .has_source_path_frame_mapping) {
+                        const CameraKey& sample = selected_camera.front();
+                        const std::string direct_path_report_key =
+                            key->name + ":path:direct_source_pages";
+                        if (active_camera_frame_pair_reported_ !=
+                            direct_path_report_key) {
+                            active_camera_frame_pair_reported_ =
+                                direct_path_report_key;
+                            std::fprintf(
+                                stderr,
+                                "[world] camera RndTransAnim live sample: shot=%s path=%s local_frame=%.3f authored_frame=%.3f submitted_frame=%.3f source_pages=trans:%zu rot:%zu scale:%zu source_flags=trans_spline:%d repeat:%d scale_spline:%d rot_slerp:%d rot_spline:%d source_clock=CameraManager::CalcFrame source_call=RndTransAnim::SetFrame runtime_eval=decoded_source_key_pages native_extra_smoothing=0 cross_shot_blend=0 target_cache_identity=path\n",
+                                key->name.c_str(), key->path_anim.c_str(),
+                                sample.source_path_local_frame,
+                                sample.source_path_authored_frame,
+                                sample.source_path_submitted_frame,
+                                key->path_source_translation_page.size(),
+                                key->path_source_rotation_page.size(),
+                                key->path_source_scale_page.size(),
+                                key->path_trans_spline ? 1 : 0,
+                                key->path_repeat_trans ? 1 : 0,
+                                key->path_scale_spline ? 1 : 0,
+                                key->path_rot_slerp ? 1 : 0,
+                                key->path_rot_spline ? 1 : 0);
+                        }
                     }
                 }
                 const CameraKey& visibility_key =
@@ -49497,12 +49767,14 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 cam.screen_offset[1] = 0.0f;
                 cam.target[0] = target_pos[0];
                 cam.target[1] = target_pos[1];
-                cam.target[2] = target_pos[2] + 1.5f;
+                cam.target[2] = target_pos[2] + env_float(
+                    "GHOGX_DIAGNOSTIC_FRONT_CAMERA_TARGET_Z", 1.5f);
                 cam.yaw =
                     facing_length > 1.0e-5f
                         ? std::atan2(facing[0], -facing[1])
                         : 0.0f;
-                cam.pitch = 0.06f;
+                cam.pitch = env_float(
+                    "GHOGX_DIAGNOSTIC_FRONT_CAMERA_PITCH", 0.06f);
                 cam.distance = env_float(
                     "GHOGX_DIAGNOSTIC_FRONT_CAMERA_DISTANCE", 105.0f);
                 cam.fov = env_float(

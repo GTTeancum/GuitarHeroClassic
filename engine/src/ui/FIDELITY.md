@@ -373,6 +373,13 @@ never DEFINED as a handler are true engine primitives needing grounded C++:
   parent views, nav links, and world-Z rows. `ghogx_milo_scene_test` pins the
   four border-tile meshes, shared `pl_tile.tex` source, parent
   `pause_background.view`, and per-corner UV flips that form the square border.
+- **Gameplay-backed pause/failure overlays - `[DTB-SURFACE]` + `[MILO]`.**
+  `game.dta` defines `GAME_PANELS` with `world_panel`; packed `pause.dtb` and
+  `lose.dtb` both include that macro in their screen panel lists. Menu rendering
+  now walks that decoded (nested) panel property and retains the live gameplay
+  frame behind any menu screen which owns `world_panel`. The Pause and Lose
+  scenes are then composited with their authored transparent center-panel/border
+  geometry. No pause-screen or lose-screen name rule is used.
 - **Controller-loss pause screen lock-in — `[DTB-SURFACE]` + `[MILO]`.** For
   `pause_controller_screen`, source truth is `ui/gen/pause.dtb` plus
   `ui/gen/pause_controller.milo_ps2`. `ghogx_ui_test` now pins the stock screen
@@ -504,7 +511,9 @@ never DEFINED as a handler are true engine primitives needing grounded C++:
   `set_volumes` around `gs_band.sld`, `gs_guitar.sld`, and `gs_sfx.sld`.
   The runtime now exposes those slider messages, lets selected sliders consume
   up/down as value changes, and lets Back cancel/revert the selected slider
-  before the screen's normal back route runs.
+  before the screen's normal back route runs. The shared selected-slider axis
+  maps Up to right/increase and Down to left/decrease; ordinary unselected
+  vertical focus navigation remains unchanged.
 - **Audio settings slider display - `[DTB-SURFACE]` + `[MILO-SOURCE]` + `[HARMONIX]`.**
   Stock `options.dta` defines `audio_settings_panel` as a `SliderPanel` backed
   by `game_settings.milo`; that MILO's `BandSlider` entries serialize the
@@ -555,7 +564,15 @@ never DEFINED as a handler are true engine primitives needing grounded C++:
   `init` and `calibrating`, `DUp`/`DDown` hit recording, `reset_to_zero.btn`
   numeric reset, first countdown beats, `practice_hat play`, sync-click cue
   playback, success-state text, and exit-time `options set_sync_offset`
-  writeback.
+  writeback. The stored value now persists in `GHOGX_PROFILE_V2`, defaults to
+  zero, clamps to +/-500 ms, and reaches gameplay as the signed input-judgment
+  clock `audio_time + sync_offset_ms / 1000`; audio remains the master and
+  presentation clock. This preserves the authored panel's negated enter/exit
+  sign: a negative stored value compensates late physical input. Gameplay-rule
+  tests pin both directions without widening the 100 ms hit window, and the
+  two-process release audit proves `-73` saves and reloads exactly. Real guitar,
+  display, and audio-device certification remains an open release review rather
+  than an automated fidelity claim.
 - **P-scan switch behavior lock-in - `[DTB-SURFACE]` + `[MILO-SOURCE]`.**
   Stock `options.dta::PSCAN_SWITCH_SCREEN_HANDLERS` drives
   `pscan_switch_screen` and its `pscan_switching.milo` panel. `ghogx_ui_test`
@@ -888,6 +905,31 @@ actual decoded audio-bank playback, profilemgr/content_mgr/memcard.
   from decoded `config/gen/campaign`, derives store-song checks from decoded
   `config/gen/store`, and keeps per-difficulty beaten-song/best-score state for
   career progress text and endgame completion routing.
+- **Versioned profile records - `[DTB-SURFACE]` + `[ENGINE-BRIDGE]`.**
+  The runtime's durable bridge mirrors the campaign values consumed by stock
+  scripts instead of maintaining an unrelated store-only save fragment.
+  `GHOGX_PROFILE_V2` holds eight named profile records with cash, progression,
+  per-difficulty results, rewards, tutorials, store/game-mode unlocks, and
+  selected character/equipment state. Switching profiles captures the outgoing
+  singleton state and restores the incoming record. Existing V1 files are
+  accepted and promoted into the V2 root record.
+- **Career/store unlock ownership - `[DTB-SURFACE]` + `[VERBATIM-DATA]`.**
+  `Campaign::is_unlocked` consumes decoded campaign venue order,
+  `required_songs`, regular/encore membership, beat state, and decoded store
+  membership. Prior tiers, the active tier, an active encore threshold, a
+  purchased store song, and a decoded game-mode reward are distinct cases.
+  There is no production all-content review branch.
+- **Canonical quickplay song identity - `[DTB-SURFACE]` + `[VERBATIM-DATA]`.**
+  The visible quickplay list and `SongProvider` both use campaign order followed
+  by decoded store-song order. Provider-list position, global `songs.dtb` index,
+  and canonical song symbol remain separate values; downstream intro, gameplay,
+  result, MIDI, and audio lookups consume the symbol rather than reinterpreting
+  one index in another domain.
+- **Authored song media routes - `[DTB-SURFACE]` + `[VERBATIM-DATA]`.**
+  Gameplay resolves each song's nested `midi_file` and master-audio `name` from
+  `config/gen/songs.dtb`. Basename construction is only a missing-field
+  fallback. This preserves authored exceptions such as Arterial Black's
+  `arterialblack_sp.vgs` single-player master.
 - **Campaign guitar-award queue - `[DTB-SURFACE]` + `[VERBATIM-DATA]`.**
   Stock `endgame.dta::post_show_screen` routes to `unlock_guitar_screen` when
   `{campaign num_guitar_awards}` is nonzero, while

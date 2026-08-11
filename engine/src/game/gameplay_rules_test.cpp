@@ -52,6 +52,15 @@ int main() {
         "note beyond positive edge is too early");
   CHECK(fofix_note_missed(10.101, 10.0, window),
         "note beyond late edge is missed");
+  CHECK(std::fabs(calibrated_judgement_time(10.0, 0) - 10.0) < 1.0e-9,
+        "zero calibration preserves the audio master clock");
+  CHECK(std::fabs(calibrated_judgement_time(10.0, 75) - 10.075) < 1.0e-9,
+        "positive sync offset advances input judgement");
+  CHECK(std::fabs(calibrated_judgement_time(10.0, -75) - 9.925) < 1.0e-9,
+        "negative sync offset delays input judgement");
+  CHECK(fofix_note_in_window(calibrated_judgement_time(10.075, -75),
+                             10.0, window),
+        "negative stored offset compensates a physically late input");
 
   CHECK(fofix_match_frets(0b00001, 0b00001), "green matches green");
   CHECK(fofix_match_frets(0b00011, 0b00010),

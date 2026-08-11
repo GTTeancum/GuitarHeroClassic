@@ -18,6 +18,7 @@
 #include "game/highway_renderer.h"
 #include "render/milo_scene_renderer.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <map>
@@ -327,6 +328,12 @@ class Gameplay {
     size_t path_source_translation_keys = 0;
     size_t path_source_rotation_keys = 0;
     size_t path_source_scale_keys = 0;
+    // Preserve the decoded RndTransAnim pages on the owning CamShot.  The
+    // sampled `positions` array is useful for diagnostics, but resampling that
+    // array linearly drops the authored spline/slerp contract between keys.
+    std::vector<CameraKey> path_source_translation_page;
+    std::vector<CameraKey> path_source_rotation_page;
+    std::vector<CameraKey> path_source_scale_page;
     float path_source_start_frame = 0.0f;
     float path_source_end_frame = 0.0f;
     bool has_path_source_frame_summary = false;
@@ -838,7 +845,10 @@ class Gameplay {
   void set_selected_character_variant(
       std::string selection, std::string model_path,
       std::string main_anim_path, std::string strum_anim_path,
-      std::string fret_anim_path, std::string highway_surface_path) {
+      std::string fret_anim_path, std::string highway_surface_path,
+      std::string animation_source_model_path = {},
+      bool retarget_animation = false,
+      std::vector<std::string> guitarist_hidden_roots = {}) {
     selected_character_selection_ = std::move(selection);
     selected_character_model_path_ = std::move(model_path);
     selected_character_main_anim_path_ = std::move(main_anim_path);
@@ -846,6 +856,11 @@ class Gameplay {
     selected_character_fret_anim_path_ = std::move(fret_anim_path);
     selected_character_highway_surface_path_ =
         std::move(highway_surface_path);
+    selected_character_animation_source_model_path_ =
+        std::move(animation_source_model_path);
+    selected_character_retarget_animation_ = retarget_animation;
+    selected_character_guitarist_hidden_roots_ =
+        std::move(guitarist_hidden_roots);
   }
   // Instrument selections committed by the retail menu flow. These are
   // distinct from diagnostic overrides: they are the player's equipped
@@ -873,12 +888,17 @@ class Gameplay {
   void set_selected_bassist_character_variant(
       std::string selection, std::string model_path,
       std::string main_anim_path, std::string strum_anim_path,
-      std::string fret_anim_path) {
+      std::string fret_anim_path,
+      std::string animation_source_model_path = {},
+      bool retarget_animation = false) {
     selected_bassist_selection_ = std::move(selection);
     selected_bassist_model_path_ = std::move(model_path);
     selected_bassist_main_anim_path_ = std::move(main_anim_path);
     selected_bassist_strum_anim_path_ = std::move(strum_anim_path);
     selected_bassist_fret_anim_path_ = std::move(fret_anim_path);
+    selected_bassist_animation_source_model_path_ =
+        std::move(animation_source_model_path);
+    selected_bassist_retarget_animation_ = retarget_animation;
   }
   std::string_view quickplay_character_outfit() const {
     return quickplay_rig_ ? std::string_view(quickplay_rig_->character_outfit)
@@ -906,6 +926,10 @@ class Gameplay {
   // Song is finished when the audio clock passes the chart duration.
   bool is_finished() const;
   double song_time() const { return song_time_; }
+  void set_sync_offset_ms(int offset_ms) {
+    sync_offset_ms_ = std::clamp(offset_ms, -500, 500);
+  }
+  int sync_offset_ms() const { return sync_offset_ms_; }
   void set_deterministic_clock(bool deterministic) {
     deterministic_clock_ = deterministic;
   }
@@ -1140,7 +1164,8 @@ class Gameplay {
   bool update_gameplay_session_mirror(uint32_t fret_mask,
                                        bool emit_presentation,
                                        bool session_already_ticked = false,
-                                       float whammy_axis = 0.0f);
+                                       float whammy_axis = 0.0f,
+                                       double judgement_time = -1.0);
   void sync_consumed_notes_from_gameplay_session();
   std::unordered_set<std::string> composed_lighting_hidden_meshes() const;
   std::map<std::string, float> composed_lighting_material_alpha() const;
@@ -1869,6 +1894,7 @@ class Gameplay {
   std::vector<ActiveSustain> active_sustains_;
 
   double   song_time_      = 0.0;
+  int      sync_offset_ms_ = 0;
   int      difficulty_     = 3;
   // Index of the next unprocessed note in chart_.notes[difficulty_].
   size_t   next_note_idx_  = 0;
@@ -1965,11 +1991,16 @@ class Gameplay {
   std::string selected_character_strum_anim_path_;
   std::string selected_character_fret_anim_path_;
   std::string selected_character_highway_surface_path_;
+  std::string selected_character_animation_source_model_path_;
+  bool selected_character_retarget_animation_ = false;
+  std::vector<std::string> selected_character_guitarist_hidden_roots_;
   std::string selected_bassist_selection_;
   std::string selected_bassist_model_path_;
   std::string selected_bassist_main_anim_path_;
   std::string selected_bassist_strum_anim_path_;
   std::string selected_bassist_fret_anim_path_;
+  std::string selected_bassist_animation_source_model_path_;
+  bool selected_bassist_retarget_animation_ = false;
   std::string highway_asset_hdr_path_;
   std::string highway_asset_ark_path_;
   std::string song_shortname_;

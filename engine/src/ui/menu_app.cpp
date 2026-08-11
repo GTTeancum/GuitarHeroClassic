@@ -1826,10 +1826,17 @@ std::vector<Symbol> screen_panel_names(Object* screen) {
 }
 
 bool screen_has_panel(Object* screen, Symbol panel) {
-  for (Symbol name : screen_panel_names(screen)) {
-    if (name == panel) return true;
-  }
-  return false;
+  if (!screen) return false;
+  const auto contains = [&](const auto& self, const DataNode& node) -> bool {
+    if (auto name = node.as_symbol()) return *name == panel;
+    if (auto panels = node.as_array()) {
+      for (std::size_t i = 0; i < panels->size(); ++i) {
+        if (self(self, panels->at(i))) return true;
+      }
+    }
+    return false;
+  };
+  return contains(contains, screen->get_property(Symbol("panels")));
 }
 
 std::string panel_file(Object* panel) {
@@ -1897,6 +1904,354 @@ std::unordered_set<std::string> hidden_meshes_from_live_views(
   return hidden;
 }
 
+struct CharacterReelEntry {
+  Symbol character;
+  std::string label;
+  std::string blurb;
+  std::string portrait;
+};
+
+std::vector<CharacterReelEntry> live_character_reel(ScreenManager& mgr) {
+  std::vector<CharacterReelEntry> out;
+  Object* provider = mgr.resolve_object(Symbol("character_provider"));
+  if (!provider) return out;
+  const int count = std::max(
+      0, provider->handle_property(Symbol("list_length"), DataArray())
+             .as_int()
+             .value_or(0));
+  out.reserve(static_cast<std::size_t>(count));
+  for (int index = 0; index < count; ++index) {
+    DataArray args;
+    args.push(DataNode::Int(index));
+    const Symbol character = symbol_value(
+        provider->handle_property(Symbol("get_symbol"), args));
+    const DataNode portrait_node =
+        provider->handle_property(Symbol("get_portrait"), args);
+    const DataNode label_node =
+        provider->handle_property(Symbol("get_text"), args);
+    const DataNode blurb_node =
+        provider->handle_property(Symbol("get_character_blurb"), args);
+    std::string portrait;
+    std::string label;
+    std::string blurb;
+    if (auto text = portrait_node.as_string()) portrait = std::string(*text);
+    if (auto text = label_node.as_string())
+      label = std::string(*text);
+    else if (auto token = label_node.as_symbol())
+      label = token->c_str();
+    if (auto text = blurb_node.as_string()) blurb = std::string(*text);
+    if (character.valid())
+      out.push_back({character, std::move(label), std::move(blurb),
+                     std::move(portrait)});
+  }
+  return out;
+}
+
+int wrapped_reel_index(int index, int count) {
+  if (count <= 0) return 0;
+  index %= count;
+  return index < 0 ? index + count : index;
+}
+
+void add_character_reel_column(
+    const std::string& hdr, const std::string& ark,
+    const std::vector<CharacterReelEntry>& roster, int selected,
+    float x, float center_z, float spacing, int requested_radius,
+    const milo_scene::MeshObj& template_mesh,
+    const milo_scene::MatObj& template_mat,
+    const std::string& highlight_material,
+    milo_scene::Scene& scene, std::map<std::string, asset::Image>& textures,
+    std::string_view column_id) {
+  const int count = static_cast<int>(roster.size());
+  if (count <= 0) return;
+  const int radius = std::min(
+      std::max(0, requested_radius),
+      (count - 1) / 2 + ((count - 1) % 2));
+  std::unordered_set<int> emitted;
+  for (int offset = -radius; offset <= radius; ++offset) {
+    const int roster_index = wrapped_reel_index(selected + offset, count);
+    if (!emitted.insert(roster_index).second) continue;
+    const CharacterReelEntry& entry = roster[roster_index];
+    const std::string stem = "dlc_character_reel_" +
+                             std::string(column_id) + "_" +
+                             std::to_string(offset + 2);
+    milo_scene::MatObj material = template_mat;
+    material.name = stem + ".mat";
+    const std::string native_material =
+        "char_" + std::string(entry.character.c_str()) + ".mat";
+    if (const milo_scene::MatObj* authored = scene.find_mat(native_material)) {
+      material = *authored;
+      material.name = stem + ".mat";
+    }
+    if (!entry.portrait.empty()) {
+      const std::string texture_name = stem + ".tex";
+      asset::Image portrait =
+          asset::load_ps2_bitmap_from_ark(hdr, ark, entry.portrait);
+      if (portrait.valid()) {
+        textures[texture_name] = std::move(portrait);
+        material.diffuse_tex = texture_name;
+      } else {
+        std::fprintf(stderr,
+                     "[menu] character reel portrait unavailable: "
+                     "character=%s path=%s\n",
+                     entry.character.c_str(), entry.portrait.c_str());
+      }
+    }
+    scene.mats.push_back(std::move(material));
+
+    // Retail authors the opaque black/white highlight card behind the
+    // portrait.  Its black center is not an alpha overlay; submitting it after
+    // the portrait hides the art completely.
+    if (offset == 0 && !highlight_material.empty()) {
+      milo_scene::MeshObj highlight = template_mesh;
+      highlight.name = stem + "_highlight.mesh";
+      highlight.material = highlight_material;
+      highlight.geometry_owner = highlight.name;
+      highlight.local.pos[0] = x;
+      highlight.local.pos[1] = -1.0f;
+      highlight.local.pos[2] = center_z;
+      highlight.world_stored = highlight.local;
+      highlight.showing = true;
+      scene.meshes.push_back(std::move(highlight));
+    }
+    milo_scene::MeshObj mesh = template_mesh;
+    mesh.name = stem + ".mesh";
+    mesh.material = stem + ".mat";
+    mesh.geometry_owner = mesh.name;
+    mesh.local.pos[0] = x;
+    mesh.local.pos[1] = 0.0f;
+    mesh.local.pos[2] = center_z - static_cast<float>(offset) * spacing;
+    // These are runtime-created transforms. Keep the serialized-world cache
+    // equal to local so the normal parent composition path is used; retaining
+    // the template card's authored cache would collapse every reel row onto
+    // that source card's old world position.
+    mesh.world_stored = mesh.local;
+    mesh.showing = true;
+    scene.meshes.push_back(std::move(mesh));
+  }
+}
+
+std::size_t add_static_multiplayer_reel_highlight(
+    milo_scene::Scene& scene, std::string_view source_group_name,
+    std::string_view reel_id, float x, float z) {
+  const auto source_group = std::find_if(
+      scene.groups.begin(), scene.groups.end(), [&](const auto& group) {
+        return group.name == source_group_name;
+      });
+  if (source_group == scene.groups.end()) return 0;
+
+  const std::string group_name =
+      "dlc_character_reel_" + std::string(reel_id) + "_highlight.grp";
+  milo_scene::GroupObj group = *source_group;
+  group.name = group_name;
+  group.parent = "msc_icons.grp";
+  group.local.pos[0] = x;
+  group.local.pos[2] = z;
+  group.world_stored = group.local;
+  group.world_xfm_override = false;
+  group.showing = true;
+  group.anim_children.clear();
+  group.children.clear();
+  group.children_owner.clear();
+
+  std::vector<milo_scene::MeshObj> overlays;
+  const std::size_t source_mesh_count = scene.meshes.size();
+  for (std::size_t i = 0; i < source_mesh_count; ++i) {
+    const auto& source = scene.meshes[i];
+    if (source.parent != source_group_name) continue;
+    milo_scene::MeshObj overlay = source;
+    overlay.name = "dlc_character_reel_" + std::string(reel_id) + "_" +
+                   source.name;
+    overlay.parent = group_name;
+    overlay.world_stored = overlay.local;
+    overlay.world_xfm_override = false;
+    overlay.showing = true;
+    group.children.push_back(overlay.name);
+    overlays.push_back(std::move(overlay));
+  }
+  if (overlays.empty()) return 0;
+  scene.groups.push_back(std::move(group));
+  scene.meshes.insert(scene.meshes.end(),
+                      std::make_move_iterator(overlays.begin()),
+                      std::make_move_iterator(overlays.end()));
+  return overlays.size();
+}
+
+void apply_dynamic_character_reels(
+    const std::string& hdr, const std::string& ark, ScreenManager& mgr,
+    Object* screen, milo_scene::Scene& scene,
+    std::map<std::string, asset::Image>& textures) {
+  if (!screen) return;
+  const bool single = screen->name() == Symbol("sel_character_new_screen") ||
+                      screen->name() == Symbol("sel_character_edit_screen");
+  const bool multiplayer =
+      screen->name() == Symbol("multi_sel_character_screen");
+  if (!single && !multiplayer) return;
+  const std::vector<CharacterReelEntry> roster = live_character_reel(mgr);
+  if (roster.empty()) return;
+
+  const std::string parent = single ? "cs_icons.grp" : "msc_icons.grp";
+  milo_scene::MeshObj* source_mesh = nullptr;
+  std::vector<float> authored_x;
+  std::vector<float> authored_z;
+  std::size_t suppressed_source_highlights = 0;
+  std::size_t static_source_highlights = 0;
+  for (auto& mesh : scene.meshes) {
+    if (mesh.parent == parent && mesh.name.rfind("char_", 0) == 0 &&
+        mesh.name != "char_highlight.mesh" && mesh.verts.size() == 4 &&
+        !source_mesh) {
+      source_mesh = &mesh;
+    }
+    if (mesh.parent == parent && mesh.name.rfind("char_", 0) == 0 &&
+        mesh.name != "char_highlight.mesh" && mesh.verts.size() == 4) {
+      authored_x.push_back(mesh.local.pos[0]);
+      authored_z.push_back(mesh.local.pos[2]);
+    }
+    if (mesh.parent == parent && mesh.name.rfind("char_", 0) == 0)
+      mesh.showing = false;
+    // The stock two-player rack owns one independently animated neon selector
+    // per player. The provider-driven reels replace that rack, so retaining
+    // either authored highlight group leaves its selector stranded over the
+    // old bottom-row coordinates. Suppress those two source-owned descendants
+    // while preserving the labels, player models, and every other stock layer.
+    if (multiplayer &&
+        (mesh.parent == "sc1_highlight.grp" ||
+         mesh.parent == "sc2_highlight.grp")) {
+      mesh.showing = false;
+      ++suppressed_source_highlights;
+    }
+  }
+  if (!source_mesh) return;
+  const milo_scene::MatObj* source_mat = scene.find_mat(source_mesh->material);
+  if (!source_mat) return;
+  const milo_scene::MeshObj template_mesh = *source_mesh;
+  const milo_scene::MatObj template_mat = *source_mat;
+  const auto extent = [](const std::vector<float>& values,
+                         float fallback) {
+    if (values.empty()) return std::pair<float, float>{fallback, fallback};
+    const auto bounds = std::minmax_element(values.begin(), values.end());
+    return std::pair<float, float>{*bounds.first, *bounds.second};
+  };
+  const auto [min_x, max_x] = extent(authored_x, -70.0f);
+  const auto [min_z, max_z] = extent(authored_z, 0.0f);
+  float card_width = 30.0f;
+  float card_height = 40.0f;
+  if (!template_mesh.verts.empty()) {
+    float min_vertex_x = template_mesh.verts.front().px;
+    float max_vertex_x = min_vertex_x;
+    float min_vertex_y = template_mesh.verts.front().py;
+    float max_vertex_y = min_vertex_y;
+    for (const auto& vertex : template_mesh.verts) {
+      min_vertex_x = std::min(min_vertex_x, vertex.px);
+      max_vertex_x = std::max(max_vertex_x, vertex.px);
+      min_vertex_y = std::min(min_vertex_y, vertex.py);
+      max_vertex_y = std::max(max_vertex_y, vertex.py);
+    }
+    card_width = std::max(1.0f, max_vertex_x - min_vertex_x);
+    card_height = std::max(1.0f, max_vertex_y - min_vertex_y);
+  }
+  const auto basis_length = [](const float (&basis)[3]) {
+    return std::sqrt(basis[0] * basis[0] + basis[1] * basis[1] +
+                     basis[2] * basis[2]);
+  };
+  card_width *= basis_length(template_mesh.local.rot[0]);
+  card_height *= basis_length(template_mesh.local.rot[1]);
+  // The authored card itself is the source of the film-reel pitch. Add one
+  // model-space unit so adjacent cards do not share an edge.
+  const float spacing = card_height + 1.0f;
+  const float center_x = (min_x + max_x) * 0.5f;
+  const float center_z = (min_z + max_z) * 0.5f;
+  const milo_scene::MatObj* authored_highlight =
+      scene.find_mat("char_highlight.mat");
+  const std::string highlight_material =
+      authored_highlight ? authored_highlight->name : std::string{};
+
+  if (single) {
+    int selected = 0;
+    if (Object* list = mgr.resolve_object(Symbol("character.lst")))
+      selected = list->handle_property(Symbol("selected_pos"), DataArray())
+                     .as_int()
+                     .value_or(0);
+    add_character_reel_column(hdr, ark, roster, selected, center_x, center_z,
+                              spacing, 2, template_mesh, template_mat,
+                              highlight_material, scene, textures, "single");
+    const CharacterReelEntry& entry =
+        roster[static_cast<std::size_t>(
+            wrapped_reel_index(selected, static_cast<int>(roster.size())))];
+    if (Object* name = mgr.resolve_object(Symbol("sc_char_nm.lbl")))
+      name->set_property(Symbol("text"), DataNode::Str(entry.label));
+    if (Object* blurb = mgr.resolve_object(Symbol("sc_char_blurb.lbl"))) {
+      if (!entry.blurb.empty())
+        blurb->set_property(Symbol("text"), DataNode::Str(entry.blurb));
+      else if (!entry.portrait.empty())
+        blurb->set_property(Symbol("text"), DataNode::Str(""));
+    }
+  } else {
+    Object* panel = mgr.find_object(Symbol("multi_sel_character_panel"));
+    Object* provider = mgr.resolve_object(Symbol("character_provider"));
+    const auto player_index = [&](int player, int fallback) {
+      Object* game = mgr.resolve_object(Symbol("game"));
+      if (game && provider) {
+        DataArray player_args;
+        player_args.push(DataNode::Int(player));
+        if (Object* config =
+                game->handle_property(Symbol("get_player_config"),
+                                      player_args)
+                    .as_object()) {
+          const Symbol character =
+              symbol_value(config->get_property(Symbol("character")));
+          if (character.valid()) {
+            DataArray index_args;
+            index_args.push(DataNode::Sym(character));
+            return provider->handle_property(Symbol("get_index"), index_args)
+                .as_int()
+                .value_or(fallback);
+          }
+        }
+      }
+      return panel
+                 ? panel->get_property(
+                            Symbol(player == 0 ? "char_index0"
+                                               : "char_index1"))
+                       .as_int()
+                       .value_or(fallback)
+                 : fallback;
+    };
+    const int selected_p1 = player_index(0, 0);
+    const int selected_p2 = player_index(1, 1);
+    // Multiplayer gets two adjacent film strips centered in the stock rack's
+    // authored span. Their centers are one card width apart, preserving the
+    // source card size without placing either strip behind a player model.
+    const float p1_x = center_x - card_width * 0.5f;
+    const float p2_x = center_x + card_width * 0.5f;
+    add_character_reel_column(hdr, ark, roster, selected_p1, p1_x, center_z,
+                              spacing, 1, template_mesh, template_mat,
+                              highlight_material, scene, textures, "p1");
+    add_character_reel_column(hdr, ark, roster, selected_p2, p2_x, center_z,
+                              spacing, 1, template_mesh, template_mat,
+                              highlight_material, scene, textures, "p2");
+    static_source_highlights += add_static_multiplayer_reel_highlight(
+        scene, "sc1_highlight.grp", "p1", p1_x, center_z);
+    static_source_highlights += add_static_multiplayer_reel_highlight(
+        scene, "sc2_highlight.grp", "p2", p2_x, center_z);
+    const auto set_player_name = [&](const char* object_name, int selected) {
+      const CharacterReelEntry& entry =
+          roster[static_cast<std::size_t>(wrapped_reel_index(
+              selected, static_cast<int>(roster.size())))];
+      if (Object* name = mgr.resolve_object(Symbol(object_name)))
+        name->set_property(Symbol("text"), DataNode::Str(entry.label));
+    };
+    set_player_name("sc1_char_nm.lbl", selected_p1);
+    set_player_name("sc2_char_nm.lbl", selected_p2);
+  }
+  std::fprintf(stderr,
+               "[menu] dynamic character reel: mode=%s roster=%zu "
+               "suppressed_source_highlights=%zu "
+               "static_source_highlights=%zu\n",
+               single ? "single" : "multiplayer", roster.size(),
+               suppressed_source_highlights, static_source_highlights);
+}
+
 // Build the renderer's scene from the current screen's panels' MILOs.
 void rebuild_scene(const std::string& hdr, const std::string& ark, ScreenManager& mgr,
                    Object* screen, const ConfigDb& db,
@@ -1908,6 +2263,7 @@ void rebuild_scene(const std::string& hdr, const std::string& ark, ScreenManager
     if (!panel_showing(panel)) continue;
     add_panel_milo(hdr, ark, mgr, db, panel_file(panel), combined, textures);
   }
+  apply_dynamic_character_reels(hdr, ark, mgr, screen, combined, textures);
   // PanelDir camera/environment references may resolve through the stock
   // metacam subdirectory rather than objects serialized in the panel itself.
   // Import the referenced kind only when it is absent from the combined scene,
@@ -2252,6 +2608,74 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
             Symbol(indexed_runtime_name("char_loaded", player).c_str()),
             DataNode::Int(0));
         continue;
+      }
+      if (variant && variant->retarget_animation &&
+          !variant->animation_source_model_path.empty()) {
+        ghogx::character::Character source_character;
+        if (!ghogx::character::load_character(
+                hdr, ark, variant->animation_source_model_path,
+                source_character)) {
+          std::fprintf(stderr,
+                       "[menu-char] outfit=%s missing retarget source=%s\n",
+                       outfit.c_str(),
+                       variant->animation_source_model_path.c_str());
+          panel->set_property(
+              Symbol(indexed_runtime_name("char_loaded", player).c_str()),
+              DataNode::Int(0));
+          continue;
+        }
+        const auto audit =
+            ghogx::character::install_external_retarget_controller_graph(
+                source_character, preview.renderer->character());
+        std::fprintf(stderr,
+                     "[menu-char] retarget graph: outfit=%s ikHands=%zu "
+                     "missingChains=%zu armReachRatio=%.5f\n",
+                     outfit.c_str(), audit.installed_ik_hands,
+                     audit.skipped_missing_hand_chain,
+                     audit.mean_arm_reach_ratio);
+      }
+      if (variant && !variant->guitarist_hidden_roots.empty()) {
+        auto normalize = [](std::string name) {
+          for (std::string_view suffix : {std::string_view(".mesh"),
+                                          std::string_view(".trans")}) {
+            if (name.size() >= suffix.size() &&
+                name.compare(name.size() - suffix.size(), suffix.size(),
+                             suffix) == 0) {
+              name.resize(name.size() - suffix.size());
+              break;
+            }
+          }
+          return name;
+        };
+        auto& preview_character = preview.renderer->character();
+        auto parent_of = [&](const std::string& name) {
+          const auto bone = std::find_if(
+              preview_character.bones.begin(), preview_character.bones.end(),
+              [&](const auto& candidate) { return candidate.name == name; });
+          if (bone != preview_character.bones.end()) return bone->parent;
+          const auto mesh = std::find_if(
+              preview_character.meshes.begin(),
+              preview_character.meshes.end(),
+              [&](const auto& candidate) { return candidate.name == name; });
+          return mesh == preview_character.meshes.end() ? std::string{}
+                                                        : mesh->parent;
+        };
+        for (const auto& mesh : preview_character.meshes) {
+          std::string ancestor = mesh.name;
+          bool hide = false;
+          for (int guard = 0; !ancestor.empty() && guard++ < 128;) {
+            const std::string candidate = normalize(ancestor);
+            hide = std::any_of(
+                variant->guitarist_hidden_roots.begin(),
+                variant->guitarist_hidden_roots.end(),
+                [&](const std::string& root) {
+                  return candidate == normalize(root);
+                });
+            if (hide) break;
+            ancestor = parent_of(ancestor);
+          }
+          if (hide) preview.renderer->set_object_showing(mesh.name, false);
+        }
       }
       preview.renderer->set_world_transform(placement_world);
       preview.renderer->set_use_scene_lighting(true);
@@ -2670,6 +3094,26 @@ void do_confirm(ScreenManager& mgr, int player_num = 0) {
   Object* comp_obj = comp.valid() ? mgr.resolve_object(comp) : nullptr;
   mgr.set_global(Symbol("component"),
                  comp_obj ? DataNode::Obj(comp_obj) : DataNode::Sym(comp));
+  if (comp == Symbol("ss_song.lst")) {
+    Object* provider = mgr.resolve_object(Symbol("song_provider"));
+    const int selected =
+        comp_obj
+            ? comp_obj->handle_property(Symbol("selected_pos"), DataArray())
+                  .as_int()
+                  .value_or(0)
+            : panel->get_property(Symbol("ss_song_selected"))
+                  .as_int()
+                  .value_or(0);
+    if (provider) {
+      DataArray active_args;
+      active_args.push(DataNode::Int(selected));
+      if (!node_bool(
+              provider->handle_property(Symbol("is_active"), active_args))) {
+        mgr.handle_property(Symbol("BAD_SELECT_START_MSG"), DataArray());
+        return;
+      }
+    }
+  }
   // A disabled component ignores SELECT (the original's disabled BandButton does
   // not fire its handler) — e.g. multiplayer when is_missing_multi_controller.
   if (comp.valid() && compute_disabled(mgr).count(comp.c_str())) {
@@ -5969,6 +6413,15 @@ bool adjust_focused_slider(ScreenManager& mgr, Object* panel, int dir) {
   return true;
 }
 
+constexpr int vertical_slider_delta(int navigation_direction) {
+  // A selected GH2 slider maps the vertical strum/D-pad axis onto its
+  // horizontal value: Up moves right/increases, Down moves left/decreases.
+  return -navigation_direction;
+}
+
+static_assert(vertical_slider_delta(-1) == 1);
+static_assert(vertical_slider_delta(1) == -1);
+
 bool cancel_focused_slider(ScreenManager& mgr, Object* panel) {
   Object* slider = focused_slider(mgr, panel);
   if (!slider || !slider_scroll_selected(slider)) return false;
@@ -6050,7 +6503,7 @@ void focus_move(ScreenManager& mgr, const std::vector<MenuLabel>& labels,
     panel->handle_property(Symbol("SCROLL_MSG"), DataArray());
     return;
   }
-  if (adjust_focused_slider(mgr, panel, dir)) return;
+  if (adjust_focused_slider(mgr, panel, vertical_slider_delta(dir))) return;
   for (size_t guard = 0; guard <= labels.size(); ++guard) {
     std::string next;
     if (dir > 0) {
@@ -6529,6 +6982,91 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   if (const char* start = std::getenv("GHOGX_MENU_START_SCREEN")) {
     Symbol start_screen(start);
     if (mgr.find_object(start_screen)) {
+      if (std::getenv("GHOGX_MENU_SEED_WON_CAMPAIGN")) {
+        if (Object* campaign = mgr.resolve_object(Symbol("campaign")))
+          campaign->set_property(Symbol("won_campaign"), DataNode::Int(1));
+        std::fprintf(stderr,
+                     "[menu] seeded diagnostic won_campaign=1\n");
+      }
+      if (const char* seeded_character =
+              std::getenv("GHOGX_MENU_SEED_CHARACTER")) {
+        const Symbol character(seeded_character);
+        const auto variants = db.character_variants(character);
+        if (!variants.empty()) {
+          const char* requested_outfit =
+              std::getenv("GHOGX_MENU_SEED_OUTFIT");
+          const auto selected =
+              requested_outfit
+                  ? std::find_if(
+                        variants.begin(), variants.end(),
+                        [&](const CharacterVariant& variant) {
+                          return variant.selection ==
+                                 Symbol(requested_outfit);
+                        })
+                  : variants.end();
+          const CharacterVariant& variant =
+              selected == variants.end() ? variants.front() : *selected;
+          if (Object* game = mgr.resolve_object(Symbol("game"))) {
+            DataArray args;
+            args.push(DataNode::Sym(variant.selection));
+            game->handle_property(Symbol("set_character"), args);
+            // Multiplayer owns a per-player configuration surface. Seed P1
+            // there as well so direct-start proofs exercise the same state
+            // that MultiCharSelPanel and gameplay consume.
+            DataArray player_args;
+            player_args.push(DataNode::Int(0));
+            if (Object* player =
+                    game->handle_property(Symbol("get_player_config"),
+                                          player_args)
+                        .as_object()) {
+              player->set_property(Symbol("character"),
+                                   DataNode::Sym(character));
+              player->set_property(Symbol("character_outfit"),
+                                   DataNode::Sym(variant.selection));
+              player->set_property(Symbol("outfit_index"), DataNode::Int(0));
+            }
+          }
+          std::fprintf(stderr,
+                       "[menu] seeded diagnostic character=%s outfit=%s\n",
+                       character.c_str(), variant.selection.c_str());
+        }
+      }
+      if (const char* seeded_character_p2 =
+              std::getenv("GHOGX_MENU_SEED_CHARACTER_P2")) {
+        const Symbol character(seeded_character_p2);
+        const auto variants = db.character_variants(character);
+        if (!variants.empty()) {
+          const char* requested_outfit =
+              std::getenv("GHOGX_MENU_SEED_OUTFIT_P2");
+          const auto selected =
+              requested_outfit
+                  ? std::find_if(
+                        variants.begin(), variants.end(),
+                        [&](const CharacterVariant& variant) {
+                          return variant.selection == Symbol(requested_outfit);
+                        })
+                  : variants.end();
+          const CharacterVariant& variant =
+              selected == variants.end() ? variants.front() : *selected;
+          if (Object* game = mgr.resolve_object(Symbol("game"))) {
+            DataArray player_args;
+            player_args.push(DataNode::Int(1));
+            if (Object* player =
+                    game->handle_property(Symbol("get_player_config"),
+                                          player_args)
+                        .as_object()) {
+              player->set_property(Symbol("character"),
+                                   DataNode::Sym(character));
+              player->set_property(Symbol("character_outfit"),
+                                   DataNode::Sym(variant.selection));
+              player->set_property(Symbol("outfit_index"), DataNode::Int(0));
+            }
+          }
+          std::fprintf(stderr,
+                       "[menu] seeded diagnostic P2 character=%s outfit=%s\n",
+                       character.c_str(), variant.selection.c_str());
+        }
+      }
       // unlock_venue_panel chooses unlockvenue<campaign-status>.milo while it
       // enters. The shipped sequence reaches it only after finish_song has
       // advanced status; status zero has no corresponding asset. Keep direct
@@ -7176,8 +7714,9 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     return 1;
   };
   auto set_selected_song = [&](std::size_t index) {
-    if (db.song_count() == 0) return;
-    index = std::min(index, db.song_count() - 1);
+    const std::vector<Symbol> songs = db.quickplay_songs();
+    if (songs.empty()) return;
+    index = std::min(index, songs.size() - 1);
     if (Object* list = mgr.resolve_object(Symbol("ss_song.lst")))
       list->handle_property(Symbol("set_selected"),
                             one_arg(DataNode::Int(static_cast<int>(index))));
@@ -7189,16 +7728,27 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                             one_arg(DataNode::Int(static_cast<int>(index))));
   };
   auto preferred_song_index = [&]() -> std::size_t {
-    if (options.preferred_song.empty()) return current_song_index();
-    for (std::size_t i = 0; i < db.song_count(); ++i) {
-      if (options.preferred_song == db.song_key(i).c_str()) return i;
+    const std::vector<Symbol> songs = db.quickplay_songs();
+    Object* game = mgr.resolve_object(Symbol("game"));
+    const Symbol current =
+        game ? symbol_value(game->get_property(Symbol("song"))) : Symbol();
+    const std::string wanted = options.preferred_song.empty()
+                                   ? std::string(current.c_str())
+                                   : options.preferred_song;
+    for (std::size_t i = 0; i < songs.size(); ++i) {
+      if (wanted == songs[i].c_str()) return i;
     }
-    return current_song_index();
+    return 0;
   };
   auto prepare_gameplay = [&]() -> bool {
-    const std::size_t index = current_song_index();
     Object* song_provider = mgr.resolve_object(Symbol("song_provider"));
     Object* game_config = mgr.resolve_object(Symbol("game"));
+    int provider_index =
+        game_config
+            ? game_config->handle_property(Symbol("get_song_index"), DataArray())
+                  .as_int()
+                  .value_or(0)
+            : 0;
     const Symbol game_mode =
         game_config
             ? symbol_value(game_config->get_property(Symbol("mode")))
@@ -7225,16 +7775,25 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                           ->handle_property(Symbol("get_quickplay"), DataArray())
                           .as_int()
                           .value_or(0) != 0;
-    Symbol song;
-    if (song_provider) {
+    Symbol song = game_config
+                      ? symbol_value(game_config->get_property(Symbol("song")))
+                      : Symbol();
+    if (!song.valid() && song_provider) {
       DataArray provider_args;
-      provider_args.push(DataNode::Int(static_cast<int>(index)));
+      provider_args.push(DataNode::Int(provider_index));
       song = symbol_value(
           song_provider->handle_property(Symbol("get_symbol"), provider_args));
     }
-    if (!song.valid()) song = db.song_key(index);
+    const int global_index = song.valid() ? db.song_index(song) : -1;
+    if (!song.valid() && db.song_count() > 0) {
+      const std::size_t fallback_index = current_song_index();
+      song = db.song_key(fallback_index);
+      provider_index = static_cast<int>(fallback_index);
+    }
     if (!song.valid()) {
-      std::fprintf(stderr, "[flow] no selected song at index %zu\n", index);
+      std::fprintf(stderr,
+                   "[flow] no selected song at provider index %d (db index %d)\n",
+                   provider_index, global_index);
       return false;
     }
     loaded_song = song.c_str();
@@ -7343,7 +7902,8 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         stderr,
         "[flow] selected song handoff: provider_index=%zu song=%s mode=%s "
         "venue=%s intro_category=%s\n",
-        index, loaded_song.c_str(), quickplay ? "quickplay" : "career",
+        static_cast<std::size_t>(std::max(0, provider_index)),
+        loaded_song.c_str(), quickplay ? "quickplay" : "career",
         selected_venue.valid() ? selected_venue.c_str() : "<song-quickplay>",
         encore ? "INTRO_ENCORE" : "INTRO");
     const Symbol selected_outfit =
@@ -7356,7 +7916,10 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       gameplay.set_selected_character_variant(
           variant->selection.c_str(), variant->model_path,
           variant->main_anim_path, variant->strum_anim_path,
-          variant->fret_anim_path, variant->highway_surface_path);
+          variant->fret_anim_path, variant->highway_surface_path,
+          variant->animation_source_model_path,
+          variant->retarget_animation,
+          variant->guitarist_hidden_roots);
       std::fprintf(
           stderr,
           "[flow] selected character handoff: character=%s variant=%s "
@@ -7376,7 +7939,9 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       gameplay.set_selected_bassist_character_variant(
           variant->selection.c_str(), variant->model_path,
           variant->main_anim_path, variant->strum_anim_path,
-          variant->fret_anim_path);
+          variant->fret_anim_path,
+          variant->animation_source_model_path,
+          variant->retarget_animation);
       std::fprintf(
           stderr,
           "[flow] selected co-op bassist handoff: character=%s variant=%s "
@@ -7386,6 +7951,19 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     } else {
       gameplay.set_selected_bassist_character_variant({}, {}, {}, {}, {});
     }
+    int sync_offset_ms = 0;
+    if (Object* runtime_options = mgr.resolve_object(Symbol("options"))) {
+      sync_offset_ms = runtime_options
+                           ->handle_property(Symbol("get_sync_offset"),
+                                             DataArray())
+                           .as_int()
+                           .value_or(0);
+    }
+    gameplay.set_sync_offset_ms(sync_offset_ms);
+    std::fprintf(stderr,
+                 "[flow] gameplay calibration: sync_offset_ms=%d "
+                 "audio_master=1 judgement_clock=audio+offset\n",
+                 gameplay.sync_offset_ms());
     if (!gameplay.load_song(gameplay_hdr, gameplay_ark, loaded_song,
                             loaded_difficulty)) {
       std::fprintf(stderr, "[flow] gameplay load failed: %s diff=%d\n",
@@ -7553,9 +8131,25 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       do_confirm(mgr);
       return true;
     }
-    if (screen == "endgame_stats_screen" || screen == "highscore_screen") {
+    if (screen == "endgame_stats_screen") {
       automated_screen = screen;
       do_confirm(mgr);
+      return true;
+    }
+    if (screen == "highscore_screen") {
+      Object* panel = mgr.find_object(Symbol("highscore_panel"));
+      const Symbol focus =
+          panel ? panel->get_property(Symbol("focus"))
+                      .as_symbol()
+                      .value_or(Symbol())
+                : Symbol();
+      Object* entry = focus.valid() ? mgr.resolve_object(focus) : nullptr;
+      automated_screen = screen;
+      if (entry && (entry->class_name() == Symbol("UITextEntry") ||
+                    entry->class_name() == Symbol("BandTextEntry")))
+        entry->handle_property(Symbol("send_select"), DataArray());
+      else
+        do_confirm(mgr);
       return true;
     }
     if (screen == "complete_screen") {
@@ -7968,6 +8562,14 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       shown = mgr.current_screen();
       screen_seconds = 0.0f;
       automated_screen.clear();
+      if (shown &&
+          (phase == RuntimePhase::Paused || phase == RuntimePhase::Menus) &&
+          screen_has_panel(shown, Symbol("world_panel"))) {
+        std::fprintf(stderr,
+                     "[flow] gameplay-backed menu: screen=%s "
+                     "source_panel=world_panel\n",
+                     shown->name().c_str());
+      }
       cur_labels = gather_labels(hdr, ark, mgr, shown);
       cur_disabled = compute_disabled(mgr);
       rebuild_scene(hdr, ark, mgr, shown, db, renderer);
@@ -8017,10 +8619,14 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                                        outgoing_renderer);
     renderer.update(dt);
     guitar_renderer.update(dt);
-    if (phase == RuntimePhase::Paused) {
+    const bool gameplay_backed_menu =
+        (phase == RuntimePhase::Paused) ||
+        (phase == RuntimePhase::Menus &&
+         screen_has_panel(shown, Symbol("world_panel")));
+    if (gameplay_backed_menu) {
       draw_gameplay(false);
       draw_menu_layers(renderer, guitar_renderer, guitar_visible,
-                       character_previews,
+                        character_previews,
                        /*clear_target=*/false);
     } else if (outgoing_transition_visible) {
       outgoing_renderer.update(dt);

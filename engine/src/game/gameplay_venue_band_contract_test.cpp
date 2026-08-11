@@ -77,6 +77,23 @@ bool appears_before(const std::string& haystack, const std::string& first,
   return false;
 }
 
+bool appears_before_after(const std::string& haystack,
+                          const std::string& anchor,
+                          const std::string& first,
+                          const std::string& second,
+                          const char* label) {
+  const size_t start = haystack.find(anchor);
+  const size_t a = start == std::string::npos
+                       ? std::string::npos
+                       : haystack.find(first, start + anchor.size());
+  const size_t b = start == std::string::npos
+                       ? std::string::npos
+                       : haystack.find(second, start + anchor.size());
+  if (a != std::string::npos && b != std::string::npos && a < b) return true;
+  std::cerr << "Broken venue/band anchored contract order: " << label << "\n";
+  return false;
+}
+
 std::string function_body(const std::string& source,
                           const std::string& function_name) {
   const size_t name_pos = source.find(function_name);
@@ -266,9 +283,8 @@ int main() {
                  "props[children[i].s]=children[i+1];",
                  "native TypeProps map each symbol root to its following value");
   ok &= contains(gameplay_c,
-                 "constautogh1_intro=camera_keys_.empty()?"
-                 "load_gh1_intro_camera_record(hdr_path_,ark_path_,"
-                 "quickplay_rig_->venue):std::nullopt;",
+                 "std::optional<Gh1VenueCameraRecord>gh1_intro;"
+                 "if(camera_keys_.empty()){if(require_native_assets_enabled())",
                  "native CamShot keys are authoritative over the legacy GH1 camera DTB fallback");
   ok &= contains(camshot_entity_c,
                  "if(name.find(\"key\")!=std::string_view::npos)"
@@ -412,8 +428,8 @@ int main() {
                  "state.main_beat_scale=2.0f;}",
                  "CHAR_COMMON tempo markers drive main.drv beat scale");
   ok &= contains(gameplay_c,
-                 "perf.active_player.set_speed("
-                 "midi_state.main_beat_scale);",
+                 "perf.active_player.set_speed(active_real_time?1.0f:"
+                 "authored_main_beat_scale);",
                  "performer active main driver applies traced beat scale");
   ok &= contains(read_file(std::filesystem::path(GHOGX_CHARACTER_SOURCE_DIR) /
                            "char_clip.h"),
@@ -453,7 +469,9 @@ int main() {
                  "std::stringtrack_surface_ref;",
                  "each loaded performer can carry its own resolved track surface");
   ok &= contains(gameplay_c,
-                 "highway_surface_ref_=ghogx::asset::"
+                 "selected_character_active&&"
+                 "!selected_character_highway_surface_path_.empty()?"
+                 "selected_character_highway_surface_path_:ghogx::asset::"
                  "resolve_track_surface_bitmap_path(",
                  "quickplay character outfit resolves the highway surface selection");
   ok &= contains(gameplay_c,
@@ -461,7 +479,9 @@ int main() {
                  "\"guitarist\");",
                  "guitarist performer loads are detected generically");
   ok &= contains(gameplay_c,
-                 "performer_highway_surface_ref=ghogx::asset::"
+                 "performer_highway_surface_ref=selected_variant&&"
+                 "!selected_character_highway_surface_path_.empty()?"
+                 "selected_character_highway_surface_path_:ghogx::asset::"
                  "resolve_track_surface_bitmap_path(",
                  "loaded guitarist performers resolve their highway surface during performer load");
   ok &= contains(gameplay_c,
@@ -469,30 +489,32 @@ int main() {
                  "performer_highway_surface_ref);",
                  "resolved guitarist surface is stored on the performer for future roles");
   ok &= contains(gameplay_c,
-                 "if(perf.role==\"guitarist0\"&&!perf.track_surface_ref.empty())"
-                 "{highway_surface_ref_=perf.track_surface_ref;}",
+                 "if(perf.role==\"guitarist0\"&&"
+                 "!perf.track_surface_ref.empty()){"
+                 "highway_surface_ref_=perf.track_surface_ref;"
+                 "highway_asset_hdr_path_=character_hdr_path;"
+                 "highway_asset_ark_path_=character_ark_path;}",
                  "current single-player highway follows the loaded guitarist0 surface");
   ok &= contains(gameplay_c,
-                 "highway_->load_textures(hdr_path_,ark_path_,"
-                 "highway_surface_ref_);",
+                 "highway_->load_textures(!highway_asset_hdr_path_.empty()?"
+                 "highway_asset_hdr_path_:",
                  "highway renderer loads the selected guitarist surface");
   ok &= contains(gameplay_c,
                  "if(!highway_->textures_loaded_for_surface("
                  "highway_surface_ref_)){highway_->load_textures("
-                 "hdr_path_,ark_path_,highway_surface_ref_);}",
+                 "!highway_asset_hdr_path_.empty()?highway_asset_hdr_path_:",
                  "gameplay reloads highway art when the selected guitarist surface changes");
   ok &= contains(gameplay_c,
-                 "if(perf.role==\"keyboard\"&&midi_state.marker.empty()){"
+                 "if((perf.role==\"keyboard\"||(perf.gh1_character_runtime&&"
+                 "!has_performer_track_events))&&midi_state.marker.empty()){"
                  "midi_state.playing=true;}",
                  "keyboard stays active when BAND KEYS has no current marker");
 
   ok &= contains(gameplay_c,
-                 "add_performer(\"bassist\",bass,bass,\"bass\","
-                 "\"start_bassist.way\",16u,{\"bassist_idle_medium_01\","
-                 "\"bassist_idle_medium_02\"},{\"bassist_intro\"},"
-                 "{\"bassist_active_medium_01\",\"bassist_active_medium_02\","
-                 "\"bassist_active_fast_01\",\"bassist_active_fast_02\"},"
-                 "bass_prop,\"bone_pos_gutbass.mesh\");",
+                 "conststd::stringbass_attach_bone="
+                 "selected_bassist_selection_.empty()?"
+                 "\"bone_pos_gutbass.mesh\":\"bone_pos_guitar.mesh\";"
+                 "add_performer(\"bassist\",bassist_character,",
                  "bassist uses bass graph, tempo candidates, and gut-bass prop attachment");
   ok &= contains(gameplay_h_c,
                  "std::stringprop_milo_ref;"
@@ -508,7 +530,8 @@ int main() {
                  "the authored instrument rule uses the decoded guitar mesh group ref");
   ok &= contains(gameplay_c,
                  "constboolattach_external_prop=!prop_milo.empty()&&"
-                 "!character_draws_authored_instrument(character);",
+                 "(!character_draws_authored_instrument(character)||"
+                 "external_bass_replacement);",
                  "an external quickplay prop is suppressed for self-contained character graphs");
   ok &= contains(gameplay_c,
                  "perf.prop_milo_ref=attach_external_prop?prop_milo:"
@@ -665,7 +688,7 @@ int main() {
                   "bad_gameplay_feedback_this_frame="
                   "update_gameplay_session_mirror("
                   "fret_mask,true,gameplay_session_already_ticked,"
-                  "live_whammy_axis);"
+                  "live_whammy_axis,input_judgement_time);"
                  "update_presentation_after_gameplay();"
                  "prev_fret_mask_=fret_mask;"
                  "prev_whammy_axis_=live_whammy_axis;"
@@ -676,7 +699,7 @@ int main() {
                         "bad_gameplay_feedback_this_frame="
                         "update_gameplay_session_mirror("
                         "fret_mask,true,gameplay_session_already_ticked,"
-                        "live_whammy_axis);",
+                        "live_whammy_axis,input_judgement_time);",
                        "constboolstrummed=",
                        "FoFiX session path bypasses the legacy local hit scanner");
   ok &= contains(app_main_c,
@@ -2078,10 +2101,10 @@ int main() {
                  "voidset_star_power_active_for_diagnostic(boolactive);",
                  "FoFiX session exposes a diagnostic active-star-power hook");
   ok &= contains(window_d3d9_c,
-                 "if(impl_->key_now['A'])gh|=(1u<<0);",
+                 "if(impl_->key_now['A'])keyboard_frets|=(1u<<0);",
                  "keyboard A maps to green fret as raw held guitar input");
   ok &= contains(window_d3d9_c,
-                 "if(impl_->key_now['G'])gh|=(1u<<4);",
+                 "if(impl_->key_now['G'])keyboard_frets|=(1u<<4);",
                  "keyboard G maps to orange fret as raw held guitar input");
   ok &= contains(window_d3d9_c,
                  "if(impl_->key_now[VK_SPACE]){"
@@ -4671,7 +4694,7 @@ int main() {
                  "star_collect_flash,miss_flash,"
                  "star_miss_flash,hit_phrase_state,"
                  "combo_multiplier,bad_feedback_flash,rock_fill,star_power_flash,"
-                 "surface_flash,track_intro_active);",
+                 "surface_flash,track_intro_active,track_intro_elapsed);",
                  "highway draw_over_scene preserves the already-rendered 3D venue");
   ok &= contains(highway_renderer_c,
                  "Mat4proj=Mat4::perspective_lh(kCamFov,aspect,cam_near_,"
@@ -4736,6 +4759,8 @@ int main() {
                         "log_profile();"
                         "return;}",
                         "mark_song_presentation_ready();"
+                        "if(venue_intro_active()){"
+                        "log_profile();return;}"
                         "profile_phase_start=profile_now();"
                         "highway_->draw_over_scene(song_time_,chart_,difficulty_,",
                        "3D venue path composites the playable highway before returning");
@@ -4753,7 +4778,7 @@ int main() {
                  "bad_highway_flash_,"
                  "fofix_rock_fill(rock_),"
                  "star_power_highway_flash_,multiplier_surface_flash_,"
-                 "track_intro_active_);",
+                 "track_intro_active_,track_intro_elapsed());",
                  "playable highway rendering is driven by live FoFiX star-power whammy miss multiplier bad-feedback rock star-event and surface-flash state");
   ok &= contains(gameplay_h_c,
                  "uint8_thit_phrase_state_[5]={};",
@@ -4941,7 +4966,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(perf.role==\"guitarist0\"){"
                  "constautostar_power_group=ghogx::character::load_clip_group("
-                 "hdr_path_,ark_path_,main_anim_milos,\"star_power\");",
+                 "animation_hdr_path,animation_ark_path,main_anim_milos,"
+                 "\"star_power\");",
                  "the player guitarist loads the authored star_power CharClipGroup from its main animation MILO");
   ok &= contains(gameplay_c,
                  "perf.last_star_power_activation_serial!="
@@ -4989,9 +5015,9 @@ int main() {
                   "kGh2WhammyTimeoutSeconds=0.5;",
                   "GH2 whammy earning uses the decoded motion timeout");
   ok &= contains(gameplay_c,
-                  "gameplay_session_mirror_->tick(song_time_,fret_mask,"
+                  "gameplay_session_mirror_->tick(judgement_time,fret_mask,"
                   "whammy_axis);",
-                  "live gameplay passes the filtered analog whammy axis into scoring");
+                  "live gameplay passes the calibrated judgment clock and filtered analog whammy axis into scoring");
   ok &= contains(gameplay_session_c,
                  "FoFiXSessionEventType::StarPowerWhammy",
                  "FoFiX whammy star-power gain emits a native session event");
@@ -5072,7 +5098,7 @@ int main() {
                  "FoFiX overstrum events drive native miss-lane feedback outside diagnostic autoplay");
   ok &= contains(gameplay_c,
                  "caseFoFiXSessionEventType::Miss:"
-                 "mark_source_group_consumed(event);"
+                 "mark_source_group_consumed(event,2);"
                  "if(diagnostic_autoplay_){"
                  "std::fprintf(stderr,"
                  "\"[gameplay]diagnosticautoplaysuppressedmisspresentation"
@@ -5099,12 +5125,11 @@ int main() {
                  "diagnostic character override is applied only after a songs.dtb rig is resolved");
   ok &= contains(gameplay_c,
                  "quickplay_rig_->character_outfit="
-                 "diagnostic_character_override_;",
+                 "std::move(character_override);",
                  "diagnostic character override feeds character and highway-surface loading");
   ok &= appears_before(gameplay_c,
                        "if(!diagnostic_character_override_.empty()){",
-                       "highway_surface_ref_=ghogx::asset::"
-                       "resolve_track_surface_bitmap_path(",
+                       "highway_surface_ref_=selected_character_active&&",
                        "diagnostic character override runs before highway surface resolution");
   ok &= contains(gameplay_h_c,
                  "voidset_diagnostic_venue_override(conststd::string&venue)",
@@ -5126,10 +5151,14 @@ int main() {
                  "std::stringdiagnostic_character_override_;",
                  "diagnostic character override is scoped to roster visual validation");
   ok &= contains(gameplay_c,
-                 "diagnosticcharacteroverride:%s->%s",
+                 "[world]diagnosticcharacteroverride:%s->%s",
                  "diagnostic character override logs stock and substituted guitarist outfit");
   ok &= contains(gameplay_c,
-                 "quickplay_rig_->character_outfit=diagnostic_character_override_;",
+                 "diagnostic_character_archive_id_.empty()?\"<automatic>\":"
+                 "diagnostic_character_archive_id_.c_str()",
+                 "diagnostic character override logs its selected source archive");
+  ok &= contains(gameplay_c,
+                 "quickplay_rig_->character_outfit=std::move(character_override);",
                  "diagnostic character override feeds the shared performer loader");
   ok &= contains(gameplay_h_c,
                  "voidset_diagnostic_guitar_override(conststd::string&guitar)",
@@ -5177,10 +5206,21 @@ int main() {
       gameplay_c,
       "constdoublesource_queue_local_frame="
       "diagnostic_camera_shot_matched?diagnostic_camera_path_offset_frames_:0.0;"
-      "if(diagnostic_camera_shot_matched){"
+      "if(diagnostic_camera_shot_continuous_hold){"
+      "std::fprintf(stderr,"
+      "\"[world]diagnosticcamerashothold:requested=%sactual=%s"
+      "result=continue_current_without_mNextShot\\n\""
+      ",diagnostic_camera_shot_.c_str(),key->name.c_str());}"
+      "elseif(diagnostic_camera_shot_matched){"
       "force_camera_shot_like_source(*key,source_handler,"
       "source_queue_local_frame);}",
-      "diagnostic forced camera queues the requested source local path-frame through CameraManager::ForceCameraShot");
+      "diagnostic camera queues the requested source local path-frame once and then holds the current shot without repeated ForceCameraShot restarts");
+  ok &= contains(
+      gameplay_c,
+      "diagnostic_camera_shot_continuous_hold="
+      "pending_regular_camera_.empty()&&"
+      "active_regular_camera_==key->name;",
+      "diagnostic camera hold is limited to an already-current requested shot with no pending source transition");
   ok &= contains(gameplay_c,
                  "pending_regular_camera_start_=camera_source_start_time_for_local_frame("
                  "key,song_time_,pending_regular_camera_local_frame_,&chart_);",
@@ -5248,7 +5288,10 @@ int main() {
                  ":VenueScriptStep::Kind::AnimateEnv;",
                  "RndDir $this animate commands split from property EnvAnim steps");
   ok &= contains(gameplay_h_c,
-                 "AnimateObject,SetObjectShowing,StopObjectAnimation,",
+                 "AnimateObject,AnimateTo,AnimTask,SwitchAnim,"
+                 "SetObjectShowing,SetNamedObjectShowing,"
+                 "SetSingerEnvironment,AddTransformChild,SetFlareSteps,"
+                 "UnhookAnimParents,RemoveAnim,StopObjectAnimation,",
                  "venue script runtime has RndDir object animation/show/stop steps");
   ok &= contains(gameplay_c,
                  "collect_object_handlers(\"ObjectDir\");"
@@ -5553,11 +5596,12 @@ int main() {
                  "GH1 View7 identity survives the shared Group representation");
   ok &= contains(
       gameplay_c,
-      "if(group.anim_children.empty()&&!group.legacy_view)continue",
+      "group.legacy_view?group.anim_children:"
+      "(group.anim_children.empty()?group.children:group.anim_children)",
       "source-null GH1 Views remain distinguishable from absent animation routes");
   ok &= contains(
       gameplay_c,
-      "resolvedsource-nullViewanimationno-op",
+      "group.legacy_view?group.anim_children",
       "empty GH1 View7 animation vectors resolve as authored SetFrame no-ops");
   ok &= appears_before(gameplay_c,
                        "update_venue_script_tasks();",
@@ -5627,6 +5671,7 @@ int main() {
                  "note consumption ledger stays aligned with active difficulty notes");
   ok &= contains(gameplay_c,
                  "if(i<consumed.size())consumed[i]=1;"
+                 "if(i<note_results.size())note_results[i]=1;"
                  "apply_venue_event(player_fret_hit_event(n.lane),false);",
                  "player fret venue events consume the source note once");
   ok &= contains(gameplay_c,
@@ -5741,7 +5786,7 @@ int main() {
                  "pick_mesh_state);",
                  "venue inspector pick ray uses the current mesh draw world and renderability state");
   ok &= contains(renderer_c,
-                 "if(debug_highlighted_mesh)returnD3DCULL_NONE;",
+                 "if(debug_highlighted_mesh||!material_cull)returnkCullNone;",
                  "venue inspector highlight forces selected meshes two-sided");
   ok &= contains(renderer_c,
                  "venue-freecam]pickmesh=%smaterial=%sdist=%.2f",
@@ -6711,17 +6756,18 @@ int main() {
                  "(combined_revision>>16)&0xffff);",
                  "Cam decoder stores source RndCam revision metadata for gameplay provenance");
   ok &= contains(decode_cam_c,
-                 "if(version>10)r.skip(kObjMeta);",
+                 "if(version>10)read_object_fields(r);",
                  "GH2 Cam decoder consumes source object metadata before Trans");
   ok &= contains(decode_cam_c,
-                 "constuint32_ttrans_revision=r.u32();",
+                 "constTransFieldstrans=read_trans_block("
+                 "r,false,parent_dir_revision);",
                  "Cam decoder reads embedded RndTrans revision in source order");
   ok &= contains(decode_cam_c,
                  "c.trans_revision=static_cast<uint16_t>("
-                 "trans_revision&0xffff);",
+                 "parent_dir_revision<24?8:9);",
                  "Cam decoder stores embedded RndTrans revision metadata");
   ok &= contains(decode_cam_c,
-                 "c.local=r.matrix();c.world_stored=r.matrix();",
+                 "c.local=trans.local;c.world_stored=trans.world;",
                  "Cam decoder reads embedded RndTrans matrices in source order");
   ok &= contains(decode_cam_c,
                  "c.near_plane=r.f32();c.far_plane=r.f32();c.fov=r.f32();",
@@ -6884,7 +6930,9 @@ int main() {
                  "part.parent,false,&part.trans_revision);",
                  "ParticleSys decoder reads the source RndTransformable block");
   ok &= contains(milo_scene_cpp_c,
-                 "part.draw_revision=read_rnd_drawable_source_layout("
+                 "part.draw_revision=low_revision(r.u32());"
+                 "r.pos-=sizeof(uint32_t);"
+                 "(void)read_rnd_drawable_source_layout("
                  "r,part.showing,part.draw_order);",
                  "ParticleSys decoder reads the source RndDrawable block");
   ok &= contains(milo_scene_cpp_c,
@@ -7020,10 +7068,10 @@ int main() {
                  "part.end_color_high=read_color();",
                  "ParticleSys decoder reads source end color high in source order");
   ok &= contains(milo_scene_cpp_c,
-                 "part.life_min_frames=std::max(1.0f,life[0]);",
+                 "part.life_min_frames=std::max(1.0f,std::min(life[0],life[1]));",
                  "ParticleSys decoder reads source life before box extents");
   ok &= contains(milo_scene_cpp_c,
-                 "part.speed_min=std::max(0.0f,speed[0]);",
+                 "part.speed_min=std::max(0.0f,std::min(speed[0],speed[1]));",
                  "ParticleSys decoder reads source speed after box extents");
   ok &= contains(milo_scene_cpp_c,
                  "part.start_size_min=std::max(0.0f,start_size[0]);",
@@ -7432,7 +7480,8 @@ int main() {
                  "lighting overlay loads authored lighting MILO particle routes");
   ok &= contains(gameplay_c,
                  "lighting_event_anim_filters_=load_venue_anim_filters("
-                 "hdr_path_,ark_path_,lighting_milo,lighting_scene);",
+                 "hdr_path_,ark_path_,lighting_milo,lighting_scene,"
+                 "&lighting_direct_anim_filters_);",
                  "lighting overlay loads authored lighting MILO transform routes");
   ok &= contains(gameplay_c,
                  "lighting_event_group_visibility_=load_venue_group_visibility("
@@ -8319,7 +8368,7 @@ int main() {
                  "regular gameplay cameras use CamShot::SetFrame nullFrame fallback instead of a native previous-shot sweep");
   ok &= appears_before(gameplay_c,
                        "start_camera_shot_runtime(camera_keys_.front());",
-                       "apply_camera_keys(world_->camera(),camera_keys_,",
+                       "std::vector<CameraKey>selected_intro_camera=",
                        "intro cameras enter StartAnim before evaluating source-shaped camera rows");
   ok &= absent(gameplay_c,
                "apply_camera_crowd_visibility(visibility_key);",
@@ -8537,7 +8586,6 @@ int main() {
                "constexpruint32_tkDefaultExcitement=2;",
                "lighting preset selection must not hardcode okay excitement");
   ok &= contains(gameplay_c,
-                 "if(!legacy_gh1_venue_script_){"
                  "if(source_game_lost_camera_dispatched_||failed_){"
                  "lighting_request.category=\"LOSE\";",
                  "GH2 failure presentation selects the authored LOSE lighting category");
@@ -8779,7 +8827,9 @@ int main() {
                  "profile_phase_start=profile_now();"
                  "draw_venue_proxy_objects(world_->camera());"
                  "if(profile_draw)profile_proxy+=profile_elapsed(profile_phase_start);"
+                 "profile_phase_start=profile_now();"
                  "draw_worldcrowd_actor_runtime(world_->camera());"
+                 "if(profile_draw)profile_crowd+=profile_elapsed(profile_phase_start);"
                  "worldcrowd_drawn=true;",
                  "native RndDir/proxy update and scene draw happen before the crowd and late overlay draw");
   ok &= contains(gameplay_c,
@@ -8806,6 +8856,8 @@ int main() {
                  "decoded scenes retain Light entries alongside spotlights");
   ok &= contains(milo_scene_h_c,
                  "structEnvironObj{std::stringname;uint16_trevision=0;"
+                 "boollegacy_drawable_showing=true;"
+                 "std::vector<std::string>legacy_drawable_refs;"
                  "std::vector<std::string>lights;"
                  "floatcolor_a[4]="
                  "{1.0f,1.0f,1.0f,1.0f};floatfog_start=0.0f;",
@@ -8831,8 +8883,11 @@ int main() {
                  "boolsort_in_world=false;",
                  "decoded Groups retain source sort-in-world state");
   ok &= contains(milo_scene_h_c,
-                 "booluse_environ=false;boolprelit=false;",
+                 "booluse_environ=true;",
                  "decoded materials retain environment/prelit flags");
+  ok &= contains(milo_scene_h_c,
+                 "boolprelit=false;",
+                 "decoded materials retain the source prelit flag independently");
   ok &= contains(milo_scene_h_c,
                  "boolpoint_lights=false;",
                  "decoded materials retain authored point-light intent separately from use_environ");
@@ -9437,7 +9492,9 @@ int main() {
                  "constbooldisable_mesh_lighting=debug_spotlight_solid||",
                  "debug spotlight solid remains in the lighting bypass path");
   ok &= contains(renderer_c,
-                 "constboolprelit_lighting_bypass=prelit_material;",
+                 "constboolprelit_lighting_bypass="
+                 "source_material_bypasses_fixed_lighting("
+                 "prelit_material,mat_obj&&mat_obj->use_environ);",
                  "decoded prelit materials use the source light-channel bypass by default");
   ok &= absent(renderer_c,
                "GHOGX_ENABLE_PRELIT_LIGHTING_BYPASS",
@@ -9446,16 +9503,16 @@ int main() {
                  "||prelit_lighting_bypass;",
                  "prelit materials share the fixed-lighting disable path");
   ok &= contains(renderer_c,
-                 "if(prelit_lighting_bypass&&has_mesh_env_color)",
-                 "prelit use-environ path keeps EnvAnim color after fixed lighting is disabled");
+                 "returnprelit&&!use_environment;",
+                 "prelit use-environ materials retain the source environment light channel");
   ok &= contains(renderer_c,
-                 "mr*=std::clamp(mesh_env_color[0],0.0f,4.0f);",
-                 "prelit use-environ path folds authored environment RGB into diffuse color");
+                 "mesh_ambient=D3DCOLOR_XRGB(cc_env(mesh_env_color[0]),",
+                 "prelit use-environ path feeds authored environment RGB through ambient lighting");
   ok &= absent(renderer_c,
                "ma*=std::clamp(mesh_env_color[3]",
                "RndEnviron ambient alpha is not folded into material opacity");
   ok &= contains(renderer_c,
-                 "RndEnviron::SetAmbientColorcopiesonlyred/green/blue",
+                 "Nativekeepsanenvironmentlightchannelactiveforprelitmaterials",
                  "renderer documents the source contract separating environment ambient color from material alpha");
   ok &= contains(renderer_c,
                  "prelitmaterialdisablesfixedlighting",
@@ -11057,11 +11114,16 @@ int main() {
                  "size_tpath_source_added_frames=0;"
                  "size_tpath_source_translation_keys=0;"
                  "size_tpath_source_rotation_keys=0;"
-                 "size_tpath_source_scale_keys=0;"
+                 "size_tpath_source_scale_keys=0;",
+                 "CameraKey preserves source RndTransAnim key-page counts");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<CameraKey>path_source_translation_page;"
+                 "std::vector<CameraKey>path_source_rotation_page;"
+                 "std::vector<CameraKey>path_source_scale_page;"
                  "floatpath_source_start_frame=0.0f;"
                  "floatpath_source_end_frame=0.0f;"
                  "boolhas_path_source_frame_summary=false;",
-                 "CameraKey preserves source RndTransAnim key-page frame summary and page counts");
+                 "CameraKey preserves source RndTransAnim pages and frame summary");
   ok &= contains(gameplay_h_c,
                  "boolpath_trans_spline=false;"
                  "boolpath_repeat_trans=false;"
@@ -11418,6 +11480,19 @@ int main() {
                  "pos.path_scale[axis]=scale[axis];"
                  "pos.has_path_scale=true;",
                  "path-backed camera positions sample source RndTransAnim scale keys");
+  ok &= contains(gameplay_c,
+                 "out.front().path_source_translation_page=resolved.trans_keys;"
+                 "out.front().path_source_rotation_page=resolved.rot_keys;"
+                 "out.front().path_source_scale_page=resolved.scale_keys;",
+                 "path-backed cameras retain the original decoded RndTransAnim key pages");
+  ok &= contains(gameplay_c,
+                 "c.key.path_source_translation_page=std::move("
+                 "path_positions.front().path_source_translation_page);"
+                 "c.key.path_source_rotation_page=std::move("
+                 "path_positions.front().path_source_rotation_page);"
+                 "c.key.path_source_scale_page=std::move("
+                 "path_positions.front().path_source_scale_page);",
+                 "regular CamShots own the decoded path pages without duplicating them across sampled positions");
   ok &= contains(gameplay_c,
                  "c.key.path_source_translation_keys="
                  "c.key.positions.front().path_source_translation_keys;"
@@ -12322,7 +12397,7 @@ int main() {
                  "gameplay advances active CharClipGroup through source GetClip");
   ok &= contains(gameplay_c,
                  "constchar*clip_source_path(constghogx::character::"
-                 "CharClip&clip){returnclip.source_milo_path.empty()?"
+                 "CharClip&clip){return!clip.loaded||clip.source_milo_path.empty()?"
                  "\"<none>\":clip.source_milo_path.c_str();}",
                  "gameplay exposes concrete source animation MILO paths for performer proof logs");
   ok &= contains(gameplay_c,
@@ -12343,7 +12418,7 @@ int main() {
                  "performer band-jump logs include concrete source clip MILOs");
   ok &= contains(gameplay_c,
                  "active_group=ghogx::character::load_clip_group("
-                 "hdr_path_,ark_path_,main_anim_milos,\"normal\");",
+                 "animation_hdr_path,animation_ark_path,main_anim_milos,\"normal\");",
                  "guitarist normal group loads full source CharClipGroup state");
   ok &= contains(gameplay_c,
                  "perf.active_group_which=active_group.which;",
@@ -12442,7 +12517,7 @@ int main() {
                  "material->color[0]*impl.color_mod[0]",
                  "character renderer applies color modulation to material diffuse colors");
   ok &= contains(char_renderer_c,
-                 "constfloatmat_r=prop_material?prop_material->color[0]:1.0f;",
+                 "floatmat_r=prop_material?prop_material->color[0]:1.0f;",
                  "attached performer props retain original MILO material diffuse color");
   ok &= contains(char_renderer_c,
                  "constboolprop_prelit=prop_material&&prop_material->prelit;",
@@ -12457,11 +12532,13 @@ int main() {
                  "color_byte(mat_r*src_r*impl.color_mod[0])",
                  "attached performer props combine source material/prelit color with active venue-light modulation");
   ok &= contains(char_renderer_c,
-                 "D3DRS_DIFFUSEMATERIALSOURCE,D3DMCS_COLOR1",
-                 "character renderer routes vertex diffuse modulation through fixed-function lighting");
+                 "D3DRS_DIFFUSEMATERIALSOURCE,impl.proof_lighting?"
+                 "D3DMCS_MATERIAL:D3DMCS_COLOR1",
+                 "character renderer routes vertex diffuse modulation through fixed-function lighting outside proof mode");
   ok &= contains(char_renderer_c,
-                 "D3DRS_AMBIENTMATERIALSOURCE,D3DMCS_COLOR1",
-                 "character renderer routes vertex ambient modulation through fixed-function lighting");
+                 "D3DRS_AMBIENTMATERIALSOURCE,impl.proof_lighting?"
+                 "D3DMCS_MATERIAL:D3DMCS_COLOR1",
+                 "character renderer routes vertex ambient modulation through fixed-function lighting outside proof mode");
   ok &= contains(char_renderer_c,
                  "if(!impl.use_scene_lighting){",
                  "scene-lighting character composites do not install standalone viewer lights");
@@ -12634,8 +12711,8 @@ int main() {
                        "perf.renderer->draw_over_scene(world_->camera());",
                        "performer lighting is refreshed before the band is drawn");
   ok &= contains(gameplay_c,
-                 "world_->apply_environment_lighting_state("
-                 "perf.lighting_environment_ref);",
+                 "environment_owner->apply_environment_lighting_state("
+                 "performer_environment);",
                  "performers draw under their resolved source environment");
   ok &= contains(gameplay_c,
                  "drum_kit_->set_environment_color_overrides("
@@ -12659,9 +12736,10 @@ int main() {
                  "drum_kit_->set_mesh_transform_offsets("
                  "venue_mesh_transform_offsets_);",
                  "drum kit receives live LightPreset animated light transforms");
-  ok &= appears_before(gameplay_c,
-                       "world_->apply_environment_lighting_state("
-                       "perf.lighting_environment_ref);",
+  ok &= appears_before_after(gameplay_c,
+                       "for(auto&perf:performers_){",
+                       "environment_owner->apply_environment_lighting_state("
+                       "performer_environment);",
                        "perf.renderer->draw_over_scene(world_->camera());",
                        "performer source Environ lighting is applied before each band draw");
   ok &= contains(update_worldcrowd_lighting_c,
@@ -12739,7 +12817,10 @@ int main() {
                  "profile_phase_start=profile_now();"
                  "draw_venue_proxy_objects(world_->camera());"
                  "if(profile_draw)profile_proxy+=profile_elapsed(profile_phase_start);"
-                 "draw_worldcrowd_actor_runtime(world_->camera());",
+                 "profile_phase_start=profile_now();"
+                 "draw_worldcrowd_actor_runtime(world_->camera());"
+                 "if(profile_draw)profile_crowd+=profile_elapsed(profile_phase_start);"
+                 "worldcrowd_drawn=true;",
                  "WorldCrowd actors draw after active lighting preset/keyframe selection and before the lighting overlay");
   ok &= appears_before(gameplay_c,
                        "drum_kit_->draw_over_scene(world_->camera());",
@@ -14141,6 +14222,44 @@ int main() {
                  "shot,song_time,start_time,chart);",
                  "path-backed CamShots are clocked by CameraManager CalcFrame source timing");
   ok &= contains(gameplay_c,
+                 "constboolhas_source_pages="
+                 "!shot.path_source_translation_page.empty()||"
+                 "!shot.path_source_rotation_page.empty()||"
+                 "!shot.path_source_scale_page.empty();",
+                 "path-backed CamShots prefer their original decoded RndTransAnim pages");
+  ok &= contains(gameplay_c,
+                 "constautoeye=sample_rnd_transanim_trans_keys("
+                 "shot.path_source_translation_page,authored_frame,"
+                 "shot.path_trans_spline,shot.path_repeat_trans);",
+                 "live flyby translation evaluates the decoded source page with authored spline and repeat flags");
+  ok &= contains(gameplay_c,
+                 "constautoquat=sample_rnd_transanim_rot_keys("
+                 "shot.path_source_rotation_page,authored_frame,"
+                 "shot.path_rot_slerp);",
+                 "live flyby rotation evaluates the decoded source page with its authored quaternion mode");
+  ok &= contains(gameplay_c,
+                 "sampled.source_path_authored_frame=authored_frame;"
+                 "sampled.frame=now_frame;"
+                 "sampled.source_path_submitted_frame=now_frame;"
+                 "sampled.has_source_path_frame_mapping=true;",
+                 "direct path evaluation submits the current source frame without adding cross-shot smoothing");
+  ok &= contains(gameplay_c,
+                 "populate_camera_generated_source_rows(sampled);",
+                 "live RndTransAnim samples refresh the CamShot solver rows instead of retaining the first path knot");
+  ok &= contains(gameplay_c,
+                 "[world]cameraRndTransAnimlivesample:"
+                 "shot=%spath=%slocal_frame=%.3fauthored_frame=%.3f"
+                 "submitted_frame=%.3fsource_pages=trans:%zurot:%zuscale:%zu",
+                 "runtime diagnostics expose direct live evaluation of the decoded RndTransAnim pages");
+  ok &= contains(gameplay_c,
+                 "runtime_eval=decoded_source_key_pages"
+                 "native_extra_smoothing=0cross_shot_blend=0"
+                 "target_cache_identity=path",
+                 "flyby diagnostics distinguish source-page evaluation from fabricated smoothing");
+  ok &= contains(gameplay_c,
+                 "identity+=\":path@\"+canonical_milo_ref(key.path_anim);",
+                 "continuous path samples retain one source target-cache identity");
+  ok &= contains(gameplay_c,
                  "constfloatauthored_frame=key.frame;",
                  "path-backed CamShots retain the authored TransAnim key frame before source-timed rebasing");
   ok &= contains(gameplay_c,
@@ -14898,14 +15017,16 @@ int main() {
                  "refs_decoded=%dtarget_ref_count=%zu",
                  "camera load logs do not report decoded empty target lists as target refs");
   ok &= contains(gameplay_c,
-                 "key.hide_crowd=intro_camera.hide_crowd;",
-                 "intro TransAnim camera keys inherit selected hide_crowd");
+                 "key.hide_crowd=gh1_intro?gh1_intro->hide_crowd:"
+                 "intro_camera.hide_crowd;",
+                 "intro TransAnim camera keys inherit source-specific hide_crowd");
   ok &= contains(gameplay_c,
                  "key.crowd_face_camera=intro_camera.crowd_face_camera;",
                  "intro TransAnim camera keys inherit selected crowd_face_camera");
   ok &= contains(gameplay_c,
-                 "key.force_char_lod=intro_camera.force_char_lod;",
-                 "intro TransAnim camera keys inherit selected force_char_lod");
+                 "key.force_char_lod=gh1_intro?gh1_intro->force_char_lod:"
+                 "intro_camera.force_char_lod;",
+                 "intro TransAnim camera keys inherit source-specific force_char_lod");
   ok &= contains(gameplay_c,
                  "key.ps3_per_pixel=intro_camera.ps3_per_pixel;",
                  "intro TransAnim camera keys inherit selected ps3_per_pixel");
@@ -14938,9 +15059,10 @@ int main() {
                  "constCharacter&character,constSkinnedMesh&mesh,intmin_lod)",
                  "character renderer selects meshes through authored LOD groups");
   ok &= contains(char_renderer_c,
-                 "if(min_lod>=1&&has_lod1){return!"
-                 "character_group_contains_mesh(character,\"lod1.grp\",mesh.name);}",
-                 "forced LOD1 draws only decoded lod1.grp members");
+                 "constautoactive=source_character_active_lod_view(character,min_lod);"
+                 "if(!active)returnfalse;"
+                 "if(character_group_contains_mesh(character,*active,mesh.name)){returnfalse;}",
+                 "forced character LOD selects the source-declared active LOD group");
   ok &= contains(char_renderer_c,
                  "constintclamped=std::max(0,min_lod);",
                  "negative CamShot LOD resets to high-detail character meshes");
@@ -14969,7 +15091,7 @@ int main() {
                  "source_walking=%dsource_walking_gate=%s"
                  "source_starpower=%dsource_starpower_gate=%s"
                  "flags=0x%08xforced=%dchanged=%dsource_next=%d"
-                 "force_char_lod=%d",
+                 "diagnostic_hold=%dforce_char_lod=%d",
                  "regular camera sweep logs source matcher provenance, pending source shot state, and selected character LOD");
   ok &= contains(gameplay_c,
                  "\"[world]introcameraflags:shot=%sanim=%skeys=%zu"
@@ -15100,7 +15222,7 @@ int main() {
                  "if(de.type!=\"CamShot\"||de.offset+de.size>payload.size())"
                  "continue;",
                  "intro GH2 camera selector decodes only stock CamShot bodies");
-  ok &= contains(camera_position_loader_c,
+  ok &= contains(gameplay_c,
                  "if(de.type!=\"CamShot\"||de.name!=shot_name||"
                  "de.offset+de.size>payload.size()){continue;}",
                  "direct intro GH2 camera pose loader decodes only the named stock CamShot body");
@@ -15362,23 +15484,18 @@ int main() {
                  "cam.distance=std::clamp(span*0.65f,175.0f,320.0f);",
                  "gameplay backing camera keeps the 3D band readable behind the highway");
   ok &= contains(gameplay_c,
-                 "choose_venue_floor_focus(\"main_hall.2_bounds_floor_focus\")",
-                 "gameplay backing camera can frame the decoded RedOctane audience-floor slice");
+                 "constexprstd::string_viewkFloorFocusSuffix="
+                 "\"_bounds_floor_focus\";for(constauto&[name,target_world]:"
+                 "venue_targets){",
+                 "gameplay backing camera discovers decoded floor-focus targets without venue-name assumptions");
   ok &= contains(gameplay_c,
-                 "choose_venue_floor_focus(\"main_hall.2_bounds_centroid\")",
-                 "gameplay backing camera uses decoded audience-floor mesh bounds before transform origins");
+                 "if(!venue_floor_focus){venue_floor_focus="
+                 "venue_target_point(\"crowd_group_centroid\");",
+                 "gameplay backing camera falls back to the decoded crowd centroid only after floor-focus discovery");
   ok &= contains(gameplay_c,
-                 "venue_floor_focus_name.find(\"_bounds_floor_focus\")",
+                 "venue_floor_focus_name.find(\"_bounds_floor_focus\")"
+                 "!=std::string::npos;",
                  "gameplay backing camera applies the floor-focused full-venue framing path");
-  ok &= contains(gameplay_c,
-                 "choose_venue_floor_focus(\"main_hall.2.mesh\")",
-                 "gameplay backing camera can frame decoded venue audience-floor mesh targets");
-  ok &= contains(gameplay_c,
-                 "choose_venue_floor_focus(\"bottomfloorrug.mesh\")",
-                 "gameplay backing camera uses RedOctane's authored foreground floor target");
-  ok &= contains(gameplay_c,
-                 "choose_venue_floor_focus(\"crowd_group_centroid\")",
-                 "gameplay backing camera only falls back to crowd centroid after real floor meshes");
   ok &= contains(gameplay_c,
                  "cam.distance=std::clamp(span*1.15f,360.0f,420.0f);",
                  "venue-floor backing camera pulls far enough back to validate the audience floor");
@@ -15523,7 +15640,8 @@ int main() {
                  "unselected crowd placements remain in the source flat-impostor path");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "runtime.renderer->refresh_worldcrowd_impostor("
-                 "cam,source_character_world,source_height)",
+                 "cam,source_character_world,source_height,"
+                 "[&](constghogx::render::OrbitCamera&impostor_camera)",
                  "WorldCrowd refreshes each actor impostor from the live scene camera and source crowd transform");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "if(flat_rotate_to_camera_by_set[key]){"
@@ -15550,7 +15668,9 @@ int main() {
                  "boolrefresh_worldcrowd_impostor("
                  "constghogx::render::OrbitCamera&scene_cam,"
                  "conststd::array<float,16>&source_character_world,"
-                 "floatsource_character_height);",
+                 "floatsource_character_height,"
+                 "conststd::function<void(constghogx::render::OrbitCamera&)>&"
+                 "draw_attached={});",
                  "character renderer exposes the source live-impostor refresh contract");
   ok &= contains(char_renderer_h_c,
                  "draw_worldcrowd_impostors_over_scene(",
@@ -17187,13 +17307,17 @@ int main() {
                  "CameraManager::Poll"
                  "native_bridge=LightPreset_poll_before_venue_proxy_update_before_scene_draw",
                  "regular camera runtime proof exposes the ihatecompvir WorldDir LightPreset/RndDir source order bridge");
-  ok &= appears_before(gameplay_draw_c,
-                       "update_lighting_preset_env_light_state();",
-                       "update_venue_proxy_objects();",
-                       "WorldDir source order keeps LightPreset polling before native RndDir/proxy update");
-  ok &= appears_before(gameplay_draw_c, "update_venue_proxy_objects();",
-                       "world_->draw();",
-                       "native RndDir/proxy update happens before scene draw");
+  ok &= appears_before_after(
+      gameplay_c,
+      "constboollate_lighting_overlay=late_lighting_overlay_enabled();",
+      "update_lighting_preset_env_light_state();",
+      "update_venue_proxy_objects();",
+      "WorldDir source order keeps LightPreset polling before native RndDir/proxy update");
+  ok &= appears_before_after(
+      gameplay_c,
+      "constboollate_lighting_overlay=late_lighting_overlay_enabled();",
+      "update_venue_proxy_objects();", "world_->draw();",
+      "native RndDir/proxy update happens before scene draw");
   ok &= contains(gameplay_c,
                  "camera_camshot_getkey_looping,"
                  "camera_frame_pair_timing,"
@@ -18579,7 +18703,8 @@ int main() {
                  "uint32_tlast_band_jump_tick=UINT32_MAX;",
                  "band_jump dispatch is deduped per authored event tick");
   ok &= contains(gameplay_c,
-                 "load_char_clip_group(hdr_path_,ark_path_,main_anim_milos,"
+                 "load_char_clip_group(animation_hdr_path,animation_ark_path,"
+                 "main_anim_milos,"
                  "\"sync_jump\");",
                  "performer band_jump first honors the traced sync_jump group");
   ok &= contains(gameplay_c,

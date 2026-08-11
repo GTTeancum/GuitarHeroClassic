@@ -15411,3 +15411,107 @@ GH2 PS2 retail layout, and native theatre validation):
   `proofs/gh1-native-conversion-parity/formation-transform-contract/`.
   This closes performer start formation only, not matched retail posing,
   animation, cameras, lighting, or prop behavior.
+- 2026-08-08 authored flyby path-continuity closure:
+  Path-backed CamShots had retained merged `RndTransAnim` inspection samples,
+  but runtime playback interpolated between those samples after the original
+  translation/rotation/scale pages had been discarded. That was not equivalent
+  to `RndTransAnim::SetFrame`: spline translation and quaternion interpolation
+  were flattened into the generic camera-row blend, producing visible velocity
+  and orientation changes at authored knots. `CameraKey` now retains the three
+  decoded source pages on the owning CamShot, and `regular_camera_path_keys`
+  evaluates them at the live `CameraManager::CalcFrame` with decoded
+  `trans_spline`, `repeat_trans`, `scale_spline`, and `rot_slerp` flags. The
+  resulting single live transform uses a stable path-owned target-cache
+  identity. This does not smooth between CamShots, alter selection, replace
+  authored cuts, or claim the still-hidden full `CamShotFrame::BuildTransform`
+  body. A hidden input-free Arena `intro02` probe reports
+  `source_pages=trans:99 rot:9 scale:1`,
+  `runtime_eval=decoded_source_key_pages`, `native_extra_smoothing=0`,
+  `cross_shot_blend=0`, exits zero, and ends `failed=0`.
+- 2026-08-09 live-path solver-row correction:
+  The first visible proof disproved the 2026-08-08 closure: decoded source-page
+  samples advanced, but `CameraKey::generated_source_*` still belonged to the
+  first serialized path knot copied before evaluation. The later
+  CamShotFrame-style target/BuildTransform route consumes those rows, so the
+  submitted camera stayed static. `regular_camera_path_keys` now calls
+  `populate_camera_generated_source_rows` after sampling translation, rotation,
+  and scale. This is the same per-frame transform that
+  `RndTransAnim::SetFrame` supplies to the CamShot `pathXfm`; it introduces no
+  cross-shot blend or venue-specific coordinates. Bounded
+  `GHOGX_DEBUG_CAMERA_MOTION` evidence shows the evaluated and final submitted
+  positions match at every sampled second from local frame 0 through 210.5.
+  A logging-disabled deployed live run used the reusable deferred-window proof
+  path, revealed after its first rendered frame without activation, completed
+  600 frames at 59.025 steady FPS, and exited zero. Evidence:
+  `proofs/runtime-camera-flyby-20260809/PROOF.md`.
+- 2026-08-09 diagnostic same-shot restart correction:
+  The subsequent full visible proof invalidated the claimed transition
+  closure even though the decoded path and solver rows moved continuously.
+  A bounded camera-manager trace identified four `intro02 -> intro02` picks at
+  beat states 36, 52, 64, and 68. The diagnostic shot-name override was calling
+  `ForceCameraShot` again on every ordinary source pick; source-correct
+  `PrePoll` therefore consumed the same shot as `mNextShot`, called
+  `StartShot_`, and reset `CameraManager::CalcFrame` to the diagnostic offset.
+  The diagnostic override now queues its requested decoded shot only when
+  entering it and otherwise holds an already-current requested shot when no
+  pending transition exists. This does not change normal selection, authored
+  cuts, or the real same-shot `ForceCameraShot` restart contract. A fresh
+  visible, input-free deployed run crossed two eligible repicks with two hold
+  records, zero same-shot `PrePoll` restarts, monotonically advancing submitted
+  source frames, 59.224 steady FPS, and exit zero. User visual acceptance stays
+  open in `TO_DO.MD`.
+
+## 2026-08-09 Release runtime gate closure
+
+### Problem
+
+Two broad source contracts had drifted from the implemented source-shaped
+runtime, the stock combined lag value stopped at the menu object instead of
+affecting scoring, and the accepted converted GH1 female singer was not part of
+the playable roster.
+
+### Source facts
+
+- Stock `LagPanel` negates `options get_sync_offset` on entry and negates its
+  panel value again on `options set_sync_offset` at exit. The persisted option
+  is therefore the signed judgment-clock correction: a negative value moves
+  judgment earlier to compensate physically late input.
+- Audio is the gameplay master/presentation clock. Calibration changes input
+  comparison time, not music playback, chart time, animation time, or camera
+  time; the decoded 100 ms hit window is independent.
+- The accepted female-singer proof uses the converted
+  `char/female_singer/og` model and Judy Nails' `char/alterna/anims/gen`
+  guitarist animation owner. Campaign completion already has one durable
+  source-facing fact, `won_campaign`.
+
+### Systemic implementation
+
+- `Gameplay` consumes `audio_time + sync_offset_ms / 1000` for both the FoFiX
+  session and legacy comparison path. The value defaults to zero, clamps to
+  +/-500 ms, persists in `GHOGX_PROFILE_V2`, and is ignored by diagnostic
+  autoplay so proof automation remains aligned to the audio clock.
+- `config/playable_character_variants.tsv` declares project-owned playable
+  conversions by exact model owner, animation owner, label, chronology, and
+  unlock requirement. Overlay generation validates those owners against the
+  merged archive; generic provider availability evaluates `won_campaign`.
+  There is no female-singer name branch in runtime code.
+- The gameplay/venue and ihatecompvir inventory gates now assert current
+  factual ownership and routing instead of obsolete literal wording.
+
+### Automated proof
+
+- Full Release build: 183/183 steps.
+- Full CTest: 86/86 passed in 107.00 seconds.
+- Calibration rules prove zero preservation, both +/-75 ms directions, late
+  input compensation, and an unchanged 100 ms hit window.
+- The two-process audit reloads `sync_offset=-73` exactly.
+- The deployed catalog reports 12 characters and 34 variants; the female
+  singer is hidden before campaign completion, visible afterward, and resolves
+  both declared owners exactly.
+
+### Remaining review
+
+Real guitar/display/audio calibration certification and the planned separate
+audio/video calibration menu remain open. The corrected authored camera flyby
+also remains open for user visual acceptance; its automated hold/restart ledger
+does not substitute for that review.
