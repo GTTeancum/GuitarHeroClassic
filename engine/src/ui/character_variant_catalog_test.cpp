@@ -578,11 +578,11 @@ int main(int argc, char** argv) {
                           6, "ui", midori_models) ||
         !expect_clip_bank(
             hdr, ark0,
-            "char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2", 11,
+            "char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2", 23,
             "strum", midori_models) ||
         !expect_clip_bank(hdr, ark0,
-                          "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2",
-                          15, "fret", midori_models)) {
+                           "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2",
+                           36, "fret", midori_models)) {
       return 1;
     }
   }
