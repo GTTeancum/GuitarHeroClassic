@@ -233,6 +233,130 @@ std::array<float, 12> invert_affine_transform(
     return result;
 }
 
+std::array<float, 12> multiply_affine_transform(
+    const std::array<float, 12>& left,
+    const std::array<float, 12>& right) {
+    std::array<float, 12> result{};
+    for (size_t r = 0; r < 3; ++r) {
+        for (size_t c = 0; c < 3; ++c) {
+            result[r * 3 + c] =
+                left[r * 3] * right[c] +
+                left[r * 3 + 1] * right[3 + c] +
+                left[r * 3 + 2] * right[6 + c];
+        }
+    }
+    for (size_t c = 0; c < 3; ++c) {
+        result[9 + c] =
+            left[9] * right[c] +
+            left[10] * right[3 + c] +
+            left[11] * right[6 + c] +
+            right[9 + c];
+    }
+    return result;
+}
+
+bool load_trans_by_base_name(
+    const gh::milo::Directory& directory,
+    const std::string& name,
+    gh::milo_object::Trans9& trans) {
+    const std::string base = channel_base_name(name);
+    for (const auto& entry : directory.entries) {
+        if (entry.type != "Trans") continue;
+        if (channel_base_name(entry.name) != base) continue;
+        trans = gh::milo_object::parse_trans9(entry.body_bytes);
+        return true;
+    }
+    return false;
+}
+
+void remove_trans_by_base_names(
+    gh::milo::Directory& directory,
+    const std::set<std::string>& bases) {
+    directory.entries.erase(
+        std::remove_if(
+            directory.entries.begin(), directory.entries.end(),
+            [&](const gh::milo::Entry& entry) {
+                return entry.type == "Trans" &&
+                       bases.find(channel_base_name(entry.name)) !=
+                           bases.end();
+            }),
+        directory.entries.end());
+}
+
+gh::milo_object::Trans9 make_child_trans(
+    const std::string& parent,
+    const std::array<float, 12>& local,
+    const std::array<float, 12>& parent_world) {
+    gh::milo_object::Trans9 trans;
+    trans.local = local;
+    trans.world = multiply_affine_transform(local, parent_world);
+    trans.parent = parent;
+    return trans;
+}
+
+void append_trans(
+    gh::milo::Directory& directory,
+    const std::string& name,
+    const gh::milo_object::Trans9& trans) {
+    directory.entries.push_back(make_entry(
+        "Trans", name, gh::milo_object::serialize_trans9(trans)));
+}
+
+size_t patch_guitarist_proxy_transforms(
+    gh::milo::Directory& directory) {
+    gh::milo_object::Trans9 guitar;
+    if (!load_trans_by_base_name(directory, "bone_pos_guitar.mesh", guitar))
+        throw std::runtime_error(
+            "patch-guitarist-proxies: missing bone_pos_guitar.mesh");
+
+    gh::milo_object::Trans9 existing_fret_hand;
+    gh::milo_object::Trans9 existing_strum_hand;
+    const bool has_fret_hand =
+        load_trans_by_base_name(directory, "bone_fret_hand.mesh",
+                                existing_fret_hand);
+    const bool has_strum_hand =
+        load_trans_by_base_name(directory, "bone_strum_hand.mesh",
+                                existing_strum_hand);
+
+    remove_trans_by_base_names(
+        directory,
+        {"bone_fret", "bone_strum", "bone_fret_hand", "bone_strum_hand"});
+
+    const std::array<float, 12> fret_local = {
+        0.999139f, -0.001143f, 0.0414729f,
+        0.00131021f, 0.999991f, -0.00400718f,
+        -0.041468f, 0.00405813f, 0.999132f,
+        4.32514f, 0.30534f, 26.9909f};
+    const std::array<float, 12> strum_local = {
+        0.0821322f, 0.996588f, 0.00808181f,
+        -0.996429f, 0.082273f, -0.0189768f,
+        -0.019577f, -0.00649437f, 0.999787f,
+        4.62285f, 0.270739f, 4.74301f};
+
+    const auto fret = make_child_trans(
+        "bone_pos_guitar.mesh", fret_local, guitar.world);
+    const auto strum = make_child_trans(
+        "bone_pos_guitar.mesh", strum_local, guitar.world);
+
+    auto fret_hand = existing_fret_hand;
+    if (!has_fret_hand) set_identity(fret_hand.world);
+    fret_hand.parent = "bone_fret.mesh";
+    fret_hand.local = multiply_affine_transform(
+        fret_hand.world, invert_affine_transform(fret.world));
+
+    auto strum_hand = existing_strum_hand;
+    if (!has_strum_hand) set_identity(strum_hand.world);
+    strum_hand.parent = "bone_strum.mesh";
+    strum_hand.local = multiply_affine_transform(
+        strum_hand.world, invert_affine_transform(strum.world));
+
+    append_trans(directory, "bone_fret.mesh", fret);
+    append_trans(directory, "bone_strum.mesh", strum);
+    append_trans(directory, "bone_fret_hand.mesh", fret_hand);
+    append_trans(directory, "bone_strum_hand.mesh", strum_hand);
+    return 4;
+}
+
 struct BinaryCursor {
     explicit BinaryCursor(std::vector<uint8_t> bytes)
         : bytes(std::move(bytes)) {}
@@ -639,6 +763,8 @@ void usage() {
            "<clip> <sample-index> [channel-filter]\n"
         << "  milo_convert_tool inspect-character <GH2.milo_ps2> "
            "[--controllers] [--transforms]\n"
+        << "  milo_convert_tool patch-guitarist-proxies <GH2.milo_ps2> "
+           "--out <patched.milo_ps2>\n"
         << "  milo_convert_tool inspect-groups <GH2.milo_ps2>\n"
         << "  milo_convert_tool inspect-skeleton <GH1.rnd_ps2> [--all]\n"
         << "  milo_convert_tool extract-entry <MILO> <type> <name> "
@@ -733,6 +859,50 @@ int main(int argc, char** argv) {
                       << " name=" << found->name
                       << " bytes=" << found->body_bytes.size()
                       << " output=" << argv[6] << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
+    if (command == "patch-guitarist-proxies") {
+        try {
+            if (argc != 5 || std::string(argv[3]) != "--out")
+                usage();
+            const fs::path output = argv[4];
+            const auto container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            auto directory = gh::milo::parse_directory(
+                gh::milo::container_payload(container));
+            const size_t patched =
+                patch_guitarist_proxy_transforms(directory);
+            const auto target_payload =
+                gh::milo::serialize_directory(directory);
+            const auto verify_directory =
+                gh::milo::parse_directory(target_payload);
+            if (!verify_directory.boundaries_exact ||
+                gh::milo::serialize_directory(verify_directory) !=
+                    target_payload)
+                throw std::runtime_error(
+                    "patched guitarist proxy directory round trip differs");
+            const auto target_bytes =
+                serialize_generated_milo(target_payload);
+            const auto verify_container =
+                gh::milo::parse_container(target_bytes);
+            const auto verify_container_directory =
+                gh::milo::parse_directory(
+                    gh::milo::container_payload(verify_container));
+            if (!verify_container_directory.boundaries_exact ||
+                gh::milo::serialize_directory(
+                    verify_container_directory) != target_payload)
+                throw std::runtime_error(
+                    "patched guitarist proxy container round trip differs");
+            write_file(output, target_bytes);
+            std::cout
+                << "patched_guitarist_proxies=" << patched
+                << " entries=" << directory.entries.size()
+                << " bytes=" << target_bytes.size()
+                << " output=" << output.string() << '\n';
             return 0;
         } catch (const std::exception& ex) {
             std::cerr << "milo_convert_tool: " << ex.what() << "\n";

@@ -43102,6 +43102,29 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 auto facefx_graph = ghogx::character::load_facefx_graph(
                     character_hdr_path, character_ark_path,
                     char_milo, character);
+                auto selected_driver_milo_for =
+                    [&](const std::string& driver_name) {
+                        if (!selected_variant || !selected_retarget_animation)
+                            return std::string{};
+                        if (driver_name == "main.drv")
+                            return selected_main_anim_path;
+                        if (driver_name == "right_hand.drv")
+                            return selected_strum_anim_path;
+                        if (driver_name == "left_hand.drv")
+                            return selected_fret_anim_path;
+                        return std::string{};
+                    };
+                auto prioritize_selected_driver_milo =
+                    [&](const std::string& driver_name,
+                        std::vector<std::string>& milos) {
+                        const std::string selected_driver_milo =
+                            selected_driver_milo_for(driver_name);
+                        if (selected_driver_milo.empty()) return;
+                        milos.erase(std::remove(milos.begin(), milos.end(),
+                                                selected_driver_milo),
+                                    milos.end());
+                        milos.insert(milos.begin(), selected_driver_milo);
+                    };
                 auto load_driver_clip_first =
                     [&](ghogx::character::CharClip& out,
                         const std::string& driver_name,
@@ -43117,9 +43140,11 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             if (driver.name != driver_name ||
                                 driver.clip_milo.empty())
                                 continue;
-                            for (const auto& candidate :
-                                 driver_milo_candidates_game(
-                                     animation_char_milo, driver.clip_milo)) {
+                            auto candidates = driver_milo_candidates_game(
+                                animation_char_milo, driver.clip_milo);
+                            prioritize_selected_driver_milo(driver_name,
+                                                            candidates);
+                            for (const auto& candidate : candidates) {
                                 if (load_clip_first(out, animation_hdr_path,
                                                     animation_ark_path,
                                                     candidate, native_names)) {
@@ -43139,9 +43164,11 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             if (driver.name != driver_name ||
                                 driver.clip_milo.empty())
                                 continue;
-                            for (const auto& candidate :
-                                 driver_milo_candidates_game(
-                                     animation_char_milo, driver.clip_milo)) {
+                            auto candidates = driver_milo_candidates_game(
+                                animation_char_milo, driver.clip_milo);
+                            prioritize_selected_driver_milo(driver_name,
+                                                            candidates);
+                            for (const auto& candidate : candidates) {
                                 if (load_clip_first(out, animation_hdr_path,
                                                     animation_ark_path,
                                                     candidate, native_names)) {
@@ -43165,22 +43192,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             }
                         }
                     }
-                    std::string selected_driver_milo;
-                    if (selected_variant && selected_retarget_animation) {
-                        if (driver_name == "main.drv") {
-                            selected_driver_milo = selected_main_anim_path;
-                        } else if (driver_name == "right_hand.drv") {
-                            selected_driver_milo = selected_strum_anim_path;
-                        } else if (driver_name == "left_hand.drv") {
-                            selected_driver_milo = selected_fret_anim_path;
-                        }
-                    }
-                    if (!selected_driver_milo.empty()) {
-                        milos.erase(std::remove(milos.begin(), milos.end(),
-                                                selected_driver_milo),
-                                    milos.end());
-                        milos.insert(milos.begin(), selected_driver_milo);
-                    }
+                    prioritize_selected_driver_milo(driver_name, milos);
                     return milos;
                 };
                 auto textures = ghogx::asset::load_milo_textures(
