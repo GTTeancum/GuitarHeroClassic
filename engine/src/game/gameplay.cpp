@@ -33,6 +33,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <tuple>
 #include <unordered_map>
@@ -3462,12 +3463,44 @@ std::array<float, 3> mat4_xform_point_game(
     };
 }
 
+std::string short_left_hand_metric_name(std::string_view name) {
+    auto starts_with = [](std::string_view value, std::string_view prefix) {
+        return value.size() >= prefix.size() &&
+               value.substr(0, prefix.size()) == prefix;
+    };
+    auto ends_with = [](std::string_view value, std::string_view suffix) {
+        return value.size() >= suffix.size() &&
+               value.substr(value.size() - suffix.size()) == suffix;
+    };
+    if (ends_with(name, ".mesh")) name.remove_suffix(5);
+    if (starts_with(name, "bone_L-")) name.remove_prefix(7);
+    if (starts_with(name, "spot_neck_")) name.remove_prefix(10);
+    if (starts_with(name, "fret0")) name.remove_prefix(4);
+    if (starts_with(name, "fret")) name.remove_prefix(4);
+    if (name == "middlefinger03") return "middle03";
+    if (name == "middlefinger02") return "middle02";
+    if (name == "middlefinger01") return "middle01";
+    if (name == "ringfinger03") return "ring03";
+    if (name == "ringfinger02") return "ring02";
+    if (name == "ringfinger01") return "ring01";
+    return std::string(name);
+}
+
+float vec3_distance_game(const std::array<float, 3>& a,
+                         const std::array<float, 3>& b) {
+    const float dx = a[0] - b[0];
+    const float dy = a[1] - b[1];
+    const float dz = a[2] - b[2];
+    return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
 void dump_left_hand_prop_contact_rows(
     const ghogx::character::Character& character, std::string_view role,
     std::string_view phase, double song_time, uint32_t tick, uint32_t mask,
     const std::array<float, 16>* performer_world,
     const std::array<float, 16>* guitar_strings_world,
-    const std::string* active_fret_spot) {
+    const std::string* active_fret_spot,
+    const std::array<float, 16>* active_fret_prop_world) {
     if (!debug_left_hand_contact_enabled() || !performer_world ||
         !guitar_strings_world) {
         return;
@@ -3512,13 +3545,32 @@ void dump_left_hand_prop_contact_rows(
                  (*guitar_strings_world)[8], (*guitar_strings_world)[9],
                  (*guitar_strings_world)[10]);
 
+    std::optional<std::array<float, 3>> active_spot_local;
+    const char* active_spot_exact = nullptr;
     if (active_fret_spot && !active_fret_spot->empty()) {
-        const auto* spot = find_hand_pose_bone(character, active_fret_spot->c_str());
-        if (spot) {
+        if (active_fret_prop_world) {
+            const auto local = mat4_xform_point_game(
+                inv_strings, mat4_pos_game(*active_fret_prop_world));
+            active_spot_local = local;
+            active_spot_exact = active_fret_spot->c_str();
+            std::fprintf(stderr,
+                         "[hand-active-fret-prop] phase=%.*s role=%.*s "
+                         "t=%.3f tick=%u mask=0x%02x spot=%s source=prop "
+                         "stringsLocal=(%.5f %.5f %.5f)\n",
+                         static_cast<int>(phase.size()), phase.data(),
+                         static_cast<int>(role.size()), role.data(),
+                         song_time, tick, mask & 0x1fu,
+                         active_fret_spot->c_str(), local[0], local[1],
+                         local[2]);
+        } else if (const auto* spot =
+                       find_hand_pose_bone(character,
+                                           active_fret_spot->c_str())) {
             const auto spot_world = character.bone_world_local_chain(spot->name);
             const auto spot_pos = mat4_pos_game(spot_world);
             const auto staged = mat4_xform_point_game(*performer_world, spot_pos);
             const auto local = mat4_xform_point_game(inv_strings, staged);
+            active_spot_local = local;
+            active_spot_exact = spot->name.c_str();
             std::fprintf(stderr,
                          "[hand-active-fret-prop] phase=%.*s role=%.*s "
                          "t=%.3f tick=%u mask=0x%02x spot=%s exact=%s "
@@ -3542,6 +3594,9 @@ void dump_left_hand_prop_contact_rows(
         }
     }
 
+    float nearest_distance = std::numeric_limits<float>::max();
+    std::array<float, 3> nearest_delta{0.0f, 0.0f, 0.0f};
+    const char* nearest_point_name = nullptr;
     for (const char* point_name : kPoints) {
         const auto* point = find_hand_pose_bone(character, point_name);
         if (!point) continue;
@@ -3559,6 +3614,25 @@ void dump_left_hand_prop_contact_rows(
                      tick, mask & 0x1fu, point_name, point->name.c_str(),
                      local[0], local[1], local[2], staged[0], staged[1],
                      staged[2]);
+        if (active_spot_local) {
+            const float distance = vec3_distance_game(local, *active_spot_local);
+            if (distance < nearest_distance) {
+                nearest_distance = distance;
+                nearest_delta = {local[0] - (*active_spot_local)[0],
+                                 local[1] - (*active_spot_local)[1],
+                                 local[2] - (*active_spot_local)[2]};
+                nearest_point_name = point->name.c_str();
+            }
+        }
+    }
+    if (active_spot_local && nearest_point_name && active_spot_exact) {
+        const std::string point = short_left_hand_metric_name(nearest_point_name);
+        const std::string spot = short_left_hand_metric_name(active_spot_exact);
+        std::fprintf(stderr,
+                     "[lhm] t=%.3f m=%02x p=%s s=%s d=%.4f xyz=%.4f,%.4f,%.4f\n",
+                     song_time, mask & 0x1fu, point.c_str(), spot.c_str(),
+                     nearest_distance, nearest_delta[0], nearest_delta[1],
+                     nearest_delta[2]);
     }
 }
 
@@ -3655,7 +3729,8 @@ void dump_hand_pose_rows(const ghogx::character::Character& character,
                          const std::vector<std::string>& fret_clips,
                          const std::array<float, 16>* performer_world,
                          const std::array<float, 16>* guitar_strings_world,
-                         const std::string* active_fret_spot) {
+                         const std::string* active_fret_spot,
+                         const std::array<float, 16>* active_fret_prop_world) {
     const bool dump_rows = debug_hand_pose_rows_enabled();
     const bool dump_contact = debug_left_hand_contact_enabled();
     if (!dump_rows && !dump_contact) return;
@@ -3681,7 +3756,8 @@ void dump_hand_pose_rows(const ghogx::character::Character& character,
         dump_left_hand_prop_contact_rows(character, role, phase, song_time,
                                          tick, mask, performer_world,
                                          guitar_strings_world,
-                                         active_fret_spot);
+                                         active_fret_spot,
+                                         active_fret_prop_world);
     }
     if (!dump_rows) return;
 
@@ -47957,13 +48033,19 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         : std::nullopt;
                 const std::string* active_fret_spot =
                     perf_fret_pos.active ? &perf_fret_pos.spot_name : nullptr;
+                const auto active_fret_prop_world =
+                    (perf.renderer && active_fret_spot)
+                        ? perf.renderer->attached_prop_world(*active_fret_spot)
+                        : std::nullopt;
                 dump_hand_pose_rows(
                     character, perf.role, "postcontrollers", song_time_,
                     debug_hand_tick, debug_hand_mask,
                     perf.active_strum_clip_names, perf.active_fret_clip_names,
                     &perf.world_transform,
                     guitar_strings_world ? &*guitar_strings_world : nullptr,
-                    active_fret_spot);
+                    active_fret_spot,
+                    active_fret_prop_world ? &*active_fret_prop_world
+                                           : nullptr);
             }
             // GH1 singer faces consume the authored DataEventList produced by
             // guitar-track MIDI pitch 108. Retail stores list times in beats,
