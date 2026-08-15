@@ -536,7 +536,13 @@ int main(int argc, char** argv) {
         midori_rows.front().strum_anim_path !=
             "char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2" ||
         midori_rows.front().fret_anim_path !=
-            "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2") {
+            "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2" ||
+        midori_rows.front().animation_source_model_path !=
+            "char/glam1/og/gen/glam1.milo_ps2" ||
+        !midori_rows.front().retarget_animation ||
+        midori_rows.back().animation_source_model_path !=
+            "char/glam1/og/gen/glam1.milo_ps2" ||
+        !midori_rows.back().retarget_animation) {
       std::fprintf(stderr,
                    "FAIL GH3 Midori DLC character rows are not mounted\n");
       return 1;

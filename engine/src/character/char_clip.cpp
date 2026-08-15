@@ -11522,13 +11522,84 @@ ExternalRetargetGraphAudit install_external_retarget_controller_graph(
                 std::isfinite(out.local.z);
     return out;
   };
+  auto apply_external_hand_correction = [&](const CharIKHand& source_ik,
+                                            CharIKHand& target_ik) {
+    if (!target_ik.orientation) return;
+    std::array<float, 16> source_hand_world{};
+    std::array<float, 16> target_hand_world{};
+    if (!transform_local_chain_world(source_character, source_ik.hand,
+                                     source_hand_world) ||
+        !transform_local_chain_world(target_character, target_ik.hand,
+                                     target_hand_world)) {
+      return;
+    }
+    const auto source_hand_bind = normalized_world_rotation(source_hand_world);
+    const auto target_hand_bind = normalized_world_rotation(target_hand_world);
+    const auto correction = mat4_mul(
+        target_hand_bind, transpose_world_rotation(source_hand_bind));
+    for (int r = 0; r < 3; ++r)
+      for (int c = 0; c < 3; ++c)
+        target_ik.external_retarget_orientation[r][c] =
+            correction[r * 4 + c];
+    target_ik.external_retarget_orientation_correction = true;
+    ++audit.orientation_corrected_ik_hands;
+
+    const HandContactCentroid source_contact =
+        hand_contact_centroid(source_character, source_ik.hand);
+    const HandContactCentroid target_contact =
+        hand_contact_centroid(target_character, target_ik.hand);
+    const bool fret_grip_target =
+        channel_matches_bone(target_ik.target, "bone_fret_hand.mesh");
+    if (fret_grip_target && source_contact.found && target_contact.found) {
+      target_ik.external_retarget_contact_correction = true;
+      target_ik.external_retarget_source_contact[0] = source_contact.local.x;
+      target_ik.external_retarget_source_contact[1] = source_contact.local.y;
+      target_ik.external_retarget_source_contact[2] = source_contact.local.z;
+      target_ik.external_retarget_target_contact[0] = target_contact.local.x;
+      target_ik.external_retarget_target_contact[1] = target_contact.local.y;
+      target_ik.external_retarget_target_contact[2] = target_contact.local.z;
+      ++audit.contact_corrected_ik_hands;
+      if (debug_ik_enabled()) {
+        std::fprintf(
+            stderr,
+            "[retarget-hand-contact] hand=%s source=(%.5f %.5f %.5f) "
+            "target=(%.5f %.5f %.5f) sourceMeshes=%zu sourceVerts=%zu "
+            "targetMeshes=%zu targetVerts=%zu\n",
+            target_ik.hand.c_str(), source_contact.local.x,
+            source_contact.local.y, source_contact.local.z,
+            target_contact.local.x, target_contact.local.y,
+            target_contact.local.z, source_contact.meshes,
+            source_contact.vertices, target_contact.meshes,
+            target_contact.vertices);
+      }
+    }
+  };
+  auto accumulate_attachment_reach = [&](const CharIKHand& source_ik,
+                                         const CharIKHand& target_ik) {
+    const std::string attachment_root =
+        attachment_proxy_root(target_ik.target);
+    if (attachment_root.empty()) return;
+    float source_reach = 0.0f;
+    float target_reach = 0.0f;
+    if (!arm_reach(source_character, source_ik.hand, source_reach) ||
+        !arm_reach(target_character, target_ik.hand, target_reach)) {
+      return;
+    }
+    auto& ratio = attachment_reach_ratios[attachment_root];
+    ratio.first += target_reach / source_reach;
+    ++ratio.second;
+  };
   for (const auto& source_ik : source_character.ik_hands) {
-    const bool target_already_owns_hand = std::any_of(
+    const auto target_owned_hand = std::find_if(
         target_character.ik_hands.begin(), target_character.ik_hands.end(),
         [&](const CharIKHand& target_ik) {
           return channel_matches_bone(target_ik.hand, source_ik.hand);
         });
-    if (target_already_owns_hand) {
+    if (target_owned_hand != target_character.ik_hands.end()) {
+      apply_external_hand_correction(source_ik, *target_owned_hand);
+      accumulate_attachment_reach(source_ik, *target_owned_hand);
+      if (!target_owned_hand->weight_prop.empty())
+        installed_weight_props.insert(target_owned_hand->weight_prop);
       ++audit.retained_target_ik_hands;
       continue;
     }
@@ -11555,60 +11626,8 @@ ExternalRetargetGraphAudit install_external_retarget_controller_graph(
     }
     if (!installed.weight_prop.empty())
       installed_weight_props.insert(installed.weight_prop);
-    if (installed.orientation) {
-      const auto source_hand_bind = normalized_world_rotation(
-          source_character.bone_world_local_chain(source_ik.hand));
-      const auto target_hand_bind = normalized_world_rotation(
-          target_character.bone_world_local_chain(installed.hand));
-      const auto correction = mat4_mul(
-          target_hand_bind, transpose_world_rotation(source_hand_bind));
-      for (int r = 0; r < 3; ++r)
-        for (int c = 0; c < 3; ++c)
-          installed.external_retarget_orientation[r][c] =
-              correction[r * 4 + c];
-      installed.external_retarget_orientation_correction = true;
-      ++audit.orientation_corrected_ik_hands;
-      const HandContactCentroid source_contact =
-          hand_contact_centroid(source_character, source_ik.hand);
-      const HandContactCentroid target_contact =
-          hand_contact_centroid(target_character, installed.hand);
-      const bool fret_grip_target =
-          channel_matches_bone(installed.target, "bone_fret_hand.mesh");
-      if (fret_grip_target && source_contact.found && target_contact.found) {
-        installed.external_retarget_contact_correction = true;
-        installed.external_retarget_source_contact[0] = source_contact.local.x;
-        installed.external_retarget_source_contact[1] = source_contact.local.y;
-        installed.external_retarget_source_contact[2] = source_contact.local.z;
-        installed.external_retarget_target_contact[0] = target_contact.local.x;
-        installed.external_retarget_target_contact[1] = target_contact.local.y;
-        installed.external_retarget_target_contact[2] = target_contact.local.z;
-        ++audit.contact_corrected_ik_hands;
-        if (debug_ik_enabled()) {
-          std::fprintf(
-              stderr,
-              "[retarget-hand-contact] hand=%s source=(%.5f %.5f %.5f) "
-              "target=(%.5f %.5f %.5f) sourceMeshes=%zu sourceVerts=%zu "
-              "targetMeshes=%zu targetVerts=%zu\n",
-              installed.hand.c_str(), source_contact.local.x,
-              source_contact.local.y, source_contact.local.z,
-              target_contact.local.x, target_contact.local.y,
-              target_contact.local.z, source_contact.meshes,
-              source_contact.vertices, target_contact.meshes,
-              target_contact.vertices);
-        }
-      }
-    }
-    float source_reach = 0.0f;
-    float target_reach = 0.0f;
-    const std::string attachment_root =
-        attachment_proxy_root(installed.target);
-    if (!attachment_root.empty() &&
-        arm_reach(source_character, source_ik.hand, source_reach) &&
-        arm_reach(target_character, installed.hand, target_reach)) {
-      auto& ratio = attachment_reach_ratios[attachment_root];
-      ratio.first += target_reach / source_reach;
-      ++ratio.second;
-    }
+    apply_external_hand_correction(source_ik, installed);
+    accumulate_attachment_reach(source_ik, installed);
     target_character.ik_hands.push_back(std::move(installed));
     ++audit.installed_ik_hands;
   }

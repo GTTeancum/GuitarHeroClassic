@@ -1854,6 +1854,9 @@ bool expect_clip_driver_helpers() {
   retarget_graph_target.attached_prop_transform_proxies.emplace(
       retarget_fret_target.name, retarget_fret_target);
   retarget_graph_target.drivers.push_back(retarget_main_driver);
+  ghogx::character::Character retarget_owned_graph_target =
+      retarget_graph_target;
+  retarget_owned_graph_target.ik_hands.push_back(retarget_left_ik);
   const auto retarget_graph_audit =
       ghogx::character::install_external_retarget_controller_graph(
           retarget_graph_source, retarget_graph_target);
@@ -1895,6 +1898,42 @@ bool expect_clip_driver_helpers() {
                  .bind_local.pos[0],
              9.6f)) {
     std::cerr << "external retarget graph did not install factual hand semantics\n";
+    ok = false;
+  }
+  const auto retained_graph_audit =
+      ghogx::character::install_external_retarget_controller_graph(
+          retarget_graph_source, retarget_owned_graph_target);
+  if (retained_graph_audit.retained_target_ik_hands != 1 ||
+      retained_graph_audit.installed_ik_hands != 0 ||
+      retained_graph_audit.skipped_missing_hand_chain != 1 ||
+      retained_graph_audit.installed_ik_midis != 1 ||
+      retained_graph_audit.installed_hand_drivers != 2 ||
+      retained_graph_audit.installed_weight_setters != 1 ||
+      retained_graph_audit.normalized_attachment_roots != 1 ||
+      retained_graph_audit.orientation_corrected_ik_hands != 1 ||
+      retained_graph_audit.contact_corrected_ik_hands != 1 ||
+      retarget_owned_graph_target.ik_hands.size() != 1 ||
+      !retarget_owned_graph_target.ik_hands[0]
+           .external_retarget_orientation_correction ||
+      !retarget_owned_graph_target.ik_hands[0]
+           .external_retarget_contact_correction ||
+      !nearf(retarget_owned_graph_target.ik_hands[0]
+                 .external_retarget_source_contact[0],
+             1.0f) ||
+      !nearf(retarget_owned_graph_target.ik_hands[0]
+                 .external_retarget_target_contact[0],
+             2.0f) ||
+      !nearf(retarget_owned_graph_target.ik_hands[0]
+                 .external_retarget_orientation[0][1],
+             1.0f) ||
+      !nearf(retarget_owned_graph_target.ik_hands[0]
+                 .external_retarget_orientation[1][0],
+             -1.0f) ||
+      !nearf(retarget_owned_graph_target.attached_prop_transform_proxies
+                 .at("bone_pos_guitar.mesh")
+                 .local.pos[0],
+             9.6f)) {
+    std::cerr << "retained external IK row did not receive hand correction\n";
     ok = false;
   }
 

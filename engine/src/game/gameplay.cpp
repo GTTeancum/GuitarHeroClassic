@@ -43165,6 +43165,22 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             }
                         }
                     }
+                    std::string selected_driver_milo;
+                    if (selected_variant && selected_retarget_animation) {
+                        if (driver_name == "main.drv") {
+                            selected_driver_milo = selected_main_anim_path;
+                        } else if (driver_name == "right_hand.drv") {
+                            selected_driver_milo = selected_strum_anim_path;
+                        } else if (driver_name == "left_hand.drv") {
+                            selected_driver_milo = selected_fret_anim_path;
+                        }
+                    }
+                    if (!selected_driver_milo.empty()) {
+                        milos.erase(std::remove(milos.begin(), milos.end(),
+                                                selected_driver_milo),
+                                    milos.end());
+                        milos.insert(milos.begin(), selected_driver_milo);
+                    }
                     return milos;
                 };
                 auto textures = ghogx::asset::load_milo_textures(
