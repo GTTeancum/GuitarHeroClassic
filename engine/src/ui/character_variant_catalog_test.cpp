@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -80,6 +81,146 @@ bool clip_drives_transform(const character::CharClip& clip,
     }
   }
   return false;
+}
+
+bool image_has_visible_rgb(const asset::Image& image) {
+  if (!image.valid() ||
+      image.rgba.size() !=
+          static_cast<std::size_t>(image.width) * image.height * 4u) {
+    return false;
+  }
+  std::set<std::uint32_t> colors;
+  std::size_t visible = 0;
+  for (std::size_t i = 0; i + 3 < image.rgba.size(); i += 4) {
+    if (image.rgba[i + 3] == 0) continue;
+    ++visible;
+    colors.insert((static_cast<std::uint32_t>(image.rgba[i]) << 16) |
+                  (static_cast<std::uint32_t>(image.rgba[i + 1]) << 8) |
+                  static_cast<std::uint32_t>(image.rgba[i + 2]));
+    if (visible > 1024 && colors.size() > 16) return true;
+  }
+  return visible > 1024 && colors.size() > 16;
+}
+
+bool expect_midori_texture(const std::string& hdr, const std::string& ark0,
+                           const std::string& model_path,
+                           const std::string& texture_name,
+                           const char* label) {
+  const auto texture =
+      ghogx::asset::load_milo_texture_named(hdr, ark0, model_path,
+                                            texture_name);
+  if (texture.width != 512 || texture.height != 512 ||
+      !image_has_visible_rgb(texture)) {
+    std::fprintf(stderr,
+                 "FAIL GH3 Midori %s texture decode %s from %s\n",
+                 label, texture_name.c_str(), model_path.c_str());
+    return false;
+  }
+  return true;
+}
+
+bool clip_payload_sane(const ghogx::character::CharClip& clip) {
+  if (!clip.loaded || clip.frames.empty() || clip.output_bones.empty())
+    return false;
+  std::size_t channels = 0;
+  for (const auto& frame : clip.frames) {
+    for (const auto& channel : frame) {
+      ++channels;
+      if (channel.bone_name.empty()) return false;
+      switch (channel.type) {
+        case ghogx::character::ClipChannel::kPos:
+        case ghogx::character::ClipChannel::kScale:
+          for (float value : channel.pos)
+            if (!std::isfinite(value)) return false;
+          break;
+        case ghogx::character::ClipChannel::kQuat:
+          for (float value : channel.quat)
+            if (!std::isfinite(value)) return false;
+          break;
+        case ghogx::character::ClipChannel::kRotX:
+        case ghogx::character::ClipChannel::kRotY:
+        case ghogx::character::ClipChannel::kRotZ:
+        case ghogx::character::ClipChannel::kDeltaX:
+        case ghogx::character::ClipChannel::kDeltaY:
+        case ghogx::character::ClipChannel::kDeltaZ:
+          if (!std::isfinite(channel.angle)) return false;
+          break;
+      }
+    }
+  }
+  return channels > 0;
+}
+
+bool transform_exists_in_any(
+    const std::vector<const ghogx::character::Character*>& characters,
+    const std::string& name) {
+  const std::string base = transform_base_name(name);
+  for (const auto* character : characters) {
+    if (character && character->has_transform(base)) return true;
+  }
+  return false;
+}
+
+bool clip_targets_bind_to_midori_models(
+    const ghogx::character::CharClip& clip,
+    const std::vector<const ghogx::character::Character*>& characters,
+    const char* label, const std::string& clip_name) {
+  std::set<std::string> missing;
+  std::set<std::string> checked;
+  for (const auto& output : clip.output_bones) {
+    const std::string base = transform_base_name(output.name);
+    if (!checked.insert(base).second) continue;
+    if (!transform_exists_in_any(characters, base)) missing.insert(base);
+  }
+  for (const auto& frame : clip.frames) {
+    for (const auto& channel : frame) {
+      const std::string base = transform_base_name(channel.bone_name);
+      if (!checked.insert(base).second) continue;
+      if (!transform_exists_in_any(characters, base)) missing.insert(base);
+    }
+  }
+  if (!missing.empty()) {
+    std::fprintf(stderr,
+                 "FAIL GH3 Midori %s clip/model missing targets in %s:",
+                 label, clip_name.c_str());
+    std::size_t printed = 0;
+    for (const std::string& name : missing) {
+      if (printed++ >= 12) break;
+      std::fprintf(stderr, " %s", name.c_str());
+    }
+    std::fprintf(stderr, "\n");
+    return false;
+  }
+  return !checked.empty();
+}
+
+bool expect_clip_bank(const std::string& hdr, const std::string& ark0,
+                      const std::string& path, std::size_t expected_count,
+                      const char* label,
+                      const std::vector<const ghogx::character::Character*>&
+                          characters) {
+  const auto catalog = ghogx::character::load_clip_catalog(hdr, ark0, {path});
+  if (catalog.size() != expected_count) {
+    std::fprintf(stderr,
+                 "FAIL GH3 Midori %s clip catalog count %zu != %zu\n",
+                 label, catalog.size(), expected_count);
+    return false;
+  }
+  if (catalog.empty()) return true;
+  for (const auto& entry : catalog) {
+    const auto clip =
+        ghogx::character::load_clip(hdr, ark0, entry.milo_path, entry.name);
+    if (!clip_payload_sane(clip)) {
+      std::fprintf(stderr,
+                   "FAIL GH3 Midori %s clip payload %s from %s\n",
+                   label, entry.name.c_str(), path.c_str());
+      return false;
+    }
+    if (!clip_targets_bind_to_midori_models(clip, characters, label,
+                                            entry.name))
+      return false;
+  }
+  return true;
 }
 }  // namespace
 
@@ -215,6 +356,12 @@ int main(int argc, char** argv) {
         << "}\n";
   }
   db.load_addon_manifests(addon_root.path, &ark);
+  const fs::path midori_dir =
+      fs::path(GHOGX_SOURCE_ROOT) / "DLC" / "community.gh3.midori";
+  const bool midori_package_present =
+      fs::is_regular_file(midori_dir / "manifest.json");
+  if (midori_package_present)
+    db.load_addon_manifests(midori_dir, &ark);
   const std::vector<Symbol> characters = db.characters();
   if (characters.empty()) {
     std::fprintf(stderr, "FAIL character catalog is empty\n");
@@ -373,6 +520,71 @@ int main(int argc, char** argv) {
     std::fprintf(stderr,
                  "FAIL provider does not expose addon portrait path\n");
     return 1;
+  }
+  if (midori_package_present) {
+    const auto midori_rows = db.character_variants(Symbol("gh3_midori"));
+    if (midori_rows.size() != 2 ||
+        midori_rows[0].selection != Symbol("gh3_midori_1") ||
+        midori_rows[1].selection != Symbol("gh3_midori_2") ||
+        midori_rows[0].source_game != Symbol("addon") ||
+        midori_rows[0].model_path !=
+            "char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2" ||
+        midori_rows[1].model_path !=
+            "char/gh3_midori_2/og/gen/gh3_midori_2.milo_ps2" ||
+        midori_rows.front().main_anim_path !=
+            "char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2" ||
+        midori_rows.front().strum_anim_path !=
+            "char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2" ||
+        midori_rows.front().fret_anim_path !=
+            "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2") {
+      std::fprintf(stderr,
+                   "FAIL GH3 Midori DLC character rows are not mounted\n");
+      return 1;
+    }
+    const auto midori_main =
+        ark.find("char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2");
+    if (!midori_main || midori_main->loose_path.empty() ||
+        ark.read_entry(*midori_main, {ark0}).empty()) {
+      std::fprintf(stderr,
+                   "FAIL GH3 Midori main animation loose mount\n");
+      return 1;
+    }
+    if (!expect_midori_texture(
+            hdr, ark0, "char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2",
+            "midori_1_539357ac.tex", "outfit 1") ||
+        !expect_midori_texture(
+            hdr, ark0, "char/gh3_midori_2/og/gen/gh3_midori_2.milo_ps2",
+            "midori_2_8e7fdbcc.tex", "outfit 2")) {
+      return 1;
+    }
+    ghogx::character::Character midori_1;
+    ghogx::character::Character midori_2;
+    if (!ghogx::character::load_character(
+            hdr, ark0, "char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2",
+            midori_1) ||
+        !ghogx::character::load_character(
+            hdr, ark0, "char/gh3_midori_2/og/gen/gh3_midori_2.milo_ps2",
+            midori_2)) {
+      std::fprintf(stderr, "FAIL GH3 Midori model reload for binding\n");
+      return 1;
+    }
+    const std::vector<const ghogx::character::Character*> midori_models = {
+        &midori_1, &midori_2};
+    if (!expect_clip_bank(hdr, ark0,
+                          "char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2",
+                          266, "main", midori_models) ||
+        !expect_clip_bank(hdr, ark0,
+                          "char/gh3_midori/anims/gen/gh3_midori_ui.milo_ps2",
+                          6, "ui", midori_models) ||
+        !expect_clip_bank(
+            hdr, ark0,
+            "char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2", 11,
+            "strum", midori_models) ||
+        !expect_clip_bank(hdr, ark0,
+                          "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2",
+                          15, "fret", midori_models)) {
+      return 1;
+    }
   }
 
   {

@@ -70,7 +70,7 @@ void append_stock_instrument_graph(
         const auto append_weight =
             [&](const char* name, uint32_t flags) {
                 gh::milo_object::CharWeightSetter2 weight;
-                weight.weightable.weight = 0.0f;
+                weight.weightable.weight = 1.0f;
                 weight.weightable.weight_owner = name;
                 weight.driver = "main.drv";
                 weight.flags = flags;

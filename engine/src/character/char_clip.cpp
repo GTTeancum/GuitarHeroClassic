@@ -2556,7 +2556,10 @@ bool is_bone_name_at(const uint8_t* d, size_t n, size_t at) {
   };
   const bool suffix = ends(".pos") || ends(".scale") || ends(".quat") ||
                       ends(".rotx") || ends(".roty") || ends(".rotz");
-  bool bone = cand.rfind("bone_", 0) == 0 || cand.rfind("spot_", 0) == 0;
+  bool bone = cand.rfind("bone_", 0) == 0 || cand.rfind("Bone_", 0) == 0 ||
+              cand.rfind("BONE_", 0) == 0 ||
+              cand.rfind("Control_", 0) == 0 ||
+              cand.rfind("spot_", 0) == 0;
   return suffix && bone;
 }
 
@@ -2890,7 +2893,8 @@ void add_raw_channel_count(CharClip::RawChannelCounts& counts, int type) {
 std::vector<std::vector<ClipChannel>> parse_all(
     const uint8_t* d, size_t n, int& num_samples_out,
     CharClip::RawChannelCounts* raw_channel_counts,
-    size_t* sample_header_offset_out = nullptr) {
+    size_t* sample_header_offset_out = nullptr,
+    size_t preferred_sample_header_offset = SIZE_MAX) {
   num_samples_out = 0;
   if (sample_header_offset_out) *sample_header_offset_out = SIZE_MAX;
   if (n < 4) return {};
@@ -2905,14 +2909,7 @@ std::vector<std::vector<ClipChannel>> parse_all(
   std::vector<BoneList> lists;
   size_t p = SIZE_MAX;
 
-  // GH2 CharClipSamples entries begin with the samples version, then a CharClip
-  // base payload, then full/one CharBonesSamples headers plus a duplicate
-  // serialized header for version 8+. Grim then reads data only for full/one.
-  // The CharClip base contains arbitrary transition names, so finding the first
-  // "bone_*.pos" is not reliable; `neutral` even has an empty list first.
-  // Instead, accept only a candidate whose two declared sample blocks consume
-  // the remaining entry bytes exactly.
-  for (size_t at = 4; at + 52 <= n; ++at) {
+  auto try_candidate = [&](size_t at) -> bool {
     std::vector<BoneList> candidate;
     size_t q = at;
     bool ok = true;
@@ -2924,7 +2921,7 @@ std::vector<std::vector<ClipChannel>> parse_all(
       }
       candidate.push_back(std::move(bl));
     }
-    if (!ok || candidate.empty()) continue;
+    if (!ok || candidate.empty()) return false;
     bool has_channels = false;
     uint64_t sample_bytes = 0;
     for (size_t i = 0; i < candidate.size() && i < 2; ++i) {
@@ -2933,16 +2930,38 @@ std::vector<std::vector<ClipChannel>> parse_all(
       sample_bytes += static_cast<uint64_t>(bl.frame_bytes) *
                       static_cast<uint64_t>(bl.num_samples);
     }
-    if (!has_channels) continue;
+    if (!has_channels) return false;
     if (sample_bytes == n - q) {
       candidate.resize(2);
       lists = std::move(candidate);
       if (sample_header_offset_out) *sample_header_offset_out = at;
       p = q;
-      break;
+      return true;
     }
+    return false;
+  };
+
+  // GH2 CharClipSamples entries begin with the samples version, then a CharClip
+  // base payload, then full/one CharBonesSamples headers plus a duplicate
+  // serialized header for version 8+. Prefer the CharClip metadata reader's
+  // exact offset when available, then fall back to the historical scanner. The
+  // scanner still matters for odd retail bodies whose metadata parser cannot
+  // describe every pre-sample field.
+  if (preferred_sample_header_offset != SIZE_MAX &&
+      preferred_sample_header_offset + 52 <= n) {
+    try_candidate(preferred_sample_header_offset);
   }
-  if (lists.empty() || p == SIZE_MAX) return {};
+  for (size_t at = 4; lists.empty() && at + 52 <= n; ++at) {
+    try_candidate(at);
+  }
+  if (lists.empty() || p == SIZE_MAX) {
+    if (debug_clip_parse_enabled()) {
+      std::fprintf(stderr,
+                   "[clip-source-bones] no sample headers version=%u size=%zu preferred=%zu\n",
+                   samples_version, n, preferred_sample_header_offset);
+    }
+    return {};
+  }
 
   if (raw_channel_counts) {
     *raw_channel_counts = CharClip::RawChannelCounts{};
@@ -4028,8 +4047,16 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
       int ns = 0;
       const CharClipMetadata metadata = read_char_clip_metadata(body, sz);
       size_t sample_header_offset = SIZE_MAX;
+      if (debug_clip_parse_enabled()) {
+        std::fprintf(stderr,
+                     "[clip] '%s': metadata valid=%d samples_offset=%zu body=%zu\n",
+                     clip_name.c_str(), metadata.valid ? 1 : 0,
+                     metadata.samples_offset, sz);
+      }
       result.frames = parse_all(body, sz, ns, &result.raw_channel_counts,
-                                &sample_header_offset);
+                                &sample_header_offset,
+                                metadata.valid ? metadata.samples_offset
+                                               : SIZE_MAX);
       result.fps = 30;  // CharClipSamples are authored at 30 fps; refine if needed.
       result.start_frame = 0.0f;
       result.end_frame = result.frames.empty()

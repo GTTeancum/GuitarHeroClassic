@@ -42773,7 +42773,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         if (source_hdr.empty() || source_ark.empty()) return;
                         const std::string key =
                             lower_ascii(source_hdr) + "|" +
-                            lower_ascii(source_ark);
+                            lower_ascii(source_ark) + "|" +
+                            lower_ascii(source_id);
                         if (!character_archive_keys.insert(key).second) return;
                         character_archives.push_back(
                             {source_hdr, source_ark, std::move(role_name),
@@ -42798,6 +42799,17 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         "auxiliary-" + std::to_string(archive_index),
                         archive_source_id(
                             auxiliary_asset_paths_[archive_index].first));
+                }
+                std::set<std::string> loose_package_ids;
+                for (const auto& mount :
+                     gh::ark::ArkV3Reader::loose_file_mounts()) {
+                    if (!mount.package_id.empty()) {
+                        loose_package_ids.insert(lower_ascii(mount.package_id));
+                    }
+                }
+                for (const std::string& package_id : loose_package_ids) {
+                    add_character_archive(
+                        hdr_path_, ark_path_, "loose-dlc", package_id);
                 }
                 const auto all_character_archives = character_archives;
                 if (preferred_archive_id.empty() && role == "guitarist0" &&

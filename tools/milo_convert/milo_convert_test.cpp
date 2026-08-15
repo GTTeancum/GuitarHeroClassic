@@ -1402,11 +1402,11 @@ int main() {
             guitar_outfit.categories[0].shown != 0 ||
             guitar_outfit.categories[0].outfits.size() != 58 ||
             fret.bone != "bone_fret.mesh" ||
-            left_weight.weightable.weight != 0.0f ||
+            left_weight.weightable.weight != 1.0f ||
             left_weight.weightable.weight_owner != "left.weight" ||
             left_weight.driver != "main.drv" ||
             left_weight.flags != 0x00400000u ||
-            right_weight.weightable.weight != 0.0f ||
+            right_weight.weightable.weight != 1.0f ||
             right_weight.weightable.weight_owner != "right.weight" ||
             right_weight.driver != "main.drv" ||
             right_weight.flags != 0x00800000u ||

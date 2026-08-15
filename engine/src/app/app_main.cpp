@@ -39,6 +39,8 @@
 //   ghogx_app --aspect <4:3|16:9>      render aspect preset (default: 4:3)
 //   ghogx_app --diagnostic-character <c>
 //                                      route guitarist/highway art through character c
+//   ghogx_app --diagnostic-character-variant <selection>
+//                                      route guitarist through a manifest variant
 //   ghogx_app --diagnostic-bass <model>
 //                                      route the bassist prop through a selected bass
 //   ghogx_app --diagnostic-player-bassist <model>
@@ -108,6 +110,7 @@
 #include "render/scene_d3d9.h"
 #include "render/milo_scene_renderer.h"
 #include "dtb.h"
+#include "ui/config_db.h"
 #include "ui/menu_font.h"
 #include "ui/menu_labels.h"
 #include "ui/song_intro_overlay.h"
@@ -953,6 +956,16 @@ class AppEngine : public ghogx::Engine {
 
   void set_diagnostic_character_override(const std::string& character) {
     gameplay_.set_diagnostic_character_override(character);
+  }
+
+  void set_selected_character_variant(
+      const ghogx::ui::CharacterVariant& variant) {
+    gameplay_.set_selected_character_variant(
+        variant.selection.c_str(), variant.model_path,
+        variant.main_anim_path, variant.strum_anim_path,
+        variant.fret_anim_path, variant.highway_surface_path,
+        variant.animation_source_model_path, variant.retarget_animation,
+        variant.guitarist_hidden_roots);
   }
 
   void set_diagnostic_performer_override(
@@ -2854,6 +2867,34 @@ discover_auxiliary_asset_archives(const std::string& primary_hdr,
   return archives;
 }
 
+std::unique_ptr<ghogx::ui::ConfigDb> mount_dlc_manifests_for_direct_loads(
+    const std::string& primary_hdr) {
+  namespace fs = std::filesystem;
+  if (primary_hdr.empty()) return nullptr;
+  fs::path dlc_root;
+  if (const char* addon_root = std::getenv("GHOGX_ADDONS_DIR");
+      addon_root && *addon_root) {
+    dlc_root = fs::path(addon_root).lexically_normal();
+  }
+#ifdef GHOGX_SOURCE_ROOT
+  if (dlc_root.empty()) {
+    dlc_root = (fs::path(GHOGX_SOURCE_ROOT) / "DLC").lexically_normal();
+  }
+#endif
+  if (dlc_root.empty()) return nullptr;
+  std::error_code error;
+  if (!fs::is_directory(dlc_root, error)) return nullptr;
+  try {
+    auto db = std::make_unique<ghogx::ui::ConfigDb>();
+    const auto base_ark = gh::ark::ArkV3Reader::load(primary_hdr);
+    db->load_addon_manifests(dlc_root, &base_ark);
+    return db;
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[ghogx] DLC manifests skipped: %s\n", ex.what());
+  }
+  return nullptr;
+}
+
 }  // namespace
 
 #include "ui/menu_app.h"  // ghogx::ui::run_menu_mode (windowed menu system)
@@ -2906,6 +2947,7 @@ int main(int argc, char** argv) {
   std::optional<DiagnosticChartScriptWindow> diagnostic_chart_script_window;
   bool debug_note_counter = false;
   std::string diagnostic_character;
+  std::string diagnostic_character_variant;
   std::vector<std::pair<std::string, std::string>>
       diagnostic_performer_overrides;
   std::vector<std::pair<std::string, std::string>>
@@ -3065,6 +3107,9 @@ int main(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--diagnostic-character") == 0 &&
                i + 1 < argc) {
       diagnostic_character = argv[++i];
+    } else if (std::strcmp(argv[i], "--diagnostic-character-variant") == 0 &&
+               i + 1 < argc) {
+      diagnostic_character_variant = argv[++i];
     } else if (std::strcmp(argv[i], "--diagnostic-performer") == 0 &&
                i + 1 < argc) {
       std::string value = argv[++i];
@@ -3364,6 +3409,7 @@ int main(int argc, char** argv) {
   }
   const auto auxiliary_asset_archives = discover_auxiliary_asset_archives(
       hdr, ark, content_hdr, content_ark);
+  const auto direct_load_dlc_db = mount_dlc_manifests_for_direct_loads(hdr);
 
   if (debug_note_counter) {
     _putenv_s("GHOGX_DEBUG_HIGHWAY_NOTE_COUNTER", "1");
@@ -3485,6 +3531,30 @@ int main(int argc, char** argv) {
   engine.set_ark(hdr, ark);
   engine.set_auxiliary_asset_archives(auxiliary_asset_archives);
   engine.set_song(song_name, difficulty);
+  if (!diagnostic_character_variant.empty()) {
+    if (!direct_load_dlc_db) {
+      std::fprintf(stderr,
+                   "[ghogx] --diagnostic-character-variant requires mounted "
+                   "DLC manifests\n");
+      return 2;
+    }
+    const ghogx::ui::CharacterVariant* variant =
+        direct_load_dlc_db->character_variant(
+            ghogx::Symbol(diagnostic_character_variant));
+    if (!variant) {
+      std::fprintf(stderr,
+                   "[ghogx] unknown diagnostic character variant: %s\n",
+                   diagnostic_character_variant.c_str());
+      return 2;
+    }
+    engine.set_selected_character_variant(*variant);
+    std::fprintf(
+        stderr,
+        "[ghogx] diagnostic character variant: selection=%s model=%s "
+        "main_anim=%s\n",
+        variant->selection.c_str(), variant->model_path.c_str(),
+        variant->main_anim_path.c_str());
+  }
   if (!diagnostic_character.empty()) {
     engine.set_diagnostic_character_override(diagnostic_character);
     std::fprintf(stderr, "[ghogx] diagnostic character override: %s\n",
