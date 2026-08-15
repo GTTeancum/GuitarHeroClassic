@@ -11596,8 +11596,6 @@ ExternalRetargetGraphAudit install_external_retarget_controller_graph(
           return channel_matches_bone(target_ik.hand, source_ik.hand);
         });
     if (target_owned_hand != target_character.ik_hands.end()) {
-      apply_external_hand_correction(source_ik, *target_owned_hand);
-      accumulate_attachment_reach(source_ik, *target_owned_hand);
       if (!target_owned_hand->weight_prop.empty())
         installed_weight_props.insert(target_owned_hand->weight_prop);
       ++audit.retained_target_ik_hands;
