@@ -45026,6 +45026,13 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     perf.authored_drivers.emplace(
                         driver.name, std::move(runtime));
                 }
+                const bool authored_main_driver_available =
+                    perf.authored_drivers.find("main.drv") !=
+                    perf.authored_drivers.end();
+                perf.active_player.set_source_play_multiple_clips(
+                    authored_main_driver_available);
+                perf.active_player.set_source_defer_node_loop_until_clip_end(
+                    authored_main_driver_available);
                 std::fprintf(
                     stderr,
                     "[world] performer driver Poll config: role=%s "
@@ -47807,6 +47814,19 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         main_player ? main_player->current_time_seconds() : 0.0f;
                     const float active_clip_duration =
                         active_clip ? active_clip->duration_seconds() : 0.0f;
+                    const size_t active_stack_depth =
+                        main_player ? main_player->source_stack_depth() : 0;
+                    const float active_clip_beat =
+                        main_player ? main_player->source_current_beat() : 0.0f;
+                    const float active_clip_blend =
+                        main_player ? main_player->source_current_blend_fraction()
+                                    : 0.0f;
+                    const float active_first_time =
+                        main_player ? main_player->source_first_playing_time_seconds()
+                                    : 0.0f;
+                    const float active_first_beat =
+                        main_player ? main_player->source_first_playing_beat()
+                                    : 0.0f;
                     const auto* strum_clip = perf.strum_player.current_clip();
                     const auto* fret_clip = perf.fret_player.current_clip();
                     const char* sync_reason =
@@ -47821,6 +47841,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         "t=%.3f event=%s event_tick=%u event_t=%.3f "
                         "sync_reason=%s playing=%d intro=%d hand_driver=%d active_mode=%s "
                         "main_source=%s active=%s clip_t=%.3f/%.3f "
+                        "stack=%zu beat=%.3f blend=%.3f first_t=%.3f first_beat=%.3f "
                         "strum_active=%d strum_clip=%s strum_names=",
                         song_shortname_.c_str(), perf.role.c_str(),
                         perf.character_name.c_str(), perf.event_track.c_str(),
@@ -47837,6 +47858,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         main_source,
                         active_clip ? active_clip->name.c_str() : "-",
                         active_clip_time, active_clip_duration,
+                        active_stack_depth, active_clip_beat,
+                        active_clip_blend, active_first_time,
+                        active_first_beat,
                         perf.strum_player.active() ? 1 : 0,
                         strum_clip ? strum_clip->name.c_str() : "-");
                     print_names(perf.active_strum_clip_names);

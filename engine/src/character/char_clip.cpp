@@ -10915,6 +10915,10 @@ static Gh2PoseTarget resolve_gh2_pose_target(Character& character,
     if (character.bones[i].name != mesh_name) continue;
     return {Gh2PoseTargetKind::Bone, i, &character.bones[i].local, mesh_name};
   }
+  for (size_t i = 0; i < character.bones.size(); ++i) {
+    if (character.bones[i].name != base_name) continue;
+    return {Gh2PoseTargetKind::Bone, i, &character.bones[i].local, base_name};
+  }
   for (size_t i = 0; i < character.meshes.size(); ++i) {
     if (character.meshes[i].name != mesh_name) continue;
     return {Gh2PoseTargetKind::Mesh, i, &character.meshes[i].local, mesh_name};
@@ -14076,15 +14080,45 @@ CharacterPoseStackFrameResult apply_character_pose_stack_frame(
       for (size_t i = 0; i < stack->layers.size() && i < 6; ++i) {
         if (!layer_names.empty()) layer_names += ",";
         const ClipChannelLayer& layer = stack->layers[i];
+        float sample_signature = 0.0f;
+        for (const ClipChannel& channel : layer.channels) {
+          sample_signature += std::fabs(channel.source_weight);
+          switch (channel.type) {
+            case ClipChannel::kPos:
+              sample_signature += std::fabs(channel.pos[0]) +
+                                  std::fabs(channel.pos[1]) +
+                                  std::fabs(channel.pos[2]);
+              break;
+            case ClipChannel::kScale:
+              sample_signature += std::fabs(channel.scale[0]) +
+                                  std::fabs(channel.scale[1]) +
+                                  std::fabs(channel.scale[2]);
+              break;
+            case ClipChannel::kQuat:
+              sample_signature += std::fabs(channel.quat[0]) +
+                                  std::fabs(channel.quat[1]) +
+                                  std::fabs(channel.quat[2]) +
+                                  std::fabs(channel.quat[3]);
+              break;
+            case ClipChannel::kRotX:
+            case ClipChannel::kRotY:
+            case ClipChannel::kRotZ:
+            case ClipChannel::kDeltaX:
+            case ClipChannel::kDeltaY:
+            case ClipChannel::kDeltaZ:
+              sample_signature += std::fabs(channel.angle);
+              break;
+          }
+        }
         char detail[256];
         std::snprintf(detail, sizeof(detail),
-                      "%zu:%s:w=%.3f:ch=%zu:out=%zu:ov=%d:rel=%d", i,
+                      "%zu:%s:w=%.3f:ch=%zu:out=%zu:ov=%d:rel=%d:sig=%.3f", i,
                       layer.debug_name.empty() ? "<unnamed>"
                                                : layer.debug_name.c_str(),
                       layer.weight, layer.channels.size(),
                       layer.output_bones ? layer.output_bones->size() : 0,
                       layer.overlay_override ? 1 : 0,
-                      layer.relative ? 1 : 0);
+                      layer.relative ? 1 : 0, sample_signature);
         layer_names += detail;
       }
       if (stack->layers.size() > 6) layer_names += ",...";
@@ -14444,6 +14478,11 @@ void CharClipPlayer::set_source_realign(bool realign) {
   source_realign_ = realign;
 }
 
+void CharClipPlayer::set_source_defer_node_loop_until_clip_end(
+    bool defer_until_end) {
+  source_defer_node_loop_until_clip_end_ = defer_until_end;
+}
+
 void CharClipPlayer::set_source_starved_handler(
     std::function<void()> handler) {
   source_starved_handler_ = std::move(handler);
@@ -14684,6 +14723,16 @@ void CharClipPlayer::poll_source_scheduler(float frame) {
   }
   if (poll_starved() && original_loop_mode == kCharPlayNodeLoop &&
       !layers_.empty()) {
+    if (source_defer_node_loop_until_clip_end_) {
+      const Layer& current = layers_.back();
+      if (current.clip) {
+        const bool reached_end =
+            clip_has_source_beat_timing(*current.clip)
+                ? current.beat >= current.clip->end_beat
+                : current.time_seconds >= current.clip->duration_seconds();
+        if (!reached_end) return;
+      }
+    }
     // Retail re-evaluates the saved DataNode at CharDriver+0x40. Without a
     // decoded owner-side resolver there is no factual replacement clip.
     const CharClip* replay =

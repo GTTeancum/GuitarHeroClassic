@@ -1619,6 +1619,42 @@ bool expect_clip_driver_helpers() {
     ok = false;
   }
 
+  // Generated external characters can carry factual skeleton transforms under
+  // the suffix-free base name. Those body rows must win before same-base
+  // attached instrument proxies.
+  ghogx::character::Character base_name_priority_character;
+  ghogx::milo_scene::TransObj base_name_priority_bone;
+  base_name_priority_bone.name = "bone_base_priority";
+  base_name_priority_bone.local.pos[0] = 10.0f;
+  base_name_priority_character.bones.push_back(base_name_priority_bone);
+  ghogx::character::AttachedPropTransformProxy base_name_priority_proxy;
+  base_name_priority_proxy.name = "bone_base_priority.mesh";
+  base_name_priority_proxy.local.pos[0] = 500.0f;
+  base_name_priority_proxy.bind_local = base_name_priority_proxy.local;
+  base_name_priority_character.attached_prop_transform_proxies.emplace(
+      base_name_priority_proxy.name, base_name_priority_proxy);
+  ghogx::character::CharClip base_name_priority_clip;
+  base_name_priority_clip.loaded = true;
+  base_name_priority_clip.frames.resize(1);
+  ghogx::character::ClipChannel base_name_priority_pos;
+  base_name_priority_pos.type = ghogx::character::ClipChannel::kPos;
+  base_name_priority_pos.bone_name = "bone_base_priority.trans";
+  base_name_priority_pos.pos[0] = 30.0f;
+  base_name_priority_clip.frames[0].push_back(base_name_priority_pos);
+  ghogx::character::CharClip::OutputBone base_name_priority_output;
+  base_name_priority_output.name = "bone_base_priority.trans";
+  base_name_priority_clip.output_bones.push_back(base_name_priority_output);
+  ghogx::character::apply_clip_frame_weighted(
+      base_name_priority_clip, 0, 1.0f, base_name_priority_character);
+  if (!nearf(base_name_priority_character.bones[0].local.pos[0], 30.0f) ||
+      !nearf(base_name_priority_character.attached_prop_transform_proxies
+                 .at("bone_base_priority.mesh")
+                 .local.pos[0],
+             500.0f)) {
+    std::cerr << "typed publisher did not prefer suffix-free body bone over prop proxy\n";
+    ok = false;
+  }
+
   // Attached instruments occupy the same retail ObjectDir as the character.
   // A hand-driver output must therefore acquire and update imported prop
   // transforms before publishing the world consumed by CharIKHand.
@@ -2266,6 +2302,53 @@ bool expect_clip_driver_helpers() {
   if (unresolved_node_loop_player.source_stack_depth() != 1 ||
       unresolved_node_loop_player.current_clip() != &node_loop_clip) {
     std::cerr << "GH2 unresolved node-loop must not invent replay clip\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClipPlayer duplicate_node_loop_player;
+  size_t duplicate_node_resolver_calls = 0;
+  duplicate_node_loop_player.set_source_play_multiple_clips(true);
+  duplicate_node_loop_player.set_source_node_loop_resolver(
+      [&node_loop_clip, &duplicate_node_resolver_calls]() {
+        ++duplicate_node_resolver_calls;
+        return &node_loop_clip;
+      });
+  duplicate_node_loop_player.play(node_loop_clip,
+                                  ghogx::character::kCharPlayNodeLoop);
+  duplicate_node_loop_player.advance_source(0.25f, 0.25f, 0.25f);
+  duplicate_node_loop_player.advance_source(0.50f, 0.25f, 0.25f);
+  if (duplicate_node_resolver_calls != 2 ||
+      duplicate_node_loop_player.source_stack_depth() != 1 ||
+      duplicate_node_loop_player.current_clip() != &node_loop_clip ||
+      !(duplicate_node_loop_player.current_time_seconds() > 0.0f)) {
+    std::cerr
+        << "GH2 node-loop duplicate replay must advance existing clip\n";
+    ok = false;
+  }
+
+  ghogx::character::CharClipPlayer deferred_node_loop_player;
+  size_t deferred_node_resolver_calls = 0;
+  deferred_node_loop_player.set_source_defer_node_loop_until_clip_end(true);
+  deferred_node_loop_player.set_source_node_loop_resolver(
+      [&node_loop_next, &deferred_node_resolver_calls]() {
+        ++deferred_node_resolver_calls;
+        return &node_loop_next;
+      });
+  deferred_node_loop_player.play(node_loop_clip,
+                                 ghogx::character::kCharPlayNodeLoop);
+  deferred_node_loop_player.advance_source(0.25f, 0.25f, 0.25f);
+  if (deferred_node_resolver_calls != 0 ||
+      deferred_node_loop_player.source_stack_depth() != 1 ||
+      deferred_node_loop_player.current_clip() != &node_loop_clip) {
+    std::cerr << "GH2 deferred node-loop must wait for clip end\n";
+    ok = false;
+  }
+  deferred_node_loop_player.advance_source(2.25f, 2.0f, 2.0f);
+  deferred_node_loop_player.advance_source(2.50f, 0.25f, 0.25f);
+  if (deferred_node_resolver_calls != 1 ||
+      deferred_node_loop_player.source_stack_depth() != 2 ||
+      deferred_node_loop_player.current_clip() != &node_loop_next) {
+    std::cerr << "GH2 deferred node-loop must resolve at clip end\n";
     ok = false;
   }
 

@@ -1215,6 +1215,7 @@ class CharClipPlayer {
                    float speed = 1.0f);
   void set_source_play_multiple_clips(bool play_multiple_clips);
   void set_source_realign(bool realign);
+  void set_source_defer_node_loop_until_clip_end(bool defer_until_end);
   void set_source_starved_handler(std::function<void()> handler);
   void set_source_node_loop_resolver(
       std::function<const CharClip*()> resolver);
@@ -1279,6 +1280,7 @@ class CharClipPlayer {
   float source_old_beat_ = 1.0e30f;
   bool source_play_multiple_clips_ = false;
   bool source_realign_ = false;
+  bool source_defer_node_loop_until_clip_end_ = false;
   std::function<void()> source_starved_handler_;
   std::function<const CharClip*()> source_node_loop_resolver_;
   std::function<void(const CharClip&, std::string_view)>
