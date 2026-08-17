@@ -156,7 +156,12 @@ bool transform_exists_in_any(
     const std::string& name) {
   const std::string base = transform_base_name(name);
   for (const auto* character : characters) {
-    if (character && character->has_transform(base)) return true;
+    if (character &&
+        (character->has_transform(base + ".trans") ||
+         character->has_transform(base + ".mesh") ||
+         character->has_transform(base))) {
+      return true;
+    }
   }
   return false;
 }
@@ -222,13 +227,59 @@ bool expect_clip_bank(const std::string& hdr, const std::string& ark0,
   }
   return true;
 }
+
+bool expect_midori_external_assets(const std::string& hdr,
+                                   const std::string& ark0) {
+  if (!expect_midori_texture(
+          hdr, ark0, "char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2",
+          "midori_1_539357ac.tex", "outfit 1") ||
+      !expect_midori_texture(
+          hdr, ark0, "char/gh3_midori_2/og/gen/gh3_midori_2.milo_ps2",
+          "midori_2_8e7fdbcc.tex", "outfit 2")) {
+    return false;
+  }
+
+  ghogx::character::Character midori_1;
+  ghogx::character::Character midori_2;
+  if (!ghogx::character::load_character(
+          hdr, ark0, "char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2",
+          midori_1) ||
+      !ghogx::character::load_character(
+          hdr, ark0, "char/gh3_midori_2/og/gen/gh3_midori_2.milo_ps2",
+          midori_2)) {
+    std::fprintf(stderr, "FAIL GH3 Midori model reload for binding\n");
+    return false;
+  }
+  const std::vector<const ghogx::character::Character*> models = {
+      &midori_1, &midori_2};
+  return expect_clip_bank(
+             hdr, ark0,
+             "char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2", 266,
+             "main", models) &&
+         expect_clip_bank(
+             hdr, ark0,
+             "char/gh3_midori/anims/gen/gh3_midori_ui.milo_ps2", 6, "ui",
+             models) &&
+         expect_clip_bank(
+             hdr, ark0,
+             "char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2", 23,
+             "strum", models) &&
+         expect_clip_bank(
+             hdr, ark0,
+             "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2", 36,
+             "fret", models);
+}
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 1 && argc != 3) {
+  const bool midori_assets_only =
+      argc == 4 && std::string(argv[1]) == "--midori-assets-only";
+  if (argc != 1 && argc != 3 && !midori_assets_only) {
     std::fprintf(stderr,
                  "usage: ghogx_character_variant_catalog_test "
-                 "[<main.hdr> <main_0.ark>]\n");
+                 "[<main.hdr> <main_0.ark>]\n"
+                 "       ghogx_character_variant_catalog_test "
+                 "--midori-assets-only <main.hdr> <main_0.ark>\n");
     return 2;
   }
 #ifdef _WIN32
@@ -236,6 +287,25 @@ int main(int argc, char** argv) {
 #else
   setenv("GHOGX_DISABLE_PROFILE_PERSISTENCE", "1", 1);
 #endif
+  if (midori_assets_only) {
+    const std::string addons =
+        (fs::path(GHOGX_SOURCE_ROOT) / "DLC").string();
+#ifdef _WIN32
+    _putenv_s("GHOGX_ADDONS_DIR", addons.c_str());
+#else
+    setenv("GHOGX_ADDONS_DIR", addons.c_str(), 1);
+#endif
+    auto ark = gh::ark::ArkV3Reader::load(argv[2]);
+    ui::ConfigDb db;
+    db.load_addon_manifests(
+        fs::path(GHOGX_SOURCE_ROOT) / "DLC" / "community.gh3.midori",
+        &ark);
+    if (!expect_midori_external_assets(argv[2], argv[3])) return 1;
+    std::printf(
+        "ghogx_character_variant_catalog_test: PASS "
+        "(Midori external assets: 2 models, 2 textures, 331 clips)\n");
+    return 0;
+  }
   const std::string default_ark_dir =
       "C:/Programming/GitHub/Guitar Hero II/gh2_ps2_hybrid_assets/gen";
   const std::string hdr =
@@ -538,11 +608,11 @@ int main(int argc, char** argv) {
         midori_rows.front().fret_anim_path !=
             "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2" ||
         midori_rows.front().animation_source_model_path !=
-            "char/glam1/og/gen/glam1.milo_ps2" ||
-        !midori_rows.front().retarget_animation ||
+            "char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2" ||
+        midori_rows.front().retarget_animation ||
         midori_rows.back().animation_source_model_path !=
-            "char/glam1/og/gen/glam1.milo_ps2" ||
-        !midori_rows.back().retarget_animation) {
+            "char/gh3_midori_2/og/gen/gh3_midori_2.milo_ps2" ||
+        midori_rows.back().retarget_animation) {
       std::fprintf(stderr,
                    "FAIL GH3 Midori DLC character rows are not mounted\n");
       return 1;

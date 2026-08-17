@@ -14,6 +14,8 @@ target_link_libraries(ghogx_app PRIVATE
     ghogx_ui_render   # windowed menu mode (--menu): boots the menu engine + draws
     winmm             # timeBeginPeriod/timeEndPeriod for steady 60 Hz pacing
 )
+target_compile_definitions(ghogx_app PRIVATE
+    GHOGX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}/..")
 
 if(MSVC)
     target_compile_options(ghogx_app PRIVATE /W4)

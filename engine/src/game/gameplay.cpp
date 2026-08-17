@@ -12215,8 +12215,24 @@ bool load_clip_first(ghogx::character::CharClip& out,
                      const std::string& hdr_path, const std::string& ark_path,
                      const std::string& milo_path,
                      std::initializer_list<const char*> names) {
+    const bool debug_clip_load = std::getenv("GHOGX_DEBUG_CLIP_LOAD") != nullptr;
     for (const char* name : names) {
+        if (debug_clip_load) {
+            std::fprintf(stderr,
+                         "[clip-load-probe] begin milo=%s clip=%s\n",
+                         milo_path.c_str(), name ? name : "<null>");
+            std::fflush(stderr);
+        }
         out = ghogx::character::load_clip(hdr_path, ark_path, milo_path, name);
+        if (debug_clip_load) {
+            std::fprintf(stderr,
+                         "[clip-load-probe] end milo=%s clip=%s loaded=%d "
+                         "frames=%zu outputs=%zu\n",
+                         milo_path.c_str(), name ? name : "<null>",
+                         out.loaded ? 1 : 0, out.frames.size(),
+                         out.output_bones.size());
+            std::fflush(stderr);
+        }
         if (out.loaded) return true;
     }
     return false;
@@ -12226,8 +12242,24 @@ bool load_clip_first(ghogx::character::CharClip& out,
                      const std::string& hdr_path, const std::string& ark_path,
                      const std::string& milo_path,
                      const std::vector<std::string>& names) {
+    const bool debug_clip_load = std::getenv("GHOGX_DEBUG_CLIP_LOAD") != nullptr;
     for (const auto& name : names) {
+        if (debug_clip_load) {
+            std::fprintf(stderr,
+                         "[clip-load-probe] begin milo=%s clip=%s\n",
+                         milo_path.c_str(), name.c_str());
+            std::fflush(stderr);
+        }
         out = ghogx::character::load_clip(hdr_path, ark_path, milo_path, name);
+        if (debug_clip_load) {
+            std::fprintf(stderr,
+                         "[clip-load-probe] end milo=%s clip=%s loaded=%d "
+                         "frames=%zu outputs=%zu\n",
+                         milo_path.c_str(), name.c_str(),
+                         out.loaded ? 1 : 0, out.frames.size(),
+                         out.output_bones.size());
+            std::fflush(stderr);
+        }
         if (out.loaded) return true;
     }
     return false;
@@ -43180,7 +43212,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     char_milo, character);
                 auto selected_driver_milo_for =
                     [&](const std::string& driver_name) {
-                        if (!selected_variant || !selected_retarget_animation)
+                        if (!selected_variant)
                             return std::string{};
                         if (driver_name == "main.drv")
                             return selected_main_anim_path;
