@@ -1,13 +1,37 @@
-# GuitarHeroOGX
+# GuitarHeroClassic
 
-Guitar Hero II for the original Xbox.
+Guitar Hero Classic is a native engine and tooling project for playing and
+studying Harmonix-era Guitar Hero content, starting with Guitar Hero II.
+
+The repository was formerly named `GuitarHeroOGX`. The original long-term
+target was an original Xbox port, and a lot of internal notes still use the
+older name. The public repository has been renamed to
+`GTTeancum/GuitarHeroClassic` to reflect the broader classic-Harmonix scope.
 
 Start with [PROJECT_CHARTER.md](PROJECT_CHARTER.md) for the project identity,
 evidence rules, and resource model.
 
-Strategy: a **fresh native engine** under `engine/` that consumes PS2-format Harmonix ARKs directly via the readers under `tools/`. Targets PC first (fast dev iteration), OG Xbox (DX8 / NV2A / XACT / XInput) as a follow-up build target. The rexglue-recompiled GH2 360 binary that lives under `gh2test_*` / `generated/` / `src/` is now **read-only logic reference material** — gameplay state machines, scoring, hit detection, animation timing as a C++ blueprint to crib from while building the engine. We're not running it as the engine.
+Strategy: a **fresh native engine** under `engine/` that consumes PS2-format
+Harmonix ARKs directly via the readers under `tools/`. Targets PC first (fast
+dev iteration), with console-specific work as follow-up targets. The
+rexglue-recompiled GH2 360 binary that lives under `gh2test_*` / `generated/` /
+`src/` is now **read-only logic reference material**: gameplay state machines,
+scoring, hit detection, animation timing as a C++ blueprint to crib from while
+building the engine. We're not running it as the engine.
 
 See [roadmap](../memory/project_roadmap.md) for V1 (GH2) → V1.x (GH1 / GH80s) → V2 (Rock Band) → V3 (GH3 / GHA) staging.
+
+## Current Archive Note
+
+The `menu-ui-engine` branch currently includes a Codex retirement package for
+the GH3 Midori DLC/animation experiment:
+
+`codex/midori-retirement-2026-08-21/`
+
+That package contains the handoff notes, tooling snapshots, rejected r181
+visual evidence, and the built-but-unreviewed r182 arm-only candidate. It is
+archival evidence only. Do not promote the included Midori candidate MILOs as
+finished content; the Midori goal remains incomplete.
 
 ## Engine (`engine/`)
 
