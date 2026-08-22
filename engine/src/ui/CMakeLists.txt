@@ -15,7 +15,7 @@ add_library(ghogx_ui_core STATIC
 )
 target_include_directories(ghogx_ui_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_ui_core PUBLIC
-    ghogx_core ghogx_script ghogx_dtb_bridge ark_v3 dtb)
+    ghogx_core ghogx_script ghogx_dtb_bridge ghogx_chart ark_v3 dtb)
 
 if(MSVC)
     target_compile_options(ghogx_ui_core PRIVATE /W4)
@@ -40,7 +40,8 @@ endif()
 add_library(ghogx_ui_render STATIC menu_app.cpp menu_app.h)
 target_include_directories(ghogx_ui_render PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_ui_render PUBLIC
-    ghogx_ui_core ghogx_render ghogx_milo_scene ghogx_asset ghogx_menu_font ark_v3 milo)
+    ghogx_ui_core ghogx_render ghogx_milo_scene ghogx_asset ghogx_menu_font
+    ghogx_character ark_v3 milo winmm)
 if(MSVC)
     target_compile_options(ghogx_ui_render PRIVATE /W4)
 endif()

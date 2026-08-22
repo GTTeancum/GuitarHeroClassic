@@ -1,0 +1,16 @@
+{
+  "format": "gh3_midori_candidate_status_v1",
+  "revision": "r182-outfit1-staticface-armonly-attack",
+  "status": "built_not_captured",
+  "face_policy": "static/no-op; no face work resumed",
+  "candidate_milo": "analysis/gh3_midori_gh2_milos/gh3_midori_1_main_staticface_armonly_attack_r182.milo_ps2",
+  "candidate_sha256": "BB05A8641909AC3BF70B9F35BBB3FE1058BA89C8469E0915878DCD270977B403",
+  "candidate_report": "analysis/gh3_midori_r182_outfit1_staticface_armonly_attack_candidate_report.json",
+  "finding": "The build path can emit a one-clip, outfit-specific, arm-only main bank while leaving guitar/fret/strum contact channels unchanged.",
+  "not_proven": [
+    "No direct visual capture was completed for r182 before retirement.",
+    "The r182 candidate is not approved and must not be promoted without visual review.",
+    "Outfit 2, jump, solo, transition, hands/fingers, and guitar attachment remain unsolved."
+  ],
+  "retirement_note": "Work is being paused at user request. The active goal remains incomplete."
+}

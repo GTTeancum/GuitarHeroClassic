@@ -10,9 +10,10 @@
 //
 //   ghogx_app                         interactive window (Esc or close to quit)
 //   ghogx_app --frames N              run N frames headlessly-ish then exit
-//   ghogx_app --ark-dir <dir>         load splash + gameplay from PS2 ARK
+//   ghogx_app --ark-dir <dir>         boot the stock PS2 menu runtime
 //   ghogx_app --song <shortname>      which song to play (default: shoutatthedevil)
 //   ghogx_app --difficulty <0-3>      chart difficulty (default: 1 = Medium)
+//   ghogx_app --auto-start            skip menus and load the selected song
 //   ghogx_app --diagnostic-song-start <sec>
 //                                      seek deterministic capture to a song time
 //   ghogx_app --diagnostic-autoplay    chart-driven native validation input
@@ -144,6 +145,68 @@ struct SplashSequence {
     else brightness = (dur - lt) / fade;                // fade out
   }
 };
+
+SplashSequence load_boot_sequence(const std::string& hdr,
+                                  const std::string& ark) {
+  SplashSequence seq;
+  for (const char* m : {"ui/gen/pub_splash.milo_ps2",
+                        "ui/gen/activision_splash.milo_ps2",
+                        "ui/gen/harmonix_splash.milo_ps2",
+                        "ui/gen/splash.milo_ps2"}) {
+    auto img = ghogx::asset::load_milo_texture(hdr, ark, m);
+    if (img.valid()) seq.slides.push_back(std::move(img));
+  }
+  return seq;
+}
+
+bool run_boot_intro_sequence(SplashSequence seq) {
+  if (env_flag("GHOGX_SKIP_BOOT_INTRO") || seq.slides.empty()) return true;
+
+  auto win = ghogx::render::Window::create(1280, 720, "GuitarHeroOGX");
+  if (!win) {
+    std::fprintf(stderr, "[ghogx] failed to create intro window/device\n");
+    return false;
+  }
+
+  using clock = std::chrono::steady_clock;
+  const auto start = clock::now();
+  const auto target_frame = std::chrono::duration<double>(1.0 / 60.0);
+  const float end_time =
+      static_cast<float>(seq.slides.size() - 1) * seq.slide_dur() + seq.fade;
+
+  std::fprintf(stderr, "[ghogx] playing boot intro (%zu slides)\n",
+               seq.slides.size());
+  while (!win->should_close()) {
+    win->pump();
+    if (win->should_close()) return false;
+
+    const auto now = clock::now();
+    const float t = std::chrono::duration<float>(now - start).count();
+    const bool skip = win->action_pressed(ghogx::render::Window::Action::Confirm) ||
+                      win->action_pressed(ghogx::render::Window::Action::Start);
+
+    int idx = -1;
+    float brightness = 0.0f;
+    seq.eval(t, idx, brightness);
+    win->clear(0.0f, 0.0f, 0.0f);
+    if (idx >= 0 && seq.slides[idx].valid()) {
+      const auto& s = seq.slides[idx];
+      win->blit_fullscreen_rgba(s.rgba.data(), s.width, s.height, brightness);
+    }
+    win->present();
+
+    if (skip || t >= end_time) {
+      if (skip) std::fprintf(stderr, "[ghogx] boot intro skipped\n");
+      return true;
+    }
+
+    const auto spent = clock::now() - now;
+    if (spent < target_frame) {
+      std::this_thread::sleep_for(target_frame - spent);
+    }
+  }
+  return false;
+}
 
 struct DiagnosticGuitarScriptEvent {
   double song_time = 0.0;
@@ -2012,7 +2075,7 @@ int main(int argc, char** argv) {
   bool hud_test = false;   // --hud-test: draw the in-song HUD overlay only
   HudTestOptions hud_test_options;
   bool hud_options_requested = false;
-  bool menu_mode = false;  // --menu: the windowed menu system
+  bool menu_mode = false;  // --menu or default --ark-dir boot: stock menu system
   std::string song_name = "shoutatthedevil";
   int difficulty = 0;  // Easy
   bool auto_start = false;  // skip splash/title, load song immediately
@@ -2272,13 +2335,37 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "[ghogx] debug note counter enabled\n");
   }
 
+  const bool direct_tool_mode =
+      !milo.empty() || !scene_milo.empty() || !char_milo.empty() || hud_test;
+  const bool direct_gameplay_mode = auto_start || !screenshot_sequence.empty();
+  const bool boot_menu_after_intro =
+      !menu_mode && !direct_tool_mode && !direct_gameplay_mode &&
+      !hdr.empty() && !ark.empty();
+
   // --menu: the windowed menu system (boots the menu engine + renders screens).
   if (menu_mode) {
     if (hdr.empty() || ark.empty()) {
       std::fprintf(stderr, "[ghogx] --menu requires --ark-dir\n");
       return 2;
     }
-    return ghogx::ui::run_menu_mode(hdr, ark, screenshot_path, screenshot_frame, max_frames);
+    ghogx::ui::MenuModeOptions menu_options;
+    menu_options.screenshot_path = screenshot_path;
+    menu_options.screenshot_frame = screenshot_frame;
+    menu_options.max_frames = max_frames;
+    menu_options.tune_file = hud_test_options.tune_file;
+    return ghogx::ui::run_menu_mode(hdr, ark, menu_options);
+  }
+
+  if (boot_menu_after_intro) {
+    std::fprintf(stderr,
+                 "[ghogx] default boot plays intro, then stock PS2 menu runtime\n");
+    if (!run_boot_intro_sequence(load_boot_sequence(hdr, ark))) return 0;
+    ghogx::ui::MenuModeOptions menu_options;
+    menu_options.screenshot_path = screenshot_path;
+    menu_options.screenshot_frame = screenshot_frame;
+    menu_options.max_frames = max_frames;
+    menu_options.tune_file = hud_test_options.tune_file;
+    return ghogx::ui::run_menu_mode(hdr, ark, menu_options);
   }
 
   // --scene: dedicated 3-D MILO scene viewer (venue/stage/track geometry).
@@ -2322,13 +2409,7 @@ int main(int argc, char** argv) {
     if (!milo.empty()) {
       image = ghogx::asset::load_milo_texture(hdr, ark, milo);
     } else {
-      for (const char* m : {"ui/gen/pub_splash.milo_ps2",
-                            "ui/gen/activision_splash.milo_ps2",
-                            "ui/gen/harmonix_splash.milo_ps2",
-                            "ui/gen/splash.milo_ps2"}) {
-        auto img = ghogx::asset::load_milo_texture(hdr, ark, m);
-        if (img.valid()) seq.slides.push_back(std::move(img));
-      }
+      seq = load_boot_sequence(hdr, ark);
       const std::string splash_milo = "ui/gen/splash.milo_ps2";
       title_poster = ghogx::asset::load_milo_texture_named(
           hdr, ark, splash_milo, "splash_poster.tex");

@@ -146,6 +146,7 @@ std::string normalize_outfit_surface_key(std::string key) {
 
 struct TextureSourceStats {
   std::unordered_set<std::string> found;
+  std::unordered_set<std::string> empty;
   size_t decoded = 0;
 };
 
@@ -181,6 +182,9 @@ TextureSourceStats load_milo_textures_from_source(
       if (img.valid()) {
         out[de.name] = std::move(img);
         ++stats.decoded;
+      } else if (tex.bitmap.width == 0 && tex.bitmap.height == 0 &&
+                 img.rgba.empty()) {
+        stats.empty.insert(de.name);
       }
     } catch (const std::exception& ex) {
       std::fprintf(stderr, "[asset]   %s decode failed: %s\n", de.name.c_str(),
@@ -193,14 +197,18 @@ TextureSourceStats load_milo_textures_from_source(
 void log_unresolved_texture_requests(
     const std::string& label, const std::vector<std::string>& entry_names,
     const std::map<std::string, Image>& out,
-    const std::unordered_set<std::string>& found) {
+    const std::unordered_set<std::string>& found,
+    const std::unordered_set<std::string>& empty) {
   if (!debug_texture_load_enabled() || out.size() == entry_names.size()) return;
   for (const auto& name : entry_names) {
     if (out.find(name) != out.end()) continue;
+    const char* status =
+        empty.find(name) != empty.end()
+            ? "stock empty Tex entry"
+            : (found.find(name) == found.end() ? "missing Tex entry"
+                                               : "Tex entry present");
     std::fprintf(stderr, "[asset] %s: requested texture %s not decoded (%s)\n",
-                 label.c_str(), name.c_str(),
-                 found.find(name) == found.end() ? "missing Tex entry"
-                                                 : "Tex entry present");
+                 label.c_str(), name.c_str(), status);
   }
 }
 
@@ -317,7 +325,8 @@ std::map<std::string, Image> load_milo_textures(
         load_milo_textures_from_source(ark, ark_path, milo_path, wanted, out);
     std::fprintf(stderr, "[asset] %s: loaded %zu/%zu requested textures\n",
                  milo_path.c_str(), out.size(), entry_names.size());
-    log_unresolved_texture_requests(milo_path, entry_names, out, stats.found);
+    log_unresolved_texture_requests(milo_path, entry_names, out, stats.found,
+                                    stats.empty);
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "[asset] load_milo_textures(%s): %s\n",
                  milo_path.c_str(), ex.what());
@@ -333,12 +342,14 @@ std::map<std::string, Image> load_milo_textures_from_sources(
   const std::unordered_set<std::string> wanted(entry_names.begin(),
                                                entry_names.end());
   std::unordered_set<std::string> found;
+  std::unordered_set<std::string> empty;
   try {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
     for (const auto& milo_path : milo_paths) {
       const TextureSourceStats stats =
           load_milo_textures_from_source(ark, ark_path, milo_path, wanted, out);
       found.insert(stats.found.begin(), stats.found.end());
+      empty.insert(stats.empty.begin(), stats.empty.end());
       if (out.size() == entry_names.size()) break;
     }
     const std::string label =
@@ -347,7 +358,7 @@ std::map<std::string, Image> load_milo_textures_from_sources(
                  "[asset] %s: loaded %zu/%zu requested textures from %zu source%s\n",
                  label.c_str(), out.size(), entry_names.size(),
                  milo_paths.size(), milo_paths.size() == 1 ? "" : "s");
-    log_unresolved_texture_requests(label, entry_names, out, found);
+    log_unresolved_texture_requests(label, entry_names, out, found, empty);
   } catch (const std::exception& ex) {
     const std::string label =
         milo_paths.empty() ? std::string("(no texture source)") : milo_paths.front();

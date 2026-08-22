@@ -62,6 +62,13 @@ class MockObject : public Object {
   explicit MockObject(const char* cls) : cls_(cls) {}
   Symbol class_name() const override { return cls_; }
   void ret(const char* msg, DataNode v) { returns_[Symbol(msg).id()] = std::move(v); }
+  void ret_score_row(const char* msg, int slot, const char* name, int score) {
+    auto row = std::make_shared<DataArray>();
+    row->push(DataNode::Int(slot));
+    row->push(DataNode::Str(name));
+    row->push(DataNode::Int(score));
+    returns_[Symbol(msg).id()] = DataNode::Array(row);
+  }
 
   std::vector<std::string> calls;  // "msg:arg0,arg1"
   DataNode handle_property(Symbol msg, const DataArray& args) override {
@@ -90,6 +97,8 @@ class MockHost : public Host {
  public:
   std::map<const void*, Object*> objs;
   std::map<const void*, DataNode> globals;
+  std::map<const void*, std::shared_ptr<Node>> funcs;
+  std::vector<std::unique_ptr<MockObject>> created;
   std::vector<std::string> unhandled;
 
   void bind(const char* name, Object* o) { objs[Symbol(name).id()] = o; }
@@ -97,6 +106,18 @@ class MockHost : public Host {
   DataNode get_global(Symbol n) override { auto it = globals.find(n.id()); return it == globals.end() ? DataNode() : it->second; }
   void set_global(Symbol n, DataNode v) override { globals[n.id()] = std::move(v); }
   void on_unhandled(const std::string& w) override { unhandled.push_back(w); }
+  Object* create_object(Symbol cls, Symbol name) override {
+    auto obj = std::make_unique<MockObject>(cls.c_str());
+    obj->set_name(name);
+    Object* raw = obj.get();
+    created.push_back(std::move(obj));
+    objs[name.id()] = raw;
+    return raw;
+  }
+  std::shared_ptr<Node> resolve_function(Symbol n) override {
+    auto it = funcs.find(n.id());
+    return it == funcs.end() ? nullptr : it->second;
+  }
 };
 
 // --- tests -----------------------------------------------------------------
@@ -131,6 +152,159 @@ static void test_vars_and_props() {
   // {$this set already_entered TRUE} then {! [already_entered]} == 0
   ip.eval(*mkcmd({mkvar("this"), mksym("set"), mksym("already_entered"), mksym("TRUE")}), env);
   CHECK(ip.eval(*mkcmd({mksym("!"), mkprop("already_entered")}), env).as_int().value() == 0);
+}
+
+static void test_cond() {
+  Interp ip; MockHost host; Scope root; MockObject self("GHPanel");
+  Env env; env.host = &host; env.scope = &root; env.self = &self;
+  NodePtr e = mkcmd({mksym("do"),
+      mkarr({mkvar("winner")}),
+      mkcmd({mksym("cond"),
+             mkarr({mkcmd({mksym(">"), mkint(10), mkint(20)}),
+                    mkcmd({mksym("set"), mkvar("winner"), mkint(0)})}),
+             mkarr({mkcmd({mksym("<"), mkint(10), mkint(20)}),
+                    mkcmd({mksym("set"), mkvar("winner"), mkint(1)})}),
+             mkarr({mkcmd({mksym("=="), mkint(10), mkint(20)}),
+                    mkcmd({mksym("set"), mkvar("winner"), mkint(-1)})})}),
+      mkvar("winner")});
+  CHECK(ip.eval(*e, env).as_int().value_or(-99) == 1);
+}
+
+static void test_dynamic_message_name() {
+  Interp ip; MockHost host; Scope root; MockObject self("EndGamePanel");
+  Env env; env.host = &host; env.scope = &root; env.self = &self;
+  NodePtr e = mkcmd({
+      mkvar("this"),
+      mkcmd({mksym("cond"),
+             mkarr({mksym("TRUE"), mksym("gen_battle_headline")})}),
+      mkstr("headline_arg")});
+  ip.eval(*e, env);
+  CHECK(self.called("gen_battle_headline:headline_arg"));
+}
+
+static void test_foreach_int_and_arrays() {
+  Interp ip; MockHost host; Scope root; MockObject self("GHPanel");
+  Env env; env.host = &host; env.scope = &root; env.self = &self;
+  DataNode r = ip.eval(*mkcmd({mksym("do"),
+      mkarr({mkvar("sum"), mkint(0)}),
+      mkarr({mkvar("items"), mkarr({mkarr({mksym("a"), mkint(2)}),
+                                    mkarr({mksym("b"), mkint(3)})})}),
+      mkcmd({mksym("foreach_int"), mkvar("i"), mkint(2), mkint(4),
+             mkcmd({mksym("+="), mkvar("sum"), mkvar("i")})}),
+      mkcmd({mksym("push_back"), mkvar("items"), mkarr({mksym("c"), mkint(4)})}),
+      mkcmd({mksym("+="), mkvar("sum"),
+             mkcmd({mksym("elem"),
+                    mkcmd({mksym("random_elem"), mkvar("items")}), mkint(1)})}),
+      mkvar("sum")}), env);
+  CHECK(r.as_int().value_or(0) == 11);
+}
+
+static void test_macro_array_operands_survive_preprocess() {
+  NodeList roots = {
+      mkdir(0x20, "CASH_AWARD_DEDUCTIONS"),
+      mkarr({mkarr({mksym("ca_blurb2"), mkint(460)})}),
+      mkcmd({mksym("random_elem"), mksym("CASH_AWARD_DEDUCTIONS")}),
+      mkcmd({mksym("x"), mksym("CASH_AWARD_DEDUCTIONS")})};
+  MacroTable macros;
+  PreprocessOptions opts;
+  opts.macro_table = &macros;
+  NodeList out = preprocess(roots, opts);
+  CHECK(out.size() == 2);
+  if (out.size() == 2) {
+    const auto& random = gh::dtb::children(*out[0]);
+    CHECK(random.size() == 2 && random[1]->tag == 0x05 &&
+          gh::dtb::as_string(*random[1]).value_or("") == "CASH_AWARD_DEDUCTIONS");
+    const auto& normal = gh::dtb::children(*out[1]);
+    CHECK(normal.size() == 2 && gh::dtb::is_array(*normal[1]));
+  }
+}
+
+static std::shared_ptr<DataArray> row(const char* key, int value) {
+  auto out = std::make_shared<DataArray>();
+  out->push(DataNode::Sym(Symbol(key)));
+  out->push(DataNode::Int(value));
+  return out;
+}
+
+static void test_global_array_builtins() {
+  Interp ip; MockHost host; Scope root; Env env; env.host = &host; env.scope = &root;
+  auto deductions = std::make_shared<DataArray>();
+  deductions->push(DataNode::Array(row("ca_blurb2", 460)));
+  deductions->push(DataNode::Array(row("ca_blurb3", 210)));
+  deductions->push(DataNode::Array(row("ca_blurb4", 50)));
+  host.set_global(Symbol("CASH_AWARD_DEDUCTIONS"), DataNode::Array(deductions));
+
+  DataNode total = ip.eval(*mkcmd({mksym("do"),
+      mkarr({mkvar("removed"), mkarr({})}),
+      mkarr({mkvar("total"), mkint(0)}),
+      mkcmd({mksym("foreach_int"), mkvar("num"), mkint(2), mkint(4),
+          mkcmd({mksym("do"),
+              mkarr({mkvar("data"),
+                     mkcmd({mksym("random_elem"), mksym("CASH_AWARD_DEDUCTIONS")})}),
+              mkcmd({mksym("remove_elem"), mksym("CASH_AWARD_DEDUCTIONS"),
+                     mkvar("data")}),
+              mkcmd({mksym("push_back"), mkvar("removed"), mkvar("data")}),
+              mkcmd({mksym("+="), mkvar("total"),
+                     mkcmd({mksym("elem"), mkvar("data"), mkint(1)})})})}),
+      mkcmd({mksym("foreach"), mkvar("elem"), mkvar("removed"),
+             mkcmd({mksym("push_back"), mksym("CASH_AWARD_DEDUCTIONS"),
+                    mkvar("elem")})}),
+      mkvar("total")}), env);
+  CHECK(total.as_int().value_or(0) == 720);
+  auto restored = host.get_global(Symbol("CASH_AWARD_DEDUCTIONS")).as_array();
+  CHECK(restored && restored->size() == 3);
+  CHECK(restored && restored->at(0).as_array() &&
+        restored->at(0).as_array()->at(1).as_int().value_or(0) == 460);
+
+  auto states = std::make_shared<DataArray>();
+  states->push(DataNode::Sym(Symbol("intro")));
+  states->push(DataNode::Sym(Symbol("playing_notes")));
+  states->push(DataNode::Sym(Symbol("diff_notes")));
+  host.set_global(Symbol("TUTORIAL_STATES"), DataNode::Array(states));
+  DataNode found = ip.eval(*mkcmd({mksym("do"),
+      mkarr({mkvar("index")}),
+      mkcmd({mksym("find_elem"), mksym("TUTORIAL_STATES"),
+             mksym("playing_notes"), mkvar("index")}),
+      mkcmd({mksym("+"), mkvar("index"),
+             mkcmd({mksym("size"), mksym("TUTORIAL_STATES")})})}), env);
+  CHECK(found.as_int().value_or(0) == 4);
+}
+
+static void test_global_func() {
+  Interp ip; MockHost host; Scope root;
+  Env env; env.host = &host; env.scope = &root;
+  host.funcs[Symbol("plus_one").id()] =
+      mkcmd({mksym("func"), mksym("plus_one"), mkarr({mkvar("x")}),
+             mkcmd({mksym("+"), mkvar("x"), mkint(1)})});
+  CHECK(ip.eval(*mkcmd({mksym("plus_one"), mkint(8)}), env).as_int().value_or(0) == 9);
+}
+
+static void test_inline_new_returns_object() {
+  Interp ip; MockHost host; Scope root;
+  Env env; env.host = &host; env.scope = &root;
+  DataNode created = ip.eval(
+      *mkcmd({mksym("new"), mksym("StatsProvider"),
+              mksym("stats_provider")}),
+      env);
+  Object* obj = created.as_object();
+  CHECK(obj != nullptr);
+  CHECK(obj && obj->class_name() == Symbol("StatsProvider"));
+  CHECK(obj && obj->name() == Symbol("stats_provider"));
+  CHECK(host.resolve_object(Symbol("stats_provider")) == obj);
+}
+
+static void test_object_out_args() {
+  Interp ip; MockHost host; Scope root; MockObject highscores("Highscores");
+  highscores.ret_score_row("get_highscore", 0, "JUDY", 275000);
+  host.bind("highscores", &highscores);
+  Env env; env.host = &host; env.scope = &root;
+  DataNode r = ip.eval(*mkcmd({mksym("do"),
+      mkarr({mkvar("slot"), mkint(0)}), mkarr({mkvar("name"), mkint(0)}),
+      mkarr({mkvar("score"), mkint(0)}),
+      mkcmd({mksym("highscores"), mksym("get_highscore"), mkvar("slot"),
+             mkvar("name"), mkvar("score")}),
+      mkcmd({mksym("sprintf"), mkstr("%s:%d"), mkvar("name"), mkvar("score")})}), env);
+  CHECK(to_str(r) == "JUDY:275000");
 }
 
 // Exact shape of stock main.dtb (SELECT_START_MSG ...): pick quickplay.
@@ -242,6 +416,10 @@ static void test_sprintf() {
   Interp ip; MockHost host; Scope root; Env env; env.host = &host; env.scope = &root;
   DataNode r = ip.eval(*mkcmd({mksym("sprintf"), mkstr("%s=%d"), mksym("foo"), mkint(5)}), env);
   CHECK(to_str(r) == "foo=5");
+  DataNode upper = ip.eval(*mkcmd({mksym("sprintf"), mkstr("$%D"), mkint(50)}), env);
+  CHECK(to_str(upper) == "$50");
+  DataNode joined = ip.eval(*mkcmd({mksym("sprint"), mkstr("store_"), mksym("guitar")}), env);
+  CHECK(to_str(joined) == "store_guitar");
 }
 
 static void test_preprocess() {
@@ -279,6 +457,14 @@ static void test_preprocess() {
 int main() {
   test_operators();
   test_vars_and_props();
+  test_cond();
+  test_dynamic_message_name();
+  test_foreach_int_and_arrays();
+  test_macro_array_operands_survive_preprocess();
+  test_global_array_builtins();
+  test_global_func();
+  test_inline_new_returns_object();
+  test_object_out_args();
   test_main_select_switch();
   test_career_branch();
   test_do_local_object();

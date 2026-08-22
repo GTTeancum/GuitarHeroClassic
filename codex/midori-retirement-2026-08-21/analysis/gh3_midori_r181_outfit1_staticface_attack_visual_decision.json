@@ -1,0 +1,24 @@
+{
+  "format": "gh3_midori_visual_decision_v1",
+  "revision": "r181-outfit1-staticface-attack",
+  "status": "rejected",
+  "face_policy": "static/no-op; no face_clip was applied",
+  "candidate_milo": "analysis/gh3_midori_gh2_milos/gh3_midori_1_main_staticface_attack_r181.milo_ps2",
+  "candidate_sha256": "9CD65B3D781331B3DAEC7D616B9C591E8A90A14A63612019071458474FE4F105",
+  "cases_json": "analysis/gh3_midori_r181_outfit1_attack_cases.json",
+  "pose_review_manifest": "analysis/gh3_midori_r181_outfit1_attack_pose_review_manifest.json",
+  "screenshot": "analysis/gh3_midori_r181_outfit1_attack_proofs/midori_1_attack_left_r181_f030.bmp",
+  "visual_reasons": [
+    "midori_1_attack_left_r181_f030: lower body remains bipedal, but the left arm rises through the head/face region instead of reading as a performance pose",
+    "midori_1_attack_left_r181_f030: guitar body cuts across the torso and still dominates/occludes the arm silhouette"
+  ],
+  "automation_result": {
+    "outfit_specific_main_milo_path_loaded": true,
+    "clip_loaded": "gh3_guit_mido_a_attackl",
+    "expected_layer_count_passed": true,
+    "framing_passed": true,
+    "pose_review_status": "failed",
+    "pose_review_failure_note": "visible_difference_from_idle failed because this one-case capture intentionally omitted an idle reference image"
+  },
+  "next_branch": "Keep the outfit-specific main-bank/staging path. Do not promote r181. Adjust the visible upper-arm/forearm transform objective for attack before broadening to jump/solo/transition or outfit 2."
+}

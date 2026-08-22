@@ -14,10 +14,16 @@
 
 namespace ghogx::ui {
 
+struct MenuModeOptions {
+  std::string screenshot_path;
+  int screenshot_frame = 30;
+  int max_frames = 0;
+  std::string tune_file;
+};
+
 // hdr/ark = the PS2 ARK; screenshot_path (optional) captures one frame at
 // screenshot_frame; max_frames>0 auto-exits (0 = run until the window closes).
 int run_menu_mode(const std::string& hdr, const std::string& ark,
-                  const std::string& screenshot_path, int screenshot_frame,
-                  int max_frames);
+                  const MenuModeOptions& options);
 
 }  // namespace ghogx::ui

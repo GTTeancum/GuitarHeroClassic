@@ -1,0 +1,82 @@
+{
+  "format": "gh3_midori_pose_review_proof_v1",
+  "status": "failed",
+  "proof_count": 1,
+  "failure_count": 1,
+  "failures": [
+    "midori_1_attack_left_r181_f030:visible_difference_from_idle"
+  ],
+  "camera_distance": 130.0,
+  "char_offset_z": 0.0,
+  "screenshot_frame": null,
+  "app": "GuitarHeroOGX-main-ui-engine\\engine\\out\\build\\win-amd64-release\\src\\app\\ghogx_app.exe",
+  "ark_dir": "gh2_ps2_hybrid_assets\\GEN",
+  "addons_dir": "gh2_ps2_hybrid_assets\\DLC",
+  "proofs": [
+    {
+      "name": "midori_1_attack_left_r181_f030",
+      "category": "main_attack_staticface_outfit_bank",
+      "selection": "gh3_midori_1",
+      "model": "char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2",
+      "main_milo": "char/gh3_midori/anims/gen/gh3_midori_1_main_staticface_attack_r181.milo_ps2",
+      "main_clip": "gh3_guit_mido_a_attackl",
+      "strum_milo": null,
+      "strum_clip": null,
+      "fret_milo": null,
+      "fret_clip": null,
+      "face_milo": null,
+      "face_clip": null,
+      "frame": 30,
+      "idle_reference": "midori_1_medium_idle_f060",
+      "sampled_idle_difference_ratio": null,
+      "screenshot": "analysis/gh3_midori_r181_outfit1_attack_proofs/midori_1_attack_left_r181_f030.bmp",
+      "log": "analysis/gh3_midori_r181_outfit1_attack_proofs/midori_1_attack_left_r181_f030.log",
+      "image": {
+        "width": 1280,
+        "height": 720,
+        "bit_count": 24,
+        "byte_count": 2764854,
+        "background_rgb": [
+          24,
+          26,
+          38
+        ],
+        "visible_pixel_count": 55082,
+        "visible_pixel_ratio": 0.059768,
+        "sampled_unique_color_count": 2678,
+        "visible_bounds": {
+          "x": 417,
+          "y": 55,
+          "width": 373,
+          "height": 649
+        }
+      },
+      "checks": {
+        "bmp_present": true,
+        "log_present": true,
+        "dimensions_1280x720": true,
+        "uncompressed_24_bit": true,
+        "nonblank_visible_pixels": true,
+        "sampled_color_diversity": true,
+        "framing_has_margins": true,
+        "source_dlc_mounted": true,
+        "model_loaded": true,
+        "textures_uploaded": true,
+        "expected_clips_loaded": true,
+        "pose_publisher_layer_count": true,
+        "visible_difference_from_idle": false,
+        "screenshot_written": true,
+        "no_command_failure": true
+      },
+      "passed": false,
+      "errors": [
+        "visible_difference_from_idle"
+      ]
+    }
+  ],
+  "scope": "Representative native viewer review for both Midori outfits and main idle/attack/jump/solo/transition/accessory plus hand-overlay animation paths. This checks load, pose-publisher layer count, nonblank texture-rich screenshots, and 1280x720 framing margins.",
+  "remaining_runtime_gaps": [
+    "This is representative automated pose/framing evidence, not exhaustive visual review of all 280 source clips.",
+    "PS2/emulator runtime loading from the ark-external package is not proven."
+  ]
+}

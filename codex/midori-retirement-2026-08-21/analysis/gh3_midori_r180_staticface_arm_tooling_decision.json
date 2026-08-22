@@ -1,0 +1,43 @@
+{
+  "format": "gh3_midori_staticface_arm_tooling_decision_v1",
+  "status": "tooling_ready_no_candidate_built",
+  "face_policy": "static_no_face_clip_for_current_arm_phase",
+  "arm_phase": "resume_visible_arms_before_hands_fingers_guitar_attachment",
+  "runtime_manifest_finding": {
+    "summary": "Guitar Hero OGX character variants carry independent main_anim paths, and gameplay receives the selected variant main_anim_path.",
+    "implication": "Outfit-specific main animation MILOs are expressible through ordinary DLC manifests if the files exist in loose DLC."
+  },
+  "tooling_changes": [
+    {
+      "path": "tools/gh3_midori_pose_review.py",
+      "change": "Custom cases may now provide main_milo, strum_milo, fret_milo, and face_milo paths. Defaults remain the shared Midori banks."
+    },
+    {
+      "path": "tools/gh3_midori_capture_with_loose_dlc_backup.py",
+      "change": "Capture can temporarily stage extra candidate files into arbitrary DLC-relative paths with automatic restore/delete cleanup."
+    },
+    {
+      "path": "tools/gh3_midori_build_fullclip_coupled_contact_candidate.py",
+      "change": "Builds can be limited to selected diagnostic solve rows with --case-name while retaining duplicate-clip conflict errors."
+    },
+    {
+      "path": "tools/gh3_midori_build_fullclip_candidate_from_seed_acp.py",
+      "change": "Seed-ACP builds can be limited to selected diagnostic solve rows with --case-name and fail if the filter leaves no coupled solve rows."
+    }
+  ],
+  "ihatecompvir_tools_position": {
+    "summary": "Local audit treats ihatecompvir MiloLib as useful GH2 PS2 layout reference, while public glTFMilo is not a drop-in GH2 PS2 final converter.",
+    "implication": "GLB remains acceptable as an automated intermediate, but final Midori animation output still needs the GH2 PS2 CharClipSamples writer/validator path."
+  },
+  "r181_build_attempt": {
+    "status": "stopped_before_output",
+    "summary": "A non-live outfit-1 bank build was started with the new case filter, then interrupted because the MILO replace stage was taking too long for the user's lag concern. No r181 MILO output was retained; temporary ACP scratch was deleted.",
+    "note": "The first command also confirmed the build must pass the pinned r176 source_bridge path, not the builder default bridge."
+  },
+  "next_arm_test": [
+    "Build or duplicate static-face main arm banks into separate outfit-specific filenames.",
+    "Patch a temporary cases JSON so gh3_midori_1 uses the outfit-1 main_milo path and gh3_midori_2 uses the outfit-2 main_milo path.",
+    "Capture only arm-relevant cases first: attack, jump, solo, and transition, with no face_clip.",
+    "Reject immediately on non-bipedal silhouettes, misplaced neck/head, or arm/body/guitar collapse."
+  ]
+}

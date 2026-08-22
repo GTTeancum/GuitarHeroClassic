@@ -1,0 +1,59 @@
+[ghogx] render size: 1280x720
+[ghogx] audio muted for diagnostic run
+[configdb] addon manifest: C:/Programming/GitHub/Guitar Hero II/gh2_ps2_hybrid_assets/DLC/community.gh3.midori/manifest.json
+[configdb] addon C:/Programming/GitHub/Guitar Hero II/gh2_ps2_hybrid_assets/DLC/core.singers/manifest.json: missing asset for gh2_female_singer: char/alterna/anims/gen/alterna_ui.milo_ps2
+[configdb] DLC catalog: packages=1 files=7 setlists=0
+[char-root] char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2: type=BandCharacter object_type=guitarist lods=1 shadow= self_shadow=0 sphere_base=gh3_midori_1.grp environment=
+[char] char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2: 46 meshes (46 ok / 0 fail, 46 showing), 71 bones, 3 mat, 1 group, 0 morph, 0 upperTwist, 0 foreTwist, 0 neckTwist, 0 ikRod, 2 ikHand, 1 ikMidi, 1 servoBone, 0 lookAt, 0 eyes, 0 hair, 0 collide, 0 posConstraint, 0 boneOffset, 0 boneTwist, 0 lipServo, 0 animFilter, 0 eventTrigger, 0 object, 1 outfitLoader, 1 charWalk, 0 worldFx, 0 meshHide, 1 tex, 3 driver, 2 weightSetter, 0 opaque
+[char] loaded 'gh3_midori_1' — 46 meshes, 71 bones, 3 mats
+[asset] char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2: loaded 1/1 requested textures
+[char] loaded 1/1 textures
+[ghogx] D3D9 window 1280x720 created (hidden) via HAL hardware VP D24S8 immediate
+[char3d] uploaded 1/1 textures
+[char3d] bind-pose extent [-18.3 -7.3 0.1]..[18.7 4.4 72.0] target=(0.2 -1.4 36.0) dist=133.1
+[milo_scene] char/og/guitars/gen/xplorer.milo_ps2: 4 meshes (4 ok / 0 fail), 0 multi_mesh (0 ok / 0 fail), 0 particles (0 ok / 0 fail, 0 source-order), 26 trans, 13 mat, 0 cam, 0 waypoint, 3 group (3 source-order), 0 world_crowd (0 ok / 0 fail)
+[asset] char/og/guitars/gen/xplorer.milo_ps2: loaded 8/8 requested textures
+[char3d] instrument anchor bone_fret.mesh from prop 'xplorer': parent=bone_pos_guitar.mesh local=(2.9884 0.3053 26.9909) was=(4.3251 0.3053 26.9909) source=prop-asset
+[char3d] instrument anchor bone_fret_hand.mesh from prop 'xplorer': parent=bone_fret.mesh local=(-6.2746 -0.4536 -4.3206) was=(-6.2746 -0.4536 -4.3206) source=prop-asset
+[char3d] prop 'xplorer' attached to bone_pos_guitar.mesh, textures 8/8
+[char3d] prop transform proxies imported=24 source=shared-objectdir-transform-only
+[clip] 'gh3_guit_mido_a_attackl' from char/gh3_midori/anims/gen/gh3_midori_1_main_staticface_attack_r181.milo_ps2: 145 frames, 39 channels/frame, 64 output bones flags=0x00000000 playFlags=0x00000000 blend=0.240 range=0.000 transitions=0 events=0 enter=<none> exit=<none> relative=<none>
+[char] orbit: arrows = yaw/pitch, Q/E = zoom, W/S = target up/down. Esc to quit.
+[char] clip-frame override enabled: 30
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[char-pose-mesh-dump] wrote 46 rows -> C:\Programming\GitHub\Guitar Hero II\analysis\gh3_midori_r181_outfit1_attack_mesh_dump\midori_1_attack_left_r181_f030.jsonl
+[ghogx] screenshot saved: C:\Programming\GitHub\Guitar Hero II\analysis\gh3_midori_r181_outfit1_attack_proofs\midori_1_attack_left_r181_f030.bmp (1280x720)
+[char] screenshot -> C:\Programming\GitHub\Guitar Hero II\analysis\gh3_midori_r181_outfit1_attack_proofs\midori_1_attack_left_r181_f030.bmp (frame 30)
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[pose-publisher] label=viewer native typed clip layers: layers=1 relative=0 source_publisher=active path=AcquirePose|ScaleDown|ScaleAdd|PoseMeshes layers_used=0:gh3_guit_mido_a_attackl@f30:w=1.000:ch=39:out=64:ov=0:rel=0:sig=374.579
+[char] exited after 33 frames

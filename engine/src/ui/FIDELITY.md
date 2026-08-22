@@ -119,19 +119,15 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
       - `u8 flag=1` + `i32 kerncount=480` + **kern[480]**: 8 B each =
         `[u8 left][u8 right][i16 sign-ext][f32 kern]`. kern is em-fraction (±1/34 ⇒ ±1 px
         at cap-height 34). Pairs A(/AV/AW/AY… verified. **Loaded byte-exact.**
-      - self-name string "impact.font" + a short trailer (34/512, 50/256), then a
-        **sparse/segmented per-glyph region** (16-B-strided clusters at odd offsets).
-    **KEY FINDING:** impact.font does NOT store a plain per-glyph atlas-rect table — the
-    width/x sequences appear in NO encoding (int8/int16/f32 over /512,/256,/34); the rect
-    data is sparse+segmented and only the recomp `RndFont::Load` (register-level PPC) would
-    decode it byte-for-byte. **Not needed:** the glyph rectangles ARE the literal pixel
-    locations in impact.tex (ground truth). The atlas is a **5-row variable-width packed**
-    layout; rows detect cleanly by alpha projection and map **1:1 to the charset order**
-    (row0 A–W=23, row1 X–Z0–9 + 15 punct=28, row2 18 punct + ©®¡¿ÀÁÂ=25, rows3–4 accents).
-    So glyph rects are **derived from the decoded atlas at load** (`[VERBATIM]` pixels +
-    `[VERBATIM]` charset order + `[VERBATIM]` kerning). The one non-byte-exact metric is the
-    inter-glyph **advance/tracking** (not stored decodably) — seeded from ink-width + small
-    tracking, to be pinned against a GH2 screenshot. `[INFERENCE: advance/tracking only]`
+      - self-name string "impact.font" + 2-byte pad, texture dimensions, cap/line
+        scale floats, then 256 source metric records: `[f32 u0][f32 v0][f32
+        width/cap][f32 advance/cap]`.
+    **UPDATED 2026-07-03:** `impact.font` and `dyingmarker.font` do contain a
+    decodable source metric table. MenuFont parses it byte-for-byte and uses
+    the per-character advances. The default path still derives tight glyph
+    rects from atlas alpha because direct full source-cell quads scored worse
+    against clean PCSX2 menu captures. The remaining open factor is the exact
+    RndText/RndFont draw path, not the menu positions.
   - (2c-render) **Button labels now draw on screen.** menu_labels.cpp parses each
     panel MILO: per BandButton/Text/BandLabel it pulls the embedded strings (first =
     font, last = label/loc-key) and finds the embedded Trans **structurally** (first
@@ -163,7 +159,23 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
         `"impact"`; `impact.font`→`impact.mat` = white base); the per-state colour is the
         Mat tint over that white base. `focus_scale 1.05` IS real (ui_objects_ps2.dta:10).
     So stock GH2 = **white normal / yellow focused / grey 0.4 disabled** (code constants
-    `kColNormal/kColFocused/kColDisabled`). `[VERBATIM]` colours+focus_scale.
+    `kWidgetColNormal/kWidgetColFocused/kWidgetColDisabled`). `[VERBATIM]`
+    colours+focus_scale for the generic widget family.
+    UPDATE 2026-07-04: the menu renderer now scopes the settled PS2 red/white
+    main-menu tint to `main_*.btn` only. Every other `BandButton` uses the
+    `common.milo_ps2` state material colors above. Proof:
+    `ghogx.exe mesh --milo-path ui/gen/common.milo_ps2` reports
+    `normal.mat=(1,1,1,1)`, `focused.mat=(1,1,0,1)`,
+    `selecting.mat=(1,0,0,1)`, `disabled.mat=(0.4,0.4,0.4,1)`;
+    focused captures are in
+    `engine/out/menu_tuning/screens/widget_state_colors_20260704/`
+    (`audio_settings_screen.bmp`, `video_settings_screen.bmp`,
+    `pause_audio_settings_screen.bmp`, `pause_video_settings_screen.bmp`,
+    and `main_screen.bmp` proving the main-menu tint did not bleed out or regress).
+    Fresh all-menu proof:
+    `engine/out/menu_tuning/screens/widget_state_colors_allmenus_20260704/menu_dump.log`
+    audits 98 screens with zero fatal/assert/decode-failed/missing-font/unhandled/stub
+    matches in the verification scan.
     DEFERRED: the 3 `Text` objects (SONG/VENUE/DIFFICULTY) need their parent-group
     offset composed (their bare world translation lands them on the button column) and
     use a non-impact font; per-state focus colour; the help bar.
@@ -329,3 +341,553 @@ STILL OPEN (flagged `[INFERENCE]`, refined per-screen from config DTBs + recomp 
 the unhandled log): the deeper game-vs-player state split, campaign progression
 (beat_song/cash/unlocks/status), song_provider/store specifics, synth/play_sfx,
 profilemgr/content_mgr/memcard.
+
+### Menu visual parity trace notes - 2026-07-03
+- **Main menu / Quick Play targets are siloed editor-only.** Current work is under
+  `GuitarHeroOGX-menu-editor`; no gameplay renderer code is used as the menu layout
+  source of truth.
+- **Setlist row-stack origin - `[VERBATIM-DATA]` + `[PCSX2-RAM]`.**
+  `sel_song_quickplay.milo_ps2::ss_song.lst` decodes to provider `song2`, parent
+  `ss_songlist.view`, local `(25, -40)`, world `(25, 940)`, visible slots `5`,
+  row height `40`, text height `30`, width bound `75`. The clean background-only
+  PCSX2 RAM trace `stock_menu_text_terms_20260703.json` shows the same live matrix.
+  Menu camera/text origin now uses that `world_z=940` directly. The prior
+  `ss_setlist.view world_z=980 + fitted -39.7` path was removed because the exact
+  source value is the UIList's own row-stack transform.
+- **Setlist text templates - `[VERBATIM-DATA]` + `[PCSX2-RAM]`.**
+  `list_song2.milo_ps2::header.txt` decodes to world `(-294, 1)` with text size
+  `25`; `list.txt` decodes to world `(-263, -30)` with text size `26`. The same
+  templates appear live in `stock_menu_text_terms_20260703.json`. Remaining
+  nonzero `kSetlistPcsx2*Text*` values are renderer bridge offsets for the editor's
+  D3D glyph rasterizer; they are not MILO layout authority and should be deleted
+  once the exact RndText glyph baseline/raster path is traced.
+- **Setlist RndText tail - `[VERBATIM-DATA]` + `[STATIC-ELF]`.**
+  The serialized Text tail immediately after the embedded text string is now
+  decoded instead of skipped: RGBA at `+0..+12`, wrap-width candidate at `+16`,
+  `field_14` at `+20`, `field_18/+1c` zeroes, `text_size` at `+32`, and flags at
+  `+36`. `list_song2::list.txt` stores color `(1,1,1,1)`, width `600`, field_14
+  `0.75`, text size `26`, flags `0x200`; `header.txt` stores width `0`,
+  field_14 `1.0`, text size `25`, flags `0x200`. Static SLUS trace ties runtime
+  RndText setters to object fields: `set_wrap_width` dispatch `0x001dcaa8` calls
+  `0x001da8b8` and writes object offset `0x120`; `set_align` dispatch
+  `0x001dc9f8` calls `0x001db3c0` and writes `0x124`; `set_fixed_length`
+  dispatch `0x001dc908` calls `0x001da8e8` and writes `0x144`; `set_color`
+  dispatch writes RGBA at `0x160`. This proves the MILO tail is real RndText data,
+  but exact editor glyph baseline/raster placement still requires the RndText draw
+  path or a clean PCSX2 draw trace.
+- **Fresh PCSX2 trace caveat.** A later no-focus run
+  `stock_menu_text_rows_20260703.*` did not navigate past title and is not used as
+  evidence. The clean setlist reference remains
+  `stock_menu_text_terms_20260703.settle_setlist.client.png`.
+- **Cross-menu stock macro loading - `[VERBATIM-DATA]`.** Stock `ui/gen/*.dtb`
+  files share `#define` body fragments across files, and some references occur
+  before the defining DTB in ARK order (`multiplayer.dtb` uses
+  `SEL_VENUE_SCREEN_HANDLERS`, defined in `career.dtb`). The loader now performs
+  a macro-collection pass over all UI DTBs before object loading, then flattens
+  macro body fragments such as `MULTI_SELSONG_SCREEN_HANDLERS` into object
+  entries. Regression coverage in `ghogx_ui_test` verifies
+  `multi_coop_selsong_screen -> sel_song_panel` and
+  `multi_coop_venue_screen -> sel_venue_panel`.
+- **Song-select screens generalized - `[VERBATIM-DATA]`.** The renderer no longer
+  special-cases `qp_selsong_screen`; it detects stock screens containing
+  `sel_song_panel`, resolves that panel's authored `(file ...)` script, and draws
+  `ss_song.lst` from that MILO (`sel_song_quickplay.milo_ps2`/`list_song2` or
+  `sel_song.milo_ps2`/`list_song`). `song_provider` now answers
+  `set_quickplay/get_quickplay/get_symbol/num_headers/has_instrument/get_instrument`
+  from `config/gen/campaign.dtb` and `config/gen/songs.dtb`.
+  Audit `all_menus_dump_forward_macros_20260703.log`: all six song-select screens
+  (`qp`, `practice`, career, and three multiplayer variants) render 20 meshes,
+  17 textures, and 372 populated song-list glyph verts; all four venue screens
+  render 28 meshes and 26 textures. Remaining no-panel screens are video/cutscene
+  playback placeholders, not normal menu-panel MILOs.
+- **UIList row-template MILOs come from `ui_objects.dtb` -
+  `[VERBATIM-DATA]`.** Stock `ui/gen/ui_objects.dtb` owns the provider-to-resource
+  mapping under `UIList -> types -> resource_file`: `song -> list_song.milo`,
+  `song2 -> list_song2.milo`, `list_section -> list_section.milo`, and
+  `credits -> list_credits.milo`. The editor now resolves list row/template
+  resources through that DTB instead of deriving filenames from provider names.
+  Proof:
+  `engine/out/menu_tuning/screens/uilist_resource_files_20260704/menu_dump.log`
+  logs `ss_song.lst` as
+  `milo=ui/gen/sel_song_quickplay.milo_ps2 template=ui/gen/list_song2.milo_ps2`,
+  `sel_section.lst` as
+  `milo=ui/gen/practice_sel_section.milo_ps2 template=ui/gen/list_section.milo_ps2`,
+  and `credits.lst` as
+  `milo=ui/gen/credits.milo_ps2 template=ui/gen/list_credits.milo_ps2`; the same
+  run captured 98 screenshots with zero audited-empty screens.
+- **Practice section list resources are panel/provider-derived -
+  `[VERBATIM-DATA]`.** `practice.dta` defines `practice_sel_section_panel`
+  with `(file practice_sel_section.milo)`, and
+  `practice_sel_section.milo_ps2::sel_section.lst` embeds provider
+  `list_section`. The editor derives the list MILO from the screen panel's
+  stock `(file ...)` and the row template MILO from `ui_objects.dtb`'s
+  `resource_file`, instead of hard-coding both paths in the renderer. Current
+  proof is the `uilist_resource_files_20260704` dump above.
+- **Venue BandButtons are control-only - `[VERBATIM-DATA]`.**
+  `sel_venue.milo_ps2` contains eight `BandButton` controls plus the visible
+  venue/banner meshes, but no `Text`/`BandLabel` entries. Unlike drawable menu
+  buttons in `main.milo_ps2` and `options.milo_ps2`, the `sv_*.btn` objects have
+  no serialized parent `.view`/`.grp` string; their embedded labels are focus
+  control symbols/text, not an overlay text layer. The menu renderer keeps those
+  labels available for focus navigation but does not draw glyphs for parentless
+  `BandButton`s. Regression coverage in `ghogx_menu_labels_test` verifies
+  main/options buttons have parents while all eight venue buttons do not.
+- **Parentless-but-group-owned buttons are drawable - `[MILO-SURFACE]`.**
+  `lag.milo_ps2` stores `autocalibrate.btn` and `reset_to_zero.btn` without a
+  serialized parent string, but the MILO group graph owns both through
+  `buttons.grp`. The renderer now treats MILO group ownership as a drawable
+  parent surface and only skips truly unowned parentless buttons, preserving the
+  venue-control exception above. Proof:
+  `engine/out/menu_tuning/screens/lag_group_owned_buttons_20260704/lag_screen.log`
+  logs both lag buttons as `[menu-text]` with `owners=buttons.grp` instead of
+  `button-no-parent`, and
+  `engine/out/menu_tuning/screens/lag_group_owned_buttons_20260704/lag_screen.bmp`
+  shows both labels.
+- **Quoted panel files are real panel file properties - `[VERBATIM-DATA]`.**
+  `tutorials.dtb` stores `tutorials_panel` as `(file "tutorials.milo")` instead
+  of a bare symbol. `panel_file()` now accepts string-valued `file` properties in
+  addition to symbol values, so `tutorials_screen` loads `ui/gen/tutorials.milo_ps2`
+  instead of auditing as an empty panel. Proof:
+  `engine/out/menu_tuning/proof_tutorials_screen_string_file_20260703.bmp`
+  renders the tutorial poster/buttons with 6 meshes, 5 textures, and 600
+  populated glyph verts.
+- **Encrypted DTBs can start with byte 0x01 - `[VERBATIM-DATA]`.**
+  `config/gen/credits.dtb` begins with seed byte `0x01`, which looked like the
+  plaintext-DTB sentinel to the old parser. The parser now tries plaintext first
+  and falls back to PS2 decryption if plaintext parsing fails, preserving normal
+  plaintext behavior while decoding this encrypted credit table. `dtb_tool dump`
+  now reads the stock 1279-row credits table.
+- **Credits screen text is source-backed, scroll timing still open - `[VERBATIM-DATA]` + `[INFERENCE]`.**
+  `credits_screen` now draws from `config/gen/credits.dtb`, positions rows with
+  `credits.milo_ps2::credits.lst`, and resolves the `credits` UIList provider
+  through `ui/gen/ui_objects.dtb` to `list_credits.milo_ps2` Text templates
+  (`title.txt`, `name.txt`, `center.txt`, `centername.txt`) with the
+  authored `clarendon.font` / `rockletters.font` split. Role/name rows are
+  aligned from the stock template X positions rather than fitted by eye.
+  `credits.lst` now also supplies the visible row window: its serialized UIList
+  body stores an unaligned integer `16` after the row/text-height fields, so the
+  editor draws 16 stock slots instead of the old renderer-side 24-row cap.
+  Proof: `ghogx_menu_labels_test` prints
+  `credits.lst world=(0.0 186.0) slots=16 row=30.0 text=25.0`, focused capture
+  `engine/out/menu_tuning/screens/credits_visible_slots_20260704/credits_screen.bmp`,
+  and full audit
+  `engine/out/menu_tuning/screens/credits_visible_slots_allmenus_20260704/menu_dump.log`
+  captured 98 screens with zero failure-pattern matches. Current static editor
+  view follows `credits.lst selected_pos`, including the stock blank lead-in at
+  row 0; the exact live scroll speed, pixel clipping, and long-role wrapping
+  remain open until a clean PCSX2 runtime trace.
+- **Endgame stats section list is provider-backed - `[VERBATIM-DATA]` + `[INFERENCE]`.**
+  `endgame.dta` sets `stats_sections.lst` to `{new StatsProvider stats_provider}`.
+  The script interpreter now returns real host-owned objects for inline
+  `{new Class name}`, and the menu manager registers a data-backed
+  `StatsProvider`. The renderer resolves `stats_sections.lst` from
+  `ui/gen/endgame_stats.milo_ps2`, resolves provider type `stats` through
+  `ui/gen/ui_objects.dtb` to `ui/gen/list_stats.milo_ps2`, and draws rows from
+  the stock `section.txt` / `notes1.txt` templates. Section names come from the
+  parsed MIDI practice-section events already loaded by `ConfigDb`; per-section
+  note counts are currently an editor-side distribution of the existing
+  aggregate player note totals until gameplay-owned section stats are available.
+  Proof: `ghogx_script_test` covers inline `new`, `ghogx_ui_test` covers
+  `StatsProvider` rows, `ghogx_menu_labels_test` covers
+  `stats_sections.lst provider=stats parent=endgame_stats.view`, and capture
+  `engine/out/menu_tuning/screens/stats_sections_provider_20260704/endgame_stats_screen_gray.bmp`
+  shows populated endgame stats rows with the stock `LIST_STATS_COLORS` normal
+  gray.
+- **Combined menu screens use the menu camera - `[VERBATIM-DATA]`.**
+  Menu mode now clears `MiloSceneRenderer`'s auto-authored-camera flag after
+  composing a screen's panel MILOs, then applies `ui/gen/metacam.milo_ps2::meta.cam`.
+  This prevents sub-panel cameras from taking over the whole screen. The concrete
+  failure was `store_screen`: `store_video.milo_ps2::store_video.cam` is real data,
+  but it belongs to that video sub-panel, not to the composed store menu. Proof:
+  `engine/out/menu_tuning/proof_store_screen_menu_camera_20260703.bmp` renders
+  the store wall/buttons instead of the all-black frame from
+  `proof_store_screen_20260703.bmp`. `meta_loading_screen` remains visually
+  stable because its authored camera and `meta.cam` share the same decoded
+  position/fov.
+- **Menu text visibility follows MILO group ownership - `[VERBATIM-DATA]`.**
+  `Group` entries now retain UI children (`.view`, `.grp`, `.lbl`, `.btn`,
+  `.pic`, `.lst`) in addition to meshes, while draw order remains mesh-only.
+  This matters because labels can serialize a shared text parent but still be
+  owned by a hidden screen view. Example: `store.milo_ps2::st_item_desc.lbl`
+  has parent `us_poster.view`, but `st_screen2.view` owns it; drawing by parent
+  alone put item-screen text over the category screen. The renderer now checks
+  a label/button's owning group chain before drawing it. Regression coverage in
+  `ghogx_milo_scene_test` verifies group parent refs are excluded, UI children
+  are retained, and environment refs stay separate.
+- **Settled menu captures run transition-complete - `[DTB-SURFACE]`.**
+  `ScreenManager::enter_sequence` now sends `TRANSITION_COMPLETE_MSG` after the
+  stock `change_proxies -> load -> finish_load -> ui_enter -> enter` sequence.
+  The editor screenshots are settled menu captures, not transition frames; stock
+  screens use this message for final visible state (`store_screen` shows
+  `cash.view`, character screens bind placers/envs). The exact delayed timing is
+  still open for animated transitions, but firing it before static capture
+  matches the state the user is trying to edit.
+- **Store category screen lifecycle - `[DTB-SURFACE]` + `[MILO-SURFACE]`.**
+  `store_panel::show_store_screen_1` hides `st_screen2.view` through the stock
+  handler, while `store.milo_ps2::st_loading.lbl` is authored with Draw showing
+  `FALSE`; the editor now relies on the generic MILO widget visibility install
+  and the stock `poll` handler instead of a store-specific post-handler hide.
+  `store_panel::hide_models` likewise reaches `store_video.view` through the
+  stock `store_video_panel hide` handler. Proof:
+  `engine/out/menu_tuning/screens/store_stock_handler_visibility_20260704/store_screen.bmp`
+  has category text and cash without item-detail text, the orphaned
+  `LOADING...` label, or the store video overlay; combined proof
+  `engine/out/menu_tuning/screens/milo_visibility_helpbar_allmenus_20260704/menu_dump.log`
+  audits 98 screens with zero unhandled/stub/decode/fatal/missing-font failures.
+- **Career starting cash comes from `campaign.dtb` - `[VERBATIM-DATA]`.**
+  Store-visible `campaign cash` / `starting_cash` no longer initializes from a
+  constructor literal. `Campaign` reads `config/gen/campaign.dtb::cash/starting`
+  (`50` in GH2 PS2) and seeds both values from that stock table; save/profile
+  progression is still open work. Proof: `ghogx_ui_test` compares the campaign
+  singleton against the DTB field, and
+  `engine/out/menu_tuning/screens/campaign_starting_cash_allmenus_20260704/store_screen.bmp`
+  shows `CASH: $50` from the data-backed seed; the same dump audits 98 screens
+  with zero failure-pattern matches.
+- **Panel mesh import follows authored MILO draw order - `[MILO-SURFACE]`.**
+  Panel scenes now import only meshes reachable through the MILO-authored group
+  draw order when that order exists, instead of importing every decoded support
+  mesh and patching named exceptions. `ui/gen/store.milo_ps2` decodes 23 meshes,
+  but its authored draw order has 22 entries and intentionally excludes
+  `light.mesh`; that replaced the old `store.milo`/`light.mesh` skip. Hidden
+  store captures before/after the change hash identically
+  (`A4ED11A9FAA88685FA78AC80B05AF331AA096019D0CB016850A801DD43B2A8D5`), and
+  the hidden all-menu dump audits 98 screens without a draw-order regression.
+- **Panel texture sources are indexed from stock UI MILOs - `[MILO-SURFACE]`.**
+  The old pause/dialog texture path special case for `pl_tile.tex` was replaced
+  with a cached index of `Tex` entries in `ui/gen/*.milo_ps2`. The panel MILO is
+  still searched first; sibling sources are appended only when the panel lacks a
+  requested texture. Current proof: `pause.milo_ps2` requests `pl_tile.tex`, the
+  index resolves the source as `ui/gen/pause_lose_tex.milo_ps2`, and the hidden
+  pause capture hashes identically before/after
+  (`33204CE747716B951307ADE67115D6B99A2AA924805B5F7F1BC05D6B0E727320`). The
+  hidden all-menu dump audits 98 screens without a draw-order regression.
+- **Direct-color PS2 `Tex` entries decode from the HMXBitmap format -
+  `[MILO-SURFACE]`.** `winner_photo1.tex` in
+  `ui/gen/multi_compete*.milo_ps2` is an authored 32-bpp HMXBitmap with
+  `width=0`, `height=0`, and no raw payload. The decoder now follows the
+  Mackiloha `HMXBitmapSerializer`/`TextureExtensions` layout for 24/32-bpp
+  direct-color encoding 3 textures instead of treating every non-indexed bpp as
+  an error. The loader leaves stock 0x0 entries non-uploadable and logs them as
+  `stock empty Tex entry`, not as decode failures. Proof:
+  `engine/out/menu_tuning/screens/direct_color_texture_allmenus/menu_dump.log`
+  audits 98 screens, reports zero `decode failed` lines, and records both
+  `multi_compete_screen` and `multi_compete_fo_screen` as 9/10 uploadable
+  textures because `winner_photo1.tex` is the stock empty entry.
+- **Panel animation loops are keyed by the panel's matching DTB -
+  `[DTB-SURFACE]`.** The editor no longer hard-wires `loading.milo` to
+  `loading.dtb` for `animate_forever_30fps`; it derives `ui/gen/<panel>.dtb`
+  from the panel's stock `(file ...)` MILO and installs loops found in that
+  DTB. Current proof:
+  `engine/out/menu_tuning/screens/loading_anim_probe_generic_dtb` logs stock
+  loops for `wing1.filt`, `wing2.filt`, `tape.filt`, and
+  `loading_word.filt`, and hidden captures at frames 8 and 40 hash differently
+  (`0A61A303DB9A42C0116A7DA1F3401FEB865164057C513D9CE2FAD6BEF61EDF1C` vs.
+  `B68A98A5C816CC8CFDA4532AF24BA0936CE99F5C920DB9FAE93FB6C3481E22D4`), showing
+  the loading wings/tape/word are moving from stock `TransAnim` data.
+- **Menu material animation loops use stock `MatAnim` data - `[MILO-SURFACE]`
+  + `[DTB-SURFACE]`.** The same panel-DTB `animate_forever_30fps` roots now
+  install `.mnm` material loops through `AnimFilter` indirection instead of
+  limiting menu playback to `.tnm` transform loops. `ui/gen/loading.milo_ps2`
+  carries `loading_tweak.filt -> loading_word.mnm`; the `MatAnim` targets
+  `loading_word.mat` and swaps `loading_word_gw.tex -> loading_word2_gw.tex ->
+  loading_word_gw.tex` at frames 0/5/10. The panel texture collector includes
+  these `MatAnim` texture keys before upload, and the menu material player resets
+  per scene rebuild so overrides do not bleed between screens. Proof:
+  `engine/out/menu_tuning/screens/loading_matanim_20260704/loading_frame120.stderr.log`
+  logs the stock mat loop plus both `material_uv mesh=loading_word.mesh`
+  texture samples, and
+  `engine/out/menu_tuning/screens/loading_matanim_allmenus_20260704/menu_dump.log`
+  audits 98 screens without decode/assert/fatal/unhandled/missing-font hits.
+- **Cash-award preview state flows through the stock campaign handoff -
+  `[DTB-SURFACE]` + `[VERBATIM-DATA]`.** `post_show_screen` calls
+  `campaign finish_song` with `$new_cash`/`$new_cash_reason` out-params, then
+  copies those values into `cashaward_screen`. Direct editor audits now seed
+  `cashaward_screen` from that same `campaign finish_song` result instead of
+  carrying a second custom sentence in `ScreenManager`. The reason is the stock
+  locale token `ca_reason`
+  (`engine/out/menu_tuning/dtb_extract/locale.dump.txt:396`), so the existing
+  label renderer resolves the retail text through the locale table. Update
+  2026-07-04: `campaign finish_song` now reads
+  `config/gen/campaign.dtb::cash/star_awards` for the song cash award instead
+  of returning the old copied `$1200`; the editor's default Medium/5-star player
+  state maps to the authored `$250` row. The deeper status/progression/save-file
+  math is still part of the open Campaign work above. Proof:
+  `ghogx_ui_test` compares the returned `finish_song` cash against the DTB
+  Medium/5-star cell, and
+  `engine/out/menu_tuning/screens/campaign_star_award_allmenus_20260704/cashaward_screen.bmp`
+  shows the new DTB-backed cash-award total with the stock deduction rows; the
+  same dump audits 98 screens with zero failure-pattern matches.
+- **Career difficulty status labels read required-song counts from campaign.dtb -
+  `[VERBATIM-DATA]`.** `ui/gen/career.dtb::sel_diff_career_panel` sets
+  `sd_easy_status.lbl`/`sd_med_status.lbl`/`sd_hard_status.lbl`/
+  `sd_expert_status.lbl` from `campaign get_status_progress <difficulty>`.
+  The Campaign shim now answers that from
+  `config/gen/campaign.dtb::required_songs` instead of the old copied `3`,
+  yielding the stock PS2 first-column counts Easy `3`, Medium `4`, Hard `5`,
+  Expert `5` for the current no-save editor state. This is not a substitute for
+  real save/progression state; endgame status unlock and sponsorship progression
+  remain open Campaign work. Proof: `ghogx_ui_test` reads those four cells from
+  the DTB and compares them against `campaign get_status_progress`.
+- **Career venue index reads the stock campaign order - `[VERBATIM-DATA]`.**
+  `ui/gen/career.dtb::SEL_VENUE_SCREEN_HANDLERS` uses `game get_venue_index`
+  to choose the venue-map animation frame. The editor no longer returns the old
+  copied `1`; `GameConfig` now maps the current venue through
+  `config/gen/campaign.dtb::order`. With the editor's default `battle` venue,
+  the stock PS2 order yields index `0`. Proof: `ghogx_ui_test` reads the same
+  `order` table and compares the API result against the authored row index.
+- **Default game song and venue seed from campaign order - `[VERBATIM-DATA]`.**
+  `GameConfig` no longer seeds `song`/`venue` from copied
+  `shoutatthedevil`/`battle` literals when `campaign.dtb` is loaded. It reads
+  the first row of `config/gen/campaign.dtb::order`, uses that row's first venue
+  and first song, and derives `song_index` from `songs.dtb`. The old symbols
+  remain only as no-DB fallback. Proof: `ghogx_ui_test` reads the first campaign
+  row and compares `game.song` / `game.venue` against it before the main-menu
+  reset script mutates state.
+- **Selected song index follows stock setlist order, not raw songs.dtb order -
+  `[VERBATIM-DATA]`.** `songs.dtb` is not ordered like the visible setlist
+  (`badreputation` is row 0), while `campaign.dtb::order` puts
+  `shoutatthedevil` at setlist index 0. `game set_song_index` now resolves the
+  selected song through the same campaign/quickplay order used by
+  `song_provider`, and `set_career_song` switches that mapping to the career
+  order including encores. `get_song_text`, `get_song_artist_text`,
+  `get_song_caption`, and `song_duration_sec` then read by the resolved song
+  symbol instead of raw row index. Proof: `ghogx_ui_test` verifies quickplay
+  index 1 resolves to `mother`, career index 4 resolves to `tonightimgonna`, and
+  both text and MIDI duration follow those symbols.
+- **Quickplay setlist keeps tier-closing songs from campaign.dtb -
+  `[VERBATIM-DATA]`.** The editor no longer drops the last song of every
+  `campaign.dtb::order` tier when `song_provider` is in quickplay mode. That
+  custom filter removed visible PS2 rows such as `tonightimgonna` from Opening
+  Licks. `song_provider list_length`, `get_symbol`, and `num_headers` now follow
+  the authored campaign order directly, and the setlist renderer treats the
+  MILO UIList row count as selectable song slots with tier headers inserted
+  around them rather than counting headers as selectable rows. Proof:
+  `ghogx_ui_test` computes the stock order count (`40`), verifies quickplay
+  `get_symbol 4` is `tonightimgonna`, and verifies the second tier header starts
+  after the fifth song; the current all-menu proof should show the tier closer
+  between `Woman` and `2. Amp-Warmers`.
+- **Endgame face-off lead-time percentage uses the stock song MIDI duration -
+  `[VERBATIM-DATA]`.** `ui/gen/endgame.dtb::update_faceoff_stats` divides each
+  player's `lead_time_sec` by `game song_duration_sec`. That API now reads
+  `songs/<song>/<song>.mid` from the ARK and caches the chart parser's
+  `duration_sec()` value instead of returning copied `206`. Proof:
+  `ghogx_ui_test` compares `game song_duration_sec` against
+  `ConfigDb::song_duration_sec(shoutatthedevil)`, which is parsed from the PS2
+  MIDI.
+- **Text/BandLabel kJustFit honors the authored MILO box - `[MILO-SURFACE]`.**
+  `cashaward.milo_ps2::ca_reason.lbl` carries stock text-tail values
+  `fit=2`, `width=350`, `height=50`, `size=40`, and `wrap=800`. The old renderer
+  imposed an editor-side 25% minimum scale after reading those fields, so the
+  stock `ca_reason` sentence still overflowed the paper. Text/BandLabel
+  `fit_text == 2` now uses the actual width/height ratios down to 1% instead of
+  that fabricated clamp. Button fitting remains on its existing path.
+- **UI `#define` data tables stay mutable at runtime - `[DTB-SURFACE]`.**
+  Stock menu scripts use `#define` tables such as `ADJS`,
+  `TUTORIAL_STATES`, `ENDGAME_ENCORE_LETTERS`, and
+  `CASH_AWARD_DEDUCTIONS` as runtime arrays, not only as textual macro
+  fragments. The preprocessor now still expands ordinary layout/handler
+  fragments, but preserves macro names when they are operands of list builtins
+  (`elem`, `random_elem`, `find_elem`, `size`, `remove_elem`, `push_back`,
+  `resize`, `foreach`). `load_all_ui_screens` installs the collected stock
+  macro bodies as manager globals and unwraps the one extra list layer used by
+  these tables. Proof:
+  `engine/out/menu_tuning/screens/macro_table_cashaward/cashaward_screen.log`
+  shows cash deductions of `-$460`, `-$210`, `-$50`, and `-$70` flowing from the
+  stock `CASH_AWARD_DEDUCTIONS` table, and
+  `engine/out/menu_tuning/screens/macro_table_allmenus/menu_dump.log` audits 98
+  screens after the change.
+- **Runtime blank label text overrides authored MILO fallback -
+  `[DTB-SURFACE]`.** Stock handlers sometimes call `set_text` /
+  `set_localized_text` with `""` to suppress an authored label. The renderer now
+  treats any present runtime `text` property as authoritative, even when its
+  string value is empty, instead of falling back to the MILO token. Proof:
+  `engine/out/menu_tuning/screens/empty_text_before_encore/endgame_encore_screen.log`
+  drew `money.lbl` from authored `endgame_encore_money` as `$%d EARNED`, while
+  `engine/out/menu_tuning/screens/empty_text_after_encore/endgame_encore_screen.log`
+  skips `money.lbl` as `reason=empty-text`; the full hidden dump at
+  `engine/out/menu_tuning/screens/empty_text_allmenus/menu_dump.log` still
+  audits 98 screens.
+- **`set_localized` and `text_token` feed runtime menu text -
+  `[DTB-SURFACE]`.** `options.dta::lag_panel update_text` calls
+  `setting.lbl set_localized {sprintf {localize lag_setting} {int [lag]}}` and
+  updates button/instruction labels through `set text_token ...`. The common UI
+  object path now accepts `set_localized`, and the renderer treats `text_token`
+  as the same locale-token source as the authored MILO label. The options
+  singleton stores `get_sync_offset`/`set_sync_offset` so the stock lag handler
+  formats `Current Lag Offset is 0 ms` through `[lag]` instead of drawing a raw
+  `%d` token. Proof:
+  `engine/out/menu_tuning/screens/lag_group_owned_buttons_20260704/lag_screen.log`
+  logs `setting.lbl raw='Current Lag Offset is 0 ms'`.
+- **BandLabel tails can carry very wide stock bounds - `[MILO-SURFACE]`.**
+  `lag.milo_ps2::setting.lbl` uses the ordinary BandLabel tail layout, but its
+  authored `width_bound` is `10000.0`. The extractor now accepts that source
+  value instead of rejecting the whole tail as implausible, so the lag setting
+  line uses the stock `fit=2`, `width=250`, `height=20`, `size=25`, `align=0x21`,
+  and color fields. Proof:
+  `engine/out/menu_tuning/screens/lag_setting_tail_20260704/lag_screen.log`
+  logs the decoded text tail and the capture shows the full
+  `CURRENT LAG OFFSET IS 0 MS` line.
+- **Song part labels read the whole stock song node -
+  `[VERBATIM-DATA]`.** `song_provider get_instrument/has_instrument` now searches
+  the stock `(song ...)` child inside each `config/gen/songs.dtb` record instead
+  of calling `ConfigDb::field(record, "song")`, which returns the first payload
+  field (`name`) rather than the enclosing song node. Proof:
+  `engine/out/menu_tuning/songs_current.dta.txt` shows
+  `shoutatthedevil` tracks `((guitar (2 3)) (bass 4))`; focused captures in
+  `engine/out/menu_tuning/screens/part_labels_after_ready_label_state` render
+  `GUITAR`/`BASS` for multiplayer and practice part select. The debug log still
+  records raw locale keys such as `sg_guitar`; the displayed text resolves them
+  through the locale table.
+- **Stock menu font packages are registered from UI MILOs -
+  `[MILO-SURFACE]`.** `cutout`, `gunsho`, and `receipt` are now loaded from
+  `ui/gen/cutout.milo_ps2`, `ui/gen/gunsho.milo_ps2`, and
+  `ui/gen/receipt.milo_ps2` and accepted as menu font names. This removes the
+  previous missing-font skips on practice part labels, helpbar-style prompts,
+  and receipt-style counters without fabricating a fallback font. Proof:
+  `engine/out/menu_tuning/screens/allmenus_after_placeholder_label_skip/menu_dump.log`
+  audits 98 screens with zero `missing-font-target` lines.
+- **Multiplayer ready labels follow authored select-done state -
+  `[DTB-SURFACE]`.** `ui/gen/multiplayer.dtb` gives `selpart0/selpart1` a
+  `ready_label "ready.lbl"` and player number, while the stock handlers drive
+  `set_select_done` / `is_select_done`. The editor now syncs that ready label's
+  visibility from `select_done<player>` after stock lifecycle handlers and
+  `set_select_done`, so the cutout font fix does not make `READY` visible before
+  the menu script marks a player done. Proof:
+  `engine/out/menu_tuning/screens/part_labels_after_ready_label_state/selpart_screen.log`
+  skips `ready.lbl` as `hidden-widget`.
+- **`cm_score.lbl` is an exact stock placeholder, not a missing font -
+  `[MILO-SURFACE]`.** `career.milo_ps2::cm_score.lbl` serializes as a
+  `BandLabel` with no font, no parent, and text `default`; neighboring career
+  labels carry real fonts/parents, and the ARK contains no `default` font asset.
+  The renderer skips only that exact placeholder shape as `placeholder-label`
+  instead of inventing a fallback. Proof:
+  `engine/out/menu_tuning/screens/allmenus_after_placeholder_label_skip/menu_dump.log`
+  records `cm_score.lbl` as `reason=placeholder-label` and still audits 98
+  screens with zero decode failures, fatal errors, or missing-font targets.
+- **Guitar menu models follow the stock `show_guitar` proxy/filter handoff -
+  `[DTB-SURFACE]` + `[PCSX2-RAM]`.** Stock DTBs call
+  `GuitarDisplayPanel::show_guitar` with the selected guitar/skin plus a screen
+  `UIProxy` and `AnimFilter` object (`guitar.pxy`/`guitar_single.filt`,
+  `guitar_multi%d.*`, `ug_guitar.*`, `ub_bass.*`). The editor now records those
+  script arguments on the display panel, finds the owning entry in the current
+  screen's panel MILOs, and composes the model through that UIProxy instead of
+  hard-wiring selector/unlock MILO filenames as the normal path. Local PCSX2
+  trace
+  `engine/out/menu_tuning/pcsx2/silo_guitar_select_runtime_code_trace_20260704/guitar_select_logic_trace.json`
+  proves retail initializes the filter at frame `0.0`, stores a `240.0` frame
+  loop length, then advances it at runtime. The clean settled selector trace
+  `engine/out/menu_tuning/pcsx2/silo_guitar_select_runtime_attachment_trace_retry_20260704/guitar_select_logic_trace.json`
+  records `filter_runtime.probable_runtime_frame_at_0x04 = 32.623825` on the
+  native PCSX2 `SELECT YOUR GUITAR` proof image, so `guitar_single.filt` uses
+  that frame for static settled captures instead of the init pose. Non-traced
+  guitar filters now leave the frame override unset and sample their serialized
+  `AnimFilter` fields instead of being forced to editor frame `0.0`. Proof:
+  `engine/out/menu_tuning/screens/guitar_filter_serialized_20260704/sel_guitar_new_screen.log`
+  logs `guitar_single.filt` at
+  `frame=32.62 source=pcsx2-settled-career-guitar-select`;
+  `engine/out/menu_tuning/screens/guitar_filter_serialized_20260704/multi_sel_guitar_screen.log`
+  logs both multi filters at `frame=500.00 source=serialized`; and
+  `engine/out/menu_tuning/screens/guitar_filter_serialized_20260704/unlock_guitar_screen.log`
+  logs `ug_guitar.filt` at `frame=240.00 source=serialized`. Final proof:
+  `engine/out/menu_tuning/screens/guitar_serialized_loading_matanim_allmenus_20260704/menu_dump.log`
+  audits 98 screens with the loading material loop, the traced/serialized guitar
+  filter frames, zero fallback guitar paths, and zero decode/fatal/missing-font
+  failures.
+- **Guitar index reset follows `guitars.dtb` order - `[VERBATIM-DATA]`.**
+  `main.dta::reset_player_settings` calls `set_guitar_index 0` on both the
+  global game config and player 2 config. That index now resolves through
+  `config/gen/guitars.dtb`, updates the selected guitar, and seeds the first
+  stock skin from that guitar's `skins` list instead of only storing an inert
+  `guitar_index` property. `set_guitar` also keeps the stored index/skin index
+  synchronized when scripts commit a selected guitar. Proof: `ghogx_ui_test`
+  reads `lespaul/lp_cherry` and `sg/sg_cherry` from the DTB, then verifies
+  `game set_guitar_index 1` and `player1 set_guitar_index 1` select the DTB
+  guitar and first skin.
+- **Highscore rows no longer use fabricated names - `[PROFILE-STATE]`.**
+  `highscores get_highscore` used to return a hard-coded fake leaderboard
+  (`JUDY`, `CASEY`, etc.), which made `highscore_screen` look populated by data
+  that does not exist in the stock UI files. The menu-side object now models the
+  current empty profile store: positive scores qualify for insertion, stored
+  slots are blank/zero until a score is added through the stock `highscores add`
+  message, and `get_default_name` remains the existing profile-entry seed. This
+  is still not real save-file highscore persistence; it removes the custom
+  fabrication while keeping the stock highscore panel script functional. Proof:
+  `ghogx_ui_test` verifies empty slot output, rank calculation, and a session
+  insert through `highscores add`.
+- **Profile list menus use real empty slots - `[PROFILE-STATE]` +
+  `[DTB-SURFACE]`.** `manage_bands.dta` defines `MAX_NUM_PROFILES` and drives
+  `chooseprof_panel::set_up_bands` through `campaign is_empty_profile` /
+  `campaign profile_name <slot>`. Campaign no longer returns one copied
+  `"AAAA"` name for every slot or reports slot-count as profile-count. It sizes
+  the editor profile store from the stock macro, reports `num_profiles` as the
+  count of non-empty slots, returns blank names for empty slots, and lets the
+  stock `set_profile_name`/`has_profile_name`/`empty_slot` calls create and
+  query the menu-session profile state. This is still an in-memory profile
+  model, not memory-card persistence. Proof: `ghogx_ui_test` verifies empty
+  slots, profile creation, duplicate lookup, and next-empty-slot selection.
+- **Helpbar display data comes from stock `helpbar set_display` -
+  `[DTB-SURFACE]` + `[MILO-SURFACE]`.** `splash.dta` defines the real
+  `HelpBarPanel helpbar`, so `meta`/`helpbar` are no longer installed as
+  placeholder singletons that shadow DTB-authored panels. Runtime scripts such
+  as `store_panel::update_helpbar` now reach `helpbar set_display`, and the
+  renderer prefers the HelpBarPanel's live `display` list over a screen's static
+  `(helpbar ...)` default. Footer icons still use authored `helpbar.milo`
+  transforms: `help_bar_starting.mesh` anchors the first/start icon and
+  `help_bar_strumbar.mesh` anchors the strum slot, while `button_spacing`,
+  `strumbar_spacing`, and `text_spacing` are read from the real HelpBarPanel
+  object (`splash.dta`: 35/70/30 for GH2 PS2). The remaining bridge is the
+  small world-space residual between those authored widget spacings and the
+  exact populated label boxes produced by the native HelpBarPanel renderer.
+  Update 2026-07-04: footer label styling also comes from
+  `helpbar.milo_ps2::help_bar.txt` now. The renderer reads its authored
+  `helveticablackcondensed.font`, `text_size=18`, RGBA `0.9/0.9/0.9/1.0`, and
+  width/field tail through the generic Text-template parser instead of carrying
+  those as renderer constants; only the HelpBarPanel runtime placement residual
+  remains outside the MILO tail.
+  Proof: `ghogx_ui_test` asserts `resolve_object(meta/helpbar)` returns the
+  DTB panels and that `store_screen` produces `fret1/fret2/strum` display rows;
+  `engine/out/menu_tuning/screens/helpbar_set_display_20260704/store_screen.bmp`
+  shows SELECT/BACK/UP-DOWN, and
+  `engine/out/menu_tuning/screens/helpbar_template_source_20260704/menu_dump.log`
+  audits 98 screens with zero failure-pattern matches.
+- **Credits list scrolling follows the stock `credits.lst selected_pos` /
+  `num_lines` contract - `[DTB-SURFACE]` + `[VERBATIM-DATA]` +
+  `[MILO-SURFACE]`.** `options.dta::credits_screen` handles `SCROLL_MSG` by
+  reading `{{credits_panel find credits.lst} selected_pos}` and comparing
+  `(+ 1 selected_pos)` with `{$this num_lines}` before calling `go_back`.
+  The editor now seeds `credits_screen.num_lines` from
+  `config/gen/credits.dtb`, exposes `num_lines` as a UI builtin, and renders
+  `credits_screen` from the live `credits.lst selected_pos` when the MILO child
+  is installed instead of always skipping to the first non-empty credit row.
+  This preserves the leading blank credit rows as real data. Proof:
+  `ghogx_ui_test` creates the same `UIList credits.lst` child shape installed
+  from `credits.milo`, sets it to the final credit row, fires the authored
+  `SCROLL_MSG`, and verifies the screen returns to `options_screen`;
+  `engine/out/menu_tuning/screens/credits_selected_pos_20260704/credits_pos0.bmp`
+  shows the stock blank lead-in at selected row 0, while
+  `engine/out/menu_tuning/screens/credits_selected_pos_20260704/credits_pos8.bmp`
+  shows the same screen after eight stock list scroll steps. Full proof:
+  `engine/out/menu_tuning/screens/credits_selected_pos_allmenus_20260704/menu_dump.log`
+  audits 98 screens with zero audited-empty screens.
+- **Runtime panel file roots resolve through stock mode/world data -
+  `[DTB-SURFACE]` + `[VERBATIM-DATA]`.** `game.dtb::world_panel` builds
+  `../world/<venue>/<venue>.milo`, which maps to the ARK's
+  `world/<venue>/gen/<venue>.milo_ps2`, and `hud_panel.dtb` builds `../hud/`
+  plus `{gamecfg get hud_file}`. `ConfigDb` now loads `config/gen/modes.dtb`,
+  `gamecfg get/set` resolves mode fields with `defaults` fallback, and panel
+  MILO paths map stock runtime roots to the PS2 ARK's `world/*/gen` and
+  `hud/gen` locations instead of looking under `ui/gen/..`. Proof:
+  `engine/out/menu_tuning/screens/allmenus_modes_paths_20260704/menu_dump.log`
+  logs `world/small2/gen/small2.milo_ps2` and `hud/gen/hud_sp.milo_ps2` for
+  `reload_track_screen`, with 98 screens audited and no `not in ARK` lines.
+  Update 2026-07-04: direct `GHOGX_MENU_DUMP` captures now reset
+  `gamecfg.mode` per screen from the stock `config/gen/modes.dtb` screen fields
+  (`main_screen`, `continue_screen`, `loading_screen`, `win_screen`,
+  `lose_screen`, `game_screen`) before rendering. This prevents proof-only
+  state bleed between unrelated direct jumps while preserving the DTB-authored
+  panel logic. Proof:
+  `engine/out/menu_tuning/screens/allmenus_audit_mode_seed_20260704/menu_dump.log`
+  logs `practice_game_screen` as `mode=practice (modes.dtb)` and loads
+  `hud/gen/hud_practice.milo_ps2`; the same run captured 98 BMPs and the
+  failure scan found no `not in ARK`, fatal, assert, decode-failed,
+  missing-font, unhandled, stub, or fallback lines.

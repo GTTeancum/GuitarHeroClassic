@@ -57,3 +57,22 @@
 - 2026-07-12: RedOctane audience floor is verified present/renderable in freecam. Pink surfaces in the venue inspector are active crosshair highlights, not missing-material or bad-floor evidence.
 - 2026-07-12: RedOctane fan animation is verified moving through the authored shuttle cycle. Use `GHOGX_DEBUG_VENUE_FILTER_STRIDE` and `GHOGX_LOG_MESH_ANIM_STRIDE` with low values when checking fast venue animations so half-second/30-render diagnostics do not alias the motion as stationary.
 - 2026-06-23: Investigate apparent UV mapping issues visible in native venue screenshots. The user-provided example at `C:\Users\smmel\AppData\Local\Temp\codex-clipboard-58e40d45-095e-4972-bd59-5e7577f4ca9a.png` shows stretched/repeated striped textures across venue surfaces and props. Treat this as a later shared texture coordinate/material decode audit, not a venue-specific visual hack. Do not pull it into the current character hand/venue lighting priority unless a traced venue-format fix points directly at it.
+
+## Future Character Retargeting and Additional Animation Libraries
+
+This is a high-level future possibility, not a current implementation commitment. Preserve an architectural seam for live animation retargeting so characters with different proportions can borrow animations from multiple source libraries.
+
+- Treat retargeting as a shared layer between source clip sampling and the selected character's final controller/skinning graph.
+- Keep each animation library's source skeleton and rest pose distinct from each character model's target skeleton and proportions.
+- Build or load a source-to-target bone map and rest-pose corrections when the character/animation set is loaded; apply only the cached corrections live per frame.
+- Run target-character systems such as hand IK, twist bones, guitar/mic attachment, face, hair, and other secondary controllers after retargeting.
+- Prefer offline preparation for Xbox: bone mapping, format conversion, material/texture conversion, validation, and other expensive analysis should be performed by tools rather than inferred on the console.
+- Define a compatible semantic rig contract rather than promising arbitrary-rig support. Custom proportions and extra bones should be allowed, while required GH bones, hierarchy expectations, fallbacks, and reasonable proportion limits remain explicit.
+- Keep both future content paths possible:
+  - direct support for Guitar Hero World Tour: Definitive Edition character models and/or animations;
+  - a direct converter that produces a compact native character and animation representation.
+- Use one shared intermediate representation so direct PC-side loading and offline Xbox conversion feed the same runtime character/animation systems.
+- Treat Guitar Hero World Tour guitarist animations as another animation pool, not as a replacement runtime or a special model-only path. Desired combinations include GH2 or GHWT animations retargeted onto either stock GH2 or future custom characters.
+- GHWT having shipped on PS2 makes its skeletal animation complexity a promising fit for an eventual Xbox budget, but this remains unverified until an Xbox backend exists and can be profiled.
+- The first isolated proof should eventually retarget one GHWT full-body guitarist idle/performance clip onto an existing GH2 guitarist. Keep model importing, broad animation-library integration, and arbitrary custom proportions out of that initial proof.
+- Audit skeleton hierarchy/rest pose, guitar placement, fret-hand targeting, helper/twist bones, finger ownership, clip events, intensity categories, transitions, and blend conventions before assuming GHWT clips are behaviorally interchangeable with GH2 clips.

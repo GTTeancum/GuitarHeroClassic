@@ -1,0 +1,350 @@
+{
+  "format": "gh3_midori_fullclip_coupled_contact_candidate_v1",
+  "status": "candidate_built",
+  "revision": "r182-outfit1-staticface-armonly-attack",
+  "candidate": "gh2_ps2_hybrid_assets/DLC/community.gh3.midori",
+  "source_main_milo": "gh2_ps2_hybrid_assets/DLC/community.gh3.midori/content/char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2",
+  "solve_report": "analysis/gh3_midori_r133_staticface_mainonly_coupled_guitar_solve_report.json",
+  "output_main_milo": {
+    "path": "analysis/gh3_midori_gh2_milos/gh3_midori_1_main_staticface_armonly_attack_r182.milo_ps2",
+    "size": 20236210,
+    "sha256": "BB05A8641909AC3BF70B9F35BBB3FE1058BA89C8469E0915878DCD270977B403"
+  },
+  "donor_milo": "analysis/_midori_r182_outfit1_armonly_attack_donor.milo_ps2",
+  "acp_dir": "analysis/_midori_r182_outfit1_armonly_attack_acp",
+  "hmx_quat_mode": "transpose",
+  "sample_quat_mode": "hmx",
+  "viewer_prop_overrides": true,
+  "solve_visible_arms": true,
+  "arm_chain_reach_scale": 0.94,
+  "solve_visible_hand_rotations": false,
+  "solve_visible_clavicles": false,
+  "visible_clavicle_blend": 1.0,
+  "skip_contact_patches": true,
+  "visible_arm_rotation_mode": "aim",
+  "visible_arm_left_forearm_guitar_local": null,
+  "visible_arm_right_forearm_guitar_local": null,
+  "case_filter": [
+    "midori_1_attack_left_f030"
+  ],
+  "visible_arm_forearm_override_map": "analysis/gh3_midori_r175_visible_forearm_override_map.json",
+  "source_bridge": ".codex/current-evidence/midori-fresh-attack-targetlength-20260818/source_bridge_attack_arm_guitar_20260819/gh3_guit_mido_a_attackl.ska.pose_bridge.json",
+  "per_case_source_bridge_root": ".codex/current-evidence/midori-review-source-bridges-pinned-forcepartial-merged-handguitar-5case-20260820",
+  "source_frame": 30,
+  "source_basis": "anim",
+  "duplicate_clip_policy": "error",
+  "clip_count": 1,
+  "rows": [
+    {
+      "case": "midori_1_attack_left_f030",
+      "clip": "gh3_guit_mido_a_attackl",
+      "sample_count": 145,
+      "channel_count": 37,
+      "added_channels": [
+        "bone_L-foreArm.mesh.pos",
+        "bone_L-foreArm.mesh.quat",
+        "bone_L-hand.mesh.pos",
+        "bone_L-upperArm.mesh.quat",
+        "bone_R-foreArm.mesh.pos",
+        "bone_R-foreArm.mesh.quat",
+        "bone_R-hand.mesh.pos",
+        "bone_R-upperArm.mesh.quat"
+      ],
+      "patched_channels": [],
+      "visible_arm_channels": [
+        "bone_L-upperArm.mesh.quat",
+        "bone_L-foreArm.mesh.pos",
+        "bone_L-foreArm.mesh.quat",
+        "bone_L-hand.mesh.pos",
+        "bone_R-upperArm.mesh.quat",
+        "bone_R-foreArm.mesh.pos",
+        "bone_R-foreArm.mesh.quat",
+        "bone_R-hand.mesh.pos"
+      ],
+      "visible_clavicle_channels": [],
+      "visible_hand_rotation_channels": [],
+      "arm_solve": {
+        "left_target_world": [
+          0.23361853653548437,
+          10.081786519218976,
+          53.504946497198006
+        ],
+        "right_target_world": [
+          -2.1178817727034414,
+          4.966319100111516,
+          53.118095415083786
+        ],
+        "left_target_reachable": [
+          0.23361853653548437,
+          10.081786519218976,
+          53.504946497198006
+        ],
+        "right_target_reachable": [
+          -2.1178817727034414,
+          4.966319100111516,
+          53.118095415083786
+        ],
+        "left_reach_clamped": false,
+        "right_reach_clamped": false,
+        "left_chain": {
+          "side": "L",
+          "upper": [
+            4.2399539507585695,
+            -1.4260107348384474,
+            47.97488064618661
+          ],
+          "current_elbow": [
+            11.420220073134146,
+            -4.083323213255991,
+            42.73878999398665
+          ],
+          "elbow_hint_world": [
+            1.4997617267973795,
+            -10.28369267753762,
+            48.712731667873996
+          ],
+          "elbow_hint_source": "source",
+          "current_hand": [
+            19.364322532636375,
+            -5.712447027209978,
+            37.113050066837374
+          ],
+          "target_requested": [
+            0.23361853653548437,
+            10.081786519218976,
+            53.504946497198006
+          ],
+          "target_reachable": [
+            0.23361853653548437,
+            10.081786519218976,
+            53.504946497198006
+          ],
+          "raw_distance": 13.381395645009231,
+          "used_distance": 13.381395645009231,
+          "upper_len": 9.27546098661106,
+          "fore_len": 9.869739511060203,
+          "elbow_world": [
+            -13.399960648750815,
+            8.291056178893747,
+            51.46518779693631
+          ],
+          "fore_local": [
+            -9.200365211787236,
+            0.5242523763903479,
+            -1.0548800664622533
+          ],
+          "hand_local": [
+            0.9173232054386737,
+            -9.826952938031118,
+            -0.03663734681045838
+          ],
+          "elbow_world_before_forearm_override": [
+            -2.4455457021713753,
+            0.599869069942129,
+            54.07685425489713
+          ],
+          "forearm_guitar_local_override": [
+            -1.17373178819,
+            -5.16294054599,
+            -10.870418238
+          ],
+          "forearm_override_space": "guitar-local"
+        },
+        "right_chain": {
+          "side": "R",
+          "upper": [
+            4.6147712770345235,
+            0.11102025886054406,
+            47.78295421800883
+          ],
+          "current_elbow": [
+            -3.9226817368451394,
+            1.475866916218386,
+            44.08985088016472
+          ],
+          "elbow_hint_world": [
+            2.8826894791718853,
+            -9.00527291210588,
+            48.41783825814499
+          ],
+          "elbow_hint_source": "source",
+          "current_hand": [
+            -12.278485558940528,
+            4.094703806731825,
+            40.28626948965988
+          ],
+          "target_requested": [
+            -2.1178817727034414,
+            4.966319100111516,
+            53.118095415083786
+          ],
+          "target_reachable": [
+            -2.1178817727034414,
+            4.966319100111516,
+            53.118095415083786
+          ],
+          "raw_distance": 9.867435103345008,
+          "used_distance": 9.867435103345008,
+          "upper_len": 9.401591494332179,
+          "fore_len": 9.546988821961232,
+          "elbow_world": [
+            -2.097844417105711,
+            -4.555501290590229,
+            52.425613994213954
+          ],
+          "fore_local": [
+            3.594469940725432,
+            6.140719666150907,
+            6.145026259483352
+          ],
+          "hand_local": [
+            2.3535854848309476,
+            -9.048954583303612,
+            1.9292859831805274
+          ]
+        },
+        "clavicle_solve": {},
+        "visible_arm_rotation_mode": "aim",
+        "visible_arm_target_mode": "source-palm-fit-stock-hand-targets-per-case",
+        "visible_arm_target_info": {
+          "mode": "source-palm-fit-stock-hand-targets-per-case",
+          "blend_with_current": 1.0,
+          "source_bridge": ".codex/current-evidence/midori-review-source-bridges-pinned-forcepartial-merged-handguitar-5case-20260820/midori_1_attack_left_f030/gh3_guit_mido_a_attackl.ska.pose_bridge.json",
+          "source_frame": 30,
+          "source_coordinate_map": "palm-fit-negx-y-negz",
+          "left_source_bone": "Bone_Palm_L",
+          "right_source_bone": "Bone_Palm_R",
+          "left_fitted_guitar_local_offset": [
+            -7.977364086311458,
+            3.736312005170888,
+            -2.6390316971473036
+          ],
+          "right_fitted_guitar_local_offset": [
+            -7.9351183341877665,
+            -1.8269887569098815,
+            -1.6929254214197114
+          ],
+          "fit": {
+            "mode": "fit-stock-hand-targets",
+            "source_left_ik": [
+              -0.07793953507487261,
+              0.25719085179179046,
+              -0.019460978245632532
+            ],
+            "source_right_ik": [
+              0.08786254539355065,
+              1.201287187058142e-06,
+              -0.019790701912119957
+            ],
+            "target_left": [
+              -6.27464,
+              -0.453556,
+              -4.32057
+            ],
+            "target_right": [
+              -6.73835,
+              -1.31678,
+              -3.08712
+            ],
+            "scale": 5.148024842446566,
+            "rotation": [
+              [
+                -0.3234284528310505,
+                0.40615021696029924,
+                0.8546555078874852
+              ],
+              [
+                0.14292423839098314,
+                0.9138059689526938,
+                -0.3801727412463786
+              ],
+              [
+                -0.9353965458454883,
+                -0.0008076939583777859,
+                -0.35359956115753194
+              ]
+            ]
+          },
+          "current_left_world": [
+            14.649662585530013,
+            -4.251219474744686,
+            37.58584801353753
+          ],
+          "current_right_world": [
+            -7.56382610546038,
+            2.633474571136997,
+            39.81347233589676
+          ]
+        },
+        "visible_arm_elbow_hint_mode": "source-pose-per-case",
+        "visible_arm_elbow_side_offset": 5.0,
+        "visible_arm_elbow_down_offset": 8.0,
+        "visible_arm_forearm_overrides": {
+          "L": {
+            "guitar_local": [
+              -1.17373178819,
+              -5.16294054599,
+              -10.870418238
+            ],
+            "world": [
+              -13.399960648750815,
+              8.291056178893747,
+              51.46518779693631
+            ]
+          }
+        },
+        "visible_arm_source_rotation_blend_with_aim": null,
+        "source_bridge": null,
+        "source_frame": null,
+        "source_basis": null,
+        "source_scale": 39.44783306581059
+      },
+      "patch_values": {
+        "bone_L-upperArm.mesh.quat": [
+          -0.20722653362591312,
+          -0.6323820763194992,
+          -0.3908074852809499,
+          0.6359399207154774
+        ],
+        "bone_L-foreArm.mesh.pos": [
+          20.43947514540877,
+          -2.216259737508608e-06,
+          -1.4984054459432627e-06
+        ],
+        "bone_L-foreArm.mesh.quat": [
+          0.0021461144825521707,
+          0.03416225126823543,
+          -0.2226696322807875,
+          0.9742928561992296
+        ],
+        "bone_L-hand.mesh.pos": [
+          -5.559862370553013,
+          -12.380921228631504,
+          -3.00732336302908
+        ],
+        "bone_R-upperArm.mesh.quat": [
+          -0.2311820677292525,
+          -0.7452582966690069,
+          0.3477350899819183,
+          0.5198319247619416
+        ],
+        "bone_R-foreArm.mesh.pos": [
+          9.401600760594867,
+          -1.0867470967568238e-06,
+          -1.1961094372736625e-06
+        ],
+        "bone_R-foreArm.mesh.quat": [
+          0.008021096895879497,
+          0.12002089763808911,
+          -0.6595915730941029,
+          0.7419363873257471
+        ],
+        "bone_R-hand.mesh.pos": [
+          6.475639480160618,
+          -5.79797848514492,
+          3.949076469386547
+        ]
+      }
+    }
+  ]
+}

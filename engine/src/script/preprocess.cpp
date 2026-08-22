@@ -33,15 +33,50 @@ struct Cond {
 
 NodeList process(const NodeList& in, Ctx& ctx);
 
+bool is_macro_symbol(const Node& n, Ctx& ctx) {
+  return n.tag == 0x05 && ctx.macros.find(dir_name(n)) != ctx.macros.end();
+}
+
+bool command_preserves_macro_arg(const NodeList& kids, std::size_t index,
+                                 Ctx& ctx) {
+  if (index == 0 || kids.empty() || kids[0]->tag != 0x05 ||
+      !is_macro_symbol(*kids[index], ctx)) {
+    return false;
+  }
+  const std::string head = dir_name(*kids[0]);
+  if ((head == "elem" || head == "random_elem" || head == "find_elem" ||
+       head == "size" || head == "remove_elem" || head == "push_back" ||
+       head == "resize") &&
+      index == 1) {
+    return true;
+  }
+  if (head == "foreach" && index == 2) return true;
+  return false;
+}
+
 // Recurse a single (kept) node: rebuild arrays with processed children; leaves
 // pass through by shared reference (immutable).
-NodePtr process_node(const NodePtr& sp, Ctx& ctx) {
+NodePtr process_node(const NodePtr& sp, Ctx& ctx, bool preserve_macro_symbol = false) {
   const Node& n = *sp;
+  if (!preserve_macro_symbol && is_macro_symbol(n, ctx)) {
+    return process_node(ctx.macros[dir_name(n)], ctx);
+  }
   if (n.tag == 0x10 || n.tag == 0x11 || n.tag == 0x13) {
     auto nn = std::make_shared<Node>();
     nn->tag = n.tag;
     nn->line = n.line;
-    nn->value = process(gh::dtb::children(n), ctx);
+    if (n.tag == 0x11) {
+      NodeList out;
+      const NodeList& kids = gh::dtb::children(n);
+      out.reserve(kids.size());
+      for (std::size_t i = 0; i < kids.size(); ++i) {
+        out.push_back(process_node(kids[i], ctx,
+                                   command_preserves_macro_arg(kids, i, ctx)));
+      }
+      nn->value = std::move(out);
+    } else {
+      nn->value = process(gh::dtb::children(n), ctx);
+    }
     return nn;
   }
   return sp;
@@ -106,13 +141,6 @@ NodeList process(const NodeList& in, Ctx& ctx) {
 
     if (!active()) continue;
 
-    if (n.tag == 0x05) {  // bareword symbol -> macro substitution?
-      auto it = ctx.macros.find(dir_name(n));
-      if (it != ctx.macros.end()) {
-        out.push_back(process_node(it->second, ctx));
-        continue;
-      }
-    }
     out.push_back(process_node(in[i], ctx));
   }
   return out;

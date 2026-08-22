@@ -1,0 +1,14 @@
+{
+  "cases": [
+    {
+      "name": "midori_1_attack_left_r181_f030",
+      "selection": "gh3_midori_1",
+      "model": "char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2",
+      "main_milo": "char/gh3_midori/anims/gen/gh3_midori_1_main_staticface_attack_r181.milo_ps2",
+      "clip": "gh3_guit_mido_a_attackl",
+      "frame": 30,
+      "category": "main_attack_staticface_outfit_bank",
+      "expected_layers": 1
+    }
+  ]
+}
