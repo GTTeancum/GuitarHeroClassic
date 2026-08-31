@@ -706,15 +706,66 @@ def clone_proof_record(path: Path) -> dict[str, Any]:
     if not path.is_file():
         return {"path": str(path.resolve()), "status": "missing"}
     proof = read_json(path)
+    inputs = proof.get("inputs", {})
+    capture = proof.get("capture", {})
+    checks = proof.get("checks", {})
+
+    def artifact_record(name: str) -> dict[str, Any]:
+        raw_path = inputs.get(name)
+        expected = inputs.get(f"{name}_sha256")
+        if not isinstance(raw_path, str) or not raw_path:
+            return {
+                "path": raw_path,
+                "expected_sha256": expected,
+                "status": "missing_path",
+                "exact": False,
+            }
+        artifact = Path(raw_path)
+        if not artifact.is_absolute():
+            artifact = path.parent / artifact
+        artifact = artifact.resolve()
+        if not artifact.is_file():
+            return {
+                "path": str(artifact),
+                "expected_sha256": expected,
+                "status": "missing",
+                "exact": False,
+            }
+        actual = sha256_file(artifact)
+        return {
+            "path": str(artifact),
+            "expected_sha256": expected,
+            "sha256": actual,
+            "status": "pass" if actual == expected else "fail",
+            "exact": actual == expected,
+        }
+
+    log = artifact_record("log")
+    screenshot = artifact_record("screenshot")
     return {
         "path": str(path.resolve()),
         "sha256": sha256_file(path),
+        "format": proof.get("format"),
         "status": proof.get("status"),
         "engine": proof.get("runtime", {}).get("engine"),
+        "hidden_window": proof.get("runtime", {}).get("hidden_window"),
         "iso_used": proof.get("runtime", {}).get("iso_used"),
         "emulator_used": proof.get("runtime", {}).get("emulator_used"),
-        "model_sha256": proof.get("inputs", {}).get("model_sha256"),
-        "main_bank_sha256": proof.get("inputs", {}).get("main_bank_sha256"),
+        "all_checks_pass": (
+            isinstance(checks, dict)
+            and bool(checks)
+            and all(value is True for value in checks.values())
+        ),
+        "model_sha256": inputs.get("model_sha256"),
+        "main_bank_sha256": inputs.get("main_bank_sha256"),
+        "log": log,
+        "screenshot": screenshot,
+        "artifact_hashes_exact": log["exact"] and screenshot["exact"],
+        "venue": capture.get("venue"),
+        "clip": capture.get("clip"),
+        "clip_time_seconds": capture.get("clip_time_seconds"),
+        "capture_frame": capture.get("capture_frame"),
+        "total_frames": capture.get("total_frames"),
         "user_acceptance": proof.get("visual_review", {}).get("user_acceptance"),
     }
 
@@ -908,12 +959,16 @@ def main() -> int:
 
     proof = clone_proof_record(args.clone_proof_validation.resolve())
     proof_matches_package = (
-        proof.get("status") == "pass"
+        proof.get("format") == "gh3-midori-casey-clone-gameplay-proof-v1"
+        and proof.get("status") == "pass"
         and proof.get("engine") == "Guitar Hero Classic ghogx_app"
+        and proof.get("hidden_window") is True
         and proof.get("iso_used") is False
         and proof.get("emulator_used") is False
+        and proof.get("all_checks_pass") is True
         and proof.get("model_sha256") == EXPECTED_HASHES["model"]
         and proof.get("main_bank_sha256") == EXPECTED_HASHES["main"]
+        and proof.get("artifact_hashes_exact") is True
     )
     smoke = clone_smoke_record(args.clone_smoke_log.resolve())
     failures.extend(

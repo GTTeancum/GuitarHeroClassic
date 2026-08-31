@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import hashlib
+import json
 import os
 import re
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -18,6 +21,18 @@ DEFAULT_APP = (
 )
 DEFAULT_ARK_DIR = ROOT / "out/midori/input/GEN"
 DEFAULT_PACKAGE = ROOT / "DLC/community.gh3.midori"
+MODEL_RELATIVE = Path(
+    "content/char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2"
+)
+MAIN_RELATIVE = Path(
+    "content/char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2"
+)
+EXPECTED_MODEL_SHA256 = (
+    "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286"
+)
+EXPECTED_MAIN_SHA256 = (
+    "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002"
+)
 
 
 def set_idle_priority() -> None:
@@ -41,6 +56,85 @@ def require_file(path: Path, label: str) -> Path:
     if not resolved.is_file():
         raise FileNotFoundError(f"{label} is missing: {resolved}")
     return resolved
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest().upper()
+
+
+def write_json(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def proof_payload(
+    *,
+    status: str,
+    mode: str,
+    app: Path,
+    package: Path,
+    log: Path,
+    screenshot: Path,
+    model_sha256: str,
+    main_sha256: str,
+    checks: dict[str, bool],
+    summary: dict[str, int | str] | None,
+    venue: str,
+    clip: str,
+    clip_time: float,
+    camera_yaw: float,
+    song_start: float,
+    capture_frame: int,
+    frames: int,
+    fps: float,
+    pose_rows: int,
+) -> dict[str, object]:
+    return {
+        "format": "gh3-midori-casey-clone-gameplay-proof-v1",
+        "status": status,
+        "generated_utc": datetime.now(timezone.utc).isoformat(),
+        "mode": mode,
+        "runtime": {
+            "engine": "Guitar Hero Classic ghogx_app",
+            "app": str(app),
+            "priority": "Idle",
+            "worker_limit": 1,
+            "hidden_window": True,
+            "iso_used": False,
+            "emulator_used": False,
+        },
+        "inputs": {
+            "package": str(package),
+            "model_sha256": model_sha256,
+            "main_bank_sha256": main_sha256,
+            "manifest_sha256": sha256_file(package / "manifest.json"),
+            "log": str(log),
+            "log_sha256": sha256_file(log),
+            "screenshot": str(screenshot),
+            "screenshot_sha256": sha256_file(screenshot),
+        },
+        "capture": {
+            "venue": venue,
+            "clip": clip,
+            "clip_time_seconds": clip_time,
+            "camera_yaw_radians": camera_yaw,
+            "song_start_seconds": song_start,
+            "capture_frame": capture_frame,
+            "total_frames": frames,
+            "fixed_fps": fps,
+            "pose_row_count": pose_rows,
+            "gameplay_summary": summary,
+        },
+        "checks": checks,
+        "visual_review": {
+            "assistant_review": "candidate",
+            "user_acceptance": "pending",
+        },
+    }
 
 
 def clone_environment(
@@ -103,6 +197,11 @@ def main() -> int:
     parser.add_argument("--log", type=Path, required=True)
     parser.add_argument("--screenshot", type=Path)
     parser.add_argument(
+        "--validation-output",
+        type=Path,
+        help="write a hash-bound gameplay proof JSON (requires --screenshot)",
+    )
+    parser.add_argument(
         "--verify-existing",
         action="store_true",
         help="validate an existing bounded run without launching ghogx_app",
@@ -125,9 +224,18 @@ def main() -> int:
     package = args.package.resolve()
     log = args.log.resolve()
     screenshot = args.screenshot.resolve() if args.screenshot else None
+    validation_output = (
+        args.validation_output.resolve() if args.validation_output else None
+    )
     require_file(ark_dir / "MAIN.HDR", "extracted MAIN.HDR")
     require_file(ark_dir / "MAIN_0.ARK", "extracted MAIN_0.ARK")
     require_file(package / "manifest.json", "loose Midori package manifest")
+    model = require_file(package / MODEL_RELATIVE, "packaged Midori model")
+    main_bank = require_file(
+        package / MAIN_RELATIVE, "packaged Midori main bank"
+    )
+    if validation_output is not None and screenshot is None:
+        raise ValueError("--validation-output requires --screenshot")
     if args.capture_frame < 1 or args.frames <= args.capture_frame:
         raise ValueError("capture frame must be inside the bounded run")
     if args.fps <= 0 or args.timeout <= 0:
@@ -203,7 +311,14 @@ def main() -> int:
 
     text = log.read_text(encoding="utf-8", errors="replace")
     summary = gameplay_summary(text)
+    model_sha256 = sha256_file(model)
+    main_sha256 = sha256_file(main_bank)
+    pose_rows = text.count(
+        "[handpose] phase=postcontrollers role=guitarist0"
+    )
     checks = {
+        "model_sha256_exact": model_sha256 == EXPECTED_MODEL_SHA256,
+        "main_bank_sha256_exact": main_sha256 == EXPECTED_MAIN_SHA256,
         "current_midori_model": (
             "169 meshes (169 ok / 0 fail, 45 showing), 115 bones" in text
         ),
@@ -222,10 +337,7 @@ def main() -> int:
             and int(summary["hits"]) >= 1
             and summary["misses"] == 0
         ),
-        "pose_rows": (
-            text.count("[handpose] phase=postcontrollers role=guitarist0")
-            >= args.capture_frame
-        ),
+        "pose_rows": pose_rows >= args.capture_frame,
         "hidden_window": "D3D9 window 1280x720 created (hidden)" in text,
         "bounded_exit": f"exited after {args.frames} frames" in text,
         "screenshot_state": (
@@ -238,22 +350,50 @@ def main() -> int:
         "clone_only": ".iso" not in text.lower() and "pcsx2" not in text.lower(),
     }
     failed = [name for name, passed in checks.items() if not passed]
+    mode = (
+        "verify-capture"
+        if args.verify_existing and screenshot is not None
+        else "verify-preflight"
+        if args.verify_existing
+        else "capture"
+        if screenshot is not None
+        else "preflight"
+    )
+    if validation_output is not None:
+        assert screenshot is not None
+        write_json(
+            validation_output,
+            proof_payload(
+                status="pass" if not failed else "fail",
+                mode=mode,
+                app=app,
+                package=package,
+                log=log,
+                screenshot=screenshot,
+                model_sha256=model_sha256,
+                main_sha256=main_sha256,
+                checks=checks,
+                summary=summary,
+                venue=args.venue,
+                clip=args.clip,
+                clip_time=args.clip_time,
+                camera_yaw=args.camera_yaw,
+                song_start=args.song_start,
+                capture_frame=args.capture_frame,
+                frames=args.frames,
+                fps=args.fps,
+                pose_rows=pose_rows,
+            ),
+        )
     print(
-        "status=%s mode=%s pose_rows=%d hits=%s log=%s"
+        "status=%s mode=%s pose_rows=%d hits=%s log=%s validation=%s"
         % (
             "pass" if not failed else "fail",
-            (
-                "verify-capture"
-                if args.verify_existing and screenshot is not None
-                else "verify-preflight"
-                if args.verify_existing
-                else "capture"
-                if screenshot is not None
-                else "preflight"
-            ),
-            text.count("[handpose] phase=postcontrollers role=guitarist0"),
+            mode,
+            pose_rows,
             summary["hits"] if summary is not None else "missing",
             log,
+            validation_output if validation_output is not None else "not-requested",
         )
     )
     if failed:

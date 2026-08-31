@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -246,6 +247,57 @@ class MidoriConversionTest(unittest.TestCase):
         self.assertEqual(
             summary, {"state": "playing", "hits": 1, "misses": 0}
         )
+
+    def test_clone_pose_proof_matches_package_gate_schema(self) -> None:
+        source = Path(clone_pose.__file__).read_text(encoding="utf-8")
+        self.assertIn('"engine": "Guitar Hero Classic ghogx_app"', source)
+        self.assertIn('"iso_used": False', source)
+        self.assertIn('"emulator_used": False', source)
+        self.assertIn('"user_acceptance": "pending"', source)
+        self.assertIn('"model_sha256": model_sha256', source)
+        self.assertIn('"main_bank_sha256": main_sha256', source)
+        self.assertIn('"screenshot_sha256": sha256_file(screenshot)', source)
+
+    def test_package_proof_recomputes_artifact_hashes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            log = root / "runtime.log"
+            screenshot = root / "capture.bmp"
+            log.write_bytes(b"runtime")
+            screenshot.write_bytes(b"pixels")
+            proof_path = root / "proof.json"
+            proof_path.write_text(
+                json.dumps(
+                    {
+                        "format": "gh3-midori-casey-clone-gameplay-proof-v1",
+                        "status": "pass",
+                        "runtime": {
+                            "engine": "Guitar Hero Classic ghogx_app",
+                            "hidden_window": True,
+                            "iso_used": False,
+                            "emulator_used": False,
+                        },
+                        "inputs": {
+                            "model_sha256": package.EXPECTED_HASHES["model"],
+                            "main_bank_sha256": package.EXPECTED_HASHES["main"],
+                            "log": str(log),
+                            "log_sha256": package.sha256_file(log),
+                            "screenshot": str(screenshot),
+                            "screenshot_sha256": package.sha256_file(screenshot),
+                        },
+                        "capture": {"venue": "big", "clip": "stand_medium_04"},
+                        "checks": {"runtime": True},
+                        "visual_review": {"user_acceptance": "pending"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            record = package.clone_proof_record(proof_path)
+            self.assertTrue(record["artifact_hashes_exact"])
+            self.assertTrue(record["all_checks_pass"])
+            screenshot.write_bytes(b"changed")
+            record = package.clone_proof_record(proof_path)
+            self.assertFalse(record["artifact_hashes_exact"])
 
 
 if __name__ == "__main__":

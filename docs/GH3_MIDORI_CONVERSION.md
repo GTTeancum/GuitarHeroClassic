@@ -150,7 +150,9 @@ python tools/gh3_midori_run_casey_clone_pose.py `
 
 python tools/gh3_midori_run_casey_clone_pose.py `
   --log out/midori/proof/casey_pose_capture.log `
-  --screenshot out/midori/proof/casey_pose_capture.bmp
+  --screenshot out/midori/proof/casey_pose_capture.bmp `
+  --validation-output `
+    out/midori/proof/midori_casey_wristweights_gameplay.validation.json
 ```
 
 The runner requires a bounded frame count, confirms a hidden D3D9 window,
@@ -158,7 +160,18 @@ authenticates the 169-mesh/45-visible/115-transform Midori package, verifies
 the requested animation sample and venue, and requires live gameplay with at
 least one chart hit and no misses. It refuses ISO paths and never invokes an
 emulator. Add `--verify-existing` with the original run parameters to
-authenticate an existing log and screenshot without launching the clone.
+authenticate an existing log and screenshot without launching the clone. A
+validation output binds the screenshot and runtime log to the exact packaged
+model and main-bank hashes while retaining `user_acceptance: pending`. The
+package verifier re-hashes both referenced artifacts and fails closed if either
+file is missing or has changed.
+
+Require that proof when checking the package:
+
+```powershell
+python tools/gh3_midori_build_casey_clone_package.py `
+  --verify-only --require-clone-proof
+```
 
 The promoted Python contract tests are independent of commercial assets:
 
