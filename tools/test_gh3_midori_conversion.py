@@ -21,6 +21,7 @@ import gh3_midori_casey_native_candidate_validate as candidate  # noqa: E402
 import gh3_midori_model_bundle as model_bundle  # noqa: E402
 import gh3_midori_model_stage as model_stage  # noqa: E402
 import gh3_midori_run_casey_clone_pose as clone_pose  # noqa: E402
+import gh3_midori_casey_retail_overlay_manifest as retail_manifest  # noqa: E402
 
 
 class MidoriConversionTest(unittest.TestCase):
@@ -335,6 +336,29 @@ class MidoriConversionTest(unittest.TestCase):
             )
             self.assertEqual(record["status"], "fail")
             self.assertTrue(failures)
+
+    def test_retail_manifest_is_sorted_ark_tool_tsv(self) -> None:
+        targets = {
+            "b": {
+                "archive_path": "char/rock1/b.milo_ps2",
+                "replacement": {"sha256": "BB", "byte_count": 2},
+                "stock_archive": {"sha256": "B0", "byte_count": 1},
+            },
+            "a": {
+                "archive_path": "char/rock1/a.milo_ps2",
+                "replacement": {"sha256": "AA", "byte_count": 4},
+                "stock_archive": {"sha256": "A0", "byte_count": 3},
+            },
+        }
+        text = retail_manifest.manifest_text(targets)
+        self.assertEqual(
+            text.splitlines(),
+            [
+                "relative_path\tsha256\tbyte_count\tstock_sha256\tstock_byte_count",
+                "char/rock1/a.milo_ps2\tAA\t4\tA0\t3",
+                "char/rock1/b.milo_ps2\tBB\t2\tB0\t1",
+            ],
+        )
 
 
 if __name__ == "__main__":

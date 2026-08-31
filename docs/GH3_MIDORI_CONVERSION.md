@@ -100,6 +100,15 @@ emulator configuration. The second command re-hashes every file against the
 conversion sources and requires the hash-bound clone proof. Building or
 executing a retail image remains a separate deferred gate.
 
+The stage command also performs a read-only audit of the supplied retail GH2
+`MAIN.HDR` / `MAIN_0.ARK`. It requires all five Casey paths to exist with exact
+case, verifies the staged stock Casey files byte-for-byte against those archive
+entries, and confirms that only the model and main bank change while UI, fret,
+and strum remain stock. It writes the `ark_tool overlay` input manifest to
+`out/midori/retail_casey_overlay.tsv` and records the projected appended size
+without modifying the source archive. Verify-only mode requires both this TSV
+and its source-archive report to remain byte-current.
+
 ## Animation contract
 
 The published banks preserve the complete Casey call surface:

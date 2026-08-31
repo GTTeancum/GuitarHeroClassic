@@ -60,6 +60,14 @@ DEFAULT_MAIN_REBUILD_REPORT = (
     WORK_ROOT / "casey_main_bank_rebuild.validation.json"
 )
 DEFAULT_RETAIL_OVERLAY = WORK_ROOT / "retail_casey_overlay"
+DEFAULT_RETAIL_MANIFEST_TOOL = (
+    ROOT / "tools/gh3_midori_casey_retail_overlay_manifest.py"
+)
+DEFAULT_RETAIL_MANIFEST = WORK_ROOT / "retail_casey_overlay.tsv"
+DEFAULT_RETAIL_SOURCE_REPORT = (
+    WORK_ROOT / "retail_casey_overlay.source_archive.json"
+)
+DEFAULT_RETAIL_PARSER = ROOT / "tools/re_anim_audit.py"
 
 PACKAGE_PATHS = {
     "model": "content/char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2",
@@ -783,6 +791,83 @@ def validate_retail_overlay(
     }, failures
 
 
+def validate_retail_source_archive(
+    tool: Path,
+    stock_hdr: Path,
+    stock_ark: Path,
+    overlay: Path,
+    manifest: Path,
+    report: Path,
+    parser: Path,
+    verify_only: bool,
+) -> dict[str, Any]:
+    for path in (tool, stock_hdr, stock_ark, parser):
+        if not path.is_file():
+            raise FileNotFoundError(path)
+    command = [
+        sys.executable,
+        str(tool),
+        "--stock-hdr",
+        str(stock_hdr),
+        "--stock-ark",
+        str(stock_ark),
+        "--overlay-root",
+        str(overlay),
+        "--manifest",
+        str(manifest),
+        "--report",
+        str(report),
+        "--parser",
+        str(parser),
+    ]
+    if verify_only:
+        command.append("--verify-only")
+    completed = subprocess.run(
+        command,
+        cwd=ROOT,
+        env=os.environ.copy(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=120,
+        creationflags=getattr(subprocess, "IDLE_PRIORITY_CLASS", 0),
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            "retail source-archive validation failed with "
+            f"{completed.returncode}:\n{completed.stdout[-4000:]}"
+        )
+    payload = read_json(report)
+    checks = payload.get("checks", {})
+    if (
+        payload.get("status") != "pass"
+        or not checks
+        or not all(value is True for value in checks.values())
+    ):
+        raise ValueError("retail source-archive report is not passing")
+    return {
+        "status": "pass",
+        "mode": "verify-only" if verify_only else "regenerate-and-verify",
+        "command": command,
+        "report": str(report),
+        "report_sha256": sha256_file(report),
+        "manifest": str(manifest),
+        "manifest_sha256": sha256_file(manifest),
+        "target_count": payload["overlay"]["target_count"],
+        "changed_target_count": payload["overlay"]["changed_target_count"],
+        "reused_target_count": payload["overlay"]["reused_target_count"],
+        "appended_byte_count": payload["overlay"]["appended_byte_count"],
+        "projected_ark_byte_count": payload["overlay"][
+            "projected_ark_byte_count"
+        ],
+        "checks": checks,
+        "execution_policy": payload["execution_policy"],
+    }
+
+
 def clone_proof_record(path: Path) -> dict[str, Any]:
     if not path.is_file():
         return {"path": str(path.resolve()), "status": "missing"}
@@ -986,6 +1071,24 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="fail unless an exact Casey-path retail overlay is present",
     )
+    parser.add_argument(
+        "--retail-manifest-tool",
+        type=Path,
+        default=DEFAULT_RETAIL_MANIFEST_TOOL,
+    )
+    parser.add_argument(
+        "--retail-overlay-manifest",
+        type=Path,
+        default=DEFAULT_RETAIL_MANIFEST,
+    )
+    parser.add_argument(
+        "--retail-source-report",
+        type=Path,
+        default=DEFAULT_RETAIL_SOURCE_REPORT,
+    )
+    parser.add_argument(
+        "--retail-parser", type=Path, default=DEFAULT_RETAIL_PARSER
+    )
     parser.add_argument("--verify-only", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
@@ -1054,6 +1157,16 @@ def main() -> int:
             retail_overlay, sources
         )
         failures.extend(retail_failures)
+        retail_record["source_archive_gate"] = validate_retail_source_archive(
+            args.retail_manifest_tool.resolve(),
+            args.stock_hdr.resolve(),
+            args.stock_ark.resolve(),
+            retail_overlay,
+            args.retail_overlay_manifest.resolve(),
+            args.retail_source_report.resolve(),
+            args.retail_parser.resolve(),
+            verify_only=not args.stage_retail_overlay,
+        )
     else:
         retail_record = {
             "path": str(retail_overlay),
