@@ -1,0 +1,353 @@
+{
+  "format": "gh3-midori-casey-main-bank-rebuild-v1",
+  "status": "pass",
+  "generated_utc": "2026-08-31T04:42:23.815267+00:00",
+  "mode": "build-and-publish",
+  "runtime_policy": {
+    "priority": "Idle",
+    "worker_limit": 1,
+    "iso_used": false,
+    "emulator_used": false
+  },
+  "inputs": {
+    "stock_main": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\stock_casey_banks\\rock1_main.milo_ps2",
+      "sha256": "A3A5B62DFD45953C457D37B9E97F64E8FB7958AFC7718527774829349394E4B9",
+      "byte_count": 2762515
+    },
+    "final_acp": [
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_acp\\stand_fast_01.acp",
+        "sha256": "2EC5CFC97C9DECE7941B82B6C1342C380A3A045F39DFBE847ED6DDEEDF6FB4D2",
+        "byte_count": 50559,
+        "expected_sha256": "2EC5CFC97C9DECE7941B82B6C1342C380A3A045F39DFBE847ED6DDEEDF6FB4D2",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_acp\\stand_fast_02.acp",
+        "sha256": "AB0EA4F25D27E35FD04DAD4BFD8FE75636C8B7754F86E29756282B6276E4E67B",
+        "byte_count": 79755,
+        "expected_sha256": "AB0EA4F25D27E35FD04DAD4BFD8FE75636C8B7754F86E29756282B6276E4E67B",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_acp\\stand_fast_03.acp",
+        "sha256": "BD7C6E7916571488A084FCCF86C97A02C03591A0588920F402AC745B6203243C",
+        "byte_count": 52779,
+        "expected_sha256": "BD7C6E7916571488A084FCCF86C97A02C03591A0588920F402AC745B6203243C",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_acp\\stand_fast_04.acp",
+        "sha256": "4B2160279B9C206DAED8509F99D16336242DE4EF132CDEBE77451F1735C4CD25",
+        "byte_count": 21835,
+        "expected_sha256": "4B2160279B9C206DAED8509F99D16336242DE4EF132CDEBE77451F1735C4CD25",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_acp\\stand_fast_05.acp",
+        "sha256": "14603C241E54DE2C08CBD075429BB6424B0F6A5F12243E8EE7DDABCC2D4518ED",
+        "byte_count": 45515,
+        "expected_sha256": "14603C241E54DE2C08CBD075429BB6424B0F6A5F12243E8EE7DDABCC2D4518ED",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_acp\\stand_medium_02.acp",
+        "sha256": "E0B7235E48BB80A1BDA5F10A6246519637175C56D5D75EBC5AF4ED07E34443C9",
+        "byte_count": 74677,
+        "expected_sha256": "E0B7235E48BB80A1BDA5F10A6246519637175C56D5D75EBC5AF4ED07E34443C9",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_acp\\stand_medium_03.acp",
+        "sha256": "3FC76740D87EDD27AF541A0D9CE0070222EBA7728479A455931EA1DD04CF87D2",
+        "byte_count": 75725,
+        "expected_sha256": "3FC76740D87EDD27AF541A0D9CE0070222EBA7728479A455931EA1DD04CF87D2",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_acp\\stand_medium_04.acp",
+        "sha256": "24088C6A8BEEE249ECA7057706A7C22801A5940698FE3133353FCD44CED930FB",
+        "byte_count": 47437,
+        "expected_sha256": "24088C6A8BEEE249ECA7057706A7C22801A5940698FE3133353FCD44CED930FB",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_acp\\stand_medium_05.acp",
+        "sha256": "FAE81094F25E38F7C41ED07CCED178CADC6B7B5D1A7254879DBAD7B58B26EFEC",
+        "byte_count": 21905,
+        "expected_sha256": "FAE81094F25E38F7C41ED07CCED178CADC6B7B5D1A7254879DBAD7B58B26EFEC",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_acp\\stand_medium_06.acp",
+        "sha256": "4DCAFB96F7EC7F10C8699F23D5691F2F510F7CD45611B9E1750585AA33117E2E",
+        "byte_count": 37517,
+        "expected_sha256": "4DCAFB96F7EC7F10C8699F23D5691F2F510F7CD45611B9E1750585AA33117E2E",
+        "exact": true
+      }
+    ],
+    "encoder_reports": [
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports\\stand_fast_01.report.json",
+        "sha256": "6E0C896ADAA3AB033A68864D8E708E8E03117D1437E3876258BE8F272EA677B4",
+        "byte_count": 6080,
+        "expected_sha256": "6E0C896ADAA3AB033A68864D8E708E8E03117D1437E3876258BE8F272EA677B4",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports\\stand_fast_02.report.json",
+        "sha256": "A8F58D9864C5387381D52F3A5F470976F4D73E1C3EC0812224DFF1FCFDFDAD1C",
+        "byte_count": 6077,
+        "expected_sha256": "A8F58D9864C5387381D52F3A5F470976F4D73E1C3EC0812224DFF1FCFDFDAD1C",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports\\stand_fast_03.report.json",
+        "sha256": "0CD32A153AF59F692BEE35EA3E192B7AEB98B4C1E7AFA4A89185BC77DD214985",
+        "byte_count": 6090,
+        "expected_sha256": "0CD32A153AF59F692BEE35EA3E192B7AEB98B4C1E7AFA4A89185BC77DD214985",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports\\stand_fast_04.report.json",
+        "sha256": "8767295E46AA1B3E6D23CC20A53BED1D5AF7A8D90215849AE6E0CB6B019BC2A1",
+        "byte_count": 6089,
+        "expected_sha256": "8767295E46AA1B3E6D23CC20A53BED1D5AF7A8D90215849AE6E0CB6B019BC2A1",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports\\stand_fast_05.report.json",
+        "sha256": "B07D32476A796C2FAAF9A0802FF5E54CF370520DC0356606E26354F39022429F",
+        "byte_count": 6100,
+        "expected_sha256": "B07D32476A796C2FAAF9A0802FF5E54CF370520DC0356606E26354F39022429F",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports\\stand_medium_02.report.json",
+        "sha256": "047C3B3F462D55075E0636CB7B5BBBA8E05365251F52678D6F809355ABE6ACB6",
+        "byte_count": 6100,
+        "expected_sha256": "047C3B3F462D55075E0636CB7B5BBBA8E05365251F52678D6F809355ABE6ACB6",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports\\stand_medium_03.report.json",
+        "sha256": "F2A27AF5C650D0EFC728860C309010D06DD5D72CBC657EA712AB5D1D3210EBAA",
+        "byte_count": 6083,
+        "expected_sha256": "F2A27AF5C650D0EFC728860C309010D06DD5D72CBC657EA712AB5D1D3210EBAA",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports\\stand_medium_04.report.json",
+        "sha256": "A34AF461F59E45EC6BA8F48FEE7B80C9AAD7FDC89EA1D699E9E4EF68D184E9F7",
+        "byte_count": 6097,
+        "expected_sha256": "A34AF461F59E45EC6BA8F48FEE7B80C9AAD7FDC89EA1D699E9E4EF68D184E9F7",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports\\stand_medium_05.report.json",
+        "sha256": "2B326DB25FC320F1D7E724FF24A2531A2A0A87F7951C13795787091DD1EB8725",
+        "byte_count": 6083,
+        "expected_sha256": "2B326DB25FC320F1D7E724FF24A2531A2A0A87F7951C13795787091DD1EB8725",
+        "exact": true
+      },
+      {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports\\stand_medium_06.report.json",
+        "sha256": "694AF7D83001D97607A881EB2B0C1BB5E4313145AC6CAAB3FDB6806CDAD3B246",
+        "byte_count": 6055,
+        "expected_sha256": "694AF7D83001D97607A881EB2B0C1BB5E4313145AC6CAAB3FDB6806CDAD3B246",
+        "exact": true
+      }
+    ],
+    "milo_tool": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\milo_convert\\out\\build\\win-amd64-release\\Release\\milo_convert_tool.exe",
+      "sha256": "8E870ADDD3A68F5914CF5E16B5E5A4DCFA259DEC945792FB0D51633FE778FEDB",
+      "byte_count": 1118208
+    },
+    "validator": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\gh3_midori_casey_native_candidate_validate.py",
+      "sha256": "A69E9F7B7BCB0475AC170E47EE9E3926CC288124379EE1A4108D46C25FA90C03",
+      "byte_count": 12545
+    }
+  },
+  "clips": [
+    "stand_fast_01",
+    "stand_fast_02",
+    "stand_fast_03",
+    "stand_fast_04",
+    "stand_fast_05",
+    "stand_medium_02",
+    "stand_medium_03",
+    "stand_medium_04",
+    "stand_medium_05",
+    "stand_medium_06"
+  ],
+  "steps": [
+    {
+      "name": "donor",
+      "command": [
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\milo_convert\\out\\build\\win-amd64-release\\Release\\milo_convert_tool.exe",
+        "build-clipset-from-acp",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_acp",
+        "--name",
+        "gh3_midori_casey_native_diverse_final",
+        "--role",
+        "guitar-main",
+        "--move-self",
+        "0",
+        "--out",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\rock1_main.midori_diverse_final_donor.milo_ps2"
+      ],
+      "return_code": 0,
+      "output_tail": "clipset=gh3_midori_casey_native_diverse_final role=guitar-main clips=10 bones=54 entries=66 move_self=0 bytes=223785 output=C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\rock1_main.midori_diverse_final_donor.milo_ps2\n"
+    },
+    {
+      "name": "candidate",
+      "command": [
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\milo_convert\\out\\build\\win-amd64-release\\Release\\milo_convert_tool.exe",
+        "replace-clipset-clips",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\stock_casey_banks\\rock1_main.milo_ps2",
+        "--donor",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\rock1_main.midori_diverse_final_donor.milo_ps2",
+        "--clip",
+        "stand_fast_01",
+        "--clip",
+        "stand_fast_02",
+        "--clip",
+        "stand_fast_03",
+        "--clip",
+        "stand_fast_04",
+        "--clip",
+        "stand_fast_05",
+        "--clip",
+        "stand_medium_02",
+        "--clip",
+        "stand_medium_03",
+        "--clip",
+        "stand_medium_04",
+        "--clip",
+        "stand_medium_05",
+        "--clip",
+        "stand_medium_06",
+        "--out",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\rock1_main.midori_diverse_final_candidate.milo_ps2"
+      ],
+      "return_code": 0,
+      "output_tail": "base=C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\stock_casey_banks\\rock1_main.milo_ps2 donor=C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\rock1_main.midori_diverse_final_donor.milo_ps2 replaced=10 entries=205 output=C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\rock1_main.midori_diverse_final_candidate.milo_ps2\n"
+    },
+    {
+      "name": "validation",
+      "command": [
+        "C:\\Users\\smmel\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\gh3_midori_casey_native_candidate_validate.py",
+        "--base",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\stock_casey_banks\\rock1_main.milo_ps2",
+        "--candidate",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\rock1_main.midori_diverse_final_candidate.milo_ps2",
+        "--reports",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports",
+        "--output",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\candidate.validation.json",
+        "--clip",
+        "stand_fast_01",
+        "--clip",
+        "stand_fast_02",
+        "--clip",
+        "stand_fast_03",
+        "--clip",
+        "stand_fast_04",
+        "--clip",
+        "stand_fast_05",
+        "--clip",
+        "stand_medium_02",
+        "--clip",
+        "stand_medium_03",
+        "--clip",
+        "stand_medium_04",
+        "--clip",
+        "stand_medium_05",
+        "--clip",
+        "stand_medium_06"
+      ],
+      "return_code": 0,
+      "output_tail": "status=pass changed=10 unaffected=103 max_quat_error=4.17661e-08 output=C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\candidate.validation.json\n"
+    },
+    {
+      "name": "published_validation",
+      "command": [
+        "C:\\Users\\smmel\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\gh3_midori_casey_native_candidate_validate.py",
+        "--base",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\stock_casey_banks\\rock1_main.milo_ps2",
+        "--candidate",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\generated\\rock1_main.midori_diverse_final_candidate.milo_ps2",
+        "--reports",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\casey_native_animation_set_v1\\final_reports",
+        "--output",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\published.validation.json",
+        "--clip",
+        "stand_fast_01",
+        "--clip",
+        "stand_fast_02",
+        "--clip",
+        "stand_fast_03",
+        "--clip",
+        "stand_fast_04",
+        "--clip",
+        "stand_fast_05",
+        "--clip",
+        "stand_medium_02",
+        "--clip",
+        "stand_medium_03",
+        "--clip",
+        "stand_medium_04",
+        "--clip",
+        "stand_medium_05",
+        "--clip",
+        "stand_medium_06"
+      ],
+      "return_code": 0,
+      "output_tail": "status=pass changed=10 unaffected=103 max_quat_error=4.17661e-08 output=C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\published.validation.json\n"
+    }
+  ],
+  "generated": {
+    "donor": {
+      "path": "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\rock1_main.midori_diverse_final_donor.milo_ps2",
+      "sha256": "47EC8FC82014376FB597129B1D47289D060A9E65BD19D33840A9065393FD06FB",
+      "byte_count": 223785
+    },
+    "candidate": {
+      "path": "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\rock1_main.midori_diverse_final_candidate.milo_ps2",
+      "sha256": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+      "byte_count": 2691390
+    },
+    "validation": {
+      "path": "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_casey_main_mkv6opg0\\candidate.validation.json",
+      "sha256": "B8CC4634717CB67619CCA6CE53746E6B26EDAD7064D1BE06F65FD0414FE566B9",
+      "byte_count": 7865
+    }
+  },
+  "published": {
+    "donor": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\generated\\rock1_main.midori_diverse_final_donor.milo_ps2",
+      "sha256": "47EC8FC82014376FB597129B1D47289D060A9E65BD19D33840A9065393FD06FB",
+      "byte_count": 223785
+    },
+    "candidate": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\generated\\rock1_main.midori_diverse_final_candidate.milo_ps2",
+      "sha256": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+      "byte_count": 2691390
+    },
+    "validation": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\generated\\rock1_main.midori_diverse_final_candidate.validation.json",
+      "sha256": "BA3F6CD5ED1C23B75C708B2E546438095D989D72B73B9CB7D4BF855420B6AB43",
+      "byte_count": 7888
+    }
+  },
+  "expected_hashes": {
+    "stock_main": "A3A5B62DFD45953C457D37B9E97F64E8FB7958AFC7718527774829349394E4B9",
+    "donor": "47EC8FC82014376FB597129B1D47289D060A9E65BD19D33840A9065393FD06FB",
+    "candidate": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002"
+  },
+  "failures": []
+}

@@ -261,6 +261,7 @@ class MidoriConversionTest(unittest.TestCase):
         self.assertIn('"emulator_used": False', source)
         self.assertIn('"user_acceptance": user_acceptance', source)
         self.assertIn('default="pending"', source)
+        self.assertIn('choices=("pending", "accepted", "rejected")', source)
         self.assertIn('"model_sha256": model_sha256', source)
         self.assertIn('"main_bank_sha256": main_sha256', source)
         self.assertIn('"screenshot_sha256": sha256_file(screenshot)', source)
@@ -378,6 +379,10 @@ class MidoriConversionTest(unittest.TestCase):
         }
         checks = retail_apply.proof_gate_checks(record)
         self.assertFalse(checks["human_visual_acceptance"])
+        record["user_acceptance"] = "rejected"
+        self.assertFalse(
+            retail_apply.proof_gate_checks(record)["human_visual_acceptance"]
+        )
         record["user_acceptance"] = "accepted"
         self.assertTrue(all(retail_apply.proof_gate_checks(record).values()))
 

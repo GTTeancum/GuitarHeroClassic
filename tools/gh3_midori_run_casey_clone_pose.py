@@ -132,7 +132,9 @@ def proof_payload(
         },
         "checks": checks,
         "visual_review": {
-            "assistant_review": "candidate",
+            "assistant_review": (
+                "rejected" if user_acceptance == "rejected" else "candidate"
+            ),
             "user_acceptance": user_acceptance,
         },
     }
@@ -204,9 +206,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--user-acceptance",
-        choices=("pending", "accepted"),
+        choices=("pending", "accepted", "rejected"),
         default="pending",
-        help="record explicit human visual approval; default remains pending",
+        help="record the explicit human visual verdict; default remains pending",
     )
     parser.add_argument(
         "--verify-existing",

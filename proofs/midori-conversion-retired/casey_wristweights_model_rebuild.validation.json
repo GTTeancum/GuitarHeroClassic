@@ -1,0 +1,289 @@
+{
+  "format": "gh3-midori-casey-wristweights-model-rebuild-v2",
+  "status": "pass",
+  "generated_utc": "2026-08-31T04:42:19.717981+00:00",
+  "mode": "build-and-publish",
+  "runtime_policy": {
+    "priority": "Idle",
+    "worker_limit": 1,
+    "iso_used": false,
+    "emulator_used": false
+  },
+  "inputs": {
+    "source_dir": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\outfit1_mesh_ir",
+      "tree_sha256": "B861C04DF3328D20B66AAEC77F9DD1B4D539F92BCF0385DE67D906073B4960C1",
+      "file_count": 1,
+      "files": [
+        {
+          "relative_path": "midori_1.mesh_ir.json",
+          "sha256": "E47E93FCB6004620B366AE0CA6C6DCD8E5E6349E46D7AF7FE740D24C5E500F85",
+          "byte_count": 898218
+        }
+      ]
+    },
+    "skeleton": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\gh3_guitarist_midori.skeleton_ir.json",
+      "sha256": "36953C40C12D4B2D4FB046407E674022166C0C08D2CF34D0160F6DC03749D70D",
+      "byte_count": 63591
+    },
+    "stock_rig": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\gh2_casey_rock1_rig.json",
+      "sha256": "9B8DC56BEA0B4EBB7BEAF540811546E78C69D35E9C63BA411B4DFEF44C5853DC",
+      "byte_count": 298867
+    },
+    "casey_template": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\rock1.casey_template.milo_ps2",
+      "sha256": "AB1D915CD119BC41D5F7B27AA004C8EC7571CCE0B8F2B6EF50D480E6B234AADA",
+      "byte_count": 533182
+    },
+    "stage_tool": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\gh3_midori_model_stage.py",
+      "sha256": "24EBB989B8972AA8245360099680DA573C0F17D82B197F0D1FAA5EF94AD8BC99",
+      "byte_count": 63349
+    },
+    "model_bundle_tool": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\gh3_midori_model_bundle.py",
+      "sha256": "29ADB1D698E9ABB5D9C3A9381439E3BF3C23D004D9B720A23151CA6FE125D54D",
+      "byte_count": 68667
+    },
+    "milo_tool": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\milo_convert\\out\\build\\win-amd64-release\\Release\\milo_convert_tool.exe",
+      "sha256": "8E870ADDD3A68F5914CF5E16B5E5A4DCFA259DEC945792FB0D51633FE778FEDB",
+      "byte_count": 1118208
+    }
+  },
+  "parameters": {
+    "outfit": "midori_1",
+    "slot": "rock1",
+    "stock_hand_detail_rig": true,
+    "stock_bind_scope": "upper-limbs-guitar",
+    "control_root_pelvis_parent": true,
+    "preserve_guitar_attach_local": true,
+    "bind_pose_vertex_warp_scope": "hands",
+    "bind_pose_wrist_ramp_weight": 0.0,
+    "bind_pose_wrist_ramp_start": 0.6,
+    "wrist_seam_reference_mode": "nearest-authored-forearm-hand-blend",
+    "wrist_seam_start": 0.8,
+    "wrist_seam_transfer_strength": 1.0,
+    "rebind_template_rig": true
+  },
+  "steps": [
+    {
+      "name": "stage",
+      "command": [
+        "C:\\Users\\smmel\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\gh3_midori_model_stage.py",
+        "--input",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\outfit1_mesh_ir",
+        "--skeleton",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\gh3_guitarist_midori.skeleton_ir.json",
+        "--output",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\stage",
+        "--max-bones",
+        "4",
+        "--palette-overflow-policy",
+        "lowest-weight-ancestor",
+        "--skin-bone-suffix",
+        "mesh",
+        "--gh2-stock-rig",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\gh2_casey_rock1_rig.json",
+        "--stock-retarget-mode",
+        "anatomical-hands",
+        "--stock-retarget-scope",
+        "none",
+        "--wrist-seam-start",
+        "0.8",
+        "--wrist-seam-transfer-strength",
+        "1.0",
+        "--print-summary"
+      ],
+      "return_code": 0,
+      "output_tail": "outfits=1 chunks=45 faces=4992 oversize=0 pruned=0 dropped_max=0.000000 bytes=250056 split=midori_1:45\n"
+    },
+    {
+      "name": "meshbundle",
+      "command": [
+        "C:\\Users\\smmel\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\gh3_midori_model_bundle.py",
+        "--input",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\stage",
+        "--output",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\bundles",
+        "--gh2-stock-rig",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\gh2_casey_rock1_rig.json",
+        "--stock-hand-detail-rig",
+        "--stock-bind-scope",
+        "upper-limbs-guitar",
+        "--control-root-pelvis-parent",
+        "--preserve-guitar-attach-local",
+        "--bind-pose-vertex-warp-scope",
+        "hands",
+        "--bind-pose-wrist-ramp-weight",
+        "0",
+        "--bind-pose-wrist-ramp-start",
+        "0.6",
+        "--print-summary"
+      ],
+      "return_code": 0,
+      "output_tail": "bundles=1 chunks=45 textures=1 bytes=1322862 split=gh3_midori_1:45\n"
+    },
+    {
+      "name": "base_model",
+      "command": [
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\milo_convert\\out\\build\\win-amd64-release\\Release\\milo_convert_tool.exe",
+        "build-character-from-meshbundle",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\bundles\\gh3_midori_1.meshbundle",
+        "--name",
+        "gh3_midori_1",
+        "--out",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\gh3_midori_1.milo_ps2",
+        "--main-anim",
+        "char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2",
+        "--strum-anim",
+        "char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2",
+        "--fret-anim",
+        "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2"
+      ],
+      "return_code": 0,
+      "output_tail": "character=gh3_midori_1 outfit=midori_1 meshes=45 materials=3 textures=1 bones=71 guitarist_graph=1 entries=132 bytes=283703 output=C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\gh3_midori_1.milo_ps2\n"
+    },
+    {
+      "name": "rebased_donor",
+      "command": [
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\milo_convert\\out\\build\\win-amd64-release\\Release\\milo_convert_tool.exe",
+        "rebase-character-slot",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\gh3_midori_1.milo_ps2",
+        "--name",
+        "rock1",
+        "--main-anim",
+        "char/rock1/anims/gen/rock1_main.milo_ps2",
+        "--strum-anim",
+        "char/rock1/anims/gen/rock1_strum.milo_ps2",
+        "--fret-anim",
+        "char/rock1/anims/gen/rock1_fret.milo_ps2",
+        "--ps2-texture-max",
+        "256",
+        "--out",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\rock1.midori_donor.milo_ps2"
+      ],
+      "return_code": 0,
+      "output_tail": "character_slot=rock1 group=rock1.grp drivers=3 runtime_meshes_patched=0 textures_quantized=1 entries=132 bytes=152105 output=C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\rock1.midori_donor.milo_ps2\n"
+    },
+    {
+      "name": "final_model",
+      "command": [
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\milo_convert\\out\\build\\win-amd64-release\\Release\\milo_convert_tool.exe",
+        "merge-character-render-payload",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\rock1.casey_template.milo_ps2",
+        "--donor",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\rock1.midori_donor.milo_ps2",
+        "--rebind-template-rig",
+        "--out",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\rock1.casey_wristweights.milo_ps2"
+      ],
+      "return_code": 0,
+      "output_tail": "character_template=C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\rock1.casey_template.milo_ps2 donor=C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\rock1.midori_donor.milo_ps2 group=rock1.grp meshes_enabled=45 transforms_replaced=0 transforms_added=0 transforms_preserved=57 donor_transforms_skipped=14 mesh_bind_slots_rebased=171 mesh_bind_slots_preserved=0 meshes_with_bind_slots_preserved=0 mesh_bind_slots_remapped=10 max_bind_residual=7.62939e-06 max_template_stored_chain_delta=37.0701 controller_entries_preserved=20 template_meshes_hidden=124 render_entries_added=50 entries=333 bytes=677444 output=C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\rock1.casey_wristweights.milo_ps2\n"
+    }
+  ],
+  "generated": {
+    "stage_manifest": {
+      "path": "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\stage\\gh3_midori_model_stage_manifest.json",
+      "sha256": "F73FD0450A8D463FC400C26B463DBF57770A688DC1EB117E52D111A8BD6A3F44",
+      "byte_count": 112085
+    },
+    "stage_chunks": {
+      "path": "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\stage\\midori_1.mesh28_stage.jsonl.gz",
+      "sha256": "A27725C40E6ACF58470242B5292FB69766C8DC97C2A9AC2BF2498ED6B71AACB4",
+      "byte_count": 250056
+    },
+    "meshbundle": {
+      "path": "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\bundles\\gh3_midori_1.meshbundle",
+      "sha256": "5FCEB05B98E0255270574A68B7991AE6E1C584F5563D616E8C4C96A600CAA404",
+      "byte_count": 1322862
+    },
+    "base_model": {
+      "path": "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\gh3_midori_1.milo_ps2",
+      "sha256": "78C3D5FD9202D8662BEE4947674E6C0A26EE7D6E09D89A78ACF46DC621F5DF13",
+      "byte_count": 283703
+    },
+    "rebased_donor": {
+      "path": "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\rock1.midori_donor.milo_ps2",
+      "sha256": "F61E2B4638B111EE24134F32D431DB1F404FDDFB586AE9E54D3C3F181B3503A3",
+      "byte_count": 152105
+    },
+    "final_model": {
+      "path": "C:\\Users\\smmel\\AppData\\Local\\Temp\\gh3_midori_wristweights_tcmvnlvv\\models\\rock1.casey_wristweights.milo_ps2",
+      "sha256": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
+      "byte_count": 677444
+    }
+  },
+  "published": {
+    "base_model": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\generated\\gh3_midori_1.milo_ps2",
+      "sha256": "78C3D5FD9202D8662BEE4947674E6C0A26EE7D6E09D89A78ACF46DC621F5DF13",
+      "byte_count": 283703
+    },
+    "rebased_donor": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\generated\\rock1.midori_donor.milo_ps2",
+      "sha256": "F61E2B4638B111EE24134F32D431DB1F404FDDFB586AE9E54D3C3F181B3503A3",
+      "byte_count": 152105
+    },
+    "final_model": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\generated\\rock1.casey_wristweights.milo_ps2",
+      "sha256": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
+      "byte_count": 677444
+    }
+  },
+  "expected_hashes": {
+    "stage_manifest": "70A3DEEF1D583819A486DA9C55F4086E26DC82FC7AB1143D4A240B0D345944F1",
+    "stage_chunks": "A27725C40E6ACF58470242B5292FB69766C8DC97C2A9AC2BF2498ED6B71AACB4",
+    "meshbundle": "5FCEB05B98E0255270574A68B7991AE6E1C584F5563D616E8C4C96A600CAA404",
+    "base_model": "78C3D5FD9202D8662BEE4947674E6C0A26EE7D6E09D89A78ACF46DC621F5DF13",
+    "rebased_donor": "F61E2B4638B111EE24134F32D431DB1F404FDDFB586AE9E54D3C3F181B3503A3",
+    "final_model": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
+    "casey_template": "AB1D915CD119BC41D5F7B27AA004C8EC7571CCE0B8F2B6EF50D480E6B234AADA",
+    "stock_rig": "9B8DC56BEA0B4EBB7BEAF540811546E78C69D35E9C63BA411B4DFEF44C5853DC"
+  },
+  "model_contract": {
+    "status": "pass",
+    "checks": {
+      "active_group_has_45_midori_meshes": true,
+      "transform_count_is_115": true,
+      "controller_count_is_20": true,
+      "mesh_count_is_169": true,
+      "visible_midori_count_is_45": true,
+      "hidden_casey_template_count_is_124": true,
+      "no_hidden_midori_meshes": true,
+      "no_visible_template_meshes": true,
+      "band_character_rock1": true,
+      "pelvis_parent_is_rock1": true,
+      "left_hand_ik": true,
+      "right_hand_ik": true,
+      "fret_ik": true,
+      "eyes_controller": true
+    },
+    "active_group_object_count": 45,
+    "invalid_active_group_objects": [],
+    "transform_count": 115,
+    "controller_count": 20,
+    "mesh_count": 169,
+    "visible_midori_mesh_count": 45,
+    "hidden_template_mesh_count": 124,
+    "hidden_midori_mesh_count": 0,
+    "visible_template_mesh_count": 0
+  },
+  "checks": {
+    "stage_chunks_hash_exact": true,
+    "meshbundle_hash_exact": true,
+    "base_model_hash_exact": true,
+    "rebased_donor_hash_exact": true,
+    "final_model_hash_exact": true,
+    "stage_manifest_semantic_exact": true,
+    "stock_rig_hash_exact": true,
+    "casey_template_hash_exact": true,
+    "casey_model_contract_passed": true,
+    "published_outputs_exact": true
+  },
+  "failures": []
+}

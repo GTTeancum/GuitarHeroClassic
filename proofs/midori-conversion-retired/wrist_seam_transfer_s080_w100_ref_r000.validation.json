@@ -1,0 +1,2255 @@
+{
+  "format": "gh3-midori-wrist-seam-transfer-validation-v1",
+  "status": "pass",
+  "generated_utc": "2026-08-30T22:46:15.313305+00:00",
+  "runtime_policy": {
+    "priority": "Idle",
+    "worker_limit": 1,
+    "iso_used": false,
+    "emulator_used": false,
+    "image_generated": false
+  },
+  "inputs": {
+    "model_candidate": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\models\\rock1.casey_wristweights_s080_w100_ref_r000.milo_ps2",
+      "sha256": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
+      "byte_count": 677444
+    },
+    "main_candidate": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\casey_native_animation_set_v1\\rock1_main.midori_diverse_final_candidate.milo_ps2",
+      "sha256": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+      "byte_count": 2691390
+    },
+    "candidate_stage_manifest": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\stage_s080_w100_ref\\gh3_midori_model_stage_manifest.json",
+      "sha256": "EC9A3F8BC925DEEB74E434A4038211DE007A49A27051198D93F2570D57C308B2",
+      "byte_count": 111851
+    },
+    "candidate_stage_chunks": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\stage_s080_w100_ref\\midori_1.mesh28_stage.jsonl.gz",
+      "sha256": "9ACB232AB1F1C4598EF38B7CC72F2043BD60E8C048662273814337CA76AFC3D9",
+      "byte_count": 250112
+    },
+    "baseline_stage_chunks": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\gh3_midori_frame106_headless\\body_deformation_v5\\model_stage_casey_lowweight_caseyrig\\stage\\midori_1.mesh28_stage.jsonl.gz",
+      "sha256": "7B335A5D0C7C82C9DC1185BE4CCA860255EDEC1BD6EBC9D31A6BB24145E56F09",
+      "byte_count": 245502
+    },
+    "source": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\gh3_midori_source_ir\\outfit1_meshwide_input\\midori_1.mesh_ir.json",
+      "sha256": "E47E93FCB6004620B366AE0CA6C6DCD8E5E6349E46D7AF7FE740D24C5E500F85",
+      "byte_count": 898218
+    },
+    "skeleton": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\gh3_midori_source_ir\\skeleton\\gh3_guitarist_midori.skeleton_ir.json",
+      "sha256": "36953C40C12D4B2D4FB046407E674022166C0C08D2CF34D0160F6DC03749D70D",
+      "byte_count": 63591
+    }
+  },
+  "parameters": {
+    "samples_per_clip": 5,
+    "expected_pose_count": 50,
+    "expected_mesh_count": 45,
+    "maximum_bind_pair_distance": 1.0,
+    "maximum_pose_pair_mean": 1.0,
+    "maximum_pose_pair_distance": 2.5,
+    "wrist_seam_start": 0.8,
+    "wrist_seam_transfer_strength": 1.0
+  },
+  "stage": {
+    "baseline_chunk_count": 44,
+    "candidate_chunk_count": 45,
+    "source_vertex_count": 3950,
+    "changed_weight_count": 84,
+    "expected_changed_weight_count": 84,
+    "unexpected_changed_keys": [],
+    "missing_changed_keys": [],
+    "invalid_weight_changes": [],
+    "candidate_max_bones": 4,
+    "candidate_max_weight_sum_error": 0.0,
+    "candidate_max_dropped_weight": 0.0
+  },
+  "pairs": {
+    "L": [
+      {
+        "source_mesh": 0,
+        "source_vertex": 1882,
+        "reference_source_vertex": 3050,
+        "bind_distance": 0.8739138758543036,
+        "axis_fraction": 0.9678745797997573
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1883,
+        "reference_source_vertex": 3050,
+        "bind_distance": 0.6738820809452016,
+        "axis_fraction": 0.9593124985797838
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1884,
+        "reference_source_vertex": 3049,
+        "bind_distance": 0.4303801535442235,
+        "axis_fraction": 0.9915820248432876
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1885,
+        "reference_source_vertex": 3049,
+        "bind_distance": 0.7588816186744869,
+        "axis_fraction": 0.9488124013003816
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1886,
+        "reference_source_vertex": 2969,
+        "bind_distance": 0.36660416649773736,
+        "axis_fraction": 0.9934386059066138
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1887,
+        "reference_source_vertex": 2968,
+        "bind_distance": 0.8505708699513177,
+        "axis_fraction": 0.9477868718112684
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1888,
+        "reference_source_vertex": 2970,
+        "bind_distance": 0.8700313314467522,
+        "axis_fraction": 0.9591472609315155
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1907,
+        "reference_source_vertex": 3094,
+        "bind_distance": 0.7455647088139448,
+        "axis_fraction": 0.9737570485259366
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1908,
+        "reference_source_vertex": 2948,
+        "bind_distance": 0.7984291341366002,
+        "axis_fraction": 0.9770261090309197
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1909,
+        "reference_source_vertex": 2949,
+        "bind_distance": 0.8567099020162893,
+        "axis_fraction": 0.9727410284135339
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1910,
+        "reference_source_vertex": 2948,
+        "bind_distance": 0.4906994235450525,
+        "axis_fraction": 1.0104731271891727
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1912,
+        "reference_source_vertex": 3051,
+        "bind_distance": 0.45591526337892696,
+        "axis_fraction": 1.001911023877389
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1913,
+        "reference_source_vertex": 3051,
+        "bind_distance": 0.22688704313431307,
+        "axis_fraction": 0.9753709656291144
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1914,
+        "reference_source_vertex": 3050,
+        "bind_distance": 0.17335473515249053,
+        "axis_fraction": 0.9695555011926649
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1915,
+        "reference_source_vertex": 2968,
+        "bind_distance": 0.2665493259023734,
+        "axis_fraction": 0.9752368187726369
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1916,
+        "reference_source_vertex": 2949,
+        "bind_distance": 0.30848701209721263,
+        "axis_fraction": 0.9888434101552089
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1917,
+        "reference_source_vertex": 3094,
+        "bind_distance": 0.27477385459429393,
+        "axis_fraction": 0.9841740467882242
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1918,
+        "reference_source_vertex": 3094,
+        "bind_distance": 0.40196411084512135,
+        "axis_fraction": 1.007508486534553
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1919,
+        "reference_source_vertex": 3051,
+        "bind_distance": 0.22688704313431307,
+        "axis_fraction": 0.9753709656291144
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1920,
+        "reference_source_vertex": 3051,
+        "bind_distance": 0.45591526337892696,
+        "axis_fraction": 1.001911023877389
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1921,
+        "reference_source_vertex": 3095,
+        "bind_distance": 0.7588816186744883,
+        "axis_fraction": 0.9682147694398833
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1922,
+        "reference_source_vertex": 3051,
+        "bind_distance": 0.7600418487428143,
+        "axis_fraction": 0.9700744997136754
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 1923,
+        "reference_source_vertex": 3050,
+        "bind_distance": 0.8739138758543036,
+        "axis_fraction": 0.9678745797997573
+      }
+    ],
+    "R": [
+      {
+        "source_mesh": 0,
+        "source_vertex": 468,
+        "reference_source_vertex": 3173,
+        "bind_distance": 0.7192874099455985,
+        "axis_fraction": 0.9709702155400577
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 469,
+        "reference_source_vertex": 3172,
+        "bind_distance": 0.6806611294029425,
+        "axis_fraction": 0.9598694205288534
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 470,
+        "reference_source_vertex": 3170,
+        "bind_distance": 0.42767775238217887,
+        "axis_fraction": 0.9915991387840222
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 471,
+        "reference_source_vertex": 3170,
+        "bind_distance": 0.7494732504016861,
+        "axis_fraction": 0.9462445639502324
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 472,
+        "reference_source_vertex": 3169,
+        "bind_distance": 0.3590629576046345,
+        "axis_fraction": 0.9915976821834369
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 473,
+        "reference_source_vertex": 3171,
+        "bind_distance": 0.8539446528793929,
+        "axis_fraction": 0.9445385523454033
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 474,
+        "reference_source_vertex": 3190,
+        "bind_distance": 0.8735954134535004,
+        "axis_fraction": 0.9557468126616085
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 483,
+        "reference_source_vertex": 3174,
+        "bind_distance": 0.4542848057170129,
+        "axis_fraction": 1.0050749067404734
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 485,
+        "reference_source_vertex": 3196,
+        "bind_distance": 0.8602213549931,
+        "axis_fraction": 0.9722787786536836
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 486,
+        "reference_source_vertex": 3186,
+        "bind_distance": 0.4882359623359206,
+        "axis_fraction": 1.0123978173134045
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 487,
+        "reference_source_vertex": 3186,
+        "bind_distance": 0.7984291341366002,
+        "axis_fraction": 0.9797809798662277
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 488,
+        "reference_source_vertex": 3176,
+        "bind_distance": 0.3954503724105509,
+        "axis_fraction": 1.0127076440058114
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 489,
+        "reference_source_vertex": 3176,
+        "bind_distance": 0.7453158554329051,
+        "axis_fraction": 0.9793319190058967
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 490,
+        "reference_source_vertex": 3175,
+        "bind_distance": 0.7564945189080764,
+        "axis_fraction": 0.9745101946318726
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 497,
+        "reference_source_vertex": 3196,
+        "bind_distance": 0.30546551898209406,
+        "axis_fraction": 0.9905190747461314
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 498,
+        "reference_source_vertex": 3171,
+        "bind_distance": 0.26357493772207097,
+        "axis_fraction": 0.9746863961357601
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 499,
+        "reference_source_vertex": 3176,
+        "bind_distance": 0.27477385459429543,
+        "axis_fraction": 0.98802045463584
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 500,
+        "reference_source_vertex": 3174,
+        "bind_distance": 0.22688704313431302,
+        "axis_fraction": 0.9783050373876857
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 501,
+        "reference_source_vertex": 3174,
+        "bind_distance": 0.4542848057170129,
+        "axis_fraction": 1.0050749067404734
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 502,
+        "reference_source_vertex": 3174,
+        "bind_distance": 0.7507715758342312,
+        "axis_fraction": 0.9744479044999188
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 503,
+        "reference_source_vertex": 3173,
+        "bind_distance": 0.7192874099455985,
+        "axis_fraction": 0.9709702155400577
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 507,
+        "reference_source_vertex": 3172,
+        "bind_distance": 0.17706044601139764,
+        "axis_fraction": 0.969747456581605
+      },
+      {
+        "source_mesh": 0,
+        "source_vertex": 508,
+        "reference_source_vertex": 3174,
+        "bind_distance": 0.22688704313431302,
+        "axis_fraction": 0.9783050373876857
+      }
+    ]
+  },
+  "clip_frames": {
+    "stand_fast_01": [
+      0,
+      43,
+      86,
+      128,
+      171
+    ],
+    "stand_fast_02": [
+      0,
+      68,
+      135,
+      202,
+      270
+    ],
+    "stand_fast_03": [
+      0,
+      46,
+      92,
+      138,
+      184
+    ],
+    "stand_fast_04": [
+      0,
+      16,
+      31,
+      46,
+      62
+    ],
+    "stand_fast_05": [
+      0,
+      34,
+      68,
+      102,
+      136
+    ],
+    "stand_medium_02": [
+      0,
+      58,
+      115,
+      172,
+      230
+    ],
+    "stand_medium_03": [
+      0,
+      48,
+      96,
+      144,
+      192
+    ],
+    "stand_medium_04": [
+      0,
+      40,
+      80,
+      120,
+      160
+    ],
+    "stand_medium_05": [
+      0,
+      16,
+      32,
+      47,
+      63
+    ],
+    "stand_medium_06": [
+      0,
+      28,
+      56,
+      83,
+      111
+    ]
+  },
+  "poses": [
+    {
+      "clip": "stand_fast_01",
+      "frame": 0,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.13865024722276892,
+          "median": 0.2867241548972075,
+          "mean": 0.4253482209977993,
+          "maximum": 1.142580240380357
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06599177221121999,
+          "median": 0.36329009845882393,
+          "mean": 0.532308298794815,
+          "maximum": 1.6507587003003215
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_01\\f0000\\deformed.bin",
+        "sha256": "2E7CF663E256FA1A5356F598E47F357F2C759E86187049477635B1546EB176CD",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_01\\f0000\\stderr.log",
+        "sha256": "C5134CE6E7232D012DD8BDCBF7B1F0B5BC430F02E1EA4D44E4F36FFD73F244A3",
+        "byte_count": 7449
+      }
+    },
+    {
+      "clip": "stand_fast_01",
+      "frame": 43,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.08908718457513158,
+          "median": 0.27033390323672735,
+          "mean": 0.3317770856385469,
+          "maximum": 0.8142017603761771
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.0704359951242033,
+          "median": 0.34693129739492845,
+          "mean": 0.5300822115896807,
+          "maximum": 1.6780183844982057
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_01\\f0043\\deformed.bin",
+        "sha256": "F673D4BF60BCC6A1CC4060AACAE1938185B1807F314DE65C0F1DABA3943142A5",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_01\\f0043\\stderr.log",
+        "sha256": "8AFF6A601CA72B41410BD64D5BCC725F3D32A5754061A304AEB1A5E6AD2C3210",
+        "byte_count": 7453
+      }
+    },
+    {
+      "clip": "stand_fast_01",
+      "frame": 86,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11967981616800706,
+          "median": 0.27449588323731716,
+          "mean": 0.399153461308848,
+          "maximum": 1.0812851383366728
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.0746821371672015,
+          "median": 0.32867656919537247,
+          "mean": 0.5320224306899219,
+          "maximum": 1.643149396707534
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_01\\f0086\\deformed.bin",
+        "sha256": "653B262BCB6327E78413263CE314F92F25822144B485315D24062A40C9A94750",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_01\\f0086\\stderr.log",
+        "sha256": "2119BC90CC543E313013A0C8DE2C6CF4E751A50BD1AC66B0256C33EDF58128F9",
+        "byte_count": 7453
+      }
+    },
+    {
+      "clip": "stand_fast_01",
+      "frame": 128,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11320583417737369,
+          "median": 0.2766715537489253,
+          "mean": 0.38182314929181727,
+          "maximum": 1.002320753462425
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.07167459668934627,
+          "median": 0.34558200457666344,
+          "mean": 0.5336343109193493,
+          "maximum": 1.6727680306030597
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_01\\f0128\\deformed.bin",
+        "sha256": "E021F6A4803C744FE9CC2EB32B47B8A67A2806AB607FCDAA5CC891860C134B2D",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_01\\f0128\\stderr.log",
+        "sha256": "996819533E4D9417ECCF7CCEC2A35F253A159D216D6B709C54D647E081E24CEE",
+        "byte_count": 7457
+      }
+    },
+    {
+      "clip": "stand_fast_01",
+      "frame": 171,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.13865024722276892,
+          "median": 0.2867241548972075,
+          "mean": 0.4253482209977993,
+          "maximum": 1.142580240380357
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06599177221121999,
+          "median": 0.36329009845882393,
+          "mean": 0.532308298794815,
+          "maximum": 1.6507587003003215
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_01\\f0171\\deformed.bin",
+        "sha256": "0E39D14E19CB017F02AE8F6D1C820FFC8B2407502C83AC02385CD517176F7CC8",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_01\\f0171\\stderr.log",
+        "sha256": "5DBFDBF3C700F99A217C5E3B7334D1ADC509C820478DB6C15877AA1A7145AB11",
+        "byte_count": 7457
+      }
+    },
+    {
+      "clip": "stand_fast_02",
+      "frame": 0,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784621784479143,
+          "median": 0.2598552828339466,
+          "mean": 0.35894060761846897,
+          "maximum": 0.8734231789283305
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06699607206172215,
+          "median": 0.35430703011263026,
+          "mean": 0.5502350986607789,
+          "maximum": 1.7406839215690595
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_02\\f0000\\deformed.bin",
+        "sha256": "A7C66A3118EBDEE8025FA353CCDA5AB9EAE04FB860E264011B728E3309B5257C",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_02\\f0000\\stderr.log",
+        "sha256": "EE47A1F7B46E7E177B9EA46F6E7CE9BD64CA4EA69D5C8E6C565AB00ACFB9E99D",
+        "byte_count": 7449
+      }
+    },
+    {
+      "clip": "stand_fast_02",
+      "frame": 68,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.13867804564294287,
+          "median": 0.29620221124884627,
+          "mean": 0.4361479905335276,
+          "maximum": 1.210858227636857
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.07260376702546176,
+          "median": 0.34486549849035825,
+          "mean": 0.5222619144071929,
+          "maximum": 1.6307524279271324
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_02\\f0068\\deformed.bin",
+        "sha256": "1DC64AACD745B2ED3DBC4528AE814801CBB21AA2452FD11F8CB631EF1C34018A",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_02\\f0068\\stderr.log",
+        "sha256": "F64C80EBD557D3A0ABB4DC808FEB013DFB51C0A9454458D42693EA5605D134E6",
+        "byte_count": 7453
+      }
+    },
+    {
+      "clip": "stand_fast_02",
+      "frame": 135,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.1383914432404353,
+          "median": 0.2840681889660183,
+          "mean": 0.4278976280834681,
+          "maximum": 1.1591271039151907
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06880739991203995,
+          "median": 0.3542485034101872,
+          "mean": 0.5436667372538395,
+          "maximum": 1.70053199574165
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_02\\f0135\\deformed.bin",
+        "sha256": "5F390FAF7CCE187D037332E8041BB003BD52CDE849F4DC8E16FA58D02CF8743F",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_02\\f0135\\stderr.log",
+        "sha256": "FC91A2C97167BC42D91658E2ACDFB1205782FB8316D64CE1FA4E7A714320A145",
+        "byte_count": 7457
+      }
+    },
+    {
+      "clip": "stand_fast_02",
+      "frame": 202,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.13183710430146195,
+          "median": 0.28468806540549435,
+          "mean": 0.3964308060990792,
+          "maximum": 1.0179468461957417
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06547399878640757,
+          "median": 0.3587047178610844,
+          "mean": 0.554838472071907,
+          "maximum": 1.7487546407800387
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_02\\f0202\\deformed.bin",
+        "sha256": "609CBAF07369530D9D246A20EF7353A5B8B417234AA78F7D03CD99B22ADBD257",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_02\\f0202\\stderr.log",
+        "sha256": "81A1B8C41911AD7E5AB5998A7514C66151228F3C2041D8808EC45E16433DA81C",
+        "byte_count": 7457
+      }
+    },
+    {
+      "clip": "stand_fast_02",
+      "frame": 270,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784621784479143,
+          "median": 0.2598552828339466,
+          "mean": 0.35894060761846897,
+          "maximum": 0.8734231789283305
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06699607206172215,
+          "median": 0.35430703011263026,
+          "mean": 0.5502350986607789,
+          "maximum": 1.7406839215690595
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_02\\f0270\\deformed.bin",
+        "sha256": "9DF0738D051A053D95FACCB96CBDC08C4EDEFC33177BFA92517C3A600CC8F53D",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_02\\f0270\\stderr.log",
+        "sha256": "3975E9FB45F26CC3D3E4CBDF772FF4F90EF8ED5A5FB0560417D6ED2A27507195",
+        "byte_count": 7457
+      }
+    },
+    {
+      "clip": "stand_fast_03",
+      "frame": 0,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784621784479143,
+          "median": 0.2598552828339466,
+          "mean": 0.35894060761846897,
+          "maximum": 0.8734231789283305
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06699607206172215,
+          "median": 0.35430703011263026,
+          "mean": 0.5502350986607789,
+          "maximum": 1.7406839215690595
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_03\\f0000\\deformed.bin",
+        "sha256": "894F177A9E78CFBC597CDADE1E889BED3D9B6F4B940E02BD46E14248510E8D89",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_03\\f0000\\stderr.log",
+        "sha256": "83688645CD24607C0AF99F6474C8DFC58F19C1807EDE80F82EBF4BCAC4B0A4FB",
+        "byte_count": 7449
+      }
+    },
+    {
+      "clip": "stand_fast_03",
+      "frame": 46,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.09798599692069605,
+          "median": 0.31021926153613366,
+          "mean": 0.4741218236400414,
+          "maximum": 1.3737141956423922
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.04094385228275597,
+          "median": 0.36864865946666747,
+          "mean": 0.4887051980747578,
+          "maximum": 1.6305249672429363
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_03\\f0046\\deformed.bin",
+        "sha256": "50DF7367CEBAB205BBE47464B04937425F62F79B95B57017BE96097AA46CB5ED",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_03\\f0046\\stderr.log",
+        "sha256": "BCBD83B16753B5A19B0B5CD099D2DAC88ED9CA5D784A13449CB75903A71890F1",
+        "byte_count": 7453
+      }
+    },
+    {
+      "clip": "stand_fast_03",
+      "frame": 92,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.03538690270049727,
+          "median": 0.25703201572109874,
+          "mean": 0.2928075716148551,
+          "maximum": 0.7214990635247558
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.03915364463747557,
+          "median": 0.37099050189574356,
+          "mean": 0.49499552860666224,
+          "maximum": 1.6229346907540667
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_03\\f0092\\deformed.bin",
+        "sha256": "64ED23A9334518B5415F441B6A60B39254564488AA2912EF91DA421BB471EB95",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_03\\f0092\\stderr.log",
+        "sha256": "DF67F6975F669AD42A417D622357243DA9FECB619A10BB37CAAB0CE368BA6B38",
+        "byte_count": 7453
+      }
+    },
+    {
+      "clip": "stand_fast_03",
+      "frame": 138,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11291792068880115,
+          "median": 0.28715562058878324,
+          "mean": 0.4385354236679005,
+          "maximum": 1.260246349136874
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.04536385452737859,
+          "median": 0.3693555303017742,
+          "mean": 0.4941256977473925,
+          "maximum": 1.6287279823968637
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_03\\f0138\\deformed.bin",
+        "sha256": "B1257E05BEADE46158475F0E7AD501DC71B44948BD19DC960838392A08737D9C",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_03\\f0138\\stderr.log",
+        "sha256": "BFBA7D182284C00A0A20A9909E4ABE7380BC4ADC1DC6D43992B76F01D8CA9B60",
+        "byte_count": 7457
+      }
+    },
+    {
+      "clip": "stand_fast_03",
+      "frame": 184,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784621784479143,
+          "median": 0.2598552828339466,
+          "mean": 0.35894060761846897,
+          "maximum": 0.8734231789283305
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06699607206172215,
+          "median": 0.35430703011263026,
+          "mean": 0.5502350986607789,
+          "maximum": 1.7406839215690595
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_03\\f0184\\deformed.bin",
+        "sha256": "B6B924C4CF90A850A6EB88E55CC47050D20AAFC0A2DD2426696FAEC106EFC39F",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_03\\f0184\\stderr.log",
+        "sha256": "B1B65E9620D05E777AB9A942F5ED49C258A5CC1AA4B274FD456519352E7539CE",
+        "byte_count": 7457
+      }
+    },
+    {
+      "clip": "stand_fast_04",
+      "frame": 0,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784621784479143,
+          "median": 0.2598552828339466,
+          "mean": 0.35894060761846897,
+          "maximum": 0.8734231789283305
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06699607206172215,
+          "median": 0.35430703011263026,
+          "mean": 0.5502350986607789,
+          "maximum": 1.7406839215690595
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_04\\f0000\\deformed.bin",
+        "sha256": "2BF8E74A57EDC9C33C17B0A16F897EFF596FA9259A51F4E18DB214B2761D01E3",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_04\\f0000\\stderr.log",
+        "sha256": "C74734B9AAFEA55C706B5CEE23FE87B762BAC7679BD049D6CA9E5FCAA6357992",
+        "byte_count": 7448
+      }
+    },
+    {
+      "clip": "stand_fast_04",
+      "frame": 16,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11895057414975715,
+          "median": 0.2821479697795058,
+          "mean": 0.3822647468465612,
+          "maximum": 0.9838836090378636
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.0644131564034621,
+          "median": 0.35487188549156534,
+          "mean": 0.5455815776759946,
+          "maximum": 1.7528588496907798
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_04\\f0016\\deformed.bin",
+        "sha256": "57F00BACC384B513FC9E9EDC9A4733E7504843E9FEC1C99DBEC00518882BF659",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_04\\f0016\\stderr.log",
+        "sha256": "B761655E3DBAD9A3D1A9D43D20EB19C54EE9CC2CEC1F4F2F171C3069DF3AC42A",
+        "byte_count": 7452
+      }
+    },
+    {
+      "clip": "stand_fast_04",
+      "frame": 31,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.13921610249565214,
+          "median": 0.2846424985867337,
+          "mean": 0.3954390480343045,
+          "maximum": 0.9932039940986116
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.05613702678428842,
+          "median": 0.36726785324116146,
+          "mean": 0.5502203391053746,
+          "maximum": 1.7605970661958101
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_04\\f0031\\deformed.bin",
+        "sha256": "AA9EC1CF8C4B5A60D49DBCC9331BD74DC3FA51C3E4A232F29F60C5D940225488",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_04\\f0031\\stderr.log",
+        "sha256": "405666E8FD5005E3B17C1E28FBB4E760D4B2117DCCB48BDAF1AC81A97192F149",
+        "byte_count": 7452
+      }
+    },
+    {
+      "clip": "stand_fast_04",
+      "frame": 46,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.10294373442323976,
+          "median": 0.27232699013792394,
+          "mean": 0.36727975163785226,
+          "maximum": 0.9594834210714395
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06512344763342817,
+          "median": 0.35427461124279125,
+          "mean": 0.5305546768176397,
+          "maximum": 1.7070576316424355
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_04\\f0046\\deformed.bin",
+        "sha256": "8421E4B4432382596382CB2FFADE85E8A8EFE6190AFF1EA4EA9FA05BE6EAE45A",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_04\\f0046\\stderr.log",
+        "sha256": "D3C1752A85444957645C5DDA9CDCBC366DFAFC13FFFBB7D71883EB9667AB5175",
+        "byte_count": 7452
+      }
+    },
+    {
+      "clip": "stand_fast_04",
+      "frame": 62,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784621784479143,
+          "median": 0.2598552828339466,
+          "mean": 0.35894060761846897,
+          "maximum": 0.8734231789283305
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06699607206172215,
+          "median": 0.35430703011263026,
+          "mean": 0.5502350986607789,
+          "maximum": 1.7406839215690595
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_04\\f0062\\deformed.bin",
+        "sha256": "5C38C95F17B414D09301AFA3C54425061D4791F78FBF887E5941B86C74304549",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_04\\f0062\\stderr.log",
+        "sha256": "A9914A0B37B9A0927E90F58D54E94BA1222A2BEA5672E2F7E1F0BF1BC2E0B273",
+        "byte_count": 7452
+      }
+    },
+    {
+      "clip": "stand_fast_05",
+      "frame": 0,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784779058420548,
+          "median": 0.25985671209017036,
+          "mean": 0.35894090992929767,
+          "maximum": 0.8734215596817295
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06699607206172215,
+          "median": 0.35430703011263026,
+          "mean": 0.5502351259859328,
+          "maximum": 1.7406839215690595
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_05\\f0000\\deformed.bin",
+        "sha256": "4F8F3E6F163546CAD734639E75573965A8549D0923D773835152B420D2E58BB7",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_05\\f0000\\stderr.log",
+        "sha256": "5E7C32DB31F91CD8228C3792868C41E2238E09A71E87D26F65B2F98E25B6AA99",
+        "byte_count": 7449
+      }
+    },
+    {
+      "clip": "stand_fast_05",
+      "frame": 34,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.09614972476051946,
+          "median": 0.26693080399811253,
+          "mean": 0.3559871850702372,
+          "maximum": 0.9212798660704858
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06946608541262943,
+          "median": 0.3459253559774327,
+          "mean": 0.5264866029577475,
+          "maximum": 1.6864772878925571
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_05\\f0034\\deformed.bin",
+        "sha256": "C9E4EB163A82EC41AF527EAC33AB51199AEC7C7AACAB101414AE166C1F959427",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_05\\f0034\\stderr.log",
+        "sha256": "B3084EA8CDE1A01B51DDBF40A48513DA531D79E99F902BCCC29F72EEA699DD48",
+        "byte_count": 7453
+      }
+    },
+    {
+      "clip": "stand_fast_05",
+      "frame": 68,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11090678728582708,
+          "median": 0.27838215652751663,
+          "mean": 0.3719676433931881,
+          "maximum": 0.956675867425334
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06885766240559038,
+          "median": 0.34711898421140497,
+          "mean": 0.5445317348874523,
+          "maximum": 1.7349055533267481
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_05\\f0068\\deformed.bin",
+        "sha256": "2F64A2DECF4C3070D73F75F13F67CAD1BC916872A5DD280719BF031B6AEFCD69",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_05\\f0068\\stderr.log",
+        "sha256": "988B10A8FD59FEDF1EC4AD0587F509A697E558D306B6D253E8CEF03C2B4BA9B2",
+        "byte_count": 7453
+      }
+    },
+    {
+      "clip": "stand_fast_05",
+      "frame": 102,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11046956556447353,
+          "median": 0.27848471872231395,
+          "mean": 0.3736788020912187,
+          "maximum": 0.966422143524335
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06955583845326706,
+          "median": 0.34427610208701964,
+          "mean": 0.5437067503591523,
+          "maximum": 1.7344797903073799
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_05\\f0102\\deformed.bin",
+        "sha256": "5B06E1C3772A7F00CCDC275AB89269DDA87A8852A2B5C1EA99DCA98E8A455A72",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_05\\f0102\\stderr.log",
+        "sha256": "3049AB25D793148D57782D1EE1B7DAE0DFC305C347F1FADB2A3D0CFA49D5BB61",
+        "byte_count": 7457
+      }
+    },
+    {
+      "clip": "stand_fast_05",
+      "frame": 136,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784621784479143,
+          "median": 0.2598552828339466,
+          "mean": 0.35894060761846897,
+          "maximum": 0.8734231789283305
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06699607206172215,
+          "median": 0.35430703011263026,
+          "mean": 0.5502350986607789,
+          "maximum": 1.7406839215690595
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_05\\f0136\\deformed.bin",
+        "sha256": "A91AD371535891275135E54BCE0CE83FAA9C91C4DD9F09EA2377D0C9B8C32FFA",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_fast_05\\f0136\\stderr.log",
+        "sha256": "146AA94C80B380546037A098F770EAF2DBB0547486CE9E0BEB92935C0BF2DBBB",
+        "byte_count": 7457
+      }
+    },
+    {
+      "clip": "stand_medium_02",
+      "frame": 0,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.1386499805720065,
+          "median": 0.2867239576598569,
+          "mean": 0.4253483099234579,
+          "maximum": 1.142580224431587
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06599177221121999,
+          "median": 0.36329009845882393,
+          "mean": 0.532308298794815,
+          "maximum": 1.6507587003003215
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_02\\f0000\\deformed.bin",
+        "sha256": "8C7166A7D8514B9FE8F5F6D65D3C5476E69F37E334963D847A9CD630F70D5358",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_02\\f0000\\stderr.log",
+        "sha256": "14A65C3B3CFF599DAFC5557869DCA2DE0509C916B9F056B2AC797EF6274E08BC",
+        "byte_count": 7459
+      }
+    },
+    {
+      "clip": "stand_medium_02",
+      "frame": 58,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.07722633057273487,
+          "median": 0.3613210523567111,
+          "mean": 0.5447025399844548,
+          "maximum": 1.6003722179446538
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.026944360626636205,
+          "median": 0.38624476676752956,
+          "mean": 0.43126482656635706,
+          "maximum": 1.2318446307686386
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_02\\f0058\\deformed.bin",
+        "sha256": "D47791C89A7FC83476337F5CF3B5B235352F59D45C88954C9283973CDAC782DC",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_02\\f0058\\stderr.log",
+        "sha256": "C1EB18EB606CC3F67E8A25D3819796184C823FE38C850EC1EEFB2C49574C33E2",
+        "byte_count": 7463
+      }
+    },
+    {
+      "clip": "stand_medium_02",
+      "frame": 115,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.06855847091195044,
+          "median": 0.3803341245102505,
+          "mean": 0.5597077888400582,
+          "maximum": 1.6418436293690795
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.022618146591006888,
+          "median": 0.381409401330631,
+          "mean": 0.4474350804069598,
+          "maximum": 1.393934335873365
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_02\\f0115\\deformed.bin",
+        "sha256": "7EAC4E2322C83D4CB854783303409A44A90489AECC65DE741D62EEE6164E16B1",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_02\\f0115\\stderr.log",
+        "sha256": "16FF00155945F989E21D3D57E025EF3821EC0494DCFE718A3EFDC1CD3735C6E2",
+        "byte_count": 7467
+      }
+    },
+    {
+      "clip": "stand_medium_02",
+      "frame": 172,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11790996434388099,
+          "median": 0.2719537294443708,
+          "mean": 0.4146544739374129,
+          "maximum": 1.1639196304216572
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.0384796715131389,
+          "median": 0.31774993689390696,
+          "mean": 0.4765677431603091,
+          "maximum": 1.7117899554114884
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_02\\f0172\\deformed.bin",
+        "sha256": "EA7EF32F80B095431C144FB5B34E11244BC36D597827D789CA4671DCBEABC12D",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_02\\f0172\\stderr.log",
+        "sha256": "2CE0093C9BCA0068F229852768EE1F2D002CC6DAC33AE1625584CB0ADA93D330",
+        "byte_count": 7467
+      }
+    },
+    {
+      "clip": "stand_medium_02",
+      "frame": 230,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.13865188779115167,
+          "median": 0.2867247168516878,
+          "mean": 0.4253484832404579,
+          "maximum": 1.142580224431587
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06599457082132115,
+          "median": 0.36328722777565214,
+          "mean": 0.532308402321875,
+          "maximum": 1.6507617244774802
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_02\\f0230\\deformed.bin",
+        "sha256": "C1D7DA10B79997CBE9F54E10632B462DEDD1A58549B6464EE1395C14D474609A",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_02\\f0230\\stderr.log",
+        "sha256": "0AA47C1C6013C313F9FD878F8D90C341EA0BCE612ABCB03AA28DB4098715E128",
+        "byte_count": 7467
+      }
+    },
+    {
+      "clip": "stand_medium_03",
+      "frame": 0,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784804980924038,
+          "median": 0.2598549776556732,
+          "mean": 0.35894067818970715,
+          "maximum": 0.8734215596817295
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.0669929784409843,
+          "median": 0.35430703011263026,
+          "mean": 0.550234731242033,
+          "maximum": 1.7406839215690595
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_03\\f0000\\deformed.bin",
+        "sha256": "634B5373D1130E4F712B1F6B682D81E241234B149CDE58E9D76CF430D4009FCB",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_03\\f0000\\stderr.log",
+        "sha256": "546B5409F909DD5CD470FC336AFFE55F5540A4AEC0F8F56F198AC1303BA1C7F6",
+        "byte_count": 7459
+      }
+    },
+    {
+      "clip": "stand_medium_03",
+      "frame": 48,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.13065587455222333,
+          "median": 0.2838028314656074,
+          "mean": 0.3965957064132761,
+          "maximum": 1.0228070011809012
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.0663225020266903,
+          "median": 0.3569295964341134,
+          "mean": 0.5515137015173603,
+          "maximum": 1.7396007376625722
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_03\\f0048\\deformed.bin",
+        "sha256": "624BC8DA9A53C7FCD9760727FD5ADA35FE272BF202B70F3105F3143CBD8F557C",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_03\\f0048\\stderr.log",
+        "sha256": "EB90E3D8CD82A7E27A605CE106182641A8BBAB98438600ACD4D3FE73F2924DC5",
+        "byte_count": 7463
+      }
+    },
+    {
+      "clip": "stand_medium_03",
+      "frame": 96,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.09665925316388231,
+          "median": 0.2707682543665795,
+          "mean": 0.3524360113327758,
+          "maximum": 0.9013460173491189
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06793591739072052,
+          "median": 0.35449769793537994,
+          "mean": 0.5215454410487023,
+          "maximum": 1.6467925904742198
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_03\\f0096\\deformed.bin",
+        "sha256": "418DC425BD1FC28B4244CC53FAB20E3F97359255984FD754B4E687FC78C166A6",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_03\\f0096\\stderr.log",
+        "sha256": "7EDFB4A0D3A3DAC395EF2F21CE0C06B8481DBAD42ED8F5496909E519D6A3A9FF",
+        "byte_count": 7463
+      }
+    },
+    {
+      "clip": "stand_medium_03",
+      "frame": 144,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.12972692740162836,
+          "median": 0.28285099402352537,
+          "mean": 0.3943304809105662,
+          "maximum": 1.0148207621897756
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06677284442336665,
+          "median": 0.35576760228123716,
+          "mean": 0.5500974661328117,
+          "maximum": 1.7363417061487327
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_03\\f0144\\deformed.bin",
+        "sha256": "8F025DFD31B7B5359060DA75E74978B798B9E846D2B51CB8730C26648081CD92",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_03\\f0144\\stderr.log",
+        "sha256": "1795DFA6D195C3E18CFE287190733F39E0187230403F7C29D900903E220A3468",
+        "byte_count": 7467
+      }
+    },
+    {
+      "clip": "stand_medium_03",
+      "frame": 192,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784937407038032,
+          "median": 0.25985446399081535,
+          "mean": 0.3589411915509593,
+          "maximum": 0.873421480506408
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.0669995527712933,
+          "median": 0.3543063098233288,
+          "mean": 0.5502344727590808,
+          "maximum": 1.7406838235434112
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_03\\f0192\\deformed.bin",
+        "sha256": "E9D00AE8BFC98FE9E484FFE39B551AA10AA3F903EAC32EC0F9C199F65042BBBB",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_03\\f0192\\stderr.log",
+        "sha256": "1273B3F9F8560F489038986EAA328CE09D6E44F30517524EC471A450C02E07F5",
+        "byte_count": 7467
+      }
+    },
+    {
+      "clip": "stand_medium_04",
+      "frame": 0,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784804980924038,
+          "median": 0.2598549776556732,
+          "mean": 0.35894067818970715,
+          "maximum": 0.8734215596817295
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.0669929784409843,
+          "median": 0.35430703011263026,
+          "mean": 0.550234731242033,
+          "maximum": 1.7406839215690595
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_04\\f0000\\deformed.bin",
+        "sha256": "A2E86DC062AB35B81D2B03C191553D808F4418D0161A6A787C18057906168540",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_04\\f0000\\stderr.log",
+        "sha256": "D38F60FAB5B2CBACE61BAEA729294B07C2DBA3EB98AB4404117F663D6474F24B",
+        "byte_count": 7459
+      }
+    },
+    {
+      "clip": "stand_medium_04",
+      "frame": 40,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.1494988625138126,
+          "median": 0.3075891500327631,
+          "mean": 0.4570509775352486,
+          "maximum": 1.2084777610054853
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.03884431170271465,
+          "median": 0.3830021323301918,
+          "mean": 0.4907140423040523,
+          "maximum": 1.4731291984489558
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_04\\f0040\\deformed.bin",
+        "sha256": "5C54778541FD021636E551DD7C58A524FA9BBA0B9D40051CA00DB07E175292B7",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_04\\f0040\\stderr.log",
+        "sha256": "30BC4821E6C75B53FD337D031F8A115805293077E19EEEDB467B7A74726AA7F4",
+        "byte_count": 7463
+      }
+    },
+    {
+      "clip": "stand_medium_04",
+      "frame": 80,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.1524226395791768,
+          "median": 0.31581433195431335,
+          "mean": 0.4611172019997383,
+          "maximum": 1.1923719353346744
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.027765163004510512,
+          "median": 0.3806555324435719,
+          "mean": 0.46585958236704605,
+          "maximum": 1.3063269608282961
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_04\\f0080\\deformed.bin",
+        "sha256": "D8AE54A9F50EFA0C98FBE5E73ADB2AFC5C9A27B16997900C869BFE95D7E6D7F2",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_04\\f0080\\stderr.log",
+        "sha256": "C2C8D4C754AAC3D79DCC757F92C545D4628EF198C1A4D89743219C3EB638D709",
+        "byte_count": 7463
+      }
+    },
+    {
+      "clip": "stand_medium_04",
+      "frame": 120,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.15222172506332898,
+          "median": 0.3122476346055885,
+          "mean": 0.46249819797570313,
+          "maximum": 1.2173150071675192
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.03741116334773629,
+          "median": 0.38224326937678027,
+          "mean": 0.4966553796133252,
+          "maximum": 1.5004129134159465
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_04\\f0120\\deformed.bin",
+        "sha256": "D52C3AB9F9F34461A1DA66D2046EADB488891B95683F5ADF1410FFD54E761A4E",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_04\\f0120\\stderr.log",
+        "sha256": "9F2ED46E47317B4C93E8686311B0B5F2422AECCD00BEB58881D812E6EC02DA16",
+        "byte_count": 7467
+      }
+    },
+    {
+      "clip": "stand_medium_04",
+      "frame": 160,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784779595561122,
+          "median": 0.25985504576233504,
+          "mean": 0.3589411496654022,
+          "maximum": 0.8734209709700628
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06699360713486634,
+          "median": 0.35430640674322844,
+          "mean": 0.550234110590837,
+          "maximum": 1.7406824377114636
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_04\\f0160\\deformed.bin",
+        "sha256": "D89985D8D15604EC07A8229C65D2116D0E3D9E1E0073FF27B246DAE1AD8D8738",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_04\\f0160\\stderr.log",
+        "sha256": "B96607A1677AFE25C0759850B3661789A1ECA7B7A50BC29016314AEFC1B309FD",
+        "byte_count": 7467
+      }
+    },
+    {
+      "clip": "stand_medium_05",
+      "frame": 0,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784621784479143,
+          "median": 0.2598552828339466,
+          "mean": 0.35894060761846897,
+          "maximum": 0.8734231789283305
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06699607206172215,
+          "median": 0.35430703011263026,
+          "mean": 0.5502350986607789,
+          "maximum": 1.7406839215690595
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_05\\f0000\\deformed.bin",
+        "sha256": "2D1177751024F9324A1E0FE4F405240C44825C830290458E4F839B0E6AE55F19",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_05\\f0000\\stderr.log",
+        "sha256": "AC408C9B22E29662621C3EACB29AB1639C2A57F86D71AA20F99F5A4456C3D7CA",
+        "byte_count": 7458
+      }
+    },
+    {
+      "clip": "stand_medium_05",
+      "frame": 16,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.14709282902031837,
+          "median": 0.2804128018526444,
+          "mean": 0.4237665452312288,
+          "maximum": 1.0749680692273016
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.03760652054292056,
+          "median": 0.3856621389548111,
+          "mean": 0.492749856974913,
+          "maximum": 1.4275965508683999
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_05\\f0016\\deformed.bin",
+        "sha256": "C1ADD9B8220AB9E55687DDC541E864626D108D38C1DBA416A7EF619F75055CF7",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_05\\f0016\\stderr.log",
+        "sha256": "49CD34A4600ADADA8D6CCCDBDB2593DCCD034E3628C0FB541BA4566FFEFF21E7",
+        "byte_count": 7462
+      }
+    },
+    {
+      "clip": "stand_medium_05",
+      "frame": 32,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.12358326796628208,
+          "median": 0.2781321647912549,
+          "mean": 0.36172812256848313,
+          "maximum": 0.8679319888022158
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.04629324400218233,
+          "median": 0.3779534465644985,
+          "mean": 0.5189832132249583,
+          "maximum": 1.6213878222613416
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_05\\f0032\\deformed.bin",
+        "sha256": "0040ED65DE30EF3738F27049F893FF990B8948F8FE8C3A08911521DCC0EDF0B4",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_05\\f0032\\stderr.log",
+        "sha256": "3ADEB2500BF38C4B8F41112FB110CF4DB009BBA8E11EE94DDDB62BD4BB301F39",
+        "byte_count": 7462
+      }
+    },
+    {
+      "clip": "stand_medium_05",
+      "frame": 47,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11653578915359619,
+          "median": 0.27912751691505544,
+          "mean": 0.3718663459594805,
+          "maximum": 0.9405079820059702
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06518540451852652,
+          "median": 0.3587663828342451,
+          "mean": 0.5461542234280126,
+          "maximum": 1.728562182760175
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_05\\f0047\\deformed.bin",
+        "sha256": "2E93D5E02F2DFA41D4E3B2EE57D4FF561EEF4B18E4B25A3C570CCFC58672E9B5",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_05\\f0047\\stderr.log",
+        "sha256": "5C0A12F838D3FEF956D2FD9EF867754B005C96E6BE5065B8958C867E1A168876",
+        "byte_count": 7462
+      }
+    },
+    {
+      "clip": "stand_medium_05",
+      "frame": 63,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.1178464716960318,
+          "median": 0.2598553509422784,
+          "mean": 0.35894092375225406,
+          "maximum": 0.8734217361136274
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.0669961977934675,
+          "median": 0.3543097946743961,
+          "mean": 0.5502347850803446,
+          "maximum": 1.7406841007116276
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_05\\f0063\\deformed.bin",
+        "sha256": "085D6960A06E09EFE729350156462A0A5E1807EFA67B5A9D1C6B9B43AF9C2136",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_05\\f0063\\stderr.log",
+        "sha256": "FC6A4B4940C2C3B18C7F66BA5176D57699A58C6EC21E8F7628F64BCB4E82F753",
+        "byte_count": 7462
+      }
+    },
+    {
+      "clip": "stand_medium_06",
+      "frame": 0,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.1178464716960318,
+          "median": 0.2598553509422784,
+          "mean": 0.35894092375225406,
+          "maximum": 0.8734217361136274
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.0669961977934675,
+          "median": 0.3543097946743961,
+          "mean": 0.5502347850803446,
+          "maximum": 1.7406841007116276
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_06\\f0000\\deformed.bin",
+        "sha256": "5439EEC88793C55373857CE33C1B126D480AD9D731BBBD3A4F18D0ACAAD9323C",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_06\\f0000\\stderr.log",
+        "sha256": "D89E58DA28EF1C212EB538A9218CC0ED22C9979B6F9FA2364190216D9F023075",
+        "byte_count": 7459
+      }
+    },
+    {
+      "clip": "stand_medium_06",
+      "frame": 28,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.09810820302403825,
+          "median": 0.27485121355028475,
+          "mean": 0.34260833974524113,
+          "maximum": 0.8439070368114172
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.060796538981412206,
+          "median": 0.36344947267567507,
+          "mean": 0.5284848596295211,
+          "maximum": 1.6868737764436599
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_06\\f0028\\deformed.bin",
+        "sha256": "47FC9F519928FA8FA93B6E6E9958DDB6983F7EDB5D05963B7EA9FF06F99FAB28",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_06\\f0028\\stderr.log",
+        "sha256": "82A8027CE2E790C9F5A417BF6741F968B1319195401822B2FD14AC6699DA794A",
+        "byte_count": 7463
+      }
+    },
+    {
+      "clip": "stand_medium_06",
+      "frame": 56,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.1126080076433373,
+          "median": 0.2723588991493625,
+          "mean": 0.35298272349119386,
+          "maximum": 0.8559166586308471
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.056225947047473745,
+          "median": 0.3716061695319184,
+          "mean": 0.5297870676575976,
+          "maximum": 1.6680066432179168
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_06\\f0056\\deformed.bin",
+        "sha256": "5DD0E19D6AA444621CF52D99CFE8A7DA037CC91F40E31085D1BDBB7DFB09FADD",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_06\\f0056\\stderr.log",
+        "sha256": "5738C3F689C75511D1458277F4870F8D2A0999B38B550C22A9DEBB2C88BE5EAE",
+        "byte_count": 7463
+      }
+    },
+    {
+      "clip": "stand_medium_06",
+      "frame": 83,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.12753052508699325,
+          "median": 0.2822476003335406,
+          "mean": 0.3773238953444085,
+          "maximum": 0.936185350853339
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.05614619287256889,
+          "median": 0.36919460344950317,
+          "mean": 0.5430694653854169,
+          "maximum": 1.727671744784046
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_06\\f0083\\deformed.bin",
+        "sha256": "B149EFA80EE79AA5AEC8F9F1B419A860F620FC60108611B9E4FBE20738C63BB5",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_06\\f0083\\stderr.log",
+        "sha256": "19C74DC70F481F3E70F6661D7EFB563402A26738A98FB7E570B568040DB15C13",
+        "byte_count": 7463
+      }
+    },
+    {
+      "clip": "stand_medium_06",
+      "frame": 111,
+      "return_code": 0,
+      "mesh_count": 45,
+      "source_vertex_count": 3950,
+      "maximum_source_copy_spread": 0.0,
+      "sides": {
+        "L": {
+          "count": 23,
+          "minimum": 0.11784647706749764,
+          "median": 0.2598553509422784,
+          "mean": 0.3589408577637299,
+          "maximum": 0.8734213947630723
+        },
+        "R": {
+          "count": 23,
+          "minimum": 0.06699581079014871,
+          "median": 0.35430689850136426,
+          "mean": 0.5502348904720548,
+          "maximum": 1.7406847361656077
+        }
+      },
+      "deformed": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_06\\f0111\\deformed.bin",
+        "sha256": "A3366CB2F604F7F5A62776DC99FF36D862845917842CBC98586DD05541E9FE7F",
+        "byte_count": 209353
+      },
+      "stderr": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\casey_native_animation_bridge\\wrist_seam_weight_transfer\\model_s080_w100_ref_r000\\ten_clip_sweep\\stand_medium_06\\f0111\\stderr.log",
+        "sha256": "FD55DCC692A10DDCC117A0902EA1D0B23DDDBE4EEB8B3C3073190315C7982675",
+        "byte_count": 7467
+      }
+    }
+  ],
+  "worst_pose_pair_mean": {
+    "L": 0.5597077888400582,
+    "R": 0.554838472071907
+  },
+  "worst_pose_pair_distance": {
+    "L": 1.6418436293690795,
+    "R": 1.7605970661958101
+  },
+  "runtime_error": null,
+  "model_contract": {
+    "status": "fail",
+    "checks": {
+      "active_group_has_44_midori_meshes": false,
+      "transform_count_is_115": true,
+      "controller_count_is_20": true,
+      "mesh_count_is_168": false,
+      "visible_midori_count_is_44": false,
+      "hidden_casey_template_count_is_124": true,
+      "no_hidden_midori_meshes": true,
+      "no_visible_template_meshes": true,
+      "band_character_rock1": true,
+      "pelvis_parent_is_rock1": true,
+      "left_hand_ik": true,
+      "right_hand_ik": true,
+      "fret_ik": true,
+      "eyes_controller": true
+    },
+    "active_group_object_count": 45,
+    "invalid_active_group_objects": [],
+    "transform_count": 115,
+    "controller_count": 20,
+    "mesh_count": 169,
+    "visible_midori_mesh_count": 45,
+    "hidden_template_mesh_count": 124,
+    "hidden_midori_mesh_count": 0,
+    "visible_template_mesh_count": 0
+  },
+  "installed_model_before": {
+    "path": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\community.gh3.midori\\content\\char\\gh3_midori_1\\og\\gen\\gh3_midori_1.milo_ps2",
+    "sha256": "DBC150E44C773608EAFC8DD7FBEB4FD2E63EEF11C77DA8B56ED6E4EF5B8A20E9",
+    "byte_count": 281795
+  },
+  "installed_model_after": {
+    "path": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\community.gh3.midori\\content\\char\\gh3_midori_1\\og\\gen\\gh3_midori_1.milo_ps2",
+    "sha256": "DBC150E44C773608EAFC8DD7FBEB4FD2E63EEF11C77DA8B56ED6E4EF5B8A20E9",
+    "byte_count": 281795
+  },
+  "installed_main_before": {
+    "path": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\community.gh3.midori\\content\\char\\gh3_midori\\anims\\gen\\gh3_midori_main.milo_ps2",
+    "sha256": "47133ED4C8799B4E1F875DED3591FB3FC47DD20A4F530E01CCFE9E5BF4DA9089",
+    "byte_count": 13565696
+  },
+  "installed_main_after": {
+    "path": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\community.gh3.midori\\content\\char\\gh3_midori\\anims\\gen\\gh3_midori_main.milo_ps2",
+    "sha256": "47133ED4C8799B4E1F875DED3591FB3FC47DD20A4F530E01CCFE9E5BF4DA9089",
+    "byte_count": 13565696
+  },
+  "checks": {
+    "source_vertex_identity_preserved": true,
+    "source_geometry_exact": true,
+    "source_face_multiset_exact": true,
+    "source_copy_geometry_stable": true,
+    "source_copy_weights_stable": true,
+    "changed_weight_scope_exact": true,
+    "only_forearm_to_hand_weights_changed": true,
+    "four_bone_palette_respected": true,
+    "weights_normalized": true,
+    "no_source_weight_dropped": true,
+    "all_source_faces_preserved": true,
+    "bilateral_reference_pairs_present": true,
+    "runtime_all_requested_poses_completed": true,
+    "runtime_source_copies_coincident": true,
+    "runtime_seam_mean_bounded": true,
+    "runtime_seam_distance_bounded": true,
+    "casey_runtime_contract_preserved": true,
+    "dynamic_model_counts_exact": true,
+    "installed_model_restored": true,
+    "installed_main_restored": true,
+    "loose_assets_only": true
+  },
+  "failures": []
+}

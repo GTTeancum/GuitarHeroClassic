@@ -1,0 +1,59 @@
+{
+  "format": "gh3-midori-casey-clone-gameplay-proof-v1",
+  "status": "pass",
+  "generated_utc": "2026-08-31T05:33:49.158672+00:00",
+  "mode": "verify-capture",
+  "runtime": {
+    "engine": "Guitar Hero Classic ghogx_app",
+    "app": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\engine\\out\\build\\win-amd64-release\\src\\app\\ghogx_app.exe",
+    "priority": "Idle",
+    "worker_limit": 1,
+    "hidden_window": true,
+    "iso_used": false,
+    "emulator_used": false
+  },
+  "inputs": {
+    "package": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\community.gh3.midori",
+    "model_sha256": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
+    "main_bank_sha256": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+    "manifest_sha256": "2F8BC2ED74B11CB0EDBB5A0C52CC5BEB533F153712BE85D840773AF297933680",
+    "log": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\ghc_casey_slot\\final_clone_gameplay_proof\\midori_casey_big_medium04_s143_f30_yawm040_wristweights_gameplay.log.stderr",
+    "log_sha256": "4A809F2E06B21A0861168A0D9742DF2FECAA23C3D385C26AFBA0B93E28A54D4F",
+    "screenshot": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\ghc_casey_slot\\final_clone_gameplay_proof\\midori_casey_big_medium04_s143_f30_yawm040_wristweights_gameplay.bmp",
+    "screenshot_sha256": "60EFC436916BB2609D2B42E09EC433AB4E1D7B8DCC8E24FCBB4775C05753072D"
+  },
+  "capture": {
+    "venue": "big",
+    "clip": "stand_medium_04",
+    "clip_time_seconds": 4.766666667,
+    "camera_yaw_radians": -0.4,
+    "song_start_seconds": 30.0,
+    "capture_frame": 30,
+    "total_frames": 34,
+    "fixed_fps": 60.0,
+    "pose_row_count": 1938,
+    "gameplay_summary": {
+      "state": "playing",
+      "hits": 1,
+      "misses": 0
+    }
+  },
+  "checks": {
+    "model_sha256_exact": true,
+    "main_bank_sha256_exact": true,
+    "current_midori_model": true,
+    "requested_clip": true,
+    "requested_clip_time": true,
+    "requested_venue": true,
+    "playing_with_hits": true,
+    "pose_rows": true,
+    "hidden_window": true,
+    "bounded_exit": true,
+    "screenshot_state": true,
+    "clone_only": true
+  },
+  "visual_review": {
+    "assistant_review": "rejected",
+    "user_acceptance": "rejected"
+  }
+}

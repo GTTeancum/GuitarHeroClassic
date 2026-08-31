@@ -44,13 +44,14 @@ Built on the standalone reader libraries (`tools/ark`, `tools/dtb`, `tools/textu
 
 On the small2 (Open Mic) venue: 42 textures decoded, 3 skipped (reference external paths), 0 failures.
 
-## GH3 Midori conversion (experimental)
+## GH3 Midori conversion (retired experiment)
 
-`DLC/community.gh3.midori` contains the current automated outfit-1 conversion.
+`DLC/community.gh3.midori` contains the archived automated outfit-1 conversion.
 It preserves Casey Lynch's GH2 `rock1` BandCharacter graph and controller
 contract while replacing the visible render payload and ten performance clips
-with Midori data. The package intentionally contains one outfit only and keeps
-the face static for this phase.
+with Midori data. The experiment is retired after the final gameplay proof was
+rejected: the legs float, the arms stretch, and the character holds an
+unnatural pose. It is not a usable conversion or a retail candidate.
 
 Current verified contract:
 
@@ -66,14 +67,14 @@ Current verified contract:
   `char/rock1/...` retail paths, without constructing an archive or ISO.
 
 The model uses PS2-bounded 256x256 indexed textures and four-bone mesh
-palettes. A conversion-stage forearm-to-hand weight transfer replaces the
-retired pose-specific wrist warp and has been validated headlessly across 50
-poses. The current clone screenshot remains a visual review candidate; an
-actual retail GH2 PS2 build/run remains a separate deferred compatibility
-gate.
+palettes. The structural and hash checks above pass, but they do not establish
+correct deformation. No retail overlay was applied, and no ISO or emulator is
+part of this workflow.
 
 See [docs/GH3_MIDORI_CONVERSION.md](docs/GH3_MIDORI_CONVERSION.md) for the
 model, animation, wrist-repair, automated rebuild, and verification contracts.
+See [docs/MIDORI_RETIREMENT_NOTES.md](docs/MIDORI_RETIREMENT_NOTES.md) for the
+final rejection, preserved evidence, and exact restart point.
 
 ## Legacy: rexglue 360 recompile (reference only)
 

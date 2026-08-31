@@ -2,16 +2,19 @@
 
 ## Status
 
-The repository contains one experimental Midori outfit at
-`DLC/community.gh3.midori`. It is a loose-package GuitarHeroClassic candidate,
-not a completed retail GH2 PS2 release.
+The repository contains one retired Midori outfit experiment at
+`DLC/community.gh3.midori`. It is neither a usable GuitarHeroClassic conversion
+nor a completed retail GH2 PS2 release. The final clone gameplay proof was
+explicitly rejected because the legs float, the arms stretch, and the pose is
+unnatural. Passing structural, animation-call, hash, and runtime checks did not
+produce coherent deformation.
 
 The conversion preserves Casey Lynch's native GH2 `rock1` BandCharacter and
 controller graph while replacing the visible render payload and ten body
 performance clips. Midori remains selectable as `gh3_midori_1`; the packaged
 MILO payload itself carries the Casey runtime contract.
 
-Outfit 2 is intentionally excluded until outfit 1 is accepted.
+Outfit 2 was intentionally excluded. Work stopped with outfit 1 rejected.
 
 ## Model contract
 
@@ -109,17 +112,17 @@ and strum remain stock. It writes the `ark_tool overlay` input manifest to
 without modifying the source archive. Verify-only mode requires both this TSV
 and its source-archive report to remain byte-current.
 
-After explicit human acceptance of the clone screenshot, regenerate its proof
-with `--user-acceptance accepted`. Do not use that value before an actual user
-verdict. The copied-archive gate then becomes available:
+The final proof is recorded with `--user-acceptance rejected`. Only a future,
+explicitly approved replacement proof may use `accepted`; until then the
+copied-archive gate must remain closed:
 
 ```powershell
 python tools/gh3_midori_apply_casey_retail_overlay.py --apply
 python tools/gh3_midori_apply_casey_retail_overlay.py --verify-only
 ```
 
-The apply command refuses a pending proof, refuses to alias the supplied source
-archive, copies `MAIN.HDR` and `MAIN_0.ARK` under
+The apply command refuses pending and rejected proofs, refuses to alias the
+supplied source archive, copies `MAIN.HDR` and `MAIN_0.ARK` under
 `out/midori/retail_gate/GEN`, applies the authenticated TSV with `ark_tool`,
 and reads all five Casey entries back to verify exact replacement hashes. It
 still creates no ISO and invokes no emulator. The multi-gigabyte copy and
@@ -211,7 +214,8 @@ least one chart hit and no misses. It refuses ISO paths and never invokes an
 emulator. Add `--verify-existing` with the original run parameters to
 authenticate an existing log and screenshot without launching the clone. A
 validation output binds the screenshot and runtime log to the exact packaged
-model and main-bank hashes while retaining `user_acceptance: pending`. The
+model and main-bank hashes while recording the explicit `pending`, `accepted`,
+or `rejected` visual verdict. The
 package verifier re-hashes both referenced artifacts and fails closed if either
 file is missing or has changed.
 
@@ -230,12 +234,12 @@ python tools/test_gh3_midori_conversion.py -v
 
 ## Runtime boundary
 
-Current gameplay verification uses `ghogx_app`, the in-repository loose DLC
-package, and extracted GH2 `GEN` assets. The latest image remains a review
-candidate until it receives visual acceptance. ISO construction, ISO mounting,
-and emulator execution are not part of the iteration path.
+Gameplay verification used `ghogx_app`, the in-repository loose DLC package,
+and extracted GH2 `GEN` assets. The latest image is a hard visual failure, not
+a review candidate. ISO construction, ISO mounting, and emulator execution are
+not part of the iteration path.
 
-The remaining compatibility boundary is an actual retail GH2 PS2 build/run.
-That gate is deliberately deferred until the clone gameplay image receives
-visual acceptance. The loose package must never be treated as permission to
-run the final game from a mounted ISO.
+No retail overlay was applied and no retail GH2 PS2 build/run was attempted.
+The loose package must never be treated as permission to apply the retail
+overlay or run a final game image. See `MIDORI_RETIREMENT_NOTES.md` before
+resuming this experiment.

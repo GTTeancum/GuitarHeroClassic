@@ -1,0 +1,331 @@
+{
+  "format": "gh3-midori-casey-clone-package-validation-v2",
+  "status": "pass",
+  "generated_utc": "2026-08-31T05:05:39.255220+00:00",
+  "mode": "verify-only",
+  "runtime_policy": {
+    "iteration_target": "Guitar Hero Classic ghogx_app",
+    "asset_mode": "loose DLC files",
+    "priority": "Idle",
+    "worker_limit": 1,
+    "iso_built": false,
+    "iso_mounted": false,
+    "emulator_used": false,
+    "retail_gate": "deferred until clone visual acceptance"
+  },
+  "package": {
+    "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\community.gh3.midori",
+    "manifest_exact": true,
+    "file_inventory_exact": true,
+    "files": [
+      "content/char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2",
+      "content/char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2",
+      "content/char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2",
+      "content/char/gh3_midori/anims/gen/gh3_midori_ui.milo_ps2",
+      "content/char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2",
+      "manifest.json"
+    ],
+    "assets": {
+      "model": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\community.gh3.midori\\content\\char\\gh3_midori_1\\og\\gen\\gh3_midori_1.milo_ps2",
+        "sha256": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
+        "source_exact": true
+      },
+      "main": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\community.gh3.midori\\content\\char\\gh3_midori\\anims\\gen\\gh3_midori_main.milo_ps2",
+        "sha256": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+        "source_exact": true
+      },
+      "ui": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\community.gh3.midori\\content\\char\\gh3_midori\\anims\\gen\\gh3_midori_ui.milo_ps2",
+        "sha256": "2BA0719F8D511C28CEC17DDE7EDE39AE3DE1C1B638B3A539522C25AB4E30ECFA",
+        "source_exact": true
+      },
+      "fret": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\community.gh3.midori\\content\\char\\gh3_midori\\anims\\gen\\gh3_midori_fret.milo_ps2",
+        "sha256": "56AB184108ADE586DDD4D5D6D5F9EE2997DD7582FE8AD1E1550A9A0D431601D3",
+        "source_exact": true
+      },
+      "strum": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\community.gh3.midori\\content\\char\\gh3_midori\\anims\\gen\\gh3_midori_strum.milo_ps2",
+        "sha256": "2A416333BCABC6C1513D4B4C8F471F5C5E189F4A038CBF3181DA6958B6873C5D",
+        "source_exact": true
+      }
+    }
+  },
+  "casey_runtime_mapping": {
+    "content/char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2": "char/rock1/og/gen/rock1.milo_ps2",
+    "content/char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2": "char/rock1/anims/gen/rock1_main.milo_ps2",
+    "content/char/gh3_midori/anims/gen/gh3_midori_ui.milo_ps2": "char/rock1/anims/gen/rock1_ui.milo_ps2",
+    "content/char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2": "char/rock1/anims/gen/rock1_fret.milo_ps2",
+    "content/char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2": "char/rock1/anims/gen/rock1_strum.milo_ps2"
+  },
+  "retail_overlay": {
+    "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\retail_casey_overlay",
+    "status": "pass",
+    "slot": "Casey Lynch rock1",
+    "format": "GH2 PS2 native MILO overlay",
+    "file_inventory_exact": true,
+    "files": [
+      "char/rock1/anims/gen/rock1_fret.milo_ps2",
+      "char/rock1/anims/gen/rock1_main.milo_ps2",
+      "char/rock1/anims/gen/rock1_strum.milo_ps2",
+      "char/rock1/anims/gen/rock1_ui.milo_ps2",
+      "char/rock1/og/gen/rock1.milo_ps2"
+    ],
+    "assets": {
+      "model": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\retail_casey_overlay\\char\\rock1\\og\\gen\\rock1.milo_ps2",
+        "archive_path": "char/rock1/og/gen/rock1.milo_ps2",
+        "sha256": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
+        "source_sha256": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
+        "source_exact": true
+      },
+      "main": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\retail_casey_overlay\\char\\rock1\\anims\\gen\\rock1_main.milo_ps2",
+        "archive_path": "char/rock1/anims/gen/rock1_main.milo_ps2",
+        "sha256": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+        "source_sha256": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+        "source_exact": true
+      },
+      "ui": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\retail_casey_overlay\\char\\rock1\\anims\\gen\\rock1_ui.milo_ps2",
+        "archive_path": "char/rock1/anims/gen/rock1_ui.milo_ps2",
+        "sha256": "2BA0719F8D511C28CEC17DDE7EDE39AE3DE1C1B638B3A539522C25AB4E30ECFA",
+        "source_sha256": "2BA0719F8D511C28CEC17DDE7EDE39AE3DE1C1B638B3A539522C25AB4E30ECFA",
+        "source_exact": true
+      },
+      "fret": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\retail_casey_overlay\\char\\rock1\\anims\\gen\\rock1_fret.milo_ps2",
+        "archive_path": "char/rock1/anims/gen/rock1_fret.milo_ps2",
+        "sha256": "56AB184108ADE586DDD4D5D6D5F9EE2997DD7582FE8AD1E1550A9A0D431601D3",
+        "source_sha256": "56AB184108ADE586DDD4D5D6D5F9EE2997DD7582FE8AD1E1550A9A0D431601D3",
+        "source_exact": true
+      },
+      "strum": {
+        "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\retail_casey_overlay\\char\\rock1\\anims\\gen\\rock1_strum.milo_ps2",
+        "archive_path": "char/rock1/anims/gen/rock1_strum.milo_ps2",
+        "sha256": "2A416333BCABC6C1513D4B4C8F471F5C5E189F4A038CBF3181DA6958B6873C5D",
+        "source_sha256": "2A416333BCABC6C1513D4B4C8F471F5C5E189F4A038CBF3181DA6958B6873C5D",
+        "source_exact": true
+      }
+    },
+    "iso_built": false,
+    "iso_mounted": false,
+    "emulator_used": false,
+    "source_archive_gate": {
+      "status": "pass",
+      "mode": "verify-only",
+      "command": [
+        "C:\\Users\\smmel\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\gh3_midori_casey_retail_overlay_manifest.py",
+        "--stock-hdr",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN\\main.hdr",
+        "--stock-ark",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN\\main_0.ark",
+        "--overlay-root",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\retail_casey_overlay",
+        "--manifest",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\retail_casey_overlay.tsv",
+        "--report",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\retail_casey_overlay.source_archive.json",
+        "--parser",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\re_anim_audit.py",
+        "--verify-only"
+      ],
+      "report": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\retail_casey_overlay.source_archive.json",
+      "report_sha256": "4EE5CDBAF3B952A493205DFFB4BC56D40604888434AEE35BDD4E7E0C80233962",
+      "manifest": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\retail_casey_overlay.tsv",
+      "manifest_sha256": "10D5EFD839D87AE420A83C09C456E70011D4D784DAE14B196C26E073F2934C2B",
+      "target_count": 5,
+      "changed_target_count": 2,
+      "reused_target_count": 3,
+      "appended_byte_count": 3368834,
+      "projected_ark_byte_count": 3122025705,
+      "checks": {
+        "archive_version_is_v3": true,
+        "archive_is_single_part": true,
+        "declared_part_size_matches_ark": true,
+        "all_five_targets_exist": true,
+        "archive_paths_are_exact": true,
+        "stock_sources_match_archive": true,
+        "replacements_match_expected_hashes": true,
+        "model_and_main_replace_stock": true,
+        "ui_fret_strum_reuse_stock": true,
+        "projected_ark_fits_v3_u32": true
+      },
+      "execution_policy": {
+        "read_only_archive_audit": true,
+        "ark_written": false,
+        "iso_built": false,
+        "iso_mounted": false,
+        "emulator_used": false
+      }
+    },
+    "staged": false,
+    "required": true,
+    "execution_gate": "deferred until clone visual acceptance"
+  },
+  "model_rebuild": {
+    "requested": false,
+    "status": "not_requested"
+  },
+  "main_rebuild": {
+    "requested": false,
+    "status": "not_requested"
+  },
+  "animation_call_compatibility": {
+    "status": "pass",
+    "mode": "verify-only",
+    "command": [
+      "C:\\Users\\smmel\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\gh3_midori_animation_call_compatibility.py",
+      "--package",
+      "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\community.gh3.midori",
+      "--output",
+      "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\gh3_midori_animation_call_compatibility.json",
+      "--stock-hdr",
+      "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN\\main.hdr",
+      "--stock-ark",
+      "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN\\main_0.ark",
+      "--verify-only"
+    ],
+    "return_code": 0,
+    "output_tail": "{\"status\": \"gh2_animation_call_surface_covered\", \"stock_calls\": 157, \"covered\": 157, \"missing\": 0, \"output\": \"C:\\\\Programming\\\\GitHub\\\\Guitar Hero II\\\\GuitarHeroOGX-main-ui-engine\\\\out\\\\midori\\\\gh3_midori_animation_call_compatibility.json\"}\n",
+    "report": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\gh3_midori_animation_call_compatibility.json",
+    "report_sha256": "6DC9C784FDA99203F3E886414676A4D74A0D46A89EEFE177324AB30A4CB51DE1",
+    "stock_clip_count": 157,
+    "covered_stock_call_count": 157,
+    "missing_stock_call_count": 0,
+    "stock_group_count": 30,
+    "covered_stock_group_count": 30,
+    "missing_stock_group_count": 0,
+    "published_bank_hashes": {
+      "main": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+      "ui": "2BA0719F8D511C28CEC17DDE7EDE39AE3DE1C1B638B3A539522C25AB4E30ECFA",
+      "fret": "56AB184108ADE586DDD4D5D6D5F9EE2997DD7582FE8AD1E1550A9A0D431601D3",
+      "strum": "2A416333BCABC6C1513D4B4C8F471F5C5E189F4A038CBF3181DA6958B6873C5D"
+    }
+  },
+  "sources": {
+    "model": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\generated\\rock1.casey_wristweights.milo_ps2",
+      "sha256": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
+      "expected_sha256": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
+      "exact": true
+    },
+    "main": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\generated\\rock1_main.midori_diverse_final_candidate.milo_ps2",
+      "sha256": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+      "expected_sha256": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+      "exact": true
+    },
+    "ui": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\stock_casey_banks\\rock1_ui.milo_ps2",
+      "sha256": "2BA0719F8D511C28CEC17DDE7EDE39AE3DE1C1B638B3A539522C25AB4E30ECFA",
+      "expected_sha256": "2BA0719F8D511C28CEC17DDE7EDE39AE3DE1C1B638B3A539522C25AB4E30ECFA",
+      "exact": true
+    },
+    "fret": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\stock_casey_banks\\rock1_fret.milo_ps2",
+      "sha256": "56AB184108ADE586DDD4D5D6D5F9EE2997DD7582FE8AD1E1550A9A0D431601D3",
+      "expected_sha256": "56AB184108ADE586DDD4D5D6D5F9EE2997DD7582FE8AD1E1550A9A0D431601D3",
+      "exact": true
+    },
+    "strum": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\input\\stock_casey_banks\\rock1_strum.milo_ps2",
+      "sha256": "2A416333BCABC6C1513D4B4C8F471F5C5E189F4A038CBF3181DA6958B6873C5D",
+      "expected_sha256": "2A416333BCABC6C1513D4B4C8F471F5C5E189F4A038CBF3181DA6958B6873C5D",
+      "exact": true
+    },
+    "main_validation": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\generated\\rock1_main.midori_diverse_final_candidate.validation.json",
+      "status": "pass",
+      "candidate_sha256": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+      "changed_clips": [
+        "stand_fast_01",
+        "stand_fast_02",
+        "stand_fast_03",
+        "stand_fast_04",
+        "stand_fast_05",
+        "stand_medium_02",
+        "stand_medium_03",
+        "stand_medium_04",
+        "stand_medium_05",
+        "stand_medium_06"
+      ],
+      "unaffected_clip_count": 103
+    }
+  },
+  "model_contract": {
+    "status": "pass",
+    "checks": {
+      "active_group_has_45_midori_meshes": true,
+      "transform_count_is_115": true,
+      "controller_count_is_20": true,
+      "mesh_count_is_169": true,
+      "visible_midori_count_is_45": true,
+      "hidden_casey_template_count_is_124": true,
+      "no_hidden_midori_meshes": true,
+      "no_visible_template_meshes": true,
+      "band_character_rock1": true,
+      "pelvis_parent_is_rock1": true,
+      "left_hand_ik": true,
+      "right_hand_ik": true,
+      "fret_ik": true,
+      "eyes_controller": true
+    },
+    "active_group_object_count": 45,
+    "invalid_active_group_objects": [],
+    "transform_count": 115,
+    "controller_count": 20,
+    "mesh_count": 169,
+    "visible_midori_mesh_count": 45,
+    "hidden_template_mesh_count": 124,
+    "hidden_midori_mesh_count": 0,
+    "visible_template_mesh_count": 0
+  },
+  "existing_clone_gameplay_proof": {
+    "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\proof\\midori_casey_wristweights_gameplay.validation.json",
+    "sha256": "BE889B2A9D1ED424778B9106AC0B0C2387F5C386F349A0D6925C659D082EBA7F",
+    "format": "gh3-midori-casey-clone-gameplay-proof-v1",
+    "status": "pass",
+    "engine": "Guitar Hero Classic ghogx_app",
+    "hidden_window": true,
+    "iso_used": false,
+    "emulator_used": false,
+    "all_checks_pass": true,
+    "model_sha256": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
+    "main_bank_sha256": "F7B202330E9233378BA55C896845DEEF1923C885174B7C0CF49097C115C17002",
+    "log": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\ghc_casey_slot\\final_clone_gameplay_proof\\midori_casey_big_medium04_s143_f30_yawm040_wristweights_gameplay.log.stderr",
+      "expected_sha256": "4A809F2E06B21A0861168A0D9742DF2FECAA23C3D385C26AFBA0B93E28A54D4F",
+      "sha256": "4A809F2E06B21A0861168A0D9742DF2FECAA23C3D385C26AFBA0B93E28A54D4F",
+      "status": "pass",
+      "exact": true
+    },
+    "screenshot": {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\analysis\\_midori_patch_identity_audit\\ghc_casey_slot\\final_clone_gameplay_proof\\midori_casey_big_medium04_s143_f30_yawm040_wristweights_gameplay.bmp",
+      "expected_sha256": "60EFC436916BB2609D2B42E09EC433AB4E1D7B8DCC8E24FCBB4775C05753072D",
+      "sha256": "60EFC436916BB2609D2B42E09EC433AB4E1D7B8DCC8E24FCBB4775C05753072D",
+      "status": "pass",
+      "exact": true
+    },
+    "artifact_hashes_exact": true,
+    "venue": "big",
+    "clip": "stand_medium_04",
+    "clip_time_seconds": 4.766666667,
+    "capture_frame": 30,
+    "total_frames": 34,
+    "user_acceptance": "pending",
+    "required": true,
+    "authenticates_package": true
+  },
+  "in_repo_clone_smoke": {
+    "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\out\\midori\\proof\\casey_wristweights_clone_package.smoke.log.stderr",
+    "status": "missing",
+    "checks": {},
+    "required": false
+  },
+  "failures": []
+}
