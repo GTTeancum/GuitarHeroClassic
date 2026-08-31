@@ -92,6 +92,7 @@ def proof_payload(
     frames: int,
     fps: float,
     pose_rows: int,
+    user_acceptance: str,
 ) -> dict[str, object]:
     return {
         "format": "gh3-midori-casey-clone-gameplay-proof-v1",
@@ -132,7 +133,7 @@ def proof_payload(
         "checks": checks,
         "visual_review": {
             "assistant_review": "candidate",
-            "user_acceptance": "pending",
+            "user_acceptance": user_acceptance,
         },
     }
 
@@ -200,6 +201,12 @@ def main() -> int:
         "--validation-output",
         type=Path,
         help="write a hash-bound gameplay proof JSON (requires --screenshot)",
+    )
+    parser.add_argument(
+        "--user-acceptance",
+        choices=("pending", "accepted"),
+        default="pending",
+        help="record explicit human visual approval; default remains pending",
     )
     parser.add_argument(
         "--verify-existing",
@@ -383,6 +390,7 @@ def main() -> int:
                 frames=args.frames,
                 fps=args.fps,
                 pose_rows=pose_rows,
+                user_acceptance=args.user_acceptance,
             ),
         )
     print(

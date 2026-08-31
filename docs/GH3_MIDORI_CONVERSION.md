@@ -109,6 +109,24 @@ and strum remain stock. It writes the `ark_tool overlay` input manifest to
 without modifying the source archive. Verify-only mode requires both this TSV
 and its source-archive report to remain byte-current.
 
+After explicit human acceptance of the clone screenshot, regenerate its proof
+with `--user-acceptance accepted`. Do not use that value before an actual user
+verdict. The copied-archive gate then becomes available:
+
+```powershell
+python tools/gh3_midori_apply_casey_retail_overlay.py --apply
+python tools/gh3_midori_apply_casey_retail_overlay.py --verify-only
+```
+
+The apply command refuses a pending proof, refuses to alias the supplied source
+archive, copies `MAIN.HDR` and `MAIN_0.ARK` under
+`out/midori/retail_gate/GEN`, applies the authenticated TSV with `ark_tool`,
+and reads all five Casey entries back to verify exact replacement hashes. It
+still creates no ISO and invokes no emulator. The multi-gigabyte copy and
+overlay are intentionally not run until the visual gate is accepted. The
+default ARK tool path is `tools/ark/build/Release/ark_tool.exe`; use
+`--ark-tool` when the local build is elsewhere.
+
 ## Animation contract
 
 The published banks preserve the complete Casey call surface:

@@ -22,6 +22,7 @@ import gh3_midori_model_bundle as model_bundle  # noqa: E402
 import gh3_midori_model_stage as model_stage  # noqa: E402
 import gh3_midori_run_casey_clone_pose as clone_pose  # noqa: E402
 import gh3_midori_casey_retail_overlay_manifest as retail_manifest  # noqa: E402
+import gh3_midori_apply_casey_retail_overlay as retail_apply  # noqa: E402
 
 
 class MidoriConversionTest(unittest.TestCase):
@@ -258,7 +259,8 @@ class MidoriConversionTest(unittest.TestCase):
         self.assertIn('"engine": "Guitar Hero Classic ghogx_app"', source)
         self.assertIn('"iso_used": False', source)
         self.assertIn('"emulator_used": False', source)
-        self.assertIn('"user_acceptance": "pending"', source)
+        self.assertIn('"user_acceptance": user_acceptance', source)
+        self.assertIn('default="pending"', source)
         self.assertIn('"model_sha256": model_sha256', source)
         self.assertIn('"main_bank_sha256": main_sha256', source)
         self.assertIn('"screenshot_sha256": sha256_file(screenshot)', source)
@@ -359,6 +361,38 @@ class MidoriConversionTest(unittest.TestCase):
                 "char/rock1/b.milo_ps2\tBB\t2\tB0\t1",
             ],
         )
+
+    def test_retail_apply_requires_human_acceptance(self) -> None:
+        record = {
+            "format": "gh3-midori-casey-clone-gameplay-proof-v1",
+            "status": "pass",
+            "engine": "Guitar Hero Classic ghogx_app",
+            "hidden_window": True,
+            "iso_used": False,
+            "emulator_used": False,
+            "all_checks_pass": True,
+            "artifact_hashes_exact": True,
+            "model_sha256": package.EXPECTED_HASHES["model"],
+            "main_bank_sha256": package.EXPECTED_HASHES["main"],
+            "user_acceptance": "pending",
+        }
+        checks = retail_apply.proof_gate_checks(record)
+        self.assertFalse(checks["human_visual_acceptance"])
+        record["user_acceptance"] = "accepted"
+        self.assertTrue(all(retail_apply.proof_gate_checks(record).values()))
+
+    def test_retail_apply_command_targets_only_copied_archive(self) -> None:
+        command = retail_apply.build_overlay_command(
+            Path("ark_tool.exe"),
+            Path("copied/MAIN.HDR"),
+            Path("copied/MAIN_0.ARK"),
+            Path("overlay"),
+            Path("overlay.tsv"),
+        )
+        self.assertEqual(command[1], "overlay")
+        self.assertEqual(Path(command[2]), Path("copied/MAIN.HDR"))
+        self.assertEqual(Path(command[3]), Path("copied/MAIN_0.ARK"))
+        self.assertNotIn(".iso", " ".join(command).lower())
 
 
 if __name__ == "__main__":
