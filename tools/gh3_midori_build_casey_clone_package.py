@@ -59,6 +59,7 @@ DEFAULT_MAIN_BUILDER = ROOT / "tools/gh3_midori_build_casey_main_bank.py"
 DEFAULT_MAIN_REBUILD_REPORT = (
     WORK_ROOT / "casey_main_bank_rebuild.validation.json"
 )
+DEFAULT_RETAIL_OVERLAY = WORK_ROOT / "retail_casey_overlay"
 
 PACKAGE_PATHS = {
     "model": "content/char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2",
@@ -73,6 +74,10 @@ CASEY_RUNTIME_PATHS = {
     PACKAGE_PATHS["ui"]: "char/rock1/anims/gen/rock1_ui.milo_ps2",
     PACKAGE_PATHS["fret"]: "char/rock1/anims/gen/rock1_fret.milo_ps2",
     PACKAGE_PATHS["strum"]: "char/rock1/anims/gen/rock1_strum.milo_ps2",
+}
+RETAIL_OVERLAY_PATHS = {
+    role: CASEY_RUNTIME_PATHS[package_path]
+    for role, package_path in PACKAGE_PATHS.items()
 }
 EXPECTED_HASHES = {
     "model": "C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286",
@@ -702,6 +707,82 @@ def validate_package(
     }, failures
 
 
+def stage_retail_overlay(
+    overlay: Path, sources: dict[str, Path], overwrite: bool
+) -> None:
+    for role, source in sources.items():
+        target = overlay / RETAIL_OVERLAY_PATHS[role]
+        if (
+            target.exists()
+            and sha256_file(target) != sha256_file(source)
+            and not overwrite
+        ):
+            raise FileExistsError(
+                f"retail overlay asset differs: {target}; "
+                "pass --overwrite to replace it"
+            )
+        atomic_copy(source, target)
+
+
+def validate_retail_overlay(
+    overlay: Path,
+    sources: dict[str, Path],
+    expected_hashes: dict[str, str] = EXPECTED_HASHES,
+) -> tuple[dict[str, Any], list[str]]:
+    failures = []
+    expected_files = set(RETAIL_OVERLAY_PATHS.values())
+    actual_files = (
+        {
+            path.relative_to(overlay).as_posix()
+            for path in overlay.rglob("*")
+            if path.is_file() and not path.name.endswith(".tmp")
+        }
+        if overlay.is_dir()
+        else set()
+    )
+    inventory_exact = actual_files == expected_files
+    if not inventory_exact:
+        failures.append(
+            "retail overlay inventory mismatch: "
+            f"missing={sorted(expected_files - actual_files)} "
+            f"extra={sorted(actual_files - expected_files)}"
+        )
+
+    assets = {}
+    for role, source in sources.items():
+        target = overlay / RETAIL_OVERLAY_PATHS[role]
+        if not target.is_file():
+            failures.append(f"missing retail {role}: {target}")
+            continue
+        actual = sha256_file(target)
+        source_hash = sha256_file(source)
+        exact = actual == source_hash == expected_hashes[role]
+        if not exact:
+            failures.append(
+                f"retail {role} does not match its authenticated source"
+            )
+        assets[role] = {
+            "path": str(target.resolve()),
+            "archive_path": RETAIL_OVERLAY_PATHS[role],
+            "sha256": actual,
+            "source_sha256": source_hash,
+            "source_exact": exact,
+        }
+
+    return {
+        "path": str(overlay.resolve()),
+        "status": "pass" if not failures else "fail",
+        "slot": "Casey Lynch rock1",
+        "format": "GH2 PS2 native MILO overlay",
+        "file_inventory_exact": inventory_exact,
+        "files": sorted(actual_files),
+        "assets": assets,
+        "iso_built": False,
+        "iso_mounted": False,
+        "emulator_used": False,
+    }, failures
+
+
 def clone_proof_record(path: Path) -> dict[str, Any]:
     if not path.is_file():
         return {"path": str(path.resolve()), "status": "missing"}
@@ -892,6 +973,19 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--require-clone-proof", action="store_true")
     parser.add_argument("--require-clone-smoke", action="store_true")
+    parser.add_argument(
+        "--retail-overlay", type=Path, default=DEFAULT_RETAIL_OVERLAY
+    )
+    parser.add_argument(
+        "--stage-retail-overlay",
+        action="store_true",
+        help="stage the five payloads at Casey's native GH2 archive paths",
+    )
+    parser.add_argument(
+        "--require-retail-overlay",
+        action="store_true",
+        help="fail unless an exact Casey-path retail overlay is present",
+    )
     parser.add_argument("--verify-only", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
@@ -907,8 +1001,14 @@ def main() -> int:
     main_validation = args.main_validation.resolve()
     stock_root = args.stock_root.resolve()
     milo_tool = args.milo_tool.resolve()
+    retail_overlay = args.retail_overlay.resolve()
     if not milo_tool.is_file():
         raise FileNotFoundError(f"missing milo_convert_tool: {milo_tool}")
+    if args.verify_only and args.stage_retail_overlay:
+        raise ValueError(
+            "--stage-retail-overlay writes files and cannot be used with "
+            "--verify-only"
+        )
 
     model_rebuild = rebuild_model_if_requested(
         args.rebuild_model,
@@ -947,6 +1047,18 @@ def main() -> int:
         stage_package(package, sources, args.overwrite)
     package_record, package_failures = validate_package(package, sources)
     failures.extend(package_failures)
+    if args.stage_retail_overlay:
+        stage_retail_overlay(retail_overlay, sources, args.overwrite)
+    if args.stage_retail_overlay or args.require_retail_overlay:
+        retail_record, retail_failures = validate_retail_overlay(
+            retail_overlay, sources
+        )
+        failures.extend(retail_failures)
+    else:
+        retail_record = {
+            "path": str(retail_overlay),
+            "status": "not_requested",
+        }
     animation_call_surface = validate_animation_call_surface(
         args.animation_call_tool.resolve(),
         package,
@@ -1002,6 +1114,12 @@ def main() -> int:
             **package_record,
         },
         "casey_runtime_mapping": CASEY_RUNTIME_PATHS,
+        "retail_overlay": {
+            **retail_record,
+            "staged": args.stage_retail_overlay,
+            "required": args.require_retail_overlay,
+            "execution_gate": "deferred until clone visual acceptance",
+        },
         "model_rebuild": model_rebuild,
         "main_rebuild": main_rebuild,
         "animation_call_compatibility": animation_call_surface,

@@ -78,6 +78,28 @@ all 157 clip calls plus all 30 groups against the supplied retail Casey banks.
 Outputs and reports go under `out/midori`; the deployable loose package remains
 `DLC/community.gh3.midori`.
 
+## Static retail overlay
+
+Retail GH2 does not consume the clone's addon manifest. The same authenticated
+payloads can be staged, without constructing an ISO, at Casey's five native
+archive paths:
+
+```powershell
+python tools/gh3_midori_build_casey_clone_package.py `
+  --stage-retail-overlay --overwrite --require-clone-proof
+
+python tools/gh3_midori_build_casey_clone_package.py `
+  --verify-only --require-retail-overlay --require-clone-proof
+```
+
+The first command writes `out/midori/retail_casey_overlay/char/rock1/...`.
+The overlay contains exactly `rock1.milo_ps2`, `rock1_main.milo_ps2`,
+`rock1_ui.milo_ps2`, `rock1_fret.milo_ps2`, and `rock1_strum.milo_ps2` at
+their native GH2 paths. It contains no addon manifest, archive, disc image, or
+emulator configuration. The second command re-hashes every file against the
+conversion sources and requires the hash-bound clone proof. Building or
+executing a retail image remains a separate deferred gate.
+
 ## Animation contract
 
 The published banks preserve the complete Casey call surface:

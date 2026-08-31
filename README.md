@@ -59,9 +59,11 @@ Current verified contract:
 - 115 Casey transforms and 20 Casey controllers, including both hand IK
   controllers, fret IK, and eyes;
 - Casey-native animation call coverage: 113 main, 2 UI, 17 strum, and 25 fret
-  clips, covering all 157 stock calls and all 30 stock clip groups; and
+  clips, covering all 157 stock calls and all 30 stock clip groups;
 - a bounded, hidden, Idle-priority loose-DLC proof runner for `ghogx_app`, with
-  no ISO or emulator in the iteration path.
+  no ISO or emulator in the iteration path; and
+- deterministic staging of the five payloads at Casey's native
+  `char/rock1/...` retail paths, without constructing an archive or ISO.
 
 The model uses PS2-bounded 256x256 indexed textures and four-bone mesh
 palettes. A conversion-stage forearm-to-hand weight transfer replaces the

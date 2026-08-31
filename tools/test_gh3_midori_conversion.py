@@ -63,6 +63,10 @@ class MidoriConversionTest(unittest.TestCase):
                 "rock1_strum.milo_ps2",
             },
         )
+        self.assertEqual(
+            set(package.RETAIL_OVERLAY_PATHS.values()),
+            set(package.CASEY_RUNTIME_PATHS.values()),
+        )
 
     def test_model_rebuild_pins_conversion_level_wrist_repair(self) -> None:
         commands = dict(
@@ -298,6 +302,39 @@ class MidoriConversionTest(unittest.TestCase):
             screenshot.write_bytes(b"changed")
             record = package.clone_proof_record(proof_path)
             self.assertFalse(record["artifact_hashes_exact"])
+
+    def test_retail_overlay_is_exact_five_file_casey_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sources = {}
+            expected_hashes = {}
+            for role in package.RETAIL_OVERLAY_PATHS:
+                source = root / "sources" / f"{role}.milo_ps2"
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_bytes(f"{role}-payload".encode("ascii"))
+                sources[role] = source
+                expected_hashes[role] = package.sha256_file(source)
+
+            overlay = root / "overlay"
+            package.stage_retail_overlay(overlay, sources, overwrite=False)
+            record, failures = package.validate_retail_overlay(
+                overlay, sources, expected_hashes
+            )
+            self.assertEqual(failures, [])
+            self.assertEqual(record["status"], "pass")
+            self.assertEqual(
+                set(record["files"]),
+                set(package.RETAIL_OVERLAY_PATHS.values()),
+            )
+            self.assertNotIn("manifest.json", record["files"])
+
+            model = overlay / package.RETAIL_OVERLAY_PATHS["model"]
+            model.write_bytes(b"changed")
+            record, failures = package.validate_retail_overlay(
+                overlay, sources, expected_hashes
+            )
+            self.assertEqual(record["status"], "fail")
+            self.assertTrue(failures)
 
 
 if __name__ == "__main__":
