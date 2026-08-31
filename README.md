@@ -69,6 +69,9 @@ retired pose-specific wrist warp and has been validated headlessly across 50
 poses. Clone gameplay verification is current; an actual retail GH2 PS2
 build/run remains a separate deferred compatibility gate.
 
+See [docs/GH3_MIDORI_CONVERSION.md](docs/GH3_MIDORI_CONVERSION.md) for the
+model, animation, wrist-repair, and verification contracts.
+
 ## Legacy: rexglue 360 recompile (reference only)
 
 The old `gh2test` build target (under `src/`, `generated/`, `gh2test_*.toml`) is the GH2 360 binary recompiled via [ReXGlue SDK](https://github.com/rexglue/rexglue-sdk). It boots, navigates menus, and reaches gameplay — useful as a working blueprint to crib gameplay logic from while building the new engine. It is **not** the deliverable. Documented here for archival completeness.
