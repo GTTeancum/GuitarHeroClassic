@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <fstream>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -23,6 +24,20 @@
 namespace ghogx::character {
 
 namespace {
+
+std::vector<uint8_t> read_binary_file(const std::string& path) {
+  std::ifstream input(path, std::ios::binary | std::ios::ate);
+  if (!input) throw std::runtime_error("cannot open MILO " + path);
+  const std::streamoff size = input.tellg();
+  if (size < 0) throw std::runtime_error("cannot size MILO " + path);
+  std::vector<uint8_t> bytes(static_cast<size_t>(size));
+  input.seekg(0, std::ios::beg);
+  if (!bytes.empty()) {
+    input.read(reinterpret_cast<char*>(bytes.data()), size);
+  }
+  if (!input) throw std::runtime_error("cannot read MILO " + path);
+  return bytes;
+}
 
 ghogx::milo_scene::Xfm xfm_from_serialized_4x3(
     const std::array<float, 12>& values) {
@@ -12428,14 +12443,19 @@ std::optional<float> rnd_morph_pose_peak_frame(
 bool load_character(const std::string& hdr_path, const std::string& ark_path,
                     const std::string& milo_path, Character& out) {
   try {
-    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
-    auto entry = ark.find(milo_path);
-    if (!entry) entry = ark.find("../../system/run/" + milo_path);
-    if (!entry) {
-      std::fprintf(stderr, "[char] not in ARK: %s\n", milo_path.c_str());
-      return false;
+    std::vector<uint8_t> bytes;
+    if (hdr_path.empty()) {
+      bytes = read_binary_file(milo_path);
+    } else {
+      auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+      auto entry = ark.find(milo_path);
+      if (!entry) entry = ark.find("../../system/run/" + milo_path);
+      if (!entry) {
+        std::fprintf(stderr, "[char] not in ARK: %s\n", milo_path.c_str());
+        return false;
+      }
+      bytes = ark.read_entry(*entry, {ark_path});
     }
-    auto bytes = ark.read_entry(*entry, {ark_path});
     auto hdr = gh::milo::parse_header(bytes);
     auto payload = gh::milo::inflate_payload(bytes, hdr);
     auto dir = gh::milo::parse_directory(payload);

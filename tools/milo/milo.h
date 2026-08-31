@@ -120,6 +120,16 @@ Container make_container(const std::vector<uint8_t>& payload,
                          uint32_t block_uncompressed_limit = 0x20000,
                          uint32_t first_block_offset = 0x210);
 
+// Construct a GH-style object-directory container without splitting a
+// serialized object across blocks. Each block may exceed target_block_size so
+// that it ends immediately after a 0xADDEADDE object terminator, matching the
+// retail GH1/GH2 writer.
+Container make_object_aligned_container(
+    const std::vector<uint8_t>& payload,
+    BlockStructure structure = BlockStructure::MILO_B,
+    uint32_t target_block_size = 0x20000,
+    uint32_t first_block_offset = 0x210);
+
 // Inflate all blocks and concatenate. For BlockStructure::MILO_B this uses
 // raw DEFLATE (no zlib wrapper). For MILO_C it uses GZIP. For MILO_D the
 // first 4 bytes of each block are an uncompressed-size prefix before the

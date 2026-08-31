@@ -15,7 +15,9 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <set>
@@ -48,6 +50,273 @@ void write_text(const fs::path& path, const std::string& text) {
     if (!output) throw std::runtime_error("cannot write " + path.string());
 }
 
+bool parse_bool_arg(const std::string& value, const char* name) {
+    if (value == "1" || value == "true" || value == "TRUE" ||
+        value == "on" || value == "ON")
+        return true;
+    if (value == "0" || value == "false" || value == "FALSE" ||
+        value == "off" || value == "OFF")
+        return false;
+    throw std::runtime_error(
+        std::string("invalid ") + name + " value: " + value);
+}
+
+bool channel_ends_with(const std::string& value, const std::string& suffix) {
+    return value.size() >= suffix.size() &&
+           value.compare(value.size() - suffix.size(), suffix.size(), suffix) ==
+               0;
+}
+
+size_t gh2_channel_field_size(const std::string& channel, uint32_t compression) {
+    if (channel_ends_with(channel, ".pos") ||
+        channel_ends_with(channel, ".scale")) {
+        return 12;
+    }
+    if (channel_ends_with(channel, ".quat")) {
+        return compression == 0 ? 16 : 8;
+    }
+    if (channel_ends_with(channel, ".rotx") ||
+        channel_ends_with(channel, ".roty") ||
+        channel_ends_with(channel, ".rotz") ||
+        channel_ends_with(channel, ".drotx") ||
+        channel_ends_with(channel, ".droty") ||
+        channel_ends_with(channel, ".drotz")) {
+        return compression == 0 ? 4 : 2;
+    }
+    throw std::runtime_error("unknown GH2 CharBonesSamples channel " + channel);
+}
+
+size_t gh2_channel_category(const std::string& channel) {
+    if (channel_ends_with(channel, ".pos")) return 0;
+    if (channel_ends_with(channel, ".scale")) return 1;
+    if (channel_ends_with(channel, ".quat")) return 2;
+    if (channel_ends_with(channel, ".rotx")) return 3;
+    if (channel_ends_with(channel, ".roty")) return 4;
+    if (channel_ends_with(channel, ".rotz")) return 5;
+    if (channel_ends_with(channel, ".drotx")) return 6;
+    if (channel_ends_with(channel, ".droty")) return 7;
+    if (channel_ends_with(channel, ".drotz")) return 8;
+    throw std::runtime_error("unknown GH2 CharBonesSamples channel " + channel);
+}
+
+void refresh_char_bones_counts(
+    gh::milo_object::CharBonesSamples10& samples) {
+    std::array<uint32_t, 9> category_counts{};
+    size_t previous = 0;
+    bool have_previous = false;
+    for (const auto& channel : samples.channels) {
+        const size_t current = gh2_channel_category(channel);
+        if (have_previous && current < previous)
+            throw std::runtime_error(
+                "GH2 CharBonesSamples channels are not in type order");
+        previous = current;
+        have_previous = true;
+        ++category_counts[current];
+    }
+    samples.counts[0] = 0;
+    uint32_t cumulative = 0;
+    for (size_t index = 0; index < category_counts.size(); ++index) {
+        cumulative += category_counts[index];
+        samples.counts[index + 1] = cumulative;
+    }
+}
+
+size_t strip_char_bones_channels(
+    gh::milo_object::CharBonesSamples10& samples,
+    const std::set<std::string>& channel_names) {
+    if (samples.channels.empty() || channel_names.empty()) return 0;
+
+    std::vector<size_t> field_sizes;
+    field_sizes.reserve(samples.channels.size());
+    size_t source_stride = 0;
+    for (const auto& channel : samples.channels) {
+        const size_t field_size =
+            gh2_channel_field_size(channel, samples.compression);
+        field_sizes.push_back(field_size);
+        source_stride += field_size;
+    }
+    const size_t expected_bytes =
+        source_stride * static_cast<size_t>(samples.sample_count);
+    if (expected_bytes != samples.sample_bytes.size())
+        throw std::runtime_error(
+            "GH2 CharBonesSamples byte count differs before strip");
+
+    std::vector<std::string> kept_channels;
+    std::vector<size_t> kept_offsets;
+    std::vector<size_t> kept_sizes;
+    kept_channels.reserve(samples.channels.size());
+    size_t offset = 0;
+    size_t stripped = 0;
+    for (size_t index = 0; index < samples.channels.size(); ++index) {
+        const auto& channel = samples.channels[index];
+        if (channel_names.count(channel) == 0) {
+            kept_channels.push_back(channel);
+            kept_offsets.push_back(offset);
+            kept_sizes.push_back(field_sizes[index]);
+        } else {
+            ++stripped;
+        }
+        offset += field_sizes[index];
+    }
+    if (stripped == 0) return 0;
+
+    size_t target_stride = 0;
+    for (const size_t size : kept_sizes) target_stride += size;
+    std::vector<uint8_t> kept_bytes;
+    kept_bytes.resize(target_stride * static_cast<size_t>(samples.sample_count));
+    for (uint32_t sample = 0; sample < samples.sample_count; ++sample) {
+        const size_t source_base = static_cast<size_t>(sample) * source_stride;
+        const size_t target_base = static_cast<size_t>(sample) * target_stride;
+        size_t target_offset = 0;
+        for (size_t index = 0; index < kept_offsets.size(); ++index) {
+            const size_t count = kept_sizes[index];
+            std::copy_n(
+                samples.sample_bytes.begin() + source_base + kept_offsets[index],
+                count,
+                kept_bytes.begin() + target_base + target_offset);
+            target_offset += count;
+        }
+    }
+
+    samples.channels = std::move(kept_channels);
+    samples.sample_bytes = std::move(kept_bytes);
+    refresh_char_bones_counts(samples);
+    return stripped;
+}
+
+struct PalmContactPatchStats {
+    size_t sample_sets = 0;
+    size_t samples = 0;
+    float max_contact_error = 0.0f;
+};
+
+std::array<std::array<float, 3>, 3> hmx_quaternion_rotation(
+    const std::array<float, 4>& value) {
+    float x = value[0];
+    float y = value[1];
+    float z = value[2];
+    float w = value[3];
+    const float length_squared = x * x + y * y + z * z + w * w;
+    if (length_squared > 1.0e-8f) {
+        const float inverse_length = 1.0f / std::sqrt(length_squared);
+        x *= inverse_length;
+        y *= inverse_length;
+        z *= inverse_length;
+        w *= inverse_length;
+    }
+    return {{
+        {{1.0f - 2.0f * (y * y + z * z),
+          2.0f * (x * y + z * w),
+          2.0f * (x * z - y * w)}},
+        {{2.0f * (x * y - z * w),
+          1.0f - 2.0f * (x * x + z * z),
+          2.0f * (y * z + x * w)}},
+        {{2.0f * (x * z + y * w),
+          2.0f * (y * z - x * w),
+          1.0f - 2.0f * (x * x + y * y)}},
+    }};
+}
+
+PalmContactPatchStats patch_palm_contact_samples(
+    gh::milo_object::CharBonesSamples10& samples,
+    const std::string& target,
+    const std::array<float, 3>& palm_local) {
+    PalmContactPatchStats stats;
+    if (samples.channels.empty()) return stats;
+
+    const std::string position_channel = target + ".pos";
+    const std::string rotation_channel = target + ".quat";
+    const auto position_it = std::find(
+        samples.channels.begin(), samples.channels.end(), position_channel);
+    const auto rotation_it = std::find(
+        samples.channels.begin(), samples.channels.end(), rotation_channel);
+    if (position_it == samples.channels.end() &&
+        rotation_it == samples.channels.end()) {
+        return stats;
+    }
+    if (position_it == samples.channels.end() ||
+        rotation_it == samples.channels.end()) {
+        throw std::runtime_error(
+            "palm-contact target requires paired .pos and .quat channels: " +
+            target);
+    }
+
+    const size_t position_index = static_cast<size_t>(
+        std::distance(samples.channels.begin(), position_it));
+    const size_t rotation_index = static_cast<size_t>(
+        std::distance(samples.channels.begin(), rotation_it));
+    size_t frame_size = 0;
+    size_t position_offset = 0;
+    for (size_t index = 0; index < samples.channels.size(); ++index) {
+        if (index == position_index) position_offset = frame_size;
+        frame_size +=
+            gh2_channel_field_size(samples.channels[index], samples.compression);
+    }
+    const size_t expected_size =
+        frame_size * static_cast<size_t>(samples.sample_count);
+    if (expected_size != samples.sample_bytes.size()) {
+        throw std::runtime_error(
+            "GH2 CharBonesSamples byte count differs before palm-contact patch");
+    }
+
+    gh::acp::ChannelSet decoded_set;
+    decoded_set.channels = samples.channels;
+    decoded_set.sample_count = samples.sample_count;
+    decoded_set.compression = samples.compression;
+    decoded_set.frame_size = frame_size;
+    decoded_set.sample_bytes = samples.sample_bytes;
+
+    for (uint32_t sample = 0; sample < samples.sample_count; ++sample) {
+        const auto position = gh::acp::decode_channel_sample(
+            decoded_set, position_index, sample);
+        const auto quaternion = gh::acp::decode_channel_sample(
+            decoded_set, rotation_index, sample);
+        if (position.component_count != 3 || quaternion.component_count != 4) {
+            throw std::runtime_error(
+                "palm-contact target channel component count differs");
+        }
+        const auto rotation = hmx_quaternion_rotation(quaternion.values);
+        std::array<float, 3> rotated_palm{};
+        std::array<float, 3> corrected{};
+        for (size_t column = 0; column < 3; ++column) {
+            for (size_t row = 0; row < 3; ++row) {
+                rotated_palm[column] +=
+                    palm_local[row] * rotation[row][column];
+            }
+            corrected[column] =
+                position.values[column] - rotated_palm[column];
+            if (!std::isfinite(corrected[column])) {
+                throw std::runtime_error(
+                    "palm-contact patch produced a non-finite position");
+            }
+            const float replayed_contact =
+                corrected[column] + rotated_palm[column];
+            stats.max_contact_error = std::max(
+                stats.max_contact_error,
+                std::fabs(replayed_contact - position.values[column]));
+        }
+        const size_t base =
+            static_cast<size_t>(sample) * frame_size + position_offset;
+        for (size_t axis = 0; axis < 3; ++axis) {
+            std::memcpy(
+                samples.sample_bytes.data() + base + axis * sizeof(float),
+                &corrected[axis], sizeof(float));
+        }
+        ++stats.samples;
+    }
+    stats.sample_sets = 1;
+    return stats;
+}
+
+void add_patch_stats(
+    PalmContactPatchStats& target,
+    const PalmContactPatchStats& source) {
+    target.sample_sets += source.sample_sets;
+    target.samples += source.samples;
+    target.max_contact_error =
+        std::max(target.max_contact_error, source.max_contact_error);
+}
+
 uint32_t generated_block_uncompressed_limit(
     size_t payload_size) {
     uint32_t block_uncompressed_limit = 0x20000;
@@ -68,7 +337,7 @@ uint32_t generated_block_uncompressed_limit(
 std::vector<uint8_t> serialize_generated_milo(
     const std::vector<uint8_t>& payload) {
     return gh::milo::serialize_container(
-        gh::milo::make_container(
+        gh::milo::make_object_aligned_container(
             payload,
             gh::milo::BlockStructure::MILO_B,
             generated_block_uncompressed_limit(payload.size())));
@@ -113,6 +382,106 @@ std::string character_model_relative_ref(const std::string& path) {
     return path;
 }
 
+uint8_t ps2_interleave_8bpp_index(uint8_t index) {
+    return static_cast<uint8_t>(
+        (index & ~uint8_t{0x18}) |
+        ((index & uint8_t{0x08}) << 1) |
+        ((index & uint8_t{0x10}) >> 1));
+}
+
+size_t quantize_character_textures_8bpp(
+    gh::milo::Directory& directory, uint16_t max_dimension) {
+    size_t converted = 0;
+    for (auto& entry : directory.entries) {
+        if (entry.type != "Tex") continue;
+        auto texture = gh::milo_object::parse_tex10(entry.body_bytes);
+        auto& bitmap = texture.bitmap;
+        if (!texture.has_bitmap || bitmap.bits_per_pixel != 32 ||
+            bitmap.encoding != 3)
+            continue;
+        const size_t source_width = bitmap.width;
+        const size_t source_height = bitmap.height;
+        const size_t source_bytes = source_width * source_height * 4;
+        if (source_width == 0 || source_height == 0 ||
+            bitmap.data.size() != source_bytes)
+            throw std::runtime_error(
+                "rebase-character-slot expected a packed RGBA32 texture: " +
+                entry.name);
+
+        const double scale = std::min(
+            1.0,
+            std::min(
+                static_cast<double>(max_dimension) / source_width,
+                static_cast<double>(max_dimension) / source_height));
+        const uint16_t target_width = static_cast<uint16_t>(
+            std::max<size_t>(1, static_cast<size_t>(source_width * scale)));
+        const uint16_t target_height = static_cast<uint16_t>(
+            std::max<size_t>(1, static_cast<size_t>(source_height * scale)));
+
+        std::vector<uint8_t> indexed(256 * 4, 0);
+        for (uint16_t red_bin = 0; red_bin < 6; ++red_bin) {
+            for (uint16_t green_bin = 0; green_bin < 7; ++green_bin) {
+                for (uint16_t blue_bin = 0; blue_bin < 6; ++blue_bin) {
+                    const size_t palette_index =
+                        1 + (red_bin * 7 + green_bin) * 6 + blue_bin;
+                    indexed[palette_index * 4 + 0] = static_cast<uint8_t>(
+                        (red_bin * 255 + 2) / 5);
+                    indexed[palette_index * 4 + 1] = static_cast<uint8_t>(
+                        (green_bin * 255 + 3) / 6);
+                    indexed[palette_index * 4 + 2] = static_cast<uint8_t>(
+                        (blue_bin * 255 + 2) / 5);
+                    indexed[palette_index * 4 + 3] = 128;
+                }
+            }
+        }
+        indexed.reserve(indexed.size() +
+                        static_cast<size_t>(target_width) * target_height);
+        for (uint16_t y = 0; y < target_height; ++y) {
+            const size_t source_y =
+                static_cast<size_t>(y) * source_height / target_height;
+            for (uint16_t x = 0; x < target_width; ++x) {
+                const size_t source_x =
+                    static_cast<size_t>(x) * source_width / target_width;
+                const size_t source_offset =
+                    (source_y * source_width + source_x) * 4;
+                uint8_t palette_index = 0;
+                if (bitmap.data[source_offset + 3] != 0) {
+                    const uint16_t red_bin =
+                        static_cast<uint16_t>(bitmap.data[source_offset]) * 6 /
+                        256;
+                    const uint16_t green_bin =
+                        static_cast<uint16_t>(bitmap.data[source_offset + 1]) *
+                        7 / 256;
+                    const uint16_t blue_bin =
+                        static_cast<uint16_t>(bitmap.data[source_offset + 2]) *
+                        6 / 256;
+                    palette_index = static_cast<uint8_t>(
+                        1 + (red_bin * 7 + green_bin) * 6 + blue_bin);
+                }
+                indexed.push_back(
+                    ps2_interleave_8bpp_index(palette_index));
+            }
+        }
+
+        texture.width = target_width;
+        texture.height = target_height;
+        texture.bits_per_pixel = 8;
+        bitmap.header_kind = 1;
+        bitmap.bits_per_pixel = 8;
+        bitmap.encoding = 3;
+        bitmap.mipmap_count = 0;
+        bitmap.width = target_width;
+        bitmap.height = target_height;
+        bitmap.bytes_per_line = target_width;
+        bitmap.wii_alpha = 0;
+        bitmap.data = std::move(indexed);
+        entry.body_bytes = gh::milo_object::serialize_tex10(texture);
+        entry.size = entry.body_bytes.size();
+        ++converted;
+    }
+    return converted;
+}
+
 void append_guitarist_runtime_graph(
     gh::milo::Directory& directory,
     const std::string& main_anim,
@@ -124,6 +493,8 @@ void append_guitarist_runtime_graph(
         gh::milo_object::serialize_char_servo_bone2(servo)));
 
     gh::milo_object::CharDriver3 main_driver;
+    main_driver.weightable.weight = 1.0f;
+    main_driver.weightable.weight_owner = "main.drv";
     main_driver.bones = "bone.servo";
     main_driver.clips = character_model_relative_ref(main_anim);
     directory.entries.push_back(make_entry(
@@ -131,6 +502,8 @@ void append_guitarist_runtime_graph(
         gh::milo_object::serialize_char_driver3(main_driver)));
 
     gh::milo_object::CharDriverMidi3 left_driver;
+    left_driver.driver.weightable.weight = 1.0f;
+    left_driver.driver.weightable.weight_owner = "left.weight";
     left_driver.driver.bones = "bone.servo";
     left_driver.driver.clips = character_model_relative_ref(fret_anim);
     directory.entries.push_back(make_entry(
@@ -138,6 +511,8 @@ void append_guitarist_runtime_graph(
         gh::milo_object::serialize_char_driver_midi3(left_driver)));
 
     gh::milo_object::CharDriverMidi3 right_driver;
+    right_driver.driver.weightable.weight = 1.0f;
+    right_driver.driver.weightable.weight_owner = "right.weight";
     right_driver.driver.bones = "bone.servo";
     right_driver.driver.clips = character_model_relative_ref(strum_anim);
     directory.entries.push_back(make_entry(
@@ -151,7 +526,9 @@ void append_guitarist_runtime_graph(
         gh::milo_object::serialize_char_ik_midi4(fret_midi)));
 
     gh::milo_object::CharIKHand2 left_hand;
-    left_hand.hand = "bone_L-hand";
+    left_hand.weightable.weight = 0.0f;
+    left_hand.weightable.weight_owner = "left.weight";
+    left_hand.hand = "bone_L-hand.mesh";
     left_hand.target = "bone_fret_hand.mesh";
     left_hand.orientation = true;
     left_hand.stretch = true;
@@ -160,7 +537,9 @@ void append_guitarist_runtime_graph(
         gh::milo_object::serialize_char_ik_hand2(left_hand)));
 
     gh::milo_object::CharIKHand2 right_hand;
-    right_hand.hand = "bone_R-hand";
+    right_hand.weightable.weight = 0.0f;
+    right_hand.weightable.weight_owner = "right.weight";
+    right_hand.hand = "bone_R-hand.mesh";
     right_hand.target = "bone_strum_hand.mesh";
     right_hand.orientation = true;
     right_hand.stretch = true;
@@ -190,6 +569,12 @@ void append_guitarist_runtime_graph(
     };
     append_weight("left.weight", 0x00400000u);
     append_weight("right.weight", 0x00800000u);
+
+    gh::milo_object::CharWalk1 walk;
+    walk.object_fields.type = "guitarist";
+    directory.entries.push_back(make_entry(
+        "CharWalk", "walk",
+        gh::milo_object::serialize_char_walk1(walk)));
 }
 
 std::array<float, 12> invert_affine_transform(
@@ -309,15 +694,6 @@ size_t patch_guitarist_proxy_transforms(
         throw std::runtime_error(
             "patch-guitarist-proxies: missing bone_pos_guitar.mesh");
 
-    gh::milo_object::Trans9 existing_fret_hand;
-    gh::milo_object::Trans9 existing_strum_hand;
-    const bool has_fret_hand =
-        load_trans_by_base_name(directory, "bone_fret_hand.mesh",
-                                existing_fret_hand);
-    const bool has_strum_hand =
-        load_trans_by_base_name(directory, "bone_strum_hand.mesh",
-                                existing_strum_hand);
-
     remove_trans_by_base_names(
         directory,
         {"bone_fret", "bone_strum", "bone_fret_hand", "bone_strum_hand"});
@@ -332,23 +708,31 @@ size_t patch_guitarist_proxy_transforms(
         -0.996429f, 0.082273f, -0.0189768f,
         -0.019577f, -0.00649437f, 0.999787f,
         4.62285f, 0.270739f, 4.74301f};
+    const std::array<float, 12> fret_hand_local = {
+        0.910481f, 0.385046f, 0.15088f,
+        0.385335f, -0.922336f, 0.0285125f,
+        0.150141f, 0.0321795f, -0.988141f,
+        -6.27464f, -0.453556f, -4.32057f};
+    const std::array<float, 12> strum_hand_local = {
+        0.683027f, -0.419636f, 0.597812f,
+        0.289627f, 0.90699f, 0.305753f,
+        -0.670515f, -0.0356949f, 0.741037f,
+        -6.73835f, -1.31678f, -3.08712f};
 
     const auto fret = make_child_trans(
         "bone_pos_guitar.mesh", fret_local, guitar.world);
     const auto strum = make_child_trans(
         "bone_pos_guitar.mesh", strum_local, guitar.world);
 
-    auto fret_hand = existing_fret_hand;
-    if (!has_fret_hand) set_identity(fret_hand.world);
+    gh::milo_object::Trans9 fret_hand;
     fret_hand.parent = "bone_fret.mesh";
-    fret_hand.local = multiply_affine_transform(
-        fret_hand.world, invert_affine_transform(fret.world));
+    fret_hand.local = fret_hand_local;
+    fret_hand.world = multiply_affine_transform(fret_hand.local, fret.world);
 
-    auto strum_hand = existing_strum_hand;
-    if (!has_strum_hand) set_identity(strum_hand.world);
+    gh::milo_object::Trans9 strum_hand;
     strum_hand.parent = "bone_strum.mesh";
-    strum_hand.local = multiply_affine_transform(
-        strum_hand.world, invert_affine_transform(strum.world));
+    strum_hand.local = strum_hand_local;
+    strum_hand.world = multiply_affine_transform(strum_hand.local, strum.world);
 
     append_trans(directory, "bone_fret.mesh", fret);
     append_trans(directory, "bone_strum.mesh", strum);
@@ -429,6 +813,10 @@ struct MeshBundleChunk {
     std::string name;
     std::string material;
     std::string texture;
+    bool alpha_cut = false;
+    bool alpha_write = false;
+    int32_t z_mode = 1;
+    bool cull = true;
 };
 
 struct MeshBundle {
@@ -453,6 +841,145 @@ struct MeshBundle {
     std::vector<MeshBundleChunk> chunks;
 };
 
+void build_ps2_mesh_groups(gh::milo_object::Mesh28& mesh) {
+    // Retail GH2 PS2 character groups stay at or below 155 strip indices.
+    // Independent three-index strips are deterministic and preserve each
+    // source triangle's winding exactly.
+    constexpr size_t kFacesPerGroup = 48;
+    mesh.group_sizes.clear();
+    mesh.group_sections.clear();
+    for (size_t face_begin = 0; face_begin < mesh.faces.size();
+         face_begin += kFacesPerGroup) {
+        const size_t face_count = std::min(
+            kFacesPerGroup, mesh.faces.size() - face_begin);
+        mesh.group_sizes.push_back(static_cast<uint8_t>(face_count));
+        gh::milo_object::MeshStripResult section;
+        section.cumulative_strip_lengths.reserve(face_count);
+        section.strip_runs.reserve(face_count * 3);
+        for (size_t face_index = 0; face_index < face_count; ++face_index) {
+            const auto& face = mesh.faces[face_begin + face_index];
+            section.strip_runs.insert(
+                section.strip_runs.end(), face.begin(), face.end());
+            section.cumulative_strip_lengths.push_back(
+                static_cast<uint32_t>(section.strip_runs.size()));
+        }
+        mesh.group_sections.push_back(std::move(section));
+    }
+}
+
+bool mesh_needs_ps2_groups(const gh::milo_object::Mesh28& mesh) {
+    if (mesh.faces.empty())
+        return !mesh.group_sizes.empty() || !mesh.group_sections.empty();
+    if (mesh.group_sizes.empty() ||
+        mesh.group_sections.size() != mesh.group_sizes.size())
+        return true;
+    size_t grouped_faces = 0;
+    for (size_t index = 0; index < mesh.group_sizes.size(); ++index) {
+        const auto& section = mesh.group_sections[index];
+        grouped_faces += mesh.group_sizes[index];
+        if (mesh.group_sizes[index] == 0 ||
+            section.cumulative_strip_lengths.empty() ||
+            section.strip_runs.empty() ||
+            section.cumulative_strip_lengths.back() !=
+                section.strip_runs.size())
+            return true;
+    }
+    return grouped_faces != mesh.faces.size();
+}
+
+class CharacterSnapshotWriter {
+public:
+    void u8(uint8_t value) { bytes.push_back(value); }
+
+    void u32(uint32_t value) {
+        bytes.push_back(static_cast<uint8_t>(value));
+        bytes.push_back(static_cast<uint8_t>(value >> 8));
+        bytes.push_back(static_cast<uint8_t>(value >> 16));
+        bytes.push_back(static_cast<uint8_t>(value >> 24));
+    }
+
+    void f32(float value) {
+        uint32_t raw = 0;
+        static_assert(sizeof(raw) == sizeof(value));
+        std::memcpy(&raw, &value, sizeof(raw));
+        u32(raw);
+    }
+
+    void string(const std::string& value) {
+        if (value.size() > std::numeric_limits<uint32_t>::max())
+            throw std::runtime_error("character snapshot: string is too large");
+        u32(static_cast<uint32_t>(value.size()));
+        bytes.insert(bytes.end(), value.begin(), value.end());
+    }
+
+    std::vector<uint8_t> bytes;
+};
+
+std::vector<uint8_t> build_character_snapshot(const fs::path& path) {
+    constexpr std::array<uint8_t, 8> kMagic =
+        {'G', 'H', '2', 'M', '2', 'G', 'L', 'B'};
+    const auto container = gh::milo::parse_container(
+        gh::milo::read_file(path.string()));
+    const auto directory = gh::milo::parse_directory(
+        gh::milo::container_payload(container));
+    if (directory.dir_type != "Character" &&
+        directory.dir_type != "BandCharacter") {
+        throw std::runtime_error(
+            "export-character-snapshot: directory is not a character");
+    }
+
+    std::vector<const gh::milo::Entry*> transforms;
+    std::vector<const gh::milo::Entry*> meshes;
+    for (const auto& entry : directory.entries) {
+        if (entry.type == "Trans") transforms.push_back(&entry);
+        else if (entry.type == "Mesh") meshes.push_back(&entry);
+    }
+
+    CharacterSnapshotWriter writer;
+    writer.bytes.insert(writer.bytes.end(), kMagic.begin(), kMagic.end());
+    writer.u32(1);
+    writer.string(directory.dir_type);
+    writer.string(directory.dir_name);
+    writer.u32(static_cast<uint32_t>(transforms.size()));
+    for (const auto* entry : transforms) {
+        const auto transform =
+            gh::milo_object::parse_trans9(entry->body_bytes);
+        writer.string(entry->name);
+        writer.string(transform.parent);
+        for (float value : transform.local) writer.f32(value);
+        for (float value : transform.world) writer.f32(value);
+    }
+
+    writer.u32(static_cast<uint32_t>(meshes.size()));
+    for (const auto* entry : meshes) {
+        const auto mesh = gh::milo_object::parse_mesh28(
+            entry->body_bytes,
+            static_cast<uint32_t>(directory.dir_version));
+        writer.string(entry->name);
+        writer.string(mesh.material);
+        writer.string(mesh.transformable.parent);
+        for (float value : mesh.transformable.local) writer.f32(value);
+        for (float value : mesh.transformable.world) writer.f32(value);
+        writer.u8(mesh.has_bones ? 1 : 0);
+        for (const auto& slot : mesh.bone_slots) {
+            writer.string(slot.bone);
+            for (float value : slot.offset) writer.f32(value);
+        }
+        writer.u32(static_cast<uint32_t>(mesh.vertices.size()));
+        for (const auto& vertex : mesh.vertices) {
+            for (float value : vertex.position) writer.f32(value);
+            for (float value : vertex.normal) writer.f32(value);
+            for (float value : vertex.color_or_weights) writer.f32(value);
+            for (float value : vertex.uv) writer.f32(value);
+        }
+        writer.u32(static_cast<uint32_t>(mesh.faces.size()));
+        for (const auto& face : mesh.faces) {
+            for (uint16_t index : face) writer.u32(index);
+        }
+    }
+    return writer.bytes;
+}
+
 MeshBundle parse_meshbundle(const fs::path& path) {
     constexpr std::array<uint8_t, 8> kMagic =
         {'G', 'H', '3', 'M', '2', 'M', 'B', 0};
@@ -463,7 +990,8 @@ MeshBundle parse_meshbundle(const fs::path& path) {
             throw std::runtime_error("meshbundle: bad magic");
     }
     const uint32_t version = cursor.u32("version");
-    if (version != 1 && version != 2 && version != 3 && version != 4)
+    if (version != 1 && version != 2 && version != 3 && version != 4 &&
+        version != 5 && version != 6 && version != 7 && version != 8)
         throw std::runtime_error("meshbundle: unsupported version");
     MeshBundle bundle;
     bundle.outfit = cursor.string("outfit");
@@ -532,6 +1060,13 @@ MeshBundle parse_meshbundle(const fs::path& path) {
         chunk.name = cursor.string("mesh name");
         chunk.material = cursor.string("material");
         chunk.texture = cursor.string("texture");
+        if (version >= 5) {
+            chunk.alpha_cut = cursor.u8("material alpha cut") != 0;
+            chunk.alpha_write = cursor.u8("material alpha write") != 0;
+            chunk.z_mode =
+                static_cast<int32_t>(cursor.u32("material z mode"));
+            chunk.cull = cursor.u8("material cull") != 0;
+        }
         chunk.mesh.bsp_nodes.push_back({});
         set_identity(chunk.mesh.transformable.local);
         set_identity(chunk.mesh.transformable.world);
@@ -548,12 +1083,15 @@ MeshBundle parse_meshbundle(const fs::path& path) {
         chunk.mesh.has_bones = true;
         for (uint32_t i = 0; i < bone_count; ++i) {
             chunk.mesh.bone_slots[i].bone = cursor.string("bone");
+            const std::string bind_transform_name =
+                version >= 8 ? cursor.string("bind transform")
+                             : chunk.mesh.bone_slots[i].bone;
             const auto transform =
-                bundle.bone_transforms.find(chunk.mesh.bone_slots[i].bone);
+                bundle.bone_transforms.find(bind_transform_name);
             if (transform == bundle.bone_transforms.end())
                 throw std::runtime_error(
                     "meshbundle: missing bind transform for bone " +
-                    chunk.mesh.bone_slots[i].bone);
+                    bind_transform_name);
             chunk.mesh.bone_slots[i].offset =
                 invert_affine_transform(transform->second.world);
         }
@@ -589,6 +1127,10 @@ MeshBundle parse_meshbundle(const fs::path& path) {
                 cursor.u16("face b"),
                 cursor.u16("face c")});
         }
+        // GH2 PS2 character meshes self-own geometry and require cached strip
+        // data whose group bounds fit the native renderer's packet envelope.
+        chunk.mesh.geometry_owner = chunk.name;
+        build_ps2_mesh_groups(chunk.mesh);
         bundle.chunks.push_back(std::move(chunk));
     }
     if (cursor.offset != cursor.bytes.size())
@@ -604,6 +1146,188 @@ struct ChannelContext {
     bool roty = false;
     bool rotz = false;
 };
+
+bool ends_with_text(const std::string& value, const std::string& suffix) {
+    return value.size() >= suffix.size() &&
+           value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+std::string strip_mesh_channel_suffix(const std::string& base) {
+    return ends_with_text(base, ".mesh")
+        ? base.substr(0, base.size() - 5)
+        : base;
+}
+
+std::string generated_char_bone_name(
+    const std::string& base,
+    const std::string& bone_extension) {
+    if (base == "Control_Root" || base == "Control_Root.mesh")
+        return base;
+    if (ends_with_text(base, ".mesh"))
+        return base;
+    return base + bone_extension;
+}
+
+std::string generated_char_bone_parent_name(
+    const std::string& parent_base,
+    const std::string& child_base,
+    const std::string& bone_extension) {
+    if (parent_base.empty()) return {};
+    if (parent_base == "Control_Root") return parent_base;
+    if (ends_with_text(child_base, ".mesh"))
+        return generated_char_bone_name(parent_base + ".mesh", bone_extension);
+    return generated_char_bone_name(parent_base, bone_extension);
+}
+
+std::string generated_guitar_parent_base(
+    gh::milo_convert::Gh2ClipSetRole role,
+    const std::string& base,
+    bool control_root_pelvis_parent) {
+    const std::string lookup_base = strip_mesh_channel_suffix(base);
+    if (control_root_pelvis_parent && lookup_base == "bone_pelvis")
+        return "Control_Root";
+    static const std::map<std::string, std::string> kCommonParents = {
+        {"bone_pelvis", ""},
+        {"bone_spine1", "bone_pelvis"},
+        {"bone_spine2", "bone_spine1"},
+        {"bone_spine3", "bone_spine2"},
+        {"bone_neck", "bone_spine3"},
+        {"bone_head", "bone_neck"},
+        {"bone_L-clavicle", "bone_spine3"},
+        {"bone_L-upperArm", "bone_L-clavicle"},
+        {"bone_L-foreArm", "bone_L-upperArm"},
+        {"bone_L-hand", "bone_L-foreArm"},
+        {"bone_R-clavicle", "bone_spine3"},
+        {"bone_R-upperArm", "bone_R-clavicle"},
+        {"bone_R-foreArm", "bone_R-upperArm"},
+        {"bone_R-hand", "bone_R-foreArm"},
+        {"bone_L-thigh", "bone_pelvis"},
+        {"bone_L-knee", "bone_L-thigh"},
+        {"bone_L-ankle", "bone_L-knee"},
+        {"bone_L-toe", "bone_L-ankle"},
+        {"bone_R-thigh", "bone_pelvis"},
+        {"bone_R-knee", "bone_R-thigh"},
+        {"bone_R-ankle", "bone_R-knee"},
+        {"bone_R-toe", "bone_R-ankle"},
+        {"bone_pos_guitar", "bone_pelvis"},
+        {"bone_fret", "bone_pos_guitar"},
+        {"bone_strum", "bone_pos_guitar"},
+        {"bone_fret_hand", "bone_fret"},
+        {"bone_strum_hand", "bone_strum"},
+        {"Bone_Jaw", "bone_head"},
+        {"Bone_Eyelid_Upper_L", "bone_head"},
+        {"Bone_Eyelid_Upper_R", "bone_head"},
+        {"Bone_Lip_Lower_Mid", "bone_head"},
+        {"Bone_Lip_Upper_Mid", "bone_head"},
+        {"Bone_Mouth_L", "bone_head"},
+        {"Bone_Mouth_R", "bone_head"},
+    };
+    const auto common = kCommonParents.find(lookup_base);
+    if (common != kCommonParents.end()) return common->second;
+
+    if (lookup_base.rfind("bone_L-", 0) == 0) {
+        if (lookup_base.find("index01") != std::string::npos ||
+            lookup_base.find("middlefinger01") != std::string::npos ||
+            lookup_base.find("ringfinger01") != std::string::npos ||
+            lookup_base.find("pinky01") != std::string::npos ||
+            lookup_base.find("thumb01") != std::string::npos) {
+            return role == gh::milo_convert::Gh2ClipSetRole::GuitarFret
+                ? "bone_fret_hand"
+                : "bone_L-hand";
+        }
+        if (lookup_base.find("index02") != std::string::npos) return "bone_L-index01";
+        if (lookup_base.find("index03") != std::string::npos) return "bone_L-index02";
+        if (lookup_base.find("middlefinger02") != std::string::npos) return "bone_L-middlefinger01";
+        if (lookup_base.find("middlefinger03") != std::string::npos) return "bone_L-middlefinger02";
+        if (lookup_base.find("ringfinger02") != std::string::npos) return "bone_L-ringfinger01";
+        if (lookup_base.find("ringfinger03") != std::string::npos) return "bone_L-ringfinger02";
+        if (lookup_base.find("pinky02") != std::string::npos) return "bone_L-pinky01";
+        if (lookup_base.find("pinky03") != std::string::npos) return "bone_L-pinky02";
+        if (lookup_base.find("thumb02") != std::string::npos) return "bone_L-thumb01";
+        if (lookup_base.find("thumb03") != std::string::npos) return "bone_L-thumb02";
+    }
+    if (lookup_base.rfind("bone_R-", 0) == 0) {
+        if (lookup_base.find("index01") != std::string::npos ||
+            lookup_base.find("middlefinger01") != std::string::npos ||
+            lookup_base.find("ringfinger01") != std::string::npos ||
+            lookup_base.find("pinky01") != std::string::npos ||
+            lookup_base.find("thumb01") != std::string::npos) {
+            return role == gh::milo_convert::Gh2ClipSetRole::GuitarStrum
+                ? "bone_strum_hand"
+                : "bone_R-hand";
+        }
+        if (lookup_base.find("index02") != std::string::npos) return "bone_R-index01";
+        if (lookup_base.find("index03") != std::string::npos) return "bone_R-index02";
+        if (lookup_base.find("middlefinger02") != std::string::npos) return "bone_R-middlefinger01";
+        if (lookup_base.find("middlefinger03") != std::string::npos) return "bone_R-middlefinger02";
+        if (lookup_base.find("ringfinger02") != std::string::npos) return "bone_R-ringfinger01";
+        if (lookup_base.find("ringfinger03") != std::string::npos) return "bone_R-ringfinger02";
+        if (lookup_base.find("pinky02") != std::string::npos) return "bone_R-pinky01";
+        if (lookup_base.find("pinky03") != std::string::npos) return "bone_R-pinky02";
+        if (lookup_base.find("thumb02") != std::string::npos) return "bone_R-thumb01";
+        if (lookup_base.find("thumb03") != std::string::npos) return "bone_R-thumb02";
+    }
+    return {};
+}
+
+bool generated_guitar_controller_local(
+    const std::string& base,
+    std::array<float, 12>& local) {
+    const std::string lookup_base = strip_mesh_channel_suffix(base);
+    if (lookup_base == "bone_fret") {
+        local = {
+            0.999139f, -0.001143f, 0.0414729f,
+            0.00131021f, 0.999991f, -0.00400718f,
+            -0.041468f, 0.00405813f, 0.999132f,
+            4.32514f, 0.30534f, 26.9909f};
+        return true;
+    }
+    if (lookup_base == "bone_strum") {
+        local = {
+            0.0821322f, 0.996588f, 0.00808181f,
+            -0.996429f, 0.082273f, -0.0189768f,
+            -0.019577f, -0.00649437f, 0.999787f,
+            4.62285f, 0.270739f, 4.74301f};
+        return true;
+    }
+    if (lookup_base == "bone_fret_hand") {
+        local = {
+            0.910481f, 0.385046f, 0.15088f,
+            0.385335f, -0.922336f, 0.0285125f,
+            0.150141f, 0.0321795f, -0.988141f,
+            -6.27464f, -0.453556f, -4.32057f};
+        return true;
+    }
+    if (lookup_base == "bone_strum_hand") {
+        local = {
+            0.683027f, -0.419636f, 0.597812f,
+            0.289627f, 0.90699f, 0.305753f,
+            -0.670515f, -0.0356949f, 0.741037f,
+            -6.73835f, -1.31678f, -3.08712f};
+        return true;
+    }
+    return false;
+}
+
+void add_generated_parent_contexts(
+    std::map<std::string, ChannelContext>& contexts,
+    gh::milo_convert::Gh2ClipSetRole role,
+    const std::string& base,
+    bool control_root_pelvis_parent) {
+    const std::string parent = generated_guitar_parent_base(
+        role, base, control_root_pelvis_parent);
+    if (parent.empty()) return;
+    const std::string context_parent =
+        parent == "Control_Root"
+            ? parent
+            : ends_with_text(base, ".mesh") && !ends_with_text(parent, ".mesh")
+            ? parent + ".mesh"
+            : parent;
+    if (!contexts.count(context_parent))
+        contexts.emplace(context_parent, ChannelContext{});
+    add_generated_parent_contexts(
+        contexts, role, context_parent, control_root_pelvis_parent);
+}
 
 void add_channel_context(
     std::map<std::string, ChannelContext>& contexts,
@@ -728,9 +1452,61 @@ guitar_group_masks_for_generated_clipsets() {
     };
 }
 
-void add_generated_guitar_clip_groups(
+int generated_guitar_group_clip_priority(
+    const std::string& group_name,
+    const std::string& clip_name) {
+    if (group_name == "idle") {
+        if (clip_name == "idle_medium_01") return 0;
+        if (clip_name.find("medium") != std::string::npos ||
+            clip_name.find("_med_") != std::string::npos)
+            return 10;
+        if (clip_name.find("slow") != std::string::npos ||
+            clip_name.find("_slw_") != std::string::npos)
+            return 20;
+        if (clip_name.find("fast") != std::string::npos ||
+            clip_name.find("_fst_") != std::string::npos)
+            return 30;
+        return 40;
+    }
+    if (group_name == "normal") {
+        if (clip_name == "idle_medium_01") return 0;
+        if (clip_name.rfind("stand_medium_", 0) == 0) return 10;
+        if (clip_name.rfind("stand_slow_", 0) == 0) return 20;
+        if (clip_name.rfind("stand_fast_", 0) == 0) return 30;
+        if (clip_name.find("medium") != std::string::npos ||
+            clip_name.find("_med_") != std::string::npos)
+            return 40;
+        if (clip_name.find("slow") != std::string::npos ||
+            clip_name.find("_slw_") != std::string::npos)
+            return 50;
+        if (clip_name.find("fast") != std::string::npos ||
+            clip_name.find("_fst_") != std::string::npos)
+            return 60;
+        return 70;
+    }
+    return 0;
+}
+
+void sort_generated_guitar_group_clips(
+    const std::string& group_name,
+    std::vector<std::string>& clips) {
+    std::stable_sort(
+        clips.begin(), clips.end(),
+        [&](const std::string& left, const std::string& right) {
+            const int left_priority =
+                generated_guitar_group_clip_priority(group_name, left);
+            const int right_priority =
+                generated_guitar_group_clip_priority(group_name, right);
+            if (left_priority != right_priority)
+                return left_priority < right_priority;
+            return left < right;
+        });
+}
+
+size_t add_generated_guitar_clip_groups(
     gh::milo::Directory& directory,
     const std::vector<gh::acp::File>& sources) {
+    size_t groups_added = 0;
     for (const auto& [name, mask] :
          guitar_group_masks_for_generated_clipsets()) {
         gh::milo_object::CharClipGroup1 group;
@@ -739,11 +1515,26 @@ void add_generated_guitar_clip_groups(
                 group.clips.push_back(source.object_name);
         }
         if (group.clips.empty()) continue;
+        sort_generated_guitar_group_clips(name, group.clips);
         group.which = 0;
         directory.entries.push_back(make_entry(
             "CharClipGroup", name,
             gh::milo_object::serialize_char_clip_group1(group)));
+        ++groups_added;
     }
+    if (groups_added == 0 && !sources.empty()) {
+        gh::milo_object::CharClipGroup1 group;
+        group.which = 0;
+        group.clips.reserve(sources.size());
+        for (const auto& source : sources)
+            group.clips.push_back(source.object_name);
+        sort_generated_guitar_group_clips("normal", group.clips);
+        directory.entries.push_back(make_entry(
+            "CharClipGroup", "normal",
+            gh::milo_object::serialize_char_clip_group1(group)));
+        ++groups_added;
+    }
+    return groups_added;
 }
 
 void usage() {
@@ -752,20 +1543,55 @@ void usage() {
         << "  milo_convert_tool convert <GH1.rnd_ps2> --name <dir-name> "
            "--out <GH2.milo_ps2> --manifest <manifest.tsv>\n"
         << "  milo_convert_tool build-clipset-from-acp <acp-dir> "
-           "--name <dir-name> --role <role> --out <GH2.milo_ps2>\n"
+           "--name <dir-name> --role <role> --out <GH2.milo_ps2> "
+           "[--move-self 0|1] [--control-root-pelvis-parent]\n"
         << "  milo_convert_tool build-character-from-meshbundle "
            "<meshbundle> --name <dir-name> --out <GH2.milo_ps2> "
            "[--main-anim <milo>] [--strum-anim <milo>] "
            "[--fret-anim <milo>]\n"
         << "  milo_convert_tool inspect-clipset <GH2.milo_ps2> "
-           "[--channels] [--events]\n"
+            "[--channels] [--events]\n"
+        << "  milo_convert_tool replace-clipset-clips <base.milo_ps2> "
+           "--donor <donor.milo_ps2> --clip <name> [--clip <name>...] "
+           "--out <patched.milo_ps2>\n"
+        << "  milo_convert_tool alias-clipset-clips <base.milo_ps2> "
+           "--alias <source=dest> [--alias <source=dest>...] "
+           "[--replace] --out <patched.milo_ps2>\n"
+        << "  milo_convert_tool merge-clipset-fallbacks <base.milo_ps2> "
+           "--donor <stock.milo_ps2> --out <patched.milo_ps2>\n"
+        << "  milo_convert_tool prune-clipset <base.milo_ps2> "
+           "--keep <clip> [--keep <clip>...] --out <pruned.milo_ps2>\n"
+        << "  milo_convert_tool rebase-clipset-template <base.milo_ps2> "
+           "--template <retail.milo_ps2> --out <rebased.milo_ps2>\n"
+        << "  milo_convert_tool strip-clip-channels <base.milo_ps2> "
+           "--clip <name> [--clip <name>...] --channel <name> "
+           "[--channel <name>...] --out <patched.milo_ps2>\n"
+        << "  milo_convert_tool patch-clipset-palm-contact <base.milo_ps2> "
+           "--target <bone> --palm-local <x> <y> <z> "
+           "--out <patched.milo_ps2>\n"
         << "  milo_convert_tool sample-clip <GH2.milo_ps2> "
-           "<clip> <sample-index> [channel-filter]\n"
+           "<clip> <sample-index|all> [channel-filter]\n"
         << "  milo_convert_tool inspect-character <GH2.milo_ps2> "
-           "[--controllers] [--transforms]\n"
+           "[--entries] [--controllers] [--transforms] [--meshes] "
+           "[--mesh-vertices]\n"
+        << "  milo_convert_tool export-character-snapshot "
+           "<GH2.milo_ps2> --out <snapshot>\n"
         << "  milo_convert_tool patch-guitarist-proxies <GH2.milo_ps2> "
            "--out <patched.milo_ps2>\n"
+        << "  milo_convert_tool rebase-character-slot <GH2.milo_ps2> "
+           "--name <slot-name> --main-anim <milo> --strum-anim <milo> "
+           "--fret-anim <milo> [--ps2-texture-max 256] "
+           "--out <rebased.milo_ps2>\n"
+        << "  milo_convert_tool merge-character-render-payload "
+           "<template.milo_ps2> --donor <character.milo_ps2> "
+           "[--mesh-limit <count>] [--rebind-template-rig] "
+           "[--preserve-donor-bind-offsets] "
+           "[--preserve-donor-hand-mesh-bind-offsets] "
+           "--out <merged.milo_ps2>\n"
+        << "  milo_convert_tool repack-milo <GH2.milo_ps2> "
+           "--out <repacked.milo_ps2>\n"
         << "  milo_convert_tool inspect-groups <GH2.milo_ps2>\n"
+        << "  milo_convert_tool inspect-camshots <GH2.milo_ps2>\n"
         << "  milo_convert_tool inspect-skeleton <GH1.rnd_ps2> [--all]\n"
         << "  milo_convert_tool extract-entry <MILO> <type> <name> "
             "--out <object-body>\n"
@@ -836,6 +1662,71 @@ int main(int argc, char** argv) {
             return 2;
         }
     }
+    if (command == "inspect-camshots") {
+        try {
+            if (argc != 3) usage();
+            const auto container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            const auto directory = gh::milo::parse_directory(
+                gh::milo::container_payload(container));
+            std::cout
+                << "name\tcategory\tpath\tkeyframes\tduration\t"
+                   "fov_min\tfov_max\ttargets\tparents\n";
+            size_t count = 0;
+            for (const auto& entry : directory.entries) {
+                if (entry.type != "CamShot") continue;
+                const auto shot =
+                    gh::milo_object::parse_cam_shot20(entry.body_bytes);
+                float duration = 0.0f;
+                float fov_min = std::numeric_limits<float>::max();
+                float fov_max = std::numeric_limits<float>::lowest();
+                std::set<std::string> targets;
+                std::set<std::string> parents;
+                for (const auto& frame : shot.keyframes) {
+                    duration += frame.duration;
+                    fov_min = std::min(fov_min, frame.field_of_view);
+                    fov_max = std::max(fov_max, frame.field_of_view);
+                    for (const auto& target : frame.targets) {
+                        targets.insert(
+                            target.object +
+                            (target.part.empty() ? "" : ":" + target.part));
+                    }
+                    if (!frame.parent.object.empty()) {
+                        parents.insert(
+                            frame.parent.object +
+                            (frame.parent.part.empty()
+                                 ? ""
+                                 : ":" + frame.parent.part));
+                    }
+                }
+                const auto join = [](const std::set<std::string>& values) {
+                    std::string result;
+                    for (const auto& value : values) {
+                        if (!result.empty()) result += ",";
+                        result += value;
+                    }
+                    return result;
+                };
+                std::cout << entry.name << '\t'
+                          << shot.category << '\t'
+                          << shot.path << '\t'
+                          << shot.keyframes.size() << '\t'
+                          << std::fixed << std::setprecision(6)
+                          << duration << '\t'
+                          << fov_min << '\t'
+                          << fov_max << '\t'
+                          << join(targets) << '\t'
+                          << join(parents) << '\n';
+                ++count;
+            }
+            std::cerr << "camshots=" << count << "\n";
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr
+                << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
     if (command == "extract-entry") {
         try {
             if (argc != 7 || std::string(argv[5]) != "--out")
@@ -859,6 +1750,840 @@ int main(int argc, char** argv) {
                       << " name=" << found->name
                       << " bytes=" << found->body_bytes.size()
                       << " output=" << argv[6] << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
+    if (command == "replace-clipset-clips") {
+        try {
+            fs::path donor_path;
+            fs::path output;
+            std::set<std::string> clip_names;
+            for (int index = 3; index < argc; ++index) {
+                const std::string argument = argv[index];
+                if (argument == "--donor" && index + 1 < argc)
+                    donor_path = argv[++index];
+                else if (argument == "--clip" && index + 1 < argc)
+                    clip_names.insert(argv[++index]);
+                else if (argument == "--out" && index + 1 < argc)
+                    output = argv[++index];
+                else
+                    usage();
+            }
+            if (donor_path.empty() || output.empty() || clip_names.empty())
+                usage();
+
+            const auto base_container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            auto base_directory = gh::milo::parse_directory(
+                gh::milo::container_payload(base_container));
+            const auto donor_container = gh::milo::parse_container(
+                gh::milo::read_file(donor_path.string()));
+            const auto donor_directory = gh::milo::parse_directory(
+                gh::milo::container_payload(donor_container));
+            if (base_directory.dir_type != "CharClipSet" ||
+                donor_directory.dir_type != "CharClipSet")
+                throw std::runtime_error(
+                    "replace-clipset-clips requires CharClipSet MILOs");
+
+            size_t base_clip_count = 0;
+            for (const auto& entry : base_directory.entries)
+                if (entry.type == "CharClipSamples") ++base_clip_count;
+            auto root = gh::milo_object::parse_char_clip_set14(
+                base_directory.dir_body_bytes,
+                static_cast<uint32_t>(base_clip_count));
+
+            size_t replaced = 0;
+            for (const auto& clip_name : clip_names) {
+                const gh::milo::Entry* donor_entry = nullptr;
+                for (const auto& entry : donor_directory.entries) {
+                    if (entry.type == "CharClipSamples" &&
+                        entry.name == clip_name) {
+                        donor_entry = &entry;
+                        break;
+                    }
+                }
+                if (!donor_entry)
+                    throw std::runtime_error(
+                        "donor missing CharClipSamples: " + clip_name);
+                auto donor_clip =
+                    gh::milo_object::parse_char_clip_samples10(
+                        donor_entry->body_bytes);
+                bool entry_replaced = false;
+                for (auto& entry : base_directory.entries) {
+                    if (entry.type == "CharClipSamples" &&
+                        entry.name == clip_name) {
+                        entry.body_bytes = donor_entry->body_bytes;
+                        entry_replaced = true;
+                        break;
+                    }
+                }
+                if (!entry_replaced)
+                    throw std::runtime_error(
+                        "base missing CharClipSamples: " + clip_name);
+
+                bool root_replaced = false;
+                for (auto& summary : root.clips) {
+                    if (summary.clip == clip_name) {
+                        summary.flags = donor_clip.flags;
+                        summary.size_bytes = static_cast<uint32_t>(
+                            gh::milo_object::
+                                char_clip_samples10_ps2_allocate_size(
+                                    donor_clip));
+                        root_replaced = true;
+                        break;
+                    }
+                }
+                if (!root_replaced)
+                    throw std::runtime_error(
+                        "base root missing clip summary: " + clip_name);
+                ++replaced;
+            }
+
+            base_directory.dir_body_bytes =
+                gh::milo_object::serialize_char_clip_set14(root);
+            const auto target_payload =
+                gh::milo::serialize_directory(base_directory);
+            const auto verify_directory =
+                gh::milo::parse_directory(target_payload);
+            if (!verify_directory.boundaries_exact ||
+                gh::milo::serialize_directory(verify_directory) !=
+                    target_payload)
+                throw std::runtime_error(
+                    "patched CharClipSet payload round trip differs");
+            const auto target_bytes =
+                serialize_generated_milo(target_payload);
+            const auto verify_container =
+                gh::milo::parse_container(target_bytes);
+            const auto verify_container_directory =
+                gh::milo::parse_directory(
+                    gh::milo::container_payload(verify_container));
+            if (!verify_container_directory.boundaries_exact ||
+                gh::milo::serialize_directory(
+                    verify_container_directory) != target_payload)
+                throw std::runtime_error(
+                    "patched CharClipSet container round trip differs");
+            write_file(output, target_bytes);
+            std::cout << "base=" << input.string()
+                      << " donor=" << donor_path.string()
+                      << " replaced=" << replaced
+                      << " entries=" << base_directory.entries.size()
+                      << " output=" << output.string() << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
+    if (command == "alias-clipset-clips") {
+        try {
+            fs::path output;
+            std::vector<std::pair<std::string, std::string>> aliases;
+            bool replace_existing = false;
+            for (int index = 3; index < argc; ++index) {
+                const std::string argument = argv[index];
+                if (argument == "--alias" && index + 1 < argc) {
+                    const std::string value = argv[++index];
+                    const size_t equals = value.find('=');
+                    if (equals == std::string::npos || equals == 0 ||
+                        equals + 1 >= value.size()) {
+                        throw std::runtime_error(
+                            "alias must be source=dest: " + value);
+                    }
+                    aliases.push_back(
+                        {value.substr(0, equals), value.substr(equals + 1)});
+                } else if (argument == "--replace") {
+                    replace_existing = true;
+                } else if (argument == "--out" && index + 1 < argc) {
+                    output = argv[++index];
+                } else {
+                    usage();
+                }
+            }
+            if (output.empty() || aliases.empty()) usage();
+
+            const auto base_container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            auto directory = gh::milo::parse_directory(
+                gh::milo::container_payload(base_container));
+            if (directory.dir_type != "CharClipSet")
+                throw std::runtime_error(
+                    "alias-clipset-clips requires a CharClipSet MILO");
+
+            size_t base_clip_count = 0;
+            for (const auto& entry : directory.entries)
+                if (entry.type == "CharClipSamples") ++base_clip_count;
+            auto root = gh::milo_object::parse_char_clip_set14(
+                directory.dir_body_bytes,
+                static_cast<uint32_t>(base_clip_count));
+
+            size_t added = 0;
+            size_t replaced = 0;
+            for (const auto& alias : aliases) {
+                const std::string& source = alias.first;
+                const std::string& dest = alias.second;
+                const gh::milo::Entry* source_entry = nullptr;
+                for (const auto& entry : directory.entries) {
+                    if (entry.type == "CharClipSamples" &&
+                        entry.name == source) {
+                        source_entry = &entry;
+                        break;
+                    }
+                }
+                if (!source_entry)
+                    throw std::runtime_error(
+                        "source CharClipSamples not found: " + source);
+                const auto source_clip =
+                    gh::milo_object::parse_char_clip_samples10(
+                        source_entry->body_bytes);
+                const uint32_t allocate_size = static_cast<uint32_t>(
+                    gh::milo_object::char_clip_samples10_ps2_allocate_size(
+                        source_clip));
+                auto dest_entry = std::find_if(
+                    directory.entries.begin(), directory.entries.end(),
+                    [&](const gh::milo::Entry& entry) {
+                        return entry.type == "CharClipSamples" &&
+                               entry.name == dest;
+                    });
+                auto dest_summary = std::find_if(
+                    root.clips.begin(), root.clips.end(),
+                    [&](const auto& summary) {
+                        return summary.clip == dest;
+                    });
+                if ((dest_entry == directory.entries.end()) !=
+                    (dest_summary == root.clips.end()))
+                    throw std::runtime_error(
+                        "destination clip body/summary mismatch: " + dest);
+                if (dest_entry != directory.entries.end()) {
+                    if (!replace_existing)
+                        throw std::runtime_error(
+                            "destination CharClipSamples already exists: " +
+                            dest);
+                    dest_entry->body_bytes = source_entry->body_bytes;
+                    dest_entry->size = dest_entry->body_bytes.size();
+                    dest_summary->flags = source_clip.flags;
+                    dest_summary->size_bytes = allocate_size;
+                    ++replaced;
+                } else {
+                    gh::milo::Entry new_entry = *source_entry;
+                    new_entry.name = dest;
+                    new_entry.offset = 0;
+                    new_entry.size = 0;
+                    new_entry.terminator_offset = 0;
+                    directory.entries.push_back(std::move(new_entry));
+                    root.clips.push_back(
+                        {dest, source_clip.flags, allocate_size});
+                    ++added;
+                }
+            }
+
+            directory.dir_body_bytes =
+                gh::milo_object::serialize_char_clip_set14(root);
+            const auto target_payload =
+                gh::milo::serialize_directory(directory);
+            const auto verify_directory =
+                gh::milo::parse_directory(target_payload);
+            if (!verify_directory.boundaries_exact ||
+                gh::milo::serialize_directory(verify_directory) !=
+                    target_payload)
+                throw std::runtime_error(
+                    "aliased CharClipSet payload round trip differs");
+            const auto target_bytes =
+                serialize_generated_milo(target_payload);
+            const auto verify_container =
+                gh::milo::parse_container(target_bytes);
+            const auto verify_container_directory =
+                gh::milo::parse_directory(
+                    gh::milo::container_payload(verify_container));
+            if (!verify_container_directory.boundaries_exact ||
+                gh::milo::serialize_directory(
+                    verify_container_directory) != target_payload)
+                throw std::runtime_error(
+                    "aliased CharClipSet container round trip differs");
+            write_file(output, target_bytes);
+            std::cout << "base=" << input.string()
+                      << " aliases=" << added
+                      << " replaced=" << replaced
+                      << " entries=" << directory.entries.size()
+                      << " output=" << output.string() << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
+    if (command == "merge-clipset-fallbacks") {
+        try {
+            fs::path donor_path;
+            fs::path output;
+            for (int index = 3; index < argc; ++index) {
+                const std::string argument = argv[index];
+                if (argument == "--donor" && index + 1 < argc)
+                    donor_path = argv[++index];
+                else if (argument == "--out" && index + 1 < argc)
+                    output = argv[++index];
+                else
+                    usage();
+            }
+            if (donor_path.empty() || output.empty()) usage();
+
+            const auto base_container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            auto directory = gh::milo::parse_directory(
+                gh::milo::container_payload(base_container));
+            const auto donor_container = gh::milo::parse_container(
+                gh::milo::read_file(donor_path.string()));
+            const auto donor_directory = gh::milo::parse_directory(
+                gh::milo::container_payload(donor_container));
+            if (directory.dir_type != "CharClipSet" ||
+                donor_directory.dir_type != "CharClipSet")
+                throw std::runtime_error(
+                    "merge-clipset-fallbacks requires CharClipSet MILOs");
+
+            size_t base_clip_count = 0;
+            std::set<std::string> clip_names;
+            std::set<std::string> group_names;
+            for (const auto& entry : directory.entries) {
+                if (entry.type == "CharClipSamples") {
+                    ++base_clip_count;
+                    if (!clip_names.insert(entry.name).second)
+                        throw std::runtime_error(
+                            "duplicate base CharClipSamples: " + entry.name);
+                } else if (entry.type == "CharClipGroup") {
+                    if (!group_names.insert(entry.name).second)
+                        throw std::runtime_error(
+                            "duplicate base CharClipGroup: " + entry.name);
+                }
+            }
+            auto root = gh::milo_object::parse_char_clip_set14(
+                directory.dir_body_bytes,
+                static_cast<uint32_t>(base_clip_count));
+
+            size_t clips_added = 0;
+            for (const auto& donor_entry : donor_directory.entries) {
+                if (donor_entry.type != "CharClipSamples" ||
+                    clip_names.count(donor_entry.name) != 0)
+                    continue;
+                const auto donor_clip =
+                    gh::milo_object::parse_char_clip_samples10(
+                        donor_entry.body_bytes);
+                gh::milo::Entry added = donor_entry;
+                added.offset = 0;
+                added.size = 0;
+                added.terminator_offset = 0;
+                directory.entries.push_back(std::move(added));
+                root.clips.push_back(
+                    {donor_entry.name, donor_clip.flags,
+                     static_cast<uint32_t>(
+                         gh::milo_object::
+                             char_clip_samples10_ps2_allocate_size(
+                                 donor_clip))});
+                clip_names.insert(donor_entry.name);
+                ++clips_added;
+            }
+
+            size_t groups_added = 0;
+            for (const auto& donor_entry : donor_directory.entries) {
+                if (donor_entry.type != "CharClipGroup" ||
+                    group_names.count(donor_entry.name) != 0)
+                    continue;
+                const auto group =
+                    gh::milo_object::parse_char_clip_group1(
+                        donor_entry.body_bytes);
+                for (const auto& member : group.clips) {
+                    if (clip_names.count(member) == 0)
+                        throw std::runtime_error(
+                            "fallback group " + donor_entry.name +
+                            " references missing clip " + member);
+                }
+                gh::milo::Entry added = donor_entry;
+                added.offset = 0;
+                added.size = 0;
+                added.terminator_offset = 0;
+                directory.entries.push_back(std::move(added));
+                group_names.insert(donor_entry.name);
+                ++groups_added;
+            }
+
+            directory.dir_body_bytes =
+                gh::milo_object::serialize_char_clip_set14(root);
+            const auto target_payload =
+                gh::milo::serialize_directory(directory);
+            const auto verify_directory =
+                gh::milo::parse_directory(target_payload);
+            if (!verify_directory.boundaries_exact ||
+                gh::milo::serialize_directory(verify_directory) !=
+                    target_payload)
+                throw std::runtime_error(
+                    "fallback CharClipSet payload round trip differs");
+            const auto target_bytes = serialize_generated_milo(target_payload);
+            const auto verify_container =
+                gh::milo::parse_container(target_bytes);
+            const auto verify_container_directory =
+                gh::milo::parse_directory(
+                    gh::milo::container_payload(verify_container));
+            if (!verify_container_directory.boundaries_exact ||
+                gh::milo::serialize_directory(
+                    verify_container_directory) != target_payload)
+                throw std::runtime_error(
+                    "fallback CharClipSet container round trip differs");
+            write_file(output, target_bytes);
+            std::cout << "base=" << input.string()
+                      << " donor=" << donor_path.string()
+                      << " clips_added=" << clips_added
+                      << " groups_added=" << groups_added
+                      << " entries=" << directory.entries.size()
+                      << " output=" << output.string() << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
+    if (command == "rebase-clipset-template") {
+        try {
+            fs::path template_path;
+            fs::path output;
+            for (int i = 3; i < argc; ++i) {
+                const std::string arg = argv[i];
+                if (arg == "--template" && i + 1 < argc)
+                    template_path = argv[++i];
+                else if (arg == "--out" && i + 1 < argc)
+                    output = argv[++i];
+                else
+                    usage();
+            }
+            if (template_path.empty() || output.empty()) usage();
+
+            const auto source_container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            auto directory = gh::milo::parse_directory(
+                gh::milo::container_payload(source_container));
+            const auto template_container = gh::milo::parse_container(
+                gh::milo::read_file(template_path.string()));
+            const auto template_directory = gh::milo::parse_directory(
+                gh::milo::container_payload(template_container));
+            if (directory.dir_type != "CharClipSet" ||
+                template_directory.dir_type != "CharClipSet")
+                throw std::runtime_error(
+                    "rebase-clipset-template requires two CharClipSet MILOs");
+            const std::string source_directory_name = directory.dir_name;
+
+            size_t source_clip_count = 0;
+            size_t template_clip_count = 0;
+            for (const auto& entry : directory.entries)
+                if (entry.type == "CharClipSamples") ++source_clip_count;
+            for (const auto& entry : template_directory.entries)
+                if (entry.type == "CharClipSamples") ++template_clip_count;
+            const auto source_root =
+                gh::milo_object::parse_char_clip_set14(
+                    directory.dir_body_bytes,
+                    static_cast<uint32_t>(source_clip_count));
+            auto target_root = gh::milo_object::parse_char_clip_set14(
+                template_directory.dir_body_bytes,
+                static_cast<uint32_t>(template_clip_count));
+            target_root.clips = source_root.clips;
+            directory.dir_name = template_directory.dir_name;
+            directory.dir_body_bytes =
+                gh::milo_object::serialize_char_clip_set14(target_root);
+
+            const auto target_payload = gh::milo::serialize_directory(directory);
+            const auto verify_directory =
+                gh::milo::parse_directory(target_payload);
+            if (!verify_directory.boundaries_exact ||
+                verify_directory.dir_name != template_directory.dir_name ||
+                gh::milo::serialize_directory(verify_directory) !=
+                    target_payload)
+                throw std::runtime_error(
+                    "rebased CharClipSet payload round trip differs");
+            const auto target_bytes = serialize_generated_milo(target_payload);
+            const auto verify_container = gh::milo::parse_container(target_bytes);
+            const auto verify_container_directory = gh::milo::parse_directory(
+                gh::milo::container_payload(verify_container));
+            if (!verify_container_directory.boundaries_exact ||
+                gh::milo::serialize_directory(verify_container_directory) !=
+                    target_payload)
+                throw std::runtime_error(
+                    "rebased CharClipSet container round trip differs");
+            write_file(output, target_bytes);
+            std::cout << "base=" << input.string()
+                      << " template=" << template_path.string()
+                      << " directory_before=" << source_directory_name
+                      << " directory_after=" << template_directory.dir_name
+                      << " clips=" << source_clip_count
+                      << " subdirs="
+                      << target_root.object_directory.subdirectories.size()
+                      << " blend_width=" << target_root.blend_width
+                      << " play_flags=" << target_root.play_flags
+                      << " move_self=" << target_root.move_self
+                      << " bytes=" << target_bytes.size()
+                      << " output=" << output.string() << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
+    if (command == "prune-clipset") {
+        try {
+            fs::path output;
+            std::set<std::string> keep_names;
+            for (int i = 3; i < argc; ++i) {
+                const std::string arg = argv[i];
+                if (arg == "--keep" && i + 1 < argc)
+                    keep_names.insert(argv[++i]);
+                else if (arg == "--out" && i + 1 < argc)
+                    output = argv[++i];
+                else
+                    usage();
+            }
+            if (keep_names.empty() || output.empty()) usage();
+
+            const auto container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            auto directory = gh::milo::parse_directory(
+                gh::milo::container_payload(container));
+            if (directory.dir_type != "CharClipSet")
+                throw std::runtime_error(
+                    "prune-clipset requires a CharClipSet MILO");
+
+            size_t base_clip_count = 0;
+            std::set<std::string> base_clip_names;
+            for (const auto& entry : directory.entries) {
+                if (entry.type != "CharClipSamples") continue;
+                ++base_clip_count;
+                if (!base_clip_names.insert(entry.name).second)
+                    throw std::runtime_error(
+                        "duplicate CharClipSamples: " + entry.name);
+            }
+            std::vector<std::string> missing;
+            std::set_difference(
+                keep_names.begin(), keep_names.end(),
+                base_clip_names.begin(), base_clip_names.end(),
+                std::back_inserter(missing));
+            if (!missing.empty())
+                throw std::runtime_error(
+                    "prune-clipset requested missing clip: " +
+                    missing.front());
+
+            auto root = gh::milo_object::parse_char_clip_set14(
+                directory.dir_body_bytes,
+                static_cast<uint32_t>(base_clip_count));
+            root.clips.erase(
+                std::remove_if(
+                    root.clips.begin(), root.clips.end(),
+                    [&](const auto& clip) {
+                        return !keep_names.count(clip.clip);
+                    }),
+                root.clips.end());
+            if (root.clips.size() != keep_names.size())
+                throw std::runtime_error(
+                    "prune-clipset root/sample inventory differs");
+
+            size_t groups_pruned = 0;
+            size_t group_members_removed = 0;
+            for (auto& entry : directory.entries) {
+                if (entry.type != "CharClipGroup") continue;
+                auto group = gh::milo_object::parse_char_clip_group1(
+                    entry.body_bytes);
+                const size_t original_size = group.clips.size();
+                group.clips.erase(
+                    std::remove_if(
+                        group.clips.begin(), group.clips.end(),
+                        [&](const std::string& clip) {
+                            return !keep_names.count(clip);
+                        }),
+                    group.clips.end());
+                if (original_size != 0 && group.clips.empty())
+                    throw std::runtime_error(
+                        "prune-clipset emptied group: " + entry.name);
+                if (group.clips.size() != original_size) {
+                    ++groups_pruned;
+                    group_members_removed +=
+                        original_size - group.clips.size();
+                    entry.body_bytes =
+                        gh::milo_object::serialize_char_clip_group1(group);
+                    entry.size = entry.body_bytes.size();
+                }
+            }
+            directory.entries.erase(
+                std::remove_if(
+                    directory.entries.begin(), directory.entries.end(),
+                    [&](const gh::milo::Entry& entry) {
+                        return entry.type == "CharClipSamples" &&
+                               !keep_names.count(entry.name);
+                    }),
+                directory.entries.end());
+            directory.dir_body_bytes =
+                gh::milo_object::serialize_char_clip_set14(root);
+
+            const auto target_payload =
+                gh::milo::serialize_directory(directory);
+            const auto verify_directory =
+                gh::milo::parse_directory(target_payload);
+            if (!verify_directory.boundaries_exact ||
+                gh::milo::serialize_directory(verify_directory) !=
+                    target_payload)
+                throw std::runtime_error(
+                    "pruned CharClipSet payload round trip differs");
+            const auto target_bytes = serialize_generated_milo(target_payload);
+            const auto verify_container =
+                gh::milo::parse_container(target_bytes);
+            const auto verify_container_directory =
+                gh::milo::parse_directory(
+                    gh::milo::container_payload(verify_container));
+            if (!verify_container_directory.boundaries_exact ||
+                gh::milo::serialize_directory(
+                    verify_container_directory) != target_payload)
+                throw std::runtime_error(
+                    "pruned CharClipSet container round trip differs");
+            write_file(output, target_bytes);
+            std::cout << "base=" << input.string()
+                      << " clips_before=" << base_clip_count
+                      << " clips_after=" << keep_names.size()
+                      << " clips_removed="
+                      << base_clip_count - keep_names.size()
+                      << " groups_pruned=" << groups_pruned
+                      << " group_members_removed=" << group_members_removed
+                      << " bytes=" << target_bytes.size()
+                      << " output=" << output.string() << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
+    if (command == "strip-clip-channels") {
+        try {
+            fs::path output;
+            std::set<std::string> clip_names;
+            std::set<std::string> channel_names;
+            for (int index = 3; index < argc; ++index) {
+                const std::string argument = argv[index];
+                if (argument == "--clip" && index + 1 < argc)
+                    clip_names.insert(argv[++index]);
+                else if (argument == "--channel" && index + 1 < argc)
+                    channel_names.insert(argv[++index]);
+                else if (argument == "--out" && index + 1 < argc)
+                    output = argv[++index];
+                else
+                    usage();
+            }
+            if (output.empty() || clip_names.empty() || channel_names.empty())
+                usage();
+
+            const auto base_container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            auto base_directory = gh::milo::parse_directory(
+                gh::milo::container_payload(base_container));
+            if (base_directory.dir_type != "CharClipSet")
+                throw std::runtime_error(
+                    "strip-clip-channels requires a CharClipSet MILO");
+
+            size_t base_clip_count = 0;
+            for (const auto& entry : base_directory.entries)
+                if (entry.type == "CharClipSamples") ++base_clip_count;
+            auto root = gh::milo_object::parse_char_clip_set14(
+                base_directory.dir_body_bytes,
+                static_cast<uint32_t>(base_clip_count));
+
+            size_t clips_seen = 0;
+            size_t channels_stripped = 0;
+            for (auto& entry : base_directory.entries) {
+                if (entry.type != "CharClipSamples" ||
+                    clip_names.count(entry.name) == 0) {
+                    continue;
+                }
+                ++clips_seen;
+                auto clip = gh::milo_object::parse_char_clip_samples10(
+                    entry.body_bytes);
+                channels_stripped +=
+                    strip_char_bones_channels(clip.full, channel_names);
+                channels_stripped +=
+                    strip_char_bones_channels(clip.one, channel_names);
+                entry.body_bytes =
+                    gh::milo_object::serialize_char_clip_samples10(clip);
+
+                bool root_updated = false;
+                for (auto& summary : root.clips) {
+                    if (summary.clip == entry.name) {
+                        summary.flags = clip.flags;
+                        summary.size_bytes = static_cast<uint32_t>(
+                            gh::milo_object::
+                                char_clip_samples10_ps2_allocate_size(clip));
+                        root_updated = true;
+                        break;
+                    }
+                }
+                if (!root_updated)
+                    throw std::runtime_error(
+                        "base root missing clip summary: " + entry.name);
+            }
+            if (clips_seen != clip_names.size())
+                throw std::runtime_error(
+                    "one or more requested CharClipSamples were not found");
+
+            base_directory.dir_body_bytes =
+                gh::milo_object::serialize_char_clip_set14(root);
+            const auto target_payload =
+                gh::milo::serialize_directory(base_directory);
+            const auto verify_directory =
+                gh::milo::parse_directory(target_payload);
+            if (!verify_directory.boundaries_exact ||
+                gh::milo::serialize_directory(verify_directory) !=
+                    target_payload)
+                throw std::runtime_error(
+                    "stripped CharClipSet payload round trip differs");
+            const auto target_bytes =
+                serialize_generated_milo(target_payload);
+            const auto verify_container =
+                gh::milo::parse_container(target_bytes);
+            const auto verify_container_directory =
+                gh::milo::parse_directory(
+                    gh::milo::container_payload(verify_container));
+            if (!verify_container_directory.boundaries_exact ||
+                gh::milo::serialize_directory(
+                    verify_container_directory) != target_payload)
+                throw std::runtime_error(
+                    "stripped CharClipSet container round trip differs");
+            write_file(output, target_bytes);
+            std::cout << "base=" << input.string()
+                      << " clips=" << clips_seen
+                      << " stripped_channels=" << channels_stripped
+                      << " entries=" << base_directory.entries.size()
+                      << " output=" << output.string() << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
+    if (command == "patch-clipset-palm-contact") {
+        try {
+            fs::path output;
+            std::string target;
+            std::array<float, 3> palm_local{};
+            bool have_palm_local = false;
+            for (int index = 3; index < argc; ++index) {
+                const std::string argument = argv[index];
+                if (argument == "--target" && index + 1 < argc) {
+                    target = argv[++index];
+                } else if (argument == "--palm-local" && index + 3 < argc) {
+                    for (float& value : palm_local)
+                        value = std::stof(argv[++index]);
+                    have_palm_local = true;
+                } else if (argument == "--out" && index + 1 < argc) {
+                    output = argv[++index];
+                } else {
+                    usage();
+                }
+            }
+            if (output.empty() || target.empty() || !have_palm_local)
+                usage();
+            for (const float value : palm_local) {
+                if (!std::isfinite(value))
+                    throw std::runtime_error(
+                        "--palm-local values must be finite");
+            }
+
+            const auto base_container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            auto base_directory = gh::milo::parse_directory(
+                gh::milo::container_payload(base_container));
+            if (base_directory.dir_type != "CharClipSet")
+                throw std::runtime_error(
+                    "patch-clipset-palm-contact requires a CharClipSet MILO");
+
+            size_t base_clip_count = 0;
+            for (const auto& entry : base_directory.entries)
+                if (entry.type == "CharClipSamples") ++base_clip_count;
+            auto root = gh::milo_object::parse_char_clip_set14(
+                base_directory.dir_body_bytes,
+                static_cast<uint32_t>(base_clip_count));
+
+            PalmContactPatchStats total;
+            size_t patched_clips = 0;
+            for (auto& entry : base_directory.entries) {
+                if (entry.type != "CharClipSamples") continue;
+                auto clip = gh::milo_object::parse_char_clip_samples10(
+                    entry.body_bytes);
+                PalmContactPatchStats clip_stats;
+                add_patch_stats(
+                    clip_stats,
+                    patch_palm_contact_samples(
+                        clip.full, target, palm_local));
+                add_patch_stats(
+                    clip_stats,
+                    patch_palm_contact_samples(
+                        clip.one, target, palm_local));
+                add_patch_stats(
+                    clip_stats,
+                    patch_palm_contact_samples(
+                        clip.duplicate, target, palm_local));
+                if (clip_stats.samples == 0) continue;
+                ++patched_clips;
+                add_patch_stats(total, clip_stats);
+                entry.body_bytes =
+                    gh::milo_object::serialize_char_clip_samples10(clip);
+
+                bool root_updated = false;
+                for (auto& summary : root.clips) {
+                    if (summary.clip == entry.name) {
+                        summary.flags = clip.flags;
+                        summary.size_bytes = static_cast<uint32_t>(
+                            gh::milo_object::
+                                char_clip_samples10_ps2_allocate_size(clip));
+                        root_updated = true;
+                        break;
+                    }
+                }
+                if (!root_updated)
+                    throw std::runtime_error(
+                        "base root missing clip summary: " + entry.name);
+            }
+            if (patched_clips == 0)
+                throw std::runtime_error(
+                    "no CharClipSamples contained palm-contact target " +
+                    target);
+
+            base_directory.dir_body_bytes =
+                gh::milo_object::serialize_char_clip_set14(root);
+            const auto target_payload =
+                gh::milo::serialize_directory(base_directory);
+            const auto verify_directory =
+                gh::milo::parse_directory(target_payload);
+            if (!verify_directory.boundaries_exact ||
+                gh::milo::serialize_directory(verify_directory) !=
+                    target_payload) {
+                throw std::runtime_error(
+                    "palm-contact CharClipSet payload round trip differs");
+            }
+            const auto target_bytes =
+                serialize_generated_milo(target_payload);
+            const auto verify_container =
+                gh::milo::parse_container(target_bytes);
+            const auto verify_container_directory =
+                gh::milo::parse_directory(
+                    gh::milo::container_payload(verify_container));
+            if (!verify_container_directory.boundaries_exact ||
+                gh::milo::serialize_directory(
+                    verify_container_directory) != target_payload) {
+                throw std::runtime_error(
+                    "palm-contact CharClipSet container round trip differs");
+            }
+            write_file(output, target_bytes);
+            std::cout << std::setprecision(
+                std::numeric_limits<float>::max_digits10);
+            std::cout << "base=" << input.string()
+                      << " target=" << target
+                      << " clips=" << patched_clips
+                      << " sample_sets=" << total.sample_sets
+                      << " samples=" << total.samples
+                      << " max_contact_error=" << total.max_contact_error
+                      << " entries=" << base_directory.entries.size()
+                      << " output=" << output.string() << '\n';
             return 0;
         } catch (const std::exception& ex) {
             std::cerr << "milo_convert_tool: " << ex.what() << "\n";
@@ -903,6 +2628,689 @@ int main(int argc, char** argv) {
                 << " entries=" << directory.entries.size()
                 << " bytes=" << target_bytes.size()
                 << " output=" << output.string() << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
+    if (command == "rebase-character-slot") {
+        try {
+            fs::path output;
+            std::string name;
+            std::string main_anim;
+            std::string strum_anim;
+            std::string fret_anim;
+            uint16_t ps2_texture_max = 0;
+            for (int i = 3; i < argc; ++i) {
+                const std::string arg = argv[i];
+                if (arg == "--name" && i + 1 < argc) name = argv[++i];
+                else if (arg == "--main-anim" && i + 1 < argc)
+                    main_anim = argv[++i];
+                else if (arg == "--strum-anim" && i + 1 < argc)
+                    strum_anim = argv[++i];
+                else if (arg == "--fret-anim" && i + 1 < argc)
+                    fret_anim = argv[++i];
+                else if (arg == "--ps2-texture-max" && i + 1 < argc) {
+                    const int value = std::stoi(argv[++i]);
+                    if (value < 1 || value > 4096)
+                        throw std::runtime_error(
+                            "--ps2-texture-max must be 1..4096");
+                    ps2_texture_max = static_cast<uint16_t>(value);
+                }
+                else if (arg == "--out" && i + 1 < argc)
+                    output = argv[++i];
+                else usage();
+            }
+            if (output.empty() || name.empty() || main_anim.empty() ||
+                strum_anim.empty() || fret_anim.empty())
+                usage();
+
+            const auto container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            auto directory = gh::milo::parse_directory(
+                gh::milo::container_payload(container));
+            if (directory.dir_type != "BandCharacter")
+                throw std::runtime_error(
+                    "rebase-character-slot requires a BandCharacter MILO");
+
+            auto band_character =
+                gh::milo_object::parse_band_character1(
+                    directory.dir_body_bytes);
+            auto& character = band_character.character;
+            if (character.lods.empty())
+                throw std::runtime_error(
+                    "rebase-character-slot character has no LOD groups");
+            const std::string old_group = character.lods.front().group;
+            if (old_group.empty())
+                throw std::runtime_error(
+                    "rebase-character-slot character has no root group");
+            for (const auto& lod : character.lods) {
+                if (lod.group != old_group)
+                    throw std::runtime_error(
+                        "rebase-character-slot requires one shared LOD group");
+            }
+
+            const std::string new_group = name + ".grp";
+            size_t groups_rebased = 0;
+            size_t drivers_rebased = 0;
+            size_t runtime_meshes_patched = 0;
+            for (auto& entry : directory.entries) {
+                if (entry.type == "Mesh") {
+                    auto mesh = gh::milo_object::parse_mesh28(
+                        entry.body_bytes, directory.dir_version);
+                    bool patched = false;
+                    if (mesh.geometry_owner.empty()) {
+                        mesh.geometry_owner = entry.name;
+                        patched = true;
+                    }
+                    if (mesh_needs_ps2_groups(mesh)) {
+                        build_ps2_mesh_groups(mesh);
+                        patched = true;
+                    }
+                    if (patched) {
+                        entry.body_bytes =
+                            gh::milo_object::serialize_mesh28(
+                                mesh, directory.dir_version);
+                        entry.size = entry.body_bytes.size();
+                        ++runtime_meshes_patched;
+                    }
+                    continue;
+                }
+                if (entry.type == "Group" && entry.name == old_group) {
+                    entry.name = new_group;
+                    ++groups_rebased;
+                } else if (entry.type == "CharDriver" &&
+                           entry.name == "main.drv") {
+                    auto driver = gh::milo_object::parse_char_driver3(
+                        entry.body_bytes);
+                    driver.clips = character_model_relative_ref(main_anim);
+                    entry.body_bytes =
+                        gh::milo_object::serialize_char_driver3(driver);
+                    entry.size = entry.body_bytes.size();
+                    ++drivers_rebased;
+                } else if (entry.type == "CharDriverMidi" &&
+                           entry.name == "left_hand.drv") {
+                    auto driver =
+                        gh::milo_object::parse_char_driver_midi3(
+                            entry.body_bytes);
+                    driver.driver.clips =
+                        character_model_relative_ref(fret_anim);
+                    entry.body_bytes =
+                        gh::milo_object::serialize_char_driver_midi3(driver);
+                    entry.size = entry.body_bytes.size();
+                    ++drivers_rebased;
+                } else if (entry.type == "CharDriverMidi" &&
+                           entry.name == "right_hand.drv") {
+                    auto driver =
+                        gh::milo_object::parse_char_driver_midi3(
+                            entry.body_bytes);
+                    driver.driver.clips =
+                        character_model_relative_ref(strum_anim);
+                    entry.body_bytes =
+                        gh::milo_object::serialize_char_driver_midi3(driver);
+                    entry.size = entry.body_bytes.size();
+                    ++drivers_rebased;
+                }
+            }
+            if (groups_rebased != 1 || drivers_rebased != 3)
+                throw std::runtime_error(
+                    "rebase-character-slot did not find the canonical "
+                    "group and three guitarist drivers");
+
+            directory.dir_name = name;
+            for (auto& lod : character.lods) lod.group = new_group;
+            if (character.sphere_base == old_group)
+                character.sphere_base = new_group;
+            directory.dir_body_bytes =
+                gh::milo_object::serialize_band_character1(band_character);
+            const size_t textures_quantized = ps2_texture_max
+                ? quantize_character_textures_8bpp(
+                      directory, ps2_texture_max)
+                : 0;
+
+            const auto target_payload =
+                gh::milo::serialize_directory(directory);
+            const auto verify_directory =
+                gh::milo::parse_directory(target_payload);
+            if (!verify_directory.boundaries_exact ||
+                gh::milo::serialize_directory(verify_directory) !=
+                    target_payload)
+                throw std::runtime_error(
+                    "rebased character directory round trip differs");
+            const auto target_bytes = serialize_generated_milo(target_payload);
+            const auto verify_container =
+                gh::milo::parse_container(target_bytes);
+            const auto verify_container_directory =
+                gh::milo::parse_directory(
+                    gh::milo::container_payload(verify_container));
+            if (!verify_container_directory.boundaries_exact ||
+                gh::milo::serialize_directory(
+                    verify_container_directory) != target_payload)
+                throw std::runtime_error(
+                    "rebased character container round trip differs");
+            write_file(output, target_bytes);
+            std::cout << "character_slot=" << name
+                      << " group=" << new_group
+                      << " drivers=" << drivers_rebased
+                      << " runtime_meshes_patched="
+                      << runtime_meshes_patched
+                      << " textures_quantized=" << textures_quantized
+                      << " entries=" << directory.entries.size()
+                      << " bytes=" << target_bytes.size()
+                      << " output=" << output.string() << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
+    if (command == "repack-milo") {
+        try {
+            if (argc != 5 || std::string(argv[3]) != "--out") usage();
+            const fs::path output = argv[4];
+            const auto container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            const auto payload = gh::milo::container_payload(container);
+            const auto directory = gh::milo::parse_directory(payload);
+            if (!directory.boundaries_exact ||
+                gh::milo::serialize_directory(directory) != payload)
+                throw std::runtime_error(
+                    "repack-milo requires an exact directory round trip");
+            const auto target_bytes = serialize_generated_milo(payload);
+            const auto verify = gh::milo::parse_container(target_bytes);
+            if (gh::milo::container_payload(verify) != payload)
+                throw std::runtime_error(
+                    "repack-milo changed the decompressed payload");
+            write_file(output, target_bytes);
+            std::cout << "payload_bytes=" << payload.size()
+                      << " source_bytes="
+                      << gh::milo::read_file(input.string()).size()
+                      << " output_bytes=" << target_bytes.size()
+                      << " output=" << output.string() << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
+    if (command == "merge-character-render-payload") {
+        try {
+            fs::path donor_path;
+            fs::path output;
+            size_t mesh_limit = std::numeric_limits<size_t>::max();
+            bool rebind_template_rig = false;
+            bool preserve_donor_bind_offsets = false;
+            bool preserve_donor_hand_mesh_bind_offsets = false;
+            for (int i = 3; i < argc; ++i) {
+                const std::string arg = argv[i];
+                if (arg == "--donor" && i + 1 < argc)
+                    donor_path = argv[++i];
+                else if (arg == "--mesh-limit" && i + 1 < argc)
+                    mesh_limit = static_cast<size_t>(std::stoull(argv[++i]));
+                else if (arg == "--rebind-template-rig")
+                    rebind_template_rig = true;
+                else if (arg == "--preserve-donor-bind-offsets")
+                    preserve_donor_bind_offsets = true;
+                else if (arg ==
+                         "--preserve-donor-hand-mesh-bind-offsets")
+                    preserve_donor_hand_mesh_bind_offsets = true;
+                else if (arg == "--out" && i + 1 < argc)
+                    output = argv[++i];
+                else usage();
+            }
+            if (donor_path.empty() || output.empty()) usage();
+            if ((preserve_donor_bind_offsets ||
+                 preserve_donor_hand_mesh_bind_offsets) &&
+                !rebind_template_rig)
+                throw std::runtime_error(
+                    "donor bind-offset preservation requires "
+                    "--rebind-template-rig");
+
+            const auto template_container = gh::milo::parse_container(
+                gh::milo::read_file(input.string()));
+            auto directory = gh::milo::parse_directory(
+                gh::milo::container_payload(template_container));
+            const auto donor_container = gh::milo::parse_container(
+                gh::milo::read_file(donor_path.string()));
+            const auto donor_directory = gh::milo::parse_directory(
+                gh::milo::container_payload(donor_container));
+            if (directory.dir_type != "BandCharacter" ||
+                donor_directory.dir_type != "BandCharacter")
+                throw std::runtime_error(
+                    "merge-character-render-payload requires two "
+                    "BandCharacter MILOs");
+            if (directory.dir_name != donor_directory.dir_name)
+                throw std::runtime_error(
+                    "merge-character-render-payload directory names differ");
+
+            auto character = gh::milo_object::parse_band_character1(
+                directory.dir_body_bytes);
+            const auto donor_character =
+                gh::milo_object::parse_band_character1(
+                    donor_directory.dir_body_bytes);
+            if (donor_character.character.lods.size() != 1 ||
+                donor_character.character.lods.front().group.empty())
+                throw std::runtime_error(
+                    "merge-character-render-payload donor must have one LOD");
+            const std::string donor_group =
+                donor_character.character.lods.front().group;
+            const auto donor_group_entry = std::find_if(
+                donor_directory.entries.begin(), donor_directory.entries.end(),
+                [&](const gh::milo::Entry& entry) {
+                    return entry.type == "Group" &&
+                           entry.name == donor_group;
+                });
+            if (donor_group_entry == donor_directory.entries.end())
+                throw std::runtime_error(
+                    "merge-character-render-payload donor group missing");
+            auto isolated_group = gh::milo_object::parse_group12(
+                donor_group_entry->body_bytes);
+            std::set<std::string> donor_mesh_names;
+            for (const auto& entry : donor_directory.entries) {
+                if (entry.type == "Mesh") donor_mesh_names.insert(entry.name);
+            }
+            std::set<std::string> enabled_mesh_names;
+            for (const auto& object : isolated_group.objects) {
+                if (donor_mesh_names.count(object) &&
+                    enabled_mesh_names.size() < mesh_limit)
+                    enabled_mesh_names.insert(object);
+            }
+            isolated_group.objects.erase(
+                std::remove_if(
+                    isolated_group.objects.begin(),
+                    isolated_group.objects.end(),
+                    [&](const std::string& object) {
+                        return donor_mesh_names.count(object) &&
+                               !enabled_mesh_names.count(object);
+                    }),
+                isolated_group.objects.end());
+
+            std::map<std::pair<std::string, std::string>, size_t>
+                template_entries;
+            const std::set<std::string> controller_types = {
+                "CharDriver", "CharDriverMidi", "CharEyes",
+                "CharForeTwist", "CharHair", "CharIKHand", "CharIKMidi",
+                "CharLookAt", "CharServoBone", "CharUpperTwist",
+                "CharWalk", "CharWeightSetter", "FaceFxLipSyncServo"};
+            std::map<std::pair<std::string, std::string>, std::vector<uint8_t>>
+                template_controller_bodies;
+            for (size_t index = 0; index < directory.entries.size(); ++index)
+                template_entries.emplace(
+                    std::make_pair(
+                        directory.entries[index].type,
+                        directory.entries[index].name),
+                    index);
+            for (const auto& entry : directory.entries) {
+                if (controller_types.count(entry.type))
+                    template_controller_bodies.emplace(
+                        std::make_pair(entry.type, entry.name),
+                        entry.body_bytes);
+            }
+
+            size_t template_meshes_hidden = 0;
+            for (auto& entry : directory.entries) {
+                if (entry.type != "Mesh") continue;
+                auto mesh = gh::milo_object::parse_mesh28(
+                    entry.body_bytes,
+                    static_cast<uint32_t>(directory.dir_version));
+                if (mesh.drawable.showing) ++template_meshes_hidden;
+                mesh.drawable.showing = false;
+                entry.body_bytes = gh::milo_object::serialize_mesh28(
+                    mesh,
+                    static_cast<uint32_t>(directory.dir_version));
+                entry.size = entry.body_bytes.size();
+            }
+
+            std::map<std::string, gh::milo_object::Trans9>
+                template_transforms;
+            std::map<std::string, gh::milo_object::Trans9>
+                donor_transforms;
+            for (const auto& entry : directory.entries) {
+                if (entry.type == "Trans")
+                    template_transforms.emplace(
+                        entry.name,
+                        gh::milo_object::parse_trans9(entry.body_bytes));
+            }
+            for (const auto& entry : donor_directory.entries) {
+                if (entry.type == "Trans")
+                    donor_transforms.emplace(
+                        entry.name,
+                        gh::milo_object::parse_trans9(entry.body_bytes));
+            }
+            std::map<std::string, std::array<float, 12>>
+                template_bind_worlds;
+            std::set<std::string> unresolved_template_transforms;
+            for (const auto& [name, transform] : template_transforms) {
+                (void)transform;
+                unresolved_template_transforms.insert(name);
+            }
+            while (!unresolved_template_transforms.empty()) {
+                bool made_progress = false;
+                for (auto it = unresolved_template_transforms.begin();
+                     it != unresolved_template_transforms.end();) {
+                    const auto& transform = template_transforms.at(*it);
+                    const auto parent = template_transforms.find(
+                        transform.parent);
+                    if (parent != template_transforms.end() &&
+                        template_bind_worlds.count(transform.parent) == 0) {
+                        ++it;
+                        continue;
+                    }
+                    const auto world = parent == template_transforms.end()
+                        ? transform.local
+                        : multiply_affine_transform(
+                              transform.local,
+                              template_bind_worlds.at(transform.parent));
+                    template_bind_worlds.emplace(*it, world);
+                    it = unresolved_template_transforms.erase(it);
+                    made_progress = true;
+                }
+                if (!made_progress)
+                    throw std::runtime_error(
+                        "merge-character-render-payload template transform "
+                        "hierarchy contains a cycle");
+            }
+            float max_template_stored_chain_delta = 0.0f;
+            for (const auto& [name, transform] : template_transforms) {
+                const auto& chain_world = template_bind_worlds.at(name);
+                for (size_t value_index = 0;
+                     value_index < chain_world.size(); ++value_index) {
+                    max_template_stored_chain_delta = std::max(
+                        max_template_stored_chain_delta,
+                        std::abs(
+                            chain_world[value_index] -
+                            transform.world[value_index]));
+                }
+            }
+            const auto resolve_template_bone =
+                [&](const std::string& donor_bone) {
+                    std::string current = donor_bone;
+                    std::set<std::string> visited;
+                    while (!current.empty() && visited.insert(current).second) {
+                        if (template_transforms.count(current)) return current;
+                        const auto donor_transform =
+                            donor_transforms.find(current);
+                        if (donor_transform == donor_transforms.end()) break;
+                        current = donor_transform->second.parent;
+                    }
+                    return std::string{};
+                };
+
+            const std::set<std::string> render_types = {
+                "Tex", "Mat", "Mesh", "Group"};
+            size_t transforms_replaced = 0;
+            size_t transforms_added = 0;
+            size_t transforms_preserved = 0;
+            size_t donor_transforms_skipped = 0;
+            size_t mesh_bind_slots_rebased = 0;
+            size_t mesh_bind_slots_preserved = 0;
+            size_t meshes_with_bind_slots_preserved = 0;
+            size_t mesh_bind_slots_remapped = 0;
+            float max_bind_residual = 0.0f;
+            size_t render_entries_added = 0;
+            for (const auto& donor_entry : donor_directory.entries) {
+                const auto key = std::make_pair(
+                    donor_entry.type, donor_entry.name);
+                const auto existing = template_entries.find(key);
+                if (donor_entry.type == "Trans") {
+                    if (rebind_template_rig) {
+                        if (existing != template_entries.end())
+                            ++transforms_preserved;
+                        else
+                            ++donor_transforms_skipped;
+                        continue;
+                    }
+                    if (existing != template_entries.end()) {
+                        directory.entries[existing->second].body_bytes =
+                            donor_entry.body_bytes;
+                        directory.entries[existing->second].size =
+                            donor_entry.body_bytes.size();
+                        ++transforms_replaced;
+                    } else {
+                        template_entries.emplace(
+                            key, directory.entries.size());
+                        directory.entries.push_back(donor_entry);
+                        ++transforms_added;
+                    }
+                } else if (render_types.count(donor_entry.type)) {
+                    if (donor_entry.type == "Mesh" &&
+                        !enabled_mesh_names.count(donor_entry.name))
+                        continue;
+                    if (existing != template_entries.end())
+                        throw std::runtime_error(
+                            "merge-character-render-payload collision: " +
+                            donor_entry.type + " " + donor_entry.name);
+                    auto render_entry = donor_entry;
+                    if (render_entry.type == "Group" &&
+                        render_entry.name == donor_group) {
+                        render_entry.body_bytes =
+                            gh::milo_object::serialize_group12(isolated_group);
+                        render_entry.size = render_entry.body_bytes.size();
+                    } else if (render_entry.type == "Mesh" &&
+                               rebind_template_rig) {
+                        auto mesh = gh::milo_object::parse_mesh28(
+                            render_entry.body_bytes,
+                            static_cast<uint32_t>(directory.dir_version));
+                        const auto is_hand_chain_bone =
+                            [](const std::string& bone) {
+                                static constexpr std::array<const char*, 6>
+                                    markers = {
+                                        "-hand.mesh", "-thumb", "-index",
+                                        "-middlefinger", "-ringfinger",
+                                        "-pinky"};
+                                return std::any_of(
+                                    markers.begin(), markers.end(),
+                                    [&](const char* marker) {
+                                        return bone.find(marker) !=
+                                               std::string::npos;
+                                    });
+                            };
+                        std::vector<bool> preserve_slot_bind_offsets(
+                            mesh.bone_slots.size(),
+                            preserve_donor_bind_offsets);
+                        if (preserve_donor_hand_mesh_bind_offsets &&
+                            !preserve_donor_bind_offsets) {
+                            std::vector<std::vector<bool>> slot_links(
+                                mesh.bone_slots.size(),
+                                std::vector<bool>(
+                                    mesh.bone_slots.size(), false));
+                            for (size_t slot_index = 0;
+                                 slot_index < mesh.bone_slots.size();
+                                 ++slot_index) {
+                                slot_links[slot_index][slot_index] = true;
+                                preserve_slot_bind_offsets[slot_index] =
+                                    is_hand_chain_bone(
+                                        mesh.bone_slots[slot_index].bone);
+                            }
+                            for (const auto& face : mesh.faces) {
+                                std::vector<bool> active_slots(
+                                    mesh.bone_slots.size(), false);
+                                for (const auto vertex_index : face) {
+                                    if (vertex_index >= mesh.vertices.size())
+                                        continue;
+                                    const auto& vertex =
+                                        mesh.vertices[vertex_index];
+                                    for (size_t slot_index = 0;
+                                         slot_index <
+                                             mesh.bone_slots.size();
+                                         ++slot_index) {
+                                        if (std::abs(
+                                                vertex.color_or_weights[
+                                                    slot_index]) >
+                                            1.0e-6f)
+                                            active_slots[slot_index] = true;
+                                    }
+                                }
+                                for (size_t a = 0; a < active_slots.size();
+                                     ++a) {
+                                    if (!active_slots[a]) continue;
+                                    for (size_t b = a + 1;
+                                         b < active_slots.size(); ++b) {
+                                        if (!active_slots[b]) continue;
+                                        slot_links[a][b] = true;
+                                        slot_links[b][a] = true;
+                                    }
+                                }
+                            }
+                            std::vector<size_t> pending_slots;
+                            for (size_t slot_index = 0;
+                                 slot_index <
+                                     preserve_slot_bind_offsets.size();
+                                 ++slot_index) {
+                                if (preserve_slot_bind_offsets[slot_index])
+                                    pending_slots.push_back(slot_index);
+                            }
+                            for (size_t pending_index = 0;
+                                 pending_index < pending_slots.size();
+                                 ++pending_index) {
+                                const size_t source_slot =
+                                    pending_slots[pending_index];
+                                for (size_t linked_slot = 0;
+                                     linked_slot < slot_links.size();
+                                     ++linked_slot) {
+                                    if (!slot_links[source_slot]
+                                                   [linked_slot] ||
+                                        preserve_slot_bind_offsets[
+                                            linked_slot])
+                                        continue;
+                                    preserve_slot_bind_offsets[linked_slot] =
+                                        true;
+                                    pending_slots.push_back(linked_slot);
+                                }
+                            }
+                        }
+                        if (std::any_of(
+                                preserve_slot_bind_offsets.begin(),
+                                preserve_slot_bind_offsets.end(),
+                                [](bool preserve) { return preserve; }))
+                            ++meshes_with_bind_slots_preserved;
+                        for (size_t slot_index = 0;
+                             slot_index < mesh.bone_slots.size();
+                             ++slot_index) {
+                            auto& slot = mesh.bone_slots[slot_index];
+                            if (slot.bone.empty()) continue;
+                            const std::string template_bone =
+                                resolve_template_bone(slot.bone);
+                            if (template_bone.empty())
+                                throw std::runtime_error(
+                                    "merge-character-render-payload cannot "
+                                    "map donor bone to template rig: " +
+                                    slot.bone);
+                            if (template_bone != slot.bone) {
+                                slot.bone = template_bone;
+                                ++mesh_bind_slots_remapped;
+                            }
+                            if (preserve_slot_bind_offsets[slot_index]) {
+                                ++mesh_bind_slots_preserved;
+                            } else {
+                                slot.offset = multiply_affine_transform(
+                                    invert_affine_transform(
+                                        template_bind_worlds.at(
+                                            template_bone)),
+                                    mesh.transformable.world);
+                                const auto reconstructed_world =
+                                    multiply_affine_transform(
+                                        slot.offset,
+                                        template_bind_worlds.at(
+                                            template_bone));
+                                for (size_t value_index = 0;
+                                     value_index < reconstructed_world.size();
+                                     ++value_index) {
+                                    max_bind_residual = std::max(
+                                        max_bind_residual,
+                                        std::abs(
+                                            reconstructed_world[value_index] -
+                                            mesh.transformable
+                                                .world[value_index]));
+                                }
+                                ++mesh_bind_slots_rebased;
+                            }
+                        }
+                        render_entry.body_bytes =
+                            gh::milo_object::serialize_mesh28(
+                                mesh,
+                                static_cast<uint32_t>(directory.dir_version));
+                        render_entry.size = render_entry.body_bytes.size();
+                    }
+                    template_entries.emplace(key, directory.entries.size());
+                    directory.entries.push_back(std::move(render_entry));
+                    ++render_entries_added;
+                }
+            }
+            if (render_entries_added == 0 ||
+                template_entries.count({"Group", donor_group}) != 1)
+                throw std::runtime_error(
+                    "merge-character-render-payload donor render graph missing");
+            for (const auto& [key, body] : template_controller_bodies) {
+                const auto merged_entry = template_entries.find(key);
+                if (merged_entry == template_entries.end() ||
+                    directory.entries[merged_entry->second].body_bytes != body)
+                    throw std::runtime_error(
+                        "merge-character-render-payload changed template "
+                        "controller: " + key.first + " " + key.second);
+            }
+
+            auto& target = character.character;
+            const auto& donor_target = donor_character.character;
+            for (auto& lod : target.lods) lod.group = donor_group;
+            target.sphere_base = donor_group;
+            target.shadow = donor_target.shadow;
+            target.self_shadow = donor_target.self_shadow;
+            target.render_directory.drawable.sphere =
+                donor_target.render_directory.drawable.sphere;
+            directory.dir_body_bytes =
+                gh::milo_object::serialize_band_character1(character);
+
+            const auto target_payload =
+                gh::milo::serialize_directory(directory);
+            const auto verify_directory =
+                gh::milo::parse_directory(target_payload);
+            if (!verify_directory.boundaries_exact ||
+                gh::milo::serialize_directory(verify_directory) !=
+                    target_payload)
+                throw std::runtime_error(
+                    "merged character directory round trip differs");
+            const auto target_bytes = serialize_generated_milo(target_payload);
+            const auto verify_container =
+                gh::milo::parse_container(target_bytes);
+            const auto verify_container_directory =
+                gh::milo::parse_directory(
+                    gh::milo::container_payload(verify_container));
+            if (!verify_container_directory.boundaries_exact ||
+                gh::milo::serialize_directory(
+                    verify_container_directory) != target_payload)
+                throw std::runtime_error(
+                    "merged character container round trip differs");
+            write_file(output, target_bytes);
+            std::cout << "character_template=" << input.string()
+                      << " donor=" << donor_path.string()
+                      << " group=" << donor_group
+                      << " meshes_enabled=" << enabled_mesh_names.size()
+                      << " transforms_replaced=" << transforms_replaced
+                      << " transforms_added=" << transforms_added
+                      << " transforms_preserved=" << transforms_preserved
+                      << " donor_transforms_skipped="
+                      << donor_transforms_skipped
+                      << " mesh_bind_slots_rebased="
+                      << mesh_bind_slots_rebased
+                      << " mesh_bind_slots_preserved="
+                      << mesh_bind_slots_preserved
+                      << " meshes_with_bind_slots_preserved="
+                      << meshes_with_bind_slots_preserved
+                      << " mesh_bind_slots_remapped="
+                      << mesh_bind_slots_remapped
+                      << " max_bind_residual=" << max_bind_residual
+                      << " max_template_stored_chain_delta="
+                      << max_template_stored_chain_delta
+                      << " controller_entries_preserved="
+                      << template_controller_bodies.size()
+                      << " template_meshes_hidden="
+                      << template_meshes_hidden
+                      << " render_entries_added=" << render_entries_added
+                      << " entries=" << directory.entries.size()
+                      << " bytes=" << target_bytes.size()
+                      << " output=" << output.string() << '\n';
             return 0;
         } catch (const std::exception& ex) {
             std::cerr << "milo_convert_tool: " << ex.what() << "\n";
@@ -1045,15 +3453,39 @@ int main(int argc, char** argv) {
             return 2;
         }
     }
+    if (command == "export-character-snapshot") {
+        if (argc != 5 || std::string(argv[3]) != "--out") usage();
+        try {
+            const fs::path output = argv[4];
+            const auto snapshot = build_character_snapshot(input);
+            write_file(output, snapshot);
+            std::cout << "character_snapshot bytes=" << snapshot.size()
+                      << " output=" << output.string() << '\n';
+            return 0;
+        } catch (const std::exception& ex) {
+            std::cerr << "milo_convert_tool: " << ex.what() << "\n";
+            return 2;
+        }
+    }
     if (command == "inspect-character") {
         bool print_controllers = false;
+        bool print_entries = false;
         bool print_transforms = false;
+        bool print_meshes = false;
+        bool print_mesh_vertices = false;
         for (int arg_index = 3; arg_index < argc; ++arg_index) {
             const std::string option = argv[arg_index];
-            if (option == "--controllers") {
+            if (option == "--entries") {
+                print_entries = true;
+            } else if (option == "--controllers") {
                 print_controllers = true;
             } else if (option == "--transforms") {
                 print_transforms = true;
+            } else if (option == "--meshes") {
+                print_meshes = true;
+            } else if (option == "--mesh-vertices") {
+                print_meshes = true;
+                print_mesh_vertices = true;
             } else {
                 usage();
             }
@@ -1092,6 +3524,13 @@ int main(int argc, char** argv) {
                           << character.lods[index].screen_size
                           << " group="
                           << character.lods[index].group << '\n';
+            }
+            if (print_entries) {
+                for (const auto& entry : directory.entries)
+                    std::cout << "Entry type=" << entry.type
+                              << " name=" << entry.name
+                              << " bytes=" << entry.body_bytes.size()
+                              << '\n';
             }
             if (print_transforms) {
                 const auto print_transform =
@@ -1139,6 +3578,186 @@ int main(int argc, char** argv) {
                     }
                 }
             }
+            if (print_meshes) {
+                for (const auto& entry : directory.entries) {
+                    if (entry.type != "Mesh") continue;
+                    const auto mesh = gh::milo_object::parse_mesh28(
+                        entry.body_bytes,
+                        static_cast<uint32_t>(directory.dir_version));
+                    std::array<float, 3> minimum = {
+                        std::numeric_limits<float>::infinity(),
+                        std::numeric_limits<float>::infinity(),
+                        std::numeric_limits<float>::infinity(),
+                    };
+                    std::array<float, 3> maximum = {
+                        -std::numeric_limits<float>::infinity(),
+                        -std::numeric_limits<float>::infinity(),
+                        -std::numeric_limits<float>::infinity(),
+                    };
+                    for (const auto& vertex : mesh.vertices) {
+                        for (size_t axis = 0; axis < 3; ++axis) {
+                            minimum[axis] = std::min(
+                                minimum[axis], vertex.position[axis]);
+                            maximum[axis] = std::max(
+                                maximum[axis], vertex.position[axis]);
+                        }
+                    }
+                    float maximum_face_edge = 0.0f;
+                    size_t faces_with_edge_over_5 = 0;
+                    size_t faces_with_edge_over_10 = 0;
+                    for (const auto& face : mesh.faces) {
+                        float face_maximum_edge = 0.0f;
+                        for (size_t corner = 0; corner < 3; ++corner) {
+                            const auto& a = mesh.vertices[face[corner]];
+                            const auto& b =
+                                mesh.vertices[face[(corner + 1) % 3]];
+                            float length_squared = 0.0f;
+                            for (size_t axis = 0; axis < 3; ++axis) {
+                                const float delta =
+                                    a.position[axis] - b.position[axis];
+                                length_squared += delta * delta;
+                            }
+                            face_maximum_edge = std::max(
+                                face_maximum_edge, std::sqrt(length_squared));
+                        }
+                        maximum_face_edge = std::max(
+                            maximum_face_edge, face_maximum_edge);
+                        if (face_maximum_edge > 5.0f)
+                            ++faces_with_edge_over_5;
+                        if (face_maximum_edge > 10.0f)
+                            ++faces_with_edge_over_10;
+                    }
+                    if (mesh.vertices.empty()) {
+                        minimum.fill(0.0f);
+                        maximum.fill(0.0f);
+                    }
+                    std::cout << "MeshSkin " << entry.name
+                              << " vertices=" << mesh.vertices.size()
+                              << " faces=" << mesh.faces.size()
+                              << " material=" << mesh.material
+                              << " showing=" << mesh.drawable.showing
+                              << " has_bones=" << mesh.has_bones
+                              << " mutable_flags=" << mesh.mutable_flags
+                              << " groups=" << mesh.group_sizes.size()
+                              << " cached_sections="
+                              << mesh.group_sections.size()
+                              << " geometry_owner=" << mesh.geometry_owner
+                              << " max_face_edge=" << maximum_face_edge
+                              << " faces_edge_gt_5=" << faces_with_edge_over_5
+                              << " faces_edge_gt_10=" << faces_with_edge_over_10
+                              << " bounds_min=[" << minimum[0] << ','
+                              << minimum[1] << ',' << minimum[2] << ']'
+                              << " bounds_max=[" << maximum[0] << ','
+                              << maximum[1] << ',' << maximum[2] << "]\n";
+                    std::cout << "MeshGroups " << entry.name
+                              << " sizes=";
+                    for (size_t group_index = 0;
+                         group_index < mesh.group_sizes.size();
+                         ++group_index) {
+                        if (group_index != 0) std::cout << ',';
+                        std::cout << static_cast<uint32_t>(
+                            mesh.group_sizes[group_index]);
+                    }
+                    std::cout << " sections=";
+                    for (size_t section_index = 0;
+                         section_index < mesh.group_sections.size();
+                         ++section_index) {
+                        if (section_index != 0) std::cout << ',';
+                        const auto& section =
+                            mesh.group_sections[section_index];
+                        std::cout
+                            << section.cumulative_strip_lengths.size()
+                            << ':' << section.strip_runs.size();
+                        if (!section.cumulative_strip_lengths.empty()) {
+                            std::cout
+                                << ':'
+                                << section.cumulative_strip_lengths.front()
+                                << ':'
+                                << section.cumulative_strip_lengths.back();
+                        }
+                    }
+                    std::cout << '\n';
+                    if (print_mesh_vertices) {
+                        const auto old_precision = std::cout.precision();
+                        std::cout << std::setprecision(
+                            std::numeric_limits<float>::max_digits10);
+                        for (size_t vertex_index = 0;
+                             vertex_index < mesh.vertices.size();
+                             ++vertex_index) {
+                            const auto& vertex = mesh.vertices[vertex_index];
+                            std::cout << "MeshSkinVertex " << entry.name
+                                      << " index=" << vertex_index
+                                      << " position=[";
+                            for (size_t axis = 0; axis < 3; ++axis) {
+                                if (axis) std::cout << ',';
+                                std::cout << vertex.position[axis];
+                            }
+                            std::cout << "] normal=[";
+                            for (size_t axis = 0; axis < 3; ++axis) {
+                                if (axis) std::cout << ',';
+                                std::cout << vertex.normal[axis];
+                            }
+                            std::cout << "] weights=[";
+                            for (size_t slot_index = 0;
+                                 slot_index < mesh.bone_slots.size();
+                                 ++slot_index) {
+                                if (slot_index) std::cout << ',';
+                                std::cout <<
+                                    vertex.color_or_weights[slot_index];
+                            }
+                            std::cout << "] bones=[";
+                            for (size_t slot_index = 0;
+                                 slot_index < mesh.bone_slots.size();
+                                 ++slot_index) {
+                                if (slot_index) std::cout << ',';
+                                std::cout << mesh.bone_slots[slot_index].bone;
+                            }
+                            std::cout << "]\n";
+                        }
+                        std::cout.precision(old_precision);
+                    }
+                    if (!mesh.has_bones) continue;
+                    for (size_t slot_index = 0;
+                         slot_index < mesh.bone_slots.size(); ++slot_index) {
+                        const auto& slot = mesh.bone_slots[slot_index];
+                        if (slot.bone.empty()) continue;
+                        double weight_sum = 0.0;
+                        size_t weighted_vertex_count = 0;
+                        std::array<double, 3> weighted_position{};
+                        for (const auto& vertex : mesh.vertices) {
+                            const double weight =
+                                vertex.color_or_weights[slot_index];
+                            if (weight <= 0.0) continue;
+                            weight_sum += weight;
+                            ++weighted_vertex_count;
+                            for (size_t axis = 0; axis < 3; ++axis)
+                                weighted_position[axis] +=
+                                    vertex.position[axis] * weight;
+                        }
+                        std::cout << "MeshSkinSlot " << entry.name
+                                  << " slot=" << slot_index
+                                  << " bone=" << slot.bone
+                                  << " weighted_vertices="
+                                  << weighted_vertex_count
+                                  << " weight_sum=" << weight_sum
+                                  << " weighted_center=[";
+                        for (size_t axis = 0; axis < 3; ++axis) {
+                            if (axis) std::cout << ',';
+                            std::cout << (weight_sum > 0.0
+                                ? weighted_position[axis] / weight_sum
+                                : 0.0);
+                        }
+                        std::cout << "] offset=[";
+                        for (size_t value_index = 0;
+                             value_index < slot.offset.size();
+                             ++value_index) {
+                            if (value_index) std::cout << ',';
+                            std::cout << slot.offset[value_index];
+                        }
+                        std::cout << "]\n";
+                    }
+                }
+            }
             for (const auto& entry : directory.entries) {
                 if (entry.type == "Tex") {
                     const auto tex =
@@ -1168,6 +3787,9 @@ int main(int argc, char** argv) {
                                 entry.body_bytes);
                         std::cout << entry.type << ' ' << entry.name
                                   << " type=" << driver.object_fields.type
+                                  << " weight=" << driver.weightable.weight
+                                  << " owner="
+                                  << driver.weightable.weight_owner
                                   << " bones=" << driver.bones
                                   << " clips=" << driver.clips
                                   << " realign=" << driver.realign
@@ -1180,6 +3802,10 @@ int main(int argc, char** argv) {
                             << entry.type << ' ' << entry.name
                             << " type="
                             << driver.driver.object_fields.type
+                            << " weight="
+                            << driver.driver.weightable.weight
+                            << " owner="
+                            << driver.driver.weightable.weight_owner
                             << " bones=" << driver.driver.bones
                             << " clips=" << driver.driver.clips
                             << " default=" << driver.default_clip
@@ -1263,6 +3889,9 @@ int main(int argc, char** argv) {
                         std::cout << entry.type << ' ' << entry.name
                                   << " type="
                                   << hand.object_fields.type
+                                  << " weight=" << hand.weightable.weight
+                                  << " owner="
+                                  << hand.weightable.weight_owner
                                   << " hand=" << hand.hand
                                   << " target=" << hand.target
                                   << " orientation="
@@ -1594,10 +4223,15 @@ int main(int argc, char** argv) {
     if (command == "sample-clip") {
         if (argc != 5 && argc != 6) usage();
         const std::string clip_name = argv[3];
-        const uint32_t sample_index =
-            static_cast<uint32_t>(std::stoul(argv[4]));
+        const std::string sample_argument = argv[4];
+        const bool sample_all = sample_argument == "all";
+        const uint32_t sample_index = sample_all
+            ? 0
+            : static_cast<uint32_t>(std::stoul(sample_argument));
         const std::string filter = argc == 6 ? argv[5] : std::string();
         try {
+            std::cout << std::setprecision(
+                std::numeric_limits<float>::max_digits10);
             const auto container = gh::milo::parse_container(
                 gh::milo::read_file(input.string()));
             const auto directory = gh::milo::parse_directory(
@@ -1652,7 +4286,14 @@ int main(int argc, char** argv) {
                         std::cout << '\n';
                     }
                 };
-            print_set("full", body.full, sample_index);
+            if (sample_all) {
+                for (uint32_t index = 0; index < body.full.sample_count;
+                     ++index) {
+                    print_set("full", body.full, index);
+                }
+            } else {
+                print_set("full", body.full, sample_index);
+            }
             print_set("one", body.one, 0);
             return 0;
         } catch (const std::exception& ex) {
@@ -1779,6 +4420,10 @@ int main(int argc, char** argv) {
                           << body.full.sample_bytes.size() +
                                  body.one.sample_bytes.size() +
                                  body.duplicate.sample_bytes.size()
+                          << "\tfull_samples=" << body.full.sample_count
+                          << "\tone_samples=" << body.one.sample_count
+                          << "\tduplicate_samples="
+                          << body.duplicate.sample_count
                           << "\tevents=" << body.events.size()
                           << "\tenter=" << body.legacy_enter_event
                           << "\texit=" << body.legacy_exit_event
@@ -1809,6 +4454,8 @@ int main(int argc, char** argv) {
             fs::path output;
             std::string name;
             std::string role_name;
+            int move_self_override = -1;
+            bool control_root_pelvis_parent = false;
             for (int i = 3; i < argc; ++i) {
                 const std::string arg = argv[i];
                 if (arg == "--name" && i + 1 < argc) name = argv[++i];
@@ -1816,6 +4463,11 @@ int main(int argc, char** argv) {
                     role_name = argv[++i];
                 else if (arg == "--out" && i + 1 < argc)
                     output = argv[++i];
+                else if (arg == "--move-self" && i + 1 < argc)
+                    move_self_override =
+                        parse_bool_arg(argv[++i], "--move-self") ? 1 : 0;
+                else if (arg == "--control-root-pelvis-parent")
+                    control_root_pelvis_parent = true;
                 else usage();
             }
             if (output.empty() || name.empty() || role_name.empty())
@@ -1857,7 +4509,9 @@ int main(int argc, char** argv) {
             root.blend_width = sources.front().blend_width;
             root.play_flags = root_play_flags_for_role(role, sources);
             root.move_self =
-                role == gh::milo_convert::Gh2ClipSetRole::GuitarMain;
+                move_self_override >= 0
+                    ? move_self_override != 0
+                    : role == gh::milo_convert::Gh2ClipSetRole::GuitarMain;
             const auto [legacy_type, legacy_type_version] =
                 clipset_legacy_type(role);
             root.legacy_type = legacy_type;
@@ -1886,6 +4540,15 @@ int main(int argc, char** argv) {
                 root.clips.push_back(
                     {source.object_name, clip.flags, allocation_size});
             }
+            std::vector<std::string> context_bases;
+            context_bases.reserve(contexts.size());
+            for (const auto& [base, context] : contexts) {
+                (void)context;
+                context_bases.push_back(base);
+            }
+            for (const auto& base : context_bases)
+                add_generated_parent_contexts(
+                    contexts, role, base, control_root_pelvis_parent);
 
             if (role == gh::milo_convert::Gh2ClipSetRole::GuitarMain)
                 add_generated_guitar_clip_groups(directory, sources);
@@ -1903,12 +4566,22 @@ int main(int argc, char** argv) {
                 gh::milo_object::CharBone2 bone;
                 set_identity(bone.legacy_transform.local);
                 set_identity(bone.legacy_transform.world);
+                generated_guitar_controller_local(
+                    base, bone.legacy_transform.local);
+                const std::string parent =
+                    generated_guitar_parent_base(
+                        role, base, control_root_pelvis_parent);
+                if (!parent.empty())
+                    bone.legacy_transform.parent =
+                        generated_char_bone_parent_name(
+                            parent, base, bone_extension);
                 bone.position_context = context.position;
                 bone.scale_context = context.scale;
                 bone.rotation = rotation_context(context);
                 bone.legacy_rotation = 9;
                 directory.entries.push_back(make_entry(
-                    "CharBone", base + bone_extension,
+                    "CharBone",
+                    generated_char_bone_name(base, bone_extension),
                     gh::milo_object::serialize_char_bone2(bone)));
             }
 
@@ -1943,6 +4616,7 @@ int main(int argc, char** argv) {
                 << " clips=" << sources.size()
                 << " bones=" << contexts.size()
                 << " entries=" << directory.entries.size()
+                << " move_self=" << (root.move_self ? 1 : 0)
                 << " bytes=" << target_bytes.size()
                 << " output=" << output.string() << '\n';
             return 0;
@@ -2057,6 +4731,10 @@ int main(int argc, char** argv) {
                 for (const auto& chunk : bundle.chunks) {
                     if (chunk.material == material_name) {
                         mat.diffuse_texture = chunk.texture;
+                        mat.alpha_cut = mat.alpha_cut || chunk.alpha_cut;
+                        mat.alpha_write = mat.alpha_write || chunk.alpha_write;
+                        mat.z_mode = chunk.z_mode;
+                        mat.cull = mat.cull && chunk.cull;
                         break;
                     }
                 }
@@ -2120,6 +4798,8 @@ int main(int argc, char** argv) {
             if (has_guitarist_graph)
                 append_guitarist_runtime_graph(
                     directory, main_anim, strum_anim, fret_anim);
+            if (has_guitarist_graph)
+                patch_guitarist_proxy_transforms(directory);
 
             const auto target_payload =
                 gh::milo::serialize_directory(directory);

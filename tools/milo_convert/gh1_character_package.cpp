@@ -269,6 +269,57 @@ uint32_t guitar_group_membership_mask() {
     return mask;
 }
 
+int guitar_group_clip_priority(
+    const std::string& group_name,
+    const std::string& clip_name) {
+    if (group_name == "idle") {
+        if (clip_name == "idle_medium_01") return 0;
+        if (clip_name.find("medium") != std::string::npos ||
+            clip_name.find("_med_") != std::string::npos)
+            return 10;
+        if (clip_name.find("slow") != std::string::npos ||
+            clip_name.find("_slw_") != std::string::npos)
+            return 20;
+        if (clip_name.find("fast") != std::string::npos ||
+            clip_name.find("_fst_") != std::string::npos)
+            return 30;
+        return 40;
+    }
+    if (group_name == "normal") {
+        if (clip_name == "idle_medium_01") return 0;
+        if (clip_name.rfind("stand_medium_", 0) == 0) return 10;
+        if (clip_name.rfind("stand_slow_", 0) == 0) return 20;
+        if (clip_name.rfind("stand_fast_", 0) == 0) return 30;
+        if (clip_name.find("medium") != std::string::npos ||
+            clip_name.find("_med_") != std::string::npos)
+            return 40;
+        if (clip_name.find("slow") != std::string::npos ||
+            clip_name.find("_slw_") != std::string::npos)
+            return 50;
+        if (clip_name.find("fast") != std::string::npos ||
+            clip_name.find("_fst_") != std::string::npos)
+            return 60;
+        return 70;
+    }
+    return 0;
+}
+
+void sort_guitar_group_clips(
+    const std::string& group_name,
+    std::vector<std::string>& clips) {
+    std::stable_sort(
+        clips.begin(), clips.end(),
+        [&](const std::string& left, const std::string& right) {
+            const int left_priority =
+                guitar_group_clip_priority(group_name, left);
+            const int right_priority =
+                guitar_group_clip_priority(group_name, right);
+            if (left_priority != right_priority)
+                return left_priority < right_priority;
+            return left < right;
+        });
+}
+
 void add_guitar_groups(
     gh::milo::Directory& directory,
     const Gh1ClipSetSpec& spec,
@@ -291,6 +342,7 @@ void add_guitar_groups(
         if (clips.empty()) continue;
         gh::milo_object::CharClipGroup1 group;
         group.clips = clips;
+        sort_guitar_group_clips(name, group.clips);
         group.which = 0;
         directory.entries.push_back(make_entry(
             "CharClipGroup", name,

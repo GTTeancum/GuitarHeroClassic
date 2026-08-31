@@ -345,6 +345,16 @@ bool is_face_clip_channel(std::string_view name) {
                    [](unsigned char c) {
                        return static_cast<char>(std::tolower(c));
                    });
+    const size_t dot = lower.find('.');
+    const std::string base =
+        dot == std::string::npos ? lower : lower.substr(0, dot);
+    if (base == "bone_gh3_e8e9bb36" || base == "bone_gh3_12e68655" ||
+        base == "bone_gh3_2a8d0c00" || base == "bone_gh3_7c73f6cf" ||
+        base == "bone_gh3_867ccbac" || base == "bone_gh3_5378af83" ||
+        base == "bone_gh3_a97792e0" || base == "bone_gh3_b8ca856b" ||
+        base == "bone_gh3_c8a071e4" || base == "bone_gh3_a6bc7033") {
+        return true;
+    }
     return lower.find("face") != std::string::npos ||
            lower.find("mouth") != std::string::npos ||
            lower.find("lip") != std::string::npos ||
@@ -3784,11 +3794,30 @@ void dump_hand_pose_rows(const ghogx::character::Character& character,
     std::fprintf(stderr, "\n");
 
     static constexpr const char* kBones[] = {
+        "bone_pelvis",
+        "bone_spine1",
+        "bone_spine2",
+        "bone_spine3",
+        "bone_L-clavicle",
+        "bone_R-clavicle",
+        "bone_L-thigh",
+        "bone_L-knee",
+        "bone_L-ankle",
+        "bone_L-toe",
+        "bone_R-thigh",
+        "bone_R-knee",
+        "bone_R-ankle",
+        "bone_R-toe",
         "bone_pos_guitar",
         "bone_fret",
+        "bone_neck",
+        "bone_head",
         "bone_L-upperArm",
         "bone_L-foreArm",
         "bone_L-hand",
+        "bone_R-upperArm",
+        "bone_R-foreArm",
+        "bone_R-hand",
         "bone_fret_hand",
         "bone_L-index01",
         "bone_L-index02",
@@ -47695,24 +47724,46 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 }
             }
 
-            if (const auto forced_time =
-                    diagnostic_performer_clip_time_override(perf.role)) {
-                const auto requested =
-                    diagnostic_performer_clip_override(perf.role);
-                const auto* current = perf.active_player.current_clip();
-                if (requested && perf.active_clip.loaded &&
-                    perf.active_clip.name == *requested) {
-                    if (!current || current->name != *requested ||
-                        perf.active_player.source_stack_depth() != 1) {
-                        perf.active_player.clear();
-                        perf.active_player.play(
-                            perf.active_clip,
-                            ghogx::character::kCharPlayLoop |
-                                ghogx::character::kCharPlayNoBlend);
+            auto apply_diagnostic_forced_clip_time =
+                [&](const char* phase) {
+                    const auto forced_time =
+                        diagnostic_performer_clip_time_override(perf.role);
+                    if (!forced_time) return;
+                    const auto requested =
+                        diagnostic_performer_clip_override(perf.role);
+                    const auto* current = perf.active_player.current_clip();
+                    if (requested && perf.active_clip.loaded &&
+                        perf.active_clip.name == *requested) {
+                        if (!current || current->name != *requested ||
+                            perf.active_player.source_stack_depth() != 1) {
+                            perf.active_player.clear();
+                            perf.active_player.play(
+                                perf.active_clip,
+                                ghogx::character::kCharPlayLoop |
+                                    ghogx::character::kCharPlayNoBlend);
+                        }
+                        perf.active_player.seek_current_time_seconds(
+                            *forced_time);
+                        if (env_value(
+                                "GHOGX_DEBUG_DIAGNOSTIC_CLIP_TIME") !=
+                            nullptr) {
+                            const auto* after =
+                                perf.active_player.current_clip();
+                            std::fprintf(
+                                stderr,
+                                "[diagnostic-clip-time] role=%s phase=%s "
+                                "requested=%s active=%s time=%.3f "
+                                "forced=%.3f stack=%zu\n",
+                                perf.role.c_str(), phase,
+                                requested ? requested->c_str() : "<none>",
+                                after ? after->name.c_str() : "<none>",
+                                perf.active_player.current_time_seconds(),
+                                *forced_time,
+                                perf.active_player.source_stack_depth());
+                        }
                     }
-                    perf.active_player.seek_current_time_seconds(*forced_time);
-                }
-            }
+                };
+            apply_diagnostic_forced_clip_time("post-drivers");
 
             auto active_main_driver_player =
                 [&]() -> const ghogx::character::CharClipPlayer* {
@@ -47784,6 +47835,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
             }
             ghogx::character::CharacterPosePlayerLayerBuildSources
                 pose_player_inputs;
+            apply_diagnostic_forced_clip_time("pre-pose-stack");
             pose_player_inputs.main = active_main_driver_player();
             pose_player_inputs.face_base =
                 perf.facefx_graph && perf.face_visemes_clip.loaded
@@ -49951,6 +50003,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     facing_length > 1.0e-5f
                         ? std::atan2(facing[0], -facing[1])
                         : 0.0f;
+                cam.yaw += env_float(
+                    "GHOGX_DIAGNOSTIC_FRONT_CAMERA_YAW_OFFSET", 0.0f);
                 cam.pitch = env_float(
                     "GHOGX_DIAGNOSTIC_FRONT_CAMERA_PITCH", 0.06f);
                 cam.distance = env_float(

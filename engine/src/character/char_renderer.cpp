@@ -747,6 +747,10 @@ bool debug_skin_bounds_enabled() {
   return char_env_enabled("GHOGX_DEBUG_SKIN_BOUNDS");
 }
 
+bool debug_skin_seams_enabled() {
+  return char_env_enabled("GHOGX_DEBUG_SKIN_SEAMS");
+}
+
 bool debug_face_rows_enabled() {
   return char_env_enabled("GHOGX_DEBUG_FACE_ROWS");
 }
@@ -2096,8 +2100,18 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
   const bool debug_meshes = debug_meshes_enabled();
   const bool debug_lighting = debug_lighting_enabled();
   const bool debug_skin_bounds = debug_skin_bounds_enabled();
+  const bool debug_skin_seams = debug_skin_seams_enabled();
   const bool debug_surface_contact = debug_surface_contact_enabled();
   const bool debug_texture_alpha = debug_texture_alpha_enabled();
+
+  struct DebugSkinSeamSample {
+    std::string mesh;
+    size_t vertex = 0;
+    std::array<float, 3> source = {0, 0, 0};
+    std::array<float, 3> posed = {0, 0, 0};
+  };
+  std::unordered_map<std::string, std::vector<DebugSkinSeamSample>>
+      debug_skin_seam_groups;
 
   for (const SkinnedMesh* mp : draw_meshes) {
     const auto& m = *mp;
@@ -2286,10 +2300,90 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
           mn[2] = std::min(mn[2], z); mx[2] = std::max(mx[2], z);
         }
       }
+      float maximum_face_edge = 0.0f;
+      size_t maximum_face_index = 0;
+      std::array<uint16_t, 3> maximum_face_vertices = {0, 0, 0};
+      size_t faces_with_edge_over_5 = 0;
+      size_t faces_with_edge_over_10 = 0;
+      for (size_t index = 0; index + 2 < m.indices.size(); index += 3) {
+        float face_maximum_edge = 0.0f;
+        for (size_t corner = 0; corner < 3; ++corner) {
+          const uint16_t a_index = m.indices[index + corner];
+          const uint16_t b_index = m.indices[index + (corner + 1) % 3];
+          if (a_index >= spos.size() || b_index >= spos.size()) continue;
+          float length_squared = 0.0f;
+          for (size_t axis = 0; axis < 3; ++axis) {
+            const float delta = spos[a_index][axis] - spos[b_index][axis];
+            length_squared += delta * delta;
+          }
+          face_maximum_edge =
+              std::max(face_maximum_edge, std::sqrt(length_squared));
+        }
+        if (face_maximum_edge > maximum_face_edge) {
+          maximum_face_edge = face_maximum_edge;
+          maximum_face_index = index / 3;
+          maximum_face_vertices = {m.indices[index], m.indices[index + 1],
+                                   m.indices[index + 2]};
+        }
+        if (face_maximum_edge > 5.0f) ++faces_with_edge_over_5;
+        if (face_maximum_edge > 10.0f) ++faces_with_edge_over_10;
+      }
       std::fprintf(stderr,
-                   "[skin-bounds] %-24s mat=%-18s verts=%zu bbox=(%.2f %.2f %.2f)..(%.2f %.2f %.2f)\n",
+                   "[skin-bounds] %-24s mat=%-18s verts=%zu "
+                   "bbox=(%.2f %.2f %.2f)..(%.2f %.2f %.2f) "
+                   "maxFaceEdge=%.3f faceEdgeGt5=%zu faceEdgeGt10=%zu\n",
                    m.name.c_str(), m.material.c_str(), spos.size(), mn[0],
-                   mn[1], mn[2], mx[0], mx[1], mx[2]);
+                   mn[1], mn[2], mx[0], mx[1], mx[2], maximum_face_edge,
+                   faces_with_edge_over_5, faces_with_edge_over_10);
+      if (maximum_face_edge > 10.0f) {
+        auto palette_name = [&](size_t slot) -> const char* {
+          return slot < m.bone_palette.size()
+                     ? m.bone_palette[slot].c_str()
+                     : "<none>";
+        };
+        std::fprintf(stderr,
+                     "[skin-max-face] mesh=%s face=%zu edge=%.3f "
+                     "indices=(%u %u %u) palette=(%s|%s|%s|%s)\n",
+                     m.name.c_str(), maximum_face_index, maximum_face_edge,
+                     maximum_face_vertices[0], maximum_face_vertices[1],
+                     maximum_face_vertices[2], palette_name(0),
+                     palette_name(1), palette_name(2), palette_name(3));
+        for (size_t corner = 0; corner < maximum_face_vertices.size();
+             ++corner) {
+          const size_t vertex_index = maximum_face_vertices[corner];
+          if (vertex_index >= m.verts.size() || vertex_index >= spos.size())
+            continue;
+          const auto& source = m.verts[vertex_index];
+          const auto& posed = spos[vertex_index];
+          std::fprintf(stderr,
+                       "[skin-max-vertex] mesh=%s face=%zu corner=%zu "
+                       "vertex=%zu source=(%.4f %.4f %.4f) "
+                       "posed=(%.4f %.4f %.4f) "
+                       "weights=(%.6f %.6f %.6f %.6f)\n",
+                       m.name.c_str(), maximum_face_index, corner,
+                       vertex_index, source.px, source.py, source.pz,
+                       posed[0], posed[1], posed[2], source.w[0], source.w[1],
+                       source.w[2], source.w[3]);
+        }
+      }
+    }
+    if (debug_skin_seams && !spos.empty()) {
+      for (size_t vertex_index = 0; vertex_index < m.verts.size() &&
+                                    vertex_index < spos.size();
+           ++vertex_index) {
+        const auto& source = m.verts[vertex_index];
+        uint32_t source_bits[3] = {0, 0, 0};
+        std::memcpy(&source_bits[0], &source.px, sizeof(uint32_t));
+        std::memcpy(&source_bits[1], &source.py, sizeof(uint32_t));
+        std::memcpy(&source_bits[2], &source.pz, sizeof(uint32_t));
+        char key_suffix[32] = {};
+        std::snprintf(key_suffix, sizeof(key_suffix), "%08x%08x%08x",
+                      source_bits[0], source_bits[1], source_bits[2]);
+        auto posed_world = transform_point(spos[vertex_index], mw);
+        debug_skin_seam_groups[m.material + "|" + key_suffix].push_back(
+            {m.name, vertex_index, {source.px, source.py, source.pz},
+             posed_world});
+      }
     }
     if (debug_surface_contact && debug_mesh_mode &&
         !spos.empty()) {
@@ -2592,6 +2686,60 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
                    m.verts.size(), m.indices.size(), m.indices.size() / 3);
     }
   }
+  if (debug_skin_seams) {
+    size_t cross_mesh_groups = 0;
+    size_t cross_mesh_pairs = 0;
+    size_t pairs_over_005 = 0;
+    size_t pairs_over_025 = 0;
+    size_t pairs_over_1 = 0;
+    float maximum_separation = 0.0f;
+    DebugSkinSeamSample worst_a;
+    DebugSkinSeamSample worst_b;
+    for (const auto& [key, samples] : debug_skin_seam_groups) {
+      (void)key;
+      bool group_crosses_meshes = false;
+      for (size_t a_index = 0; a_index < samples.size(); ++a_index) {
+        for (size_t b_index = a_index + 1; b_index < samples.size();
+             ++b_index) {
+          const auto& a = samples[a_index];
+          const auto& b = samples[b_index];
+          if (a.mesh == b.mesh) continue;
+          group_crosses_meshes = true;
+          float separation_squared = 0.0f;
+          for (size_t axis = 0; axis < 3; ++axis) {
+            const float delta = a.posed[axis] - b.posed[axis];
+            separation_squared += delta * delta;
+          }
+          const float separation = std::sqrt(separation_squared);
+          ++cross_mesh_pairs;
+          if (separation > 0.05f) ++pairs_over_005;
+          if (separation > 0.25f) ++pairs_over_025;
+          if (separation > 1.0f) ++pairs_over_1;
+          if (separation > maximum_separation) {
+            maximum_separation = separation;
+            worst_a = a;
+            worst_b = b;
+          }
+        }
+      }
+      if (group_crosses_meshes) ++cross_mesh_groups;
+    }
+    std::fprintf(
+        stderr,
+        "[skin-seams] groups=%zu pairs=%zu gt0.05=%zu gt0.25=%zu "
+        "gt1=%zu max=%.6f source=(%.4f %.4f %.4f) "
+        "a=%s:%zu posed=(%.4f %.4f %.4f) "
+        "b=%s:%zu posed=(%.4f %.4f %.4f)\n",
+        cross_mesh_groups, cross_mesh_pairs, pairs_over_005,
+        pairs_over_025, pairs_over_1, maximum_separation,
+        worst_a.source[0], worst_a.source[1], worst_a.source[2],
+        worst_a.mesh.empty() ? "<none>" : worst_a.mesh.c_str(),
+        worst_a.vertex, worst_a.posed[0], worst_a.posed[1],
+        worst_a.posed[2],
+        worst_b.mesh.empty() ? "<none>" : worst_b.mesh.c_str(),
+        worst_b.vertex, worst_b.posed[0], worst_b.posed[1],
+        worst_b.posed[2]);
+  }
   d3d_state.render(D3DRS_ZWRITEENABLE, TRUE);
   d3d_state.render(D3DRS_BLENDOP, D3DBLENDOP_ADD);
   d3d_state.render(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
@@ -2663,10 +2811,12 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
             impl.character.bone_world_local_chain(transform.name));
       }
       static constexpr const char* kPropDebugObjects[] = {
-          "bone_pos_guitar.mesh",
-          "bone_fret.mesh",
-          "bone_fret_hand.mesh",
-          "guitar.mesh",
+           "bone_pos_guitar.mesh",
+           "bone_fret.mesh",
+           "bone_fret_hand.mesh",
+           "bone_strum.mesh",
+           "bone_strum_hand.mesh",
+           "guitar.mesh",
           "guitar_detail01.mesh",
           "guitar_detail02.mesh",
           "guitar_detail03.mesh",
@@ -2678,9 +2828,11 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
         const auto stored_world =
             scene_object_stored_world(impl.prop_scene, object_name);
         if (!stored_world) continue;
-        const auto composed_world =
-            scene_object_world(impl.prop_scene, object_name);
-        const auto composed_char = mul16(composed_world, prop_to_attach);
+         const auto composed_world =
+             scene_object_world(impl.prop_scene, object_name);
+         const auto anchor_local =
+             mul16(composed_world, affine_inverse(prop_anchor_world));
+         const auto composed_char = mul16(composed_world, prop_to_attach);
         const auto stored_char = mul16(*stored_world, prop_to_attach);
         std::fprintf(stderr,
                      "[prop-rel] obj=%s comp=(%.3f %.3f %.3f)\n",
@@ -2690,10 +2842,14 @@ void CharRenderer::draw_impl(bool clear_target, uint32_t clear_color) {
                      "[prop-rel] obj=%s stored=(%.3f %.3f %.3f)\n",
                      object_name, (*stored_world)[12], (*stored_world)[13],
                      (*stored_world)[14]);
-        std::fprintf(stderr,
-                     "[prop-rel] obj=%s char_comp=(%.3f %.3f %.3f)\n",
-                     object_name, composed_char[12], composed_char[13],
-                     composed_char[14]);
+         std::fprintf(stderr,
+                      "[prop-rel] obj=%s char_comp=(%.3f %.3f %.3f)\n",
+                      object_name, composed_char[12], composed_char[13],
+                      composed_char[14]);
+         std::fprintf(stderr,
+                      "[prop-anchor-local] obj=%s pos=(%.6f %.6f %.6f)\n",
+                      object_name, anchor_local[12], anchor_local[13],
+                      anchor_local[14]);
         std::fprintf(stderr,
                      "[prop-rel] obj=%s char_stored=(%.3f %.3f %.3f)\n",
                      object_name, stored_char[12], stored_char[13],

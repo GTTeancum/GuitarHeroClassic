@@ -45,6 +45,10 @@ target_link_libraries(ghogx_character_clip_audit PRIVATE ghogx_character)
 add_executable(ghogx_character_facefx_audit char_facefx_audit.cpp)
 target_link_libraries(ghogx_character_facefx_audit PRIVATE ghogx_character)
 
+add_executable(ghogx_character_pose_export char_pose_export.cpp)
+target_link_libraries(ghogx_character_pose_export PRIVATE
+    ghogx_character ghogx_render)
+
 add_executable(ghogx_character_clip_driver_flags_test
     character_clip_driver_flags_test.cpp)
 target_link_libraries(ghogx_character_clip_driver_flags_test PRIVATE

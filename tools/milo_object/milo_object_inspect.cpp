@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <limits>
@@ -99,13 +101,16 @@ void print_mesh_vertices(const MeshType& mesh) {
 int main(int argc, char** argv) {
     const bool print_vertices =
         argc == 4 && std::string(argv[3]) == "--vertices";
-    if (argc != 3 && !print_vertices) {
+    const bool char_clip_sample_decode =
+        argc >= 4 && std::string(argv[1]) == "charclipsamples10";
+    if (argc != 3 && !print_vertices && !char_clip_sample_decode) {
         std::fprintf(
             stderr,
             "Usage: milo_object_inspect "
-            "<animfilter1|matanim5|bandcharacter1|camshot20|transanim4|transanim6|view7|group12|waypoint3|"
+            "<animfilter1|matanim5|bandcharacter1|camshot20|charbone2|trans9|"
+            "charclipsamples10|transanim4|transanim6|view7|group12|waypoint3|"
             "mesh25|mesh28|worldfx1> "
-            "<object-body> [--vertices]\n");
+            "<object-body> [--vertices|<frame> [channel-substring]]\n");
         return 2;
     }
     try {
@@ -223,6 +228,199 @@ int main(int argc, char** argv) {
                 std::printf(
                     "subdirectory=%zu path=%s\n", i,
                     objects.subdirectories[i].c_str());
+            }
+            return 0;
+        }
+        if (std::string(argv[1]) == "charbone2") {
+            const auto bone =
+                gh::milo_object::parse_char_bone2(read_file(argv[2]));
+            const auto& xfm = bone.legacy_transform;
+            std::printf(
+                "revision=%u object_type=%s parent=%s position_context=%d "
+                "scale_context=%d rotation=%d legacy_rotation=%d "
+                "local=(%.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g "
+                "%.9g %.9g %.9g) "
+                "world=(%.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g "
+                "%.9g %.9g %.9g)\n",
+                bone.revision, bone.object_fields.type.c_str(),
+                xfm.parent.c_str(), bone.position_context ? 1 : 0,
+                bone.scale_context ? 1 : 0, bone.rotation,
+                bone.legacy_rotation, xfm.local[0], xfm.local[1],
+                xfm.local[2], xfm.local[3], xfm.local[4], xfm.local[5],
+                xfm.local[6], xfm.local[7], xfm.local[8], xfm.local[9],
+                xfm.local[10], xfm.local[11], xfm.world[0], xfm.world[1],
+                xfm.world[2], xfm.world[3], xfm.world[4], xfm.world[5],
+                xfm.world[6], xfm.world[7], xfm.world[8], xfm.world[9],
+                xfm.world[10], xfm.world[11]);
+            return 0;
+        }
+        if (std::string(argv[1]) == "trans9") {
+            const auto trans =
+                gh::milo_object::parse_trans9(read_file(argv[2]));
+            std::printf(
+                "parent=%s local=(%.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g "
+                "%.9g %.9g %.9g) "
+                "world=(%.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g "
+                "%.9g %.9g %.9g)\n",
+                trans.parent.c_str(), trans.local[0], trans.local[1],
+                trans.local[2], trans.local[3], trans.local[4],
+                trans.local[5], trans.local[6], trans.local[7],
+                trans.local[8], trans.local[9], trans.local[10],
+                trans.local[11], trans.world[0], trans.world[1],
+                trans.world[2], trans.world[3], trans.world[4],
+                trans.world[5], trans.world[6], trans.world[7],
+                trans.world[8], trans.world[9], trans.world[10],
+                trans.world[11]);
+            return 0;
+        }
+        if (std::string(argv[1]) == "charclipsamples10") {
+            const auto clip =
+                gh::milo_object::parse_char_clip_samples10(read_file(argv[2]));
+            const auto print_samples =
+                [](const char* label,
+                   const gh::milo_object::CharBonesSamples10& samples) {
+                    std::printf(
+                        "%s channels=%zu samples=%u compression=%u "
+                        "sample_bytes=%zu counts=(%u %u %u %u %u %u %u %u %u %u)\n",
+                        label, samples.channels.size(),
+                        samples.sample_count, samples.compression,
+                        samples.sample_bytes.size(), samples.counts[0],
+                        samples.counts[1], samples.counts[2],
+                        samples.counts[3], samples.counts[4],
+                        samples.counts[5], samples.counts[6],
+                        samples.counts[7], samples.counts[8],
+                        samples.counts[9]);
+                    for (size_t i = 0; i < samples.channels.size(); ++i)
+                        std::printf("%s channel=%zu %s\n", label, i,
+                                    samples.channels[i].c_str());
+                };
+            auto ends_with = [](const std::string& value,
+                                const char* suffix) {
+                const std::string s(suffix);
+                return value.size() >= s.size() &&
+                       value.compare(value.size() - s.size(), s.size(), s) ==
+                           0;
+            };
+            auto sample_stride =
+                [&](const gh::milo_object::CharBonesSamples10& samples) {
+                    size_t size = 0;
+                    for (const auto& channel : samples.channels) {
+                        if (ends_with(channel, ".pos") ||
+                            ends_with(channel, ".scale")) {
+                            size += 12;
+                        } else if (ends_with(channel, ".quat")) {
+                            size += samples.compression == 0 ? 16 : 8;
+                        } else {
+                            size += samples.compression == 0 ? 4 : 2;
+                        }
+                    }
+                    return size;
+                };
+            auto read_f32 = [](const uint8_t* p) {
+                float value = 0.0f;
+                std::memcpy(&value, p, sizeof(value));
+                return value;
+            };
+            auto read_i16 = [](const uint8_t* p) {
+                int16_t value = 0;
+                std::memcpy(&value, p, sizeof(value));
+                return value;
+            };
+            auto snorm16 = [](int16_t value) {
+                return std::max(static_cast<float>(value) / 32767.0f, -1.0f);
+            };
+            auto print_decoded =
+                [&](const char* label,
+                    const gh::milo_object::CharBonesSamples10& samples,
+                    uint32_t frame,
+                    const std::string& needle) {
+                    if (samples.sample_count == 0 ||
+                        samples.sample_bytes.empty())
+                        return;
+                    if (frame >= samples.sample_count)
+                        frame = samples.sample_count - 1;
+                    const size_t stride = sample_stride(samples);
+                    const uint8_t* cursor =
+                        samples.sample_bytes.data() +
+                        static_cast<size_t>(frame) * stride;
+                    for (size_t i = 0; i < samples.channels.size(); ++i) {
+                        const std::string& channel = samples.channels[i];
+                        const uint8_t* channel_cursor = cursor;
+                        if (ends_with(channel, ".pos") ||
+                            ends_with(channel, ".scale")) {
+                            if (needle.empty() ||
+                                channel.find(needle) != std::string::npos) {
+                                std::printf(
+                                    "%s sample frame=%u channel=%zu %s "
+                                    "value=(%.9g %.9g %.9g)\n",
+                                    label, frame, i, channel.c_str(),
+                                    read_f32(channel_cursor),
+                                    read_f32(channel_cursor + 4),
+                                    read_f32(channel_cursor + 8));
+                            }
+                            cursor += 12;
+                        } else if (ends_with(channel, ".quat")) {
+                            if (needle.empty() ||
+                                channel.find(needle) != std::string::npos) {
+                                float x = 0.0f;
+                                float y = 0.0f;
+                                float z = 0.0f;
+                                float w = 1.0f;
+                                if (samples.compression == 0) {
+                                    x = read_f32(channel_cursor);
+                                    y = read_f32(channel_cursor + 4);
+                                    z = read_f32(channel_cursor + 8);
+                                    w = read_f32(channel_cursor + 12);
+                                } else {
+                                    x = snorm16(read_i16(channel_cursor));
+                                    y = snorm16(read_i16(channel_cursor + 2));
+                                    z = snorm16(read_i16(channel_cursor + 4));
+                                    w = snorm16(read_i16(channel_cursor + 6));
+                                }
+                                std::printf(
+                                    "%s sample frame=%u channel=%zu %s "
+                                    "xyzw=(%.9g %.9g %.9g %.9g)\n",
+                                    label, frame, i, channel.c_str(), x, y, z,
+                                    w);
+                            }
+                            cursor += samples.compression == 0 ? 16 : 8;
+                        } else {
+                            if (needle.empty() ||
+                                channel.find(needle) != std::string::npos) {
+                                const float value =
+                                    samples.compression == 0
+                                        ? read_f32(channel_cursor)
+                                        : snorm16(read_i16(channel_cursor));
+                                std::printf(
+                                    "%s sample frame=%u channel=%zu %s "
+                                    "value=%.9g\n",
+                                    label, frame, i, channel.c_str(), value);
+                            }
+                            cursor += samples.compression == 0 ? 4 : 2;
+                        }
+                    }
+                };
+            std::printf(
+                "revision=%u char_clip_revision=%u object_type=%s "
+                "start=%.9g end=%.9g bps=%.9g flags=%u play_flags=%u "
+                "blend_width=%.9g range=%.9g legacy_flag=%d "
+                "transitions=%zu events=%zu\n",
+                clip.revision, clip.char_clip_revision,
+                clip.object_fields.type.c_str(), clip.start_beat,
+                clip.end_beat, clip.beats_per_second, clip.flags,
+                clip.play_flags, clip.blend_width, clip.range,
+                clip.legacy_flag ? 1 : 0, clip.transitions.size(),
+                clip.events.size());
+            print_samples("full", clip.full);
+            print_samples("one", clip.one);
+            print_samples("duplicate", clip.duplicate);
+            if (argc >= 4) {
+                const uint32_t frame =
+                    static_cast<uint32_t>(std::strtoul(argv[3], nullptr, 10));
+                const std::string needle = argc >= 5 ? argv[4] : "";
+                print_decoded("full", clip.full, frame, needle);
+                print_decoded("one", clip.one, frame, needle);
+                print_decoded("duplicate", clip.duplicate, frame, needle);
             }
             return 0;
         }

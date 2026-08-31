@@ -48,6 +48,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -2908,8 +2909,9 @@ std::vector<std::vector<ClipChannel>> parse_all(
 
   std::vector<BoneList> lists;
   size_t p = SIZE_MAX;
+  bool empty_noop = false;
 
-  auto try_candidate = [&](size_t at) -> bool {
+  auto try_candidate = [&](size_t at, bool allow_empty_noop) -> bool {
     std::vector<BoneList> candidate;
     size_t q = at;
     bool ok = true;
@@ -2923,17 +2925,22 @@ std::vector<std::vector<ClipChannel>> parse_all(
     }
     if (!ok || candidate.empty()) return false;
     bool has_channels = false;
+    bool is_empty_noop = true;
     uint64_t sample_bytes = 0;
     for (size_t i = 0; i < candidate.size() && i < 2; ++i) {
       const auto& bl = candidate[i];
       if (!bl.names.empty()) has_channels = true;
+      if (!bl.names.empty() || bl.frame_bytes != 0 || bl.num_samples != 0) {
+        is_empty_noop = false;
+      }
       sample_bytes += static_cast<uint64_t>(bl.frame_bytes) *
                       static_cast<uint64_t>(bl.num_samples);
     }
-    if (!has_channels) return false;
+    if (!has_channels && !(allow_empty_noop && is_empty_noop)) return false;
     if (sample_bytes == n - q) {
       candidate.resize(2);
       lists = std::move(candidate);
+      empty_noop = !has_channels;
       if (sample_header_offset_out) *sample_header_offset_out = at;
       p = q;
       return true;
@@ -2946,13 +2953,14 @@ std::vector<std::vector<ClipChannel>> parse_all(
   // serialized header for version 8+. Prefer the CharClip metadata reader's
   // exact offset when available, then fall back to the historical scanner. The
   // scanner still matters for odd retail bodies whose metadata parser cannot
-  // describe every pre-sample field.
+  // describe every pre-sample field. Only the metadata-anchored path accepts
+  // a zero-channel body, which is the serialized form of a static no-op clip.
   if (preferred_sample_header_offset != SIZE_MAX &&
       preferred_sample_header_offset + 52 <= n) {
-    try_candidate(preferred_sample_header_offset);
+    try_candidate(preferred_sample_header_offset, true);
   }
   for (size_t at = 4; lists.empty() && at + 52 <= n; ++at) {
-    try_candidate(at);
+    try_candidate(at, false);
   }
   if (lists.empty() || p == SIZE_MAX) {
     if (debug_clip_parse_enabled()) {
@@ -3009,7 +3017,10 @@ std::vector<std::vector<ClipChannel>> parse_all(
   // frame count; one-sample lists are constant channels repeated across frames.
   int num_samples = 0;
   for (auto& bl : lists) num_samples = std::max(num_samples, bl.num_samples);
-  if (num_samples <= 0) return {};
+  if (num_samples <= 0) {
+    if (!empty_noop) return {};
+    num_samples = 1;
+  }
   num_samples_out = num_samples;
 
   std::vector<std::vector<ClipChannel>> frames(num_samples);
@@ -3300,6 +3311,20 @@ struct LoadedClipMilo {
   gh::milo::Directory directory;
 };
 
+std::vector<uint8_t> read_binary_file(const std::string& path) {
+  std::ifstream input(path, std::ios::binary | std::ios::ate);
+  if (!input) throw std::runtime_error("cannot open MILO " + path);
+  const std::streamoff size = input.tellg();
+  if (size < 0) throw std::runtime_error("cannot size MILO " + path);
+  std::vector<uint8_t> bytes(static_cast<size_t>(size));
+  input.seekg(0, std::ios::beg);
+  if (!bytes.empty()) {
+    input.read(reinterpret_cast<char*>(bytes.data()), size);
+  }
+  if (!input) throw std::runtime_error("cannot read MILO " + path);
+  return bytes;
+}
+
 std::mutex& loaded_clip_milo_cache_mutex() {
   static std::mutex mutex;
   return mutex;
@@ -3328,23 +3353,28 @@ std::shared_ptr<const LoadedClipMilo> load_clip_milo(
     }
   }
 
-  auto ark = gh::ark::ArkV3Reader::load(hdr_path);
-  std::string resolved_path = milo_path;
-  auto entry = ark.find(resolved_path);
-  if (!entry) {
-    resolved_path = "../../system/run/" + milo_path;
-    entry = ark.find(resolved_path);
-  }
-  if (!entry) {
-    remember_missing_clip_milo(hdr_path, milo_path);
-    std::fprintf(stderr, "[clip] milo not in ARK: %s\n",
-                 milo_path.c_str());
-    return {};
-  }
-
   auto loaded = std::make_shared<LoadedClipMilo>();
-  loaded->resolved_path = std::move(resolved_path);
-  const auto bytes = ark.read_entry(*entry, {ark_path});
+  std::vector<uint8_t> bytes;
+  if (hdr_path.empty()) {
+    loaded->resolved_path = milo_path;
+    bytes = read_binary_file(milo_path);
+  } else {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    std::string resolved_path = milo_path;
+    auto entry = ark.find(resolved_path);
+    if (!entry) {
+      resolved_path = "../../system/run/" + milo_path;
+      entry = ark.find(resolved_path);
+    }
+    if (!entry) {
+      remember_missing_clip_milo(hdr_path, milo_path);
+      std::fprintf(stderr, "[clip] milo not in ARK: %s\n",
+                   milo_path.c_str());
+      return {};
+    }
+    loaded->resolved_path = std::move(resolved_path);
+    bytes = ark.read_entry(*entry, {ark_path});
+  }
   const auto header = gh::milo::parse_header(bytes);
   loaded->payload = gh::milo::inflate_payload(bytes, header);
   loaded->directory = gh::milo::parse_directory(loaded->payload);
@@ -6278,6 +6308,18 @@ static void dump_arm_pose(const Character& character, const char* tag) {
                  character.dir_name.c_str(), compact_tag, name, cur[12],
                  cur[13], cur[14]);
     std::fprintf(stderr,
+                 "[armwr0] c=%s t=%s b=%s v=%.6f,%.6f,%.6f\n",
+                 character.dir_name.c_str(), compact_tag, name, cur[0],
+                 cur[1], cur[2]);
+    std::fprintf(stderr,
+                 "[armwr1] c=%s t=%s b=%s v=%.6f,%.6f,%.6f\n",
+                 character.dir_name.c_str(), compact_tag, name, cur[4],
+                 cur[5], cur[6]);
+    std::fprintf(stderr,
+                 "[armwr2] c=%s t=%s b=%s v=%.6f,%.6f,%.6f\n",
+                 character.dir_name.c_str(), compact_tag, name, cur[8],
+                 cur[9], cur[10]);
+    std::fprintf(stderr,
                  "[armr0] c=%s t=%s b=%s v=%.5f,%.5f,%.5f\n",
                  character.dir_name.c_str(), compact_tag, name,
                  bone.local.rot[0][0], bone.local.rot[0][1],
@@ -6326,6 +6368,11 @@ static void dump_arm_pose(const Character& character, const char* tag) {
   dump("bone_R-foreTwist1");
   dump("bone_R-foreTwist2");
   dump("bone_R-hand");
+  dump("bone_pos_guitar");
+  dump("bone_fret");
+  dump("bone_fret_hand");
+  dump("bone_strum");
+  dump("bone_strum_hand");
 }
 
 static void dump_arm_mesh_pose(const Character& character, const char* tag) {
@@ -10866,6 +10913,13 @@ static bool output_key_is_face(const std::string& key) {
   std::string lower = key;
   std::transform(lower.begin(), lower.end(), lower.begin(),
                  [](unsigned char c) { return (char)std::tolower(c); });
+  if (lower == "bone_gh3_e8e9bb36" || lower == "bone_gh3_12e68655" ||
+      lower == "bone_gh3_2a8d0c00" || lower == "bone_gh3_7c73f6cf" ||
+      lower == "bone_gh3_867ccbac" || lower == "bone_gh3_5378af83" ||
+      lower == "bone_gh3_a97792e0" || lower == "bone_gh3_b8ca856b" ||
+      lower == "bone_gh3_c8a071e4" || lower == "bone_gh3_a6bc7033") {
+    return true;
+  }
   return lower.find("face") != std::string::npos ||
          lower.find("mouth") != std::string::npos ||
          lower.find("lip") != std::string::npos ||
@@ -11876,7 +11930,6 @@ static bool apply_clip_pose_output_layer(
       case ClipChannel::kDeltaZ: pose.dz = &ch; break;
     }
   }
-
   for (size_t i = 0; i < nodes.size(); ++i) {
     if (!node_driven[i] || !targets[i].local) continue;
     apply_gh2_typed_pose(poses[i], weight, *targets[i].local);

@@ -135,6 +135,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <optional>
@@ -1473,6 +1474,15 @@ std::string lower_ascii(std::string s) {
 
 bool is_face_asset_name(const std::string& name) {
   const std::string lower = lower_ascii(name);
+  const size_t dot = lower.find('.');
+  const std::string base = dot == std::string::npos ? lower : lower.substr(0, dot);
+  if (base == "bone_gh3_e8e9bb36" || base == "bone_gh3_12e68655" ||
+      base == "bone_gh3_2a8d0c00" || base == "bone_gh3_7c73f6cf" ||
+      base == "bone_gh3_867ccbac" || base == "bone_gh3_5378af83" ||
+      base == "bone_gh3_a97792e0" || base == "bone_gh3_b8ca856b" ||
+      base == "bone_gh3_c8a071e4" || base == "bone_gh3_a6bc7033") {
+    return true;
+  }
   return lower.find("mouth") != std::string::npos ||
          lower.find("lip") != std::string::npos ||
          lower.find("jaw") != std::string::npos ||
@@ -1582,6 +1592,18 @@ bool is_face_channel_name(const std::string& name) {
   std::string lower = name;
   std::transform(lower.begin(), lower.end(), lower.begin(),
                  [](unsigned char c) { return (char)std::tolower(c); });
+  const size_t dot = lower.find('.');
+  const std::string base = dot == std::string::npos ? lower : lower.substr(0, dot);
+  // Some imported PS2 rigs only preserve checksum-stable fallback names for
+  // face children. Keep the known Midori face checksum channels so expression
+  // overlays do not accidentally pull in unrelated imported fallback bones.
+  if (base == "bone_gh3_e8e9bb36" || base == "bone_gh3_12e68655" ||
+      base == "bone_gh3_2a8d0c00" || base == "bone_gh3_7c73f6cf" ||
+      base == "bone_gh3_867ccbac" || base == "bone_gh3_5378af83" ||
+      base == "bone_gh3_a97792e0" || base == "bone_gh3_b8ca856b" ||
+      base == "bone_gh3_c8a071e4" || base == "bone_gh3_a6bc7033") {
+    return true;
+  }
   return lower.find("face") != std::string::npos ||
          lower.find("mouth") != std::string::npos ||
          lower.find("lip") != std::string::npos ||
@@ -2038,6 +2060,263 @@ std::array<float, 3> transform_point(const std::array<float, 16>& m,
   };
 }
 
+void write_json_string(std::ofstream& out, const std::string& value) {
+  out << '"';
+  for (const unsigned char ch : value) {
+    switch (ch) {
+      case '\\': out << "\\\\"; break;
+      case '"': out << "\\\""; break;
+      case '\b': out << "\\b"; break;
+      case '\f': out << "\\f"; break;
+      case '\n': out << "\\n"; break;
+      case '\r': out << "\\r"; break;
+      case '\t': out << "\\t"; break;
+      default:
+        if (ch < 0x20) {
+          static const char* hex = "0123456789abcdef";
+          out << "\\u00" << hex[ch >> 4] << hex[ch & 0x0f];
+        } else {
+          out << static_cast<char>(ch);
+        }
+        break;
+    }
+  }
+  out << '"';
+}
+
+void dump_char_pose_mesh_bounds_jsonl(
+    const ghogx::character::Character& character,
+    const std::string& dump_path,
+    uint64_t viewer_frame,
+    int clip_frame_override) {
+  if (dump_path.empty()) return;
+  namespace fs = std::filesystem;
+  std::error_code error;
+  const fs::path path(dump_path);
+  if (path.has_parent_path()) {
+    fs::create_directories(path.parent_path(), error);
+    if (error) {
+      std::fprintf(stderr, "[char-pose-mesh-dump] mkdir failed %s: %s\n",
+                   path.parent_path().string().c_str(), error.message().c_str());
+      return;
+    }
+  }
+  std::ofstream out(path, std::ios::binary | std::ios::trunc);
+  if (!out) {
+    std::fprintf(stderr, "[char-pose-mesh-dump] open failed %s\n",
+                 dump_path.c_str());
+    return;
+  }
+
+  const ghogx::character::SourceCharacterDrawClosure closure =
+      ghogx::character::source_character_draw_closure(character, 0);
+  std::vector<std::array<float, 3>> posed;
+  std::vector<std::array<float, 3>> normals;
+  size_t rows = 0;
+  for (const auto& mesh : character.meshes) {
+    if (!mesh.decoded || !mesh.showing || mesh.verts.empty()) continue;
+    if (closure.authoritative &&
+        closure.meshes.find(mesh.name) == closure.meshes.end()) {
+      continue;
+    }
+    if (mesh.name.rfind("shadow", 0) == 0 ||
+        mesh.parent.rfind("shadow", 0) == 0) {
+      continue;
+    }
+    ghogx::character::skin_to_pose(mesh, character, posed, normals);
+    const std::array<float, 16> submission =
+        ghogx::character::source_character_mesh_submission_world(mesh,
+                                                                 character);
+    if (posed.empty()) continue;
+    float minv[3] = {0.0f, 0.0f, 0.0f};
+    float maxv[3] = {0.0f, 0.0f, 0.0f};
+    bool have_bounds = false;
+    std::vector<float> face_band_weights(mesh.bone_palette.size(), 0.0f);
+    size_t face_band_vertices = 0;
+    size_t face_band_positive_y_vertices = 0;
+    for (size_t vertex_index = 0; vertex_index < posed.size(); ++vertex_index) {
+      const auto& local = posed[vertex_index];
+      const std::array<float, 3> world = transform_point(submission, local);
+      if (!have_bounds) {
+        for (int k = 0; k < 3; ++k) minv[k] = maxv[k] = world[k];
+        have_bounds = true;
+      } else {
+        for (int k = 0; k < 3; ++k) {
+          minv[k] = std::min(minv[k], world[k]);
+          maxv[k] = std::max(maxv[k], world[k]);
+        }
+      }
+      if (world[2] >= 45.0f && world[2] <= 70.0f) {
+        ++face_band_vertices;
+        if (world[1] > 5.0f) ++face_band_positive_y_vertices;
+        if (vertex_index < mesh.verts.size()) {
+          for (size_t i = 0; i < mesh.bone_palette.size(); ++i) {
+            face_band_weights[i] += std::fabs(mesh.verts[vertex_index].w[i]);
+          }
+        }
+      }
+    }
+    if (!have_bounds) continue;
+
+    std::vector<std::pair<float, std::string>> bone_weights;
+    bone_weights.reserve(mesh.bone_palette.size());
+    for (size_t i = 0; i < mesh.bone_palette.size(); ++i) {
+      float total = 0.0f;
+      for (const auto& vertex : mesh.verts) total += std::fabs(vertex.w[i]);
+      bone_weights.push_back({total, mesh.bone_palette[i]});
+    }
+    std::sort(bone_weights.begin(), bone_weights.end(),
+              [](const auto& a, const auto& b) { return a.first > b.first; });
+    std::vector<std::pair<float, std::string>> face_band_bone_weights;
+    face_band_bone_weights.reserve(mesh.bone_palette.size());
+    for (size_t i = 0; i < mesh.bone_palette.size(); ++i) {
+      face_band_bone_weights.push_back({face_band_weights[i],
+                                        mesh.bone_palette[i]});
+    }
+    std::sort(face_band_bone_weights.begin(), face_band_bone_weights.end(),
+              [](const auto& a, const auto& b) { return a.first > b.first; });
+    const bool face_height_overlap = maxv[2] >= 45.0f && minv[2] <= 70.0f;
+
+    out << "{\"viewer_frame\":" << viewer_frame
+        << ",\"clip_frame\":" << clip_frame_override
+        << ",\"mesh\":";
+    write_json_string(out, mesh.name);
+    out << ",\"parent\":";
+    write_json_string(out, mesh.parent);
+    out << ",\"material\":";
+    write_json_string(out, mesh.material);
+    out << ",\"vertices\":" << mesh.verts.size()
+        << ",\"faces\":" << (mesh.indices.size() / 3)
+        << ",\"face_height_overlap\":" << (face_height_overlap ? "true" : "false")
+        << ",\"face_band_vertices\":" << face_band_vertices
+        << ",\"face_band_positive_y_vertices\":"
+        << face_band_positive_y_vertices
+        << ",\"bounds\":{\"min\":[" << minv[0] << ',' << minv[1] << ',' << minv[2]
+        << "],\"max\":[" << maxv[0] << ',' << maxv[1] << ',' << maxv[2]
+        << "],\"center\":[" << (minv[0] + maxv[0]) * 0.5f << ','
+        << (minv[1] + maxv[1]) * 0.5f << ','
+        << (minv[2] + maxv[2]) * 0.5f << "]}"
+        << ",\"palette\":[";
+    for (size_t i = 0; i < mesh.bone_palette.size(); ++i) {
+      if (i) out << ',';
+      write_json_string(out, mesh.bone_palette[i]);
+    }
+    out << "],\"dominant_bones\":[";
+    const size_t limit = std::min<size_t>(bone_weights.size(), 4);
+    for (size_t i = 0; i < limit; ++i) {
+      if (i) out << ',';
+      out << "{\"bone\":";
+      write_json_string(out, bone_weights[i].second);
+      out << ",\"weight_sum\":" << bone_weights[i].first << '}';
+    }
+    out << "],\"face_band_dominant_bones\":[";
+    const size_t face_limit = std::min<size_t>(face_band_bone_weights.size(), 4);
+    for (size_t i = 0; i < face_limit; ++i) {
+      if (i) out << ',';
+      out << "{\"bone\":";
+      write_json_string(out, face_band_bone_weights[i].second);
+      out << ",\"weight_sum\":" << face_band_bone_weights[i].first << '}';
+    }
+    out << "]}\n";
+    ++rows;
+  }
+  std::fprintf(stderr, "[char-pose-mesh-dump] wrote %zu rows -> %s\n",
+               rows, dump_path.c_str());
+}
+
+void dump_char_deformed_pose_binary(
+    const ghogx::character::Character& character,
+    const std::string& dump_path,
+    int clip_frame_override) {
+  if (dump_path.empty()) return;
+  namespace fs = std::filesystem;
+  std::error_code error;
+  const fs::path path(dump_path);
+  if (path.has_parent_path()) fs::create_directories(path.parent_path(), error);
+  if (error) {
+    std::fprintf(stderr, "[char-deformed-dump] mkdir failed %s: %s\n",
+                 path.parent_path().string().c_str(), error.message().c_str());
+    return;
+  }
+  std::ofstream out(path, std::ios::binary | std::ios::trunc);
+  if (!out) {
+    std::fprintf(stderr, "[char-deformed-dump] open failed %s\n",
+                 dump_path.c_str());
+    return;
+  }
+  auto write_u32 = [&](uint32_t value) {
+    out.write(reinterpret_cast<const char*>(&value), sizeof(value));
+  };
+  auto write_f32 = [&](float value) {
+    out.write(reinterpret_cast<const char*>(&value), sizeof(value));
+  };
+  auto write_string = [&](const std::string& value) {
+    write_u32(static_cast<uint32_t>(value.size()));
+    out.write(value.data(), static_cast<std::streamsize>(value.size()));
+  };
+
+  const ghogx::character::SourceCharacterDrawClosure closure =
+      ghogx::character::source_character_draw_closure(character, 0);
+  std::vector<const ghogx::character::SkinnedMesh*> meshes;
+  for (const auto& mesh : character.meshes) {
+    if (!mesh.decoded || !mesh.showing || mesh.verts.empty()) continue;
+    if (closure.authoritative &&
+        closure.meshes.find(mesh.name) == closure.meshes.end()) {
+      continue;
+    }
+    if (mesh.name.rfind("shadow", 0) == 0 ||
+        mesh.parent.rfind("shadow", 0) == 0) {
+      continue;
+    }
+    meshes.push_back(&mesh);
+  }
+
+  out.write("GH2POSED", 8);
+  write_u32(2);
+  write_u32(static_cast<uint32_t>(std::max(clip_frame_override, 0)));
+  write_u32(static_cast<uint32_t>(meshes.size()));
+  std::vector<std::array<float, 3>> posed;
+  std::vector<std::array<float, 3>> normals;
+  for (const auto* mesh : meshes) {
+    ghogx::character::skin_to_pose(*mesh, character, posed, normals);
+    const auto submission =
+        ghogx::character::source_character_mesh_submission_world(*mesh,
+                                                                 character);
+    write_string(mesh->name);
+    write_string(mesh->material);
+    write_u32(static_cast<uint32_t>(posed.size()));
+    for (size_t index = 0; index < posed.size(); ++index) {
+      const auto world_position = transform_point(submission, posed[index]);
+      auto world_normal = std::array<float, 3>{
+          normals[index][0] * submission[0] +
+              normals[index][1] * submission[4] +
+              normals[index][2] * submission[8],
+          normals[index][0] * submission[1] +
+              normals[index][1] * submission[5] +
+              normals[index][2] * submission[9],
+          normals[index][0] * submission[2] +
+              normals[index][1] * submission[6] +
+              normals[index][2] * submission[10]};
+      const float length = std::sqrt(world_normal[0] * world_normal[0] +
+                                     world_normal[1] * world_normal[1] +
+                                     world_normal[2] * world_normal[2]);
+      if (length > 1.0e-8f) {
+        for (float& value : world_normal) value /= length;
+      }
+      for (float value : world_position) write_f32(value);
+      for (float value : world_normal) write_f32(value);
+      write_f32(mesh->verts[index].u);
+      write_f32(mesh->verts[index].v);
+    }
+    write_u32(static_cast<uint32_t>(mesh->indices.size()));
+    for (const uint16_t index : mesh->indices) write_u32(index);
+  }
+  out.close();
+  std::fprintf(stderr,
+               "[char-deformed-dump] wrote %zu meshes frame=%d -> %s\n",
+               meshes.size(), clip_frame_override, dump_path.c_str());
+}
+
 int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& milo_path,
                   const std::string& screenshot_path, int screenshot_frame,
@@ -2058,6 +2337,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                    const std::string& midi_fret_target = "",
                    const ViewerClipStackOptions& clip_stack_options = {},
                    const ScreenshotSequence& screenshot_sequence = {},
+                   const std::string& char_pose_mesh_dump = {},
+                   const std::string& char_deformed_pose_dump = {},
                    const RenderSize& render_size = RenderSize{}) {
   ghogx::character::Character character;
   if (!ghogx::character::load_character(hdr, ark, milo_path, character)) {
@@ -2520,6 +2801,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     std::fprintf(stderr, "[char] clip-frame override enabled: %d\n",
                  clip_frame_override);
   }
+  bool char_pose_mesh_dump_written = false;
 
   auto evaluate_viewer_main_driver_hand_weights =
       [&]() -> ghogx::character::SourceCharMainDriverHandWeights {
@@ -2767,6 +3049,20 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       renderer.draw();
     }
 
+    if (!char_pose_mesh_dump.empty() && !char_pose_mesh_dump_written &&
+        frame == static_cast<uint64_t>(screenshot_frame)) {
+      dump_char_pose_mesh_bounds_jsonl(renderer.character(),
+                                       char_pose_mesh_dump, frame,
+                                       clip_frame_override);
+      char_pose_mesh_dump_written = true;
+    }
+    if (!char_deformed_pose_dump.empty() &&
+        frame == static_cast<uint64_t>(screenshot_frame)) {
+      dump_char_deformed_pose_binary(renderer.character(),
+                                     char_deformed_pose_dump,
+                                     clip_frame_override);
+    }
+
     if (!screenshot_path.empty() && frame == static_cast<uint64_t>(screenshot_frame)) {
       win->save_screenshot(screenshot_path.c_str());
       std::fprintf(stderr, "[char] screenshot -> %s (frame %llu)\n",
@@ -2913,6 +3209,8 @@ int main(int argc, char** argv) {
   std::string char_milo;   // --char: render a BandCharacter MILO in bind pose
   std::string char_scene_milo;  // --char-scene: draw venue behind --char
   std::string char_clip_arg; // --clip <milo>:<name>: apply a clip pose for screenshot
+  std::string char_pose_mesh_dump;
+  std::string char_deformed_pose_dump;
   std::string guitar_milo = "char/og/guitars/gen/xplorer.milo_ps2";
   std::string strum_clip_arg;
   std::string fret_clip_arg;
@@ -3207,6 +3505,12 @@ int main(int argc, char** argv) {
       mute_audio = true;
     } else if (std::strcmp(argv[i], "--char") == 0 && i + 1 < argc) {
       char_milo = argv[++i];
+    } else if (std::strcmp(argv[i], "--char-pose-mesh-dump") == 0 &&
+               i + 1 < argc) {
+      char_pose_mesh_dump = argv[++i];
+    } else if (std::strcmp(argv[i], "--char-deformed-pose-dump") == 0 &&
+               i + 1 < argc) {
+      char_deformed_pose_dump = argv[++i];
     } else if (std::strcmp(argv[i], "--clip") == 0 && i + 1 < argc) {
       // --clip <milo>:<name>  e.g.  "char/metal1/anims/gen/metal1_main.milo_ps2:band_jump"
       // Applies the named CharClipSamples pose to the character before rendering.
@@ -3483,7 +3787,9 @@ int main(int argc, char** argv) {
                          char_offset, char_2p_select_placer_player,
                          char_2p_select_event, fixed_dt,
                          character_controllers, char_reference_base, midi_fret_target,
-                         viewer_clip_stack, screenshot_sequence, render_size);
+                         viewer_clip_stack, screenshot_sequence,
+                         char_pose_mesh_dump, char_deformed_pose_dump,
+                         render_size);
   }
 
   // --hud-test: dedicated in-song HUD overlay preview (own window + loop).

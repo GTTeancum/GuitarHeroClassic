@@ -134,7 +134,8 @@ int main() {
                  "char_offset,char_2p_select_placer_player,"
                  "char_2p_select_event,fixed_dt,character_controllers,"
                  "char_reference_base,midi_fret_target,viewer_clip_stack,"
-                 "screenshot_sequence,render_size);",
+                 "screenshot_sequence,char_pose_mesh_dump,"
+                 "char_deformed_pose_dump,render_size);",
                  "parsed fixed dt reaches character viewer proof path");
   ok &= contains(app_main_c, "screenshot_sequence.find(frame)",
                  "character viewer checks deterministic sequence frames");
@@ -167,7 +168,7 @@ int main() {
                  "char_offset,char_2p_select_placer_player,char_2p_select_event,"
                  "fixed_dt,character_controllers,char_reference_base,"
                  "midi_fret_target,viewer_clip_stack,screenshot_sequence,"
-                 "render_size);",
+                 "char_pose_mesh_dump,char_deformed_pose_dump,render_size);",
                  "parsed reference-base diagnostic reaches character viewer proof path");
   ok &= contains(char_renderer_c,
                  "voidCharRenderer::set_reference_base(boolenabled){"

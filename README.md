@@ -1,6 +1,7 @@
-# GuitarHeroOGX
+# GuitarHeroClassic
 
-Guitar Hero II for the original Xbox.
+A native Guitar Hero engine and asset-conversion toolkit, targeting PC first
+and the original Xbox as the follow-up platform.
 
 Start with [PROJECT_CHARTER.md](PROJECT_CHARTER.md) for the project identity,
 evidence rules, and resource model.
@@ -42,6 +43,31 @@ Built on the standalone reader libraries (`tools/ark`, `tools/dtb`, `tools/textu
 ```
 
 On the small2 (Open Mic) venue: 42 textures decoded, 3 skipped (reference external paths), 0 failures.
+
+## GH3 Midori conversion (experimental)
+
+`DLC/community.gh3.midori` contains the current automated outfit-1 conversion.
+It preserves Casey Lynch's GH2 `rock1` BandCharacter graph and controller
+contract while replacing the visible render payload and ten performance clips
+with Midori data. The package intentionally contains one outfit only and keeps
+the face static for this phase.
+
+Current verified contract:
+
+- 45 active Midori meshes; 169 total meshes with 124 Casey template meshes
+  retained but hidden;
+- 115 Casey transforms and 20 Casey controllers, including both hand IK
+  controllers, fret IK, and eyes;
+- Casey-native animation call coverage: 113 main, 2 UI, 17 strum, and 25 fret
+  clips, covering all 157 stock calls and all 30 stock clip groups; and
+- loose-DLC gameplay in `ghogx_app`, with no ISO or emulator in the iteration
+  path.
+
+The model uses PS2-bounded 256x256 indexed textures and four-bone mesh
+palettes. A conversion-stage forearm-to-hand weight transfer replaces the
+retired pose-specific wrist warp and has been validated headlessly across 50
+poses. Clone gameplay verification is current; an actual retail GH2 PS2
+build/run remains a separate deferred compatibility gate.
 
 ## Legacy: rexglue 360 recompile (reference only)
 

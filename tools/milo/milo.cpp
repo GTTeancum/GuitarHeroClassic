@@ -592,6 +592,61 @@ Container make_container(const std::vector<uint8_t>& payload,
     return container;
 }
 
+Container make_object_aligned_container(const std::vector<uint8_t>& payload,
+                                        BlockStructure structure,
+                                        uint32_t target_block_size,
+                                        uint32_t first_block_offset) {
+    if (structure != BlockStructure::MILO_A &&
+        structure != BlockStructure::MILO_B)
+        throw std::runtime_error("milo: new containers support MILO_A/MILO_B");
+    if (target_block_size == 0)
+        throw std::runtime_error("milo: block target size must be nonzero");
+
+    Container container;
+    container.header.structure = structure;
+    container.header.first_block_offset = first_block_offset;
+    container.prefix_bytes.resize(first_block_offset, 0);
+
+    constexpr uint8_t terminator[] = {0xAD, 0xDE, 0xAD, 0xDE};
+    size_t block_begin = 0;
+    size_t search_begin = 0;
+    while (search_begin < payload.size()) {
+        const auto marker = std::search(
+            payload.begin() + search_begin, payload.end(),
+            std::begin(terminator), std::end(terminator));
+        if (marker == payload.end())
+            throw std::runtime_error(
+                "milo: object-directory payload does not end at a terminator");
+        const size_t object_end =
+            static_cast<size_t>(marker - payload.begin()) + sizeof(terminator);
+        if (object_end - block_begin >= target_block_size ||
+            object_end == payload.size()) {
+            ContainerBlock block;
+            block.payload_bytes.assign(payload.begin() + block_begin,
+                                       payload.begin() + object_end);
+            container.blocks.push_back(std::move(block));
+            block_begin = object_end;
+        }
+        search_begin = object_end;
+    }
+
+    if (block_begin != payload.size())
+        throw std::runtime_error(
+            "milo: object-directory payload has bytes after final terminator");
+    if (payload.empty()) container.blocks.emplace_back();
+
+    uint32_t max_uncompressed = 0;
+    for (const auto& block : container.blocks) {
+        max_uncompressed =
+            std::max(max_uncompressed,
+                     static_cast<uint32_t>(block.payload_bytes.size()));
+    }
+    container.header.block_count =
+        static_cast<uint32_t>(container.blocks.size());
+    container.header.max_block_uncompressed_size = max_uncompressed;
+    return container;
+}
+
 Directory parse_directory(const std::vector<uint8_t>& p) {
     Directory d{};
     if (p.size() < 4) throw std::runtime_error("milo dir: too short");

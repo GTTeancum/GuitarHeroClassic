@@ -102,6 +102,40 @@ int main() {
         return 1;
     }
 
+    // Retail GH1/GH2 blocks accumulate complete serialized objects and may
+    // exceed the nominal target instead of cutting through an object body.
+    try {
+        std::vector<uint8_t> source;
+        source.insert(source.end(), 70000, 0x11);
+        append_u32(source, 0xDEADDEAD);
+        source.insert(source.end(), 70000, 0x22);
+        append_u32(source, 0xDEADDEAD);
+        source.insert(source.end(), 100, 0x33);
+        append_u32(source, 0xDEADDEAD);
+
+        const auto made = gh::milo::make_object_aligned_container(source);
+        if (made.blocks.size() != 2 ||
+            made.blocks[0].payload_bytes.size() != 140008 ||
+            made.blocks[1].payload_bytes.size() != 104 ||
+            made.header.max_block_uncompressed_size != 140008) {
+            std::fprintf(stderr,
+                         "milo_test: object-aligned block sizing mismatch\n");
+            return 1;
+        }
+        const auto serialized = gh::milo::serialize_container(made);
+        const auto reparsed = gh::milo::parse_container(serialized);
+        if (gh::milo::container_payload(reparsed) != source) {
+            std::fprintf(stderr,
+                         "milo_test: object-aligned container did not round-trip\n");
+            return 1;
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr,
+                     "milo_test: object-aligned construction failed: %s\n",
+                     ex.what());
+        return 1;
+    }
+
     // Revision-10 directories have no root-directory body. Verify that the
     // first table entry receives the first body rather than being discarded
     // at its DEADDEAD terminator and shifting every subsequent association.

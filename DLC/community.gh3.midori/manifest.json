@@ -20,18 +20,6 @@
           "fret_anim": "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2",
           "animation_source_model": "char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2",
           "retarget_animation": false
-        },
-        {
-          "selection": "gh3_midori_2",
-          "label": "Outfit 2",
-          "model": "char/gh3_midori_2/og/gen/gh3_midori_2.milo_ps2",
-          "ui_model": "char/gh3_midori_2/og/gen/gh3_midori_2.milo_ps2",
-          "ui_anim": "char/gh3_midori/anims/gen/gh3_midori_ui.milo_ps2",
-          "main_anim": "char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2",
-          "strum_anim": "char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2",
-          "fret_anim": "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2",
-          "animation_source_model": "char/gh3_midori_2/og/gen/gh3_midori_2.milo_ps2",
-          "retarget_animation": false
         }
       ]
     }
