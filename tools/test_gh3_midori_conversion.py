@@ -236,6 +236,7 @@ class MidoriConversionTest(unittest.TestCase):
         self.assertIn('creationflags=getattr(subprocess, "IDLE_PRIORITY_CLASS", 0)', source)
         self.assertIn("process.wait(timeout=args.timeout)", source)
         self.assertIn("process.kill()", source)
+        self.assertIn('require_file(log, "existing clone proof log")', source)
 
     def test_clone_pose_summary_accepts_short_healthy_capture(self) -> None:
         summary = clone_pose.gameplay_summary(

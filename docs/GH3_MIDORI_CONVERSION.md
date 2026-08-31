@@ -157,7 +157,8 @@ The runner requires a bounded frame count, confirms a hidden D3D9 window,
 authenticates the 169-mesh/45-visible/115-transform Midori package, verifies
 the requested animation sample and venue, and requires live gameplay with at
 least one chart hit and no misses. It refuses ISO paths and never invokes an
-emulator.
+emulator. Add `--verify-existing` with the original run parameters to
+authenticate an existing log and screenshot without launching the clone.
 
 The promoted Python contract tests are independent of commercial assets:
 

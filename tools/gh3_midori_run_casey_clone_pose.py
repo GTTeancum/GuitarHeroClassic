@@ -102,6 +102,11 @@ def main() -> int:
     parser.add_argument("--package", type=Path, default=DEFAULT_PACKAGE)
     parser.add_argument("--log", type=Path, required=True)
     parser.add_argument("--screenshot", type=Path)
+    parser.add_argument(
+        "--verify-existing",
+        action="store_true",
+        help="validate an existing bounded run without launching ghogx_app",
+    )
     parser.add_argument("--song", default="shoutatthedevil")
     parser.add_argument("--venue", default="big")
     parser.add_argument("--clip", default="stand_medium_04")
@@ -171,27 +176,30 @@ def main() -> int:
     env = clone_environment(
         package, args.clip, args.clip_time, args.camera_yaw
     )
-    log.parent.mkdir(parents=True, exist_ok=True)
-    with log.open("wb") as handle:
-        process = subprocess.Popen(
-            command,
-            cwd=ROOT,
-            env=env,
-            stdout=handle,
-            stderr=subprocess.STDOUT,
-            creationflags=getattr(subprocess, "IDLE_PRIORITY_CLASS", 0),
-        )
-        try:
-            returncode = process.wait(timeout=args.timeout)
-        except subprocess.TimeoutExpired as exc:
-            process.kill()
-            process.wait(timeout=10)
-            raise TimeoutError(
-                f"ghogx_app exceeded {args.timeout:.1f}s and was terminated: "
-                f"{log}"
-            ) from exc
-    if returncode != 0:
-        raise RuntimeError(f"ghogx_app exited {returncode}: {log}")
+    if args.verify_existing:
+        require_file(log, "existing clone proof log")
+    else:
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with log.open("wb") as handle:
+            process = subprocess.Popen(
+                command,
+                cwd=ROOT,
+                env=env,
+                stdout=handle,
+                stderr=subprocess.STDOUT,
+                creationflags=getattr(subprocess, "IDLE_PRIORITY_CLASS", 0),
+            )
+            try:
+                returncode = process.wait(timeout=args.timeout)
+            except subprocess.TimeoutExpired as exc:
+                process.kill()
+                process.wait(timeout=10)
+                raise TimeoutError(
+                    f"ghogx_app exceeded {args.timeout:.1f}s and was terminated: "
+                    f"{log}"
+                ) from exc
+        if returncode != 0:
+            raise RuntimeError(f"ghogx_app exited {returncode}: {log}")
 
     text = log.read_text(encoding="utf-8", errors="replace")
     summary = gameplay_summary(text)
@@ -234,7 +242,15 @@ def main() -> int:
         "status=%s mode=%s pose_rows=%d hits=%s log=%s"
         % (
             "pass" if not failed else "fail",
-            "capture" if screenshot is not None else "preflight",
+            (
+                "verify-capture"
+                if args.verify_existing and screenshot is not None
+                else "verify-preflight"
+                if args.verify_existing
+                else "capture"
+                if screenshot is not None
+                else "preflight"
+            ),
             text.count("[handpose] phase=postcontrollers role=guitarist0"),
             summary["hits"] if summary is not None else "missing",
             log,
