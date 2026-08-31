@@ -28,6 +28,56 @@ The current model has:
 The active Midori model SHA-256 is
 `C8B7BE6DEF202AB60B0E71563924B11C687DD8C947A7535436E19D81B8CEA286`.
 
+## Automated rebuild
+
+The final conversion path is checked into `tools/`; it no longer depends on a
+parent Codex workspace or on the discarded experiment scripts. The entry point
+is `tools/gh3_midori_build_casey_clone_package.py`. It runs at Windows Idle
+priority, limits numerical libraries to one worker, and does not use an ISO or
+emulator as part of the loose-package workflow.
+
+Content-derived source data is intentionally not embedded in the tool. Stage
+the canonical intermediates under `out/midori/input`:
+
+```text
+out/midori/input/
+  GEN/MAIN.HDR
+  GEN/MAIN_0.ARK
+  midori_source_ir_manifest.json
+  textures/midori_1_539357ac.png
+  outfit1_mesh_ir/midori_1.mesh_ir.json
+  gh3_guitarist_midori.skeleton_ir.json
+  gh2_casey_rock1_rig.json
+  rock1.casey_template.milo_ps2
+  stock_casey_banks/rock1_main.milo_ps2
+  stock_casey_banks/rock1_ui.milo_ps2
+  stock_casey_banks/rock1_fret.milo_ps2
+  stock_casey_banks/rock1_strum.milo_ps2
+  casey_native_animation_set_v1/final_acp/*.acp
+  casey_native_animation_set_v1/final_reports/*.report.json
+```
+
+`rock1.casey_template.milo_ps2` is the byte-exact retail
+`char/rock1/og/gen/rock1.milo_ps2` entry. The four stock banks are likewise
+byte-exact Casey entries from the supplied extracted GH2 `GEN` archive. The
+mesh/skeleton IR may be produced through the GLB comparison bridge; the final
+MILO writer consumes structured data rather than Blender state.
+
+After building `milo_convert_tool`, rebuild both converted payloads and the
+loose package with one command:
+
+```powershell
+python tools/gh3_midori_build_casey_clone_package.py `
+  --rebuild-model --rebuild-main --overwrite
+```
+
+The command regenerates the wrist-weighted model and ten-clip main bank,
+copies the three unchanged Casey hand/UI banks, checks exact expected hashes,
+checks the 45-visible/115-transform/20-controller model contract, and compares
+all 157 clip calls plus all 30 groups against the supplied retail Casey banks.
+Outputs and reports go under `out/midori`; the deployable loose package remains
+`DLC/community.gh3.midori`.
+
 ## Animation contract
 
 The published banks preserve the complete Casey call surface:
@@ -89,11 +139,38 @@ ghogx_character_variant_catalog_test: PASS (Midori external assets: 1 model, 1 t
 headlessly and can emit both JSONL transforms and a deformed mesh snapshot for
 data-level comparison.
 
+The bounded clone proof runner keeps both screenshot and no-image preflight
+runs hidden, applies Windows Idle priority, limits numerical libraries to one
+worker, and terminates the clone if its timeout expires. A preflight uses the
+same conversion package, pose, venue, and camera path as a later capture:
+
+```powershell
+python tools/gh3_midori_run_casey_clone_pose.py `
+  --log out/midori/proof/casey_pose_preflight.log
+
+python tools/gh3_midori_run_casey_clone_pose.py `
+  --log out/midori/proof/casey_pose_capture.log `
+  --screenshot out/midori/proof/casey_pose_capture.bmp
+```
+
+The runner requires a bounded frame count, confirms a hidden D3D9 window,
+authenticates the 169-mesh/45-visible/115-transform Midori package, verifies
+the requested animation sample and venue, and requires live gameplay with at
+least one chart hit and no misses. It refuses ISO paths and never invokes an
+emulator.
+
+The promoted Python contract tests are independent of commercial assets:
+
+```powershell
+python tools/test_gh3_midori_conversion.py -v
+```
+
 ## Runtime boundary
 
 Current gameplay verification uses `ghogx_app`, the in-repository loose DLC
-package, and extracted GH2 `GEN` assets. ISO construction, ISO mounting, and
-emulator execution are not part of the iteration path.
+package, and extracted GH2 `GEN` assets. The latest image remains a review
+candidate until it receives visual acceptance. ISO construction, ISO mounting,
+and emulator execution are not part of the iteration path.
 
 The remaining compatibility boundary is an actual retail GH2 PS2 build/run.
 That gate is deliberately deferred until the clone gameplay image receives

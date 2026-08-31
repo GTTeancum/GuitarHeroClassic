@@ -60,17 +60,18 @@ Current verified contract:
   controllers, fret IK, and eyes;
 - Casey-native animation call coverage: 113 main, 2 UI, 17 strum, and 25 fret
   clips, covering all 157 stock calls and all 30 stock clip groups; and
-- loose-DLC gameplay in `ghogx_app`, with no ISO or emulator in the iteration
-  path.
+- a bounded, hidden, Idle-priority loose-DLC proof runner for `ghogx_app`, with
+  no ISO or emulator in the iteration path.
 
 The model uses PS2-bounded 256x256 indexed textures and four-bone mesh
 palettes. A conversion-stage forearm-to-hand weight transfer replaces the
 retired pose-specific wrist warp and has been validated headlessly across 50
-poses. Clone gameplay verification is current; an actual retail GH2 PS2
-build/run remains a separate deferred compatibility gate.
+poses. The current clone screenshot remains a visual review candidate; an
+actual retail GH2 PS2 build/run remains a separate deferred compatibility
+gate.
 
 See [docs/GH3_MIDORI_CONVERSION.md](docs/GH3_MIDORI_CONVERSION.md) for the
-model, animation, wrist-repair, and verification contracts.
+model, animation, wrist-repair, automated rebuild, and verification contracts.
 
 ## Legacy: rexglue 360 recompile (reference only)
 
