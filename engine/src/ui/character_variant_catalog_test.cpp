@@ -402,11 +402,18 @@ int main(int argc, char** argv) {
     portrait << "loose-portrait-test";
   }
   {
+    std::ofstream ignored(addon_dir / "content" / "portraits" /
+                              "not_indexed.bmp_ps2",
+                          std::ios::binary);
+    ignored << "must-not-mount";
+  }
+  {
     std::ofstream manifest(addon_dir / "manifest.json");
     manifest
         << "{\n"
         << "  \"schema_version\": 1,\n"
         << "  \"id\": \"community.addon_test\",\n"
+        << "  \"files\": [\"portraits/addon.bmp_ps2\"],\n"
         << "  \"characters\": [{\n"
         << "    \"id\": \"addon_test\",\n"
         << "    \"label\": \"Addon Test\",\n"
@@ -551,6 +558,10 @@ int main(int argc, char** argv) {
                                 'r', 't', 'r', 'a', 'i', 't', '-', 't',
                                 'e', 's', 't'})) {
     std::fprintf(stderr, "FAIL loose ARK-path mount\n");
+    return 1;
+  }
+  if (ark.find("portraits/not_indexed.bmp_ps2")) {
+    std::fprintf(stderr, "FAIL indexed package mounted an unlisted file\n");
     return 1;
   }
   const auto quickplay = db.quickplay_songs();

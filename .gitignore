@@ -38,6 +38,9 @@
 /engine/build/
 /generated/*
 !/generated/rexglue.cmake
+/release/
+/save/
+/**/__pycache__/
 
 # Logs and screenshots produced by smoke tests
 /*.log

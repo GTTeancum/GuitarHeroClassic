@@ -3164,13 +3164,20 @@ discover_auxiliary_asset_archives(const std::string& primary_hdr,
 }
 
 std::unique_ptr<ghogx::ui::ConfigDb> mount_dlc_manifests_for_direct_loads(
-    const std::string& primary_hdr) {
+    const std::string& primary_hdr, const std::string& primary_ark) {
   namespace fs = std::filesystem;
-  if (primary_hdr.empty()) return nullptr;
+  if (primary_hdr.empty() || primary_ark.empty()) return nullptr;
   fs::path dlc_root;
   if (const char* addon_root = std::getenv("GHOGX_ADDONS_DIR");
       addon_root && *addon_root) {
     dlc_root = fs::path(addon_root).lexically_normal();
+  }
+  if (dlc_root.empty()) {
+    const fs::path local_dlc =
+        (fs::current_path() / "DLC").lexically_normal();
+    std::error_code local_error;
+    if (fs::is_directory(local_dlc, local_error) && !local_error)
+      dlc_root = local_dlc;
   }
 #ifdef GHOGX_SOURCE_ROOT
   if (dlc_root.empty()) {
@@ -3181,9 +3188,17 @@ std::unique_ptr<ghogx::ui::ConfigDb> mount_dlc_manifests_for_direct_loads(
   std::error_code error;
   if (!fs::is_directory(dlc_root, error)) return nullptr;
   try {
+#ifdef _WIN32
+    _putenv_s("GHOGX_ADDONS_DIR", dlc_root.string().c_str());
+#else
+    setenv("GHOGX_ADDONS_DIR", dlc_root.string().c_str(), 1);
+#endif
     auto db = std::make_unique<ghogx::ui::ConfigDb>();
     const auto base_ark = gh::ark::ArkV3Reader::load(primary_hdr);
-    db->load_addon_manifests(dlc_root, &base_ark);
+    // Imported song manifests require the retail songs table to exist before
+    // their complete source DTBs can be appended. Loading the base here also
+    // mounts every loose payload for diagnostic/direct-song paths.
+    db->load(base_ark, {primary_ark});
     return db;
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "[ghogx] DLC manifests skipped: %s\n", ex.what());
@@ -3713,7 +3728,8 @@ int main(int argc, char** argv) {
   }
   const auto auxiliary_asset_archives = discover_auxiliary_asset_archives(
       hdr, ark, content_hdr, content_ark);
-  const auto direct_load_dlc_db = mount_dlc_manifests_for_direct_loads(hdr);
+  const auto direct_load_dlc_db =
+      mount_dlc_manifests_for_direct_loads(hdr, ark);
 
   if (debug_note_counter) {
     _putenv_s("GHOGX_DEBUG_HIGHWAY_NOTE_COUNTER", "1");

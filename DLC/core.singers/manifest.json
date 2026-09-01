@@ -4,6 +4,13 @@
   "name": "Playable Singers",
   "version": "1.0.0",
   "content_root": "content",
+  "content_index": "content-index.json",
+  "files": [
+    "char/gh2_female_singer/og/gen/female_singer.milo_ps2",
+    "char/gh2_male_singer/og/gen/metal_singer.milo_ps2",
+    "ui/image/dlc/core_singers/female_singer.bmp_ps2",
+    "ui/image/dlc/core_singers/male_singer.bmp_ps2"
+  ],
   "characters": [
     {
       "id": "female_singer",

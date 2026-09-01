@@ -10,6 +10,7 @@ import re
 import shutil
 import struct
 import subprocess
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageChops
@@ -42,6 +43,13 @@ AUXILIARY_TEXTURE_SUFFIXES = (
     "_spec.tex",
     "_specular.tex",
 )
+CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
+
+
+def work_directory_key(asset_stem: str) -> str:
+    """Return a stable, compact name for disposable conversion work."""
+    return hashlib.sha256(asset_stem.encode("utf-8")).hexdigest()[:16]
+
 
 def run(command: list[str], log: Path, cwd: Path) -> str:
     result = subprocess.run(
@@ -53,6 +61,7 @@ def run(command: list[str], log: Path, cwd: Path) -> str:
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         check=False,
+        creationflags=CREATE_NO_WINDOW,
     )
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("a", encoding="utf-8") as stream:
@@ -332,16 +341,23 @@ def main() -> int:
     parser.add_argument("--inventory", type=Path)
     parser.add_argument("--output-root", type=Path)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--milo-tool", type=Path)
+    parser.add_argument("--tex-tool", type=Path)
+    parser.add_argument("--superfreq", type=Path)
+    parser.add_argument("--template", type=Path)
+    parser.add_argument("--qualified-fender", type=Path)
+    parser.add_argument("--source-root", type=Path)
     args = parser.parse_args()
 
     rb2_root = args.rb2_root.resolve()
+    source_root = args.source_root.resolve() if args.source_root else rb2_root / "source_ark"
     repo_root = rb2_root.parent
     inventory = (
         args.inventory.resolve()
         if args.inventory
         else rb2_root / "catalog" / "rb2_instruments.tsv"
     )
-    milo_tool = (
+    milo_tool = args.milo_tool.resolve() if args.milo_tool else (
         repo_root
         / "GuitarHeroOGX-main-ui-engine"
         / "engine"
@@ -351,7 +367,7 @@ def main() -> int:
         / "_tools_milo"
         / "milo_tool.exe"
     )
-    tex_tool = (
+    tex_tool = args.tex_tool.resolve() if args.tex_tool else (
         repo_root
         / "GuitarHeroOGX-main-ui-engine"
         / "engine"
@@ -361,8 +377,8 @@ def main() -> int:
         / "_tools_tex"
         / "tex_tool.exe"
     )
-    template = rb2_root / "templates" / "stock_sg"
-    superfreq = (
+    template = args.template.resolve() if args.template else rb2_root / "templates" / "stock_sg"
+    superfreq = args.superfreq.resolve() if args.superfreq else (
         repo_root
         / "_community_re"
         / "Guitar-Hero-II-Deluxe-Unified"
@@ -375,9 +391,9 @@ def main() -> int:
         if args.output_root
         else rb2_root / "batch_build" / "rb2_retail_default_v1"
     )
-    color_index_path = rb2_root / "source_ark" / "config" / "colorindex.dta"
+    color_index_path = source_root / "config" / "colorindex.dta"
     color_palette_milo = (
-        rb2_root / "source_ark" / "char" / "gen" / "colorpalettes.milo_wii"
+        source_root / "char" / "gen" / "colorpalettes.milo_wii"
     )
     for required in [
         inventory,
@@ -423,7 +439,7 @@ def main() -> int:
     logs = output_root / "logs"
     records: list[dict[str, str | int]] = []
     output_root.mkdir(parents=True, exist_ok=args.resume)
-    qualified_fender_package = (
+    qualified_fender_package = args.qualified_fender.resolve() if args.qualified_fender else (
         rb2_root
         / "output"
         / "drop_in"
@@ -434,15 +450,25 @@ def main() -> int:
         / "guitar_sg.milo_ps2"
     )
     qualified_fender_output = output_root / "_qualified_fender"
-    if qualified_fender_output.exists():
-        shutil.rmtree(qualified_fender_output)
-    qualified_fender_entries = extract_milo(
-        milo_tool,
-        qualified_fender_package,
-        qualified_fender_output,
-        logs / "qualified_fender.log",
-        repo_root,
-    )
+    if qualified_fender_package.is_file():
+        if qualified_fender_output.exists():
+            shutil.rmtree(qualified_fender_output)
+        qualified_fender_entries = extract_milo(
+            milo_tool,
+            qualified_fender_package,
+            qualified_fender_output,
+            logs / "qualified_fender.log",
+            repo_root,
+        )
+    else:
+        # Clean installs cannot redistribute the earlier user-qualified Fender
+        # derivative. Bootstrap the same systemic conversion from the user's
+        # stock GH2 SG template, then apply the RB2 cull/alpha facts below.
+        qualified_fender_entries = {}
+        for kind in ("Mat", "Tex"):
+            for path in (template / kind).iterdir():
+                qualified_fender_entries[(kind.lower(), path.name.lower())] = path
+        qualified_fender_output.mkdir(parents=True, exist_ok=True)
     qualified_string_textures: dict[str, bytes] = {}
     for string_name in ["guitar_strings.tex", "guitar_strings_mip.tex"]:
         decoded_path = qualified_fender_output / f"{string_name}.bmp"
@@ -518,7 +544,13 @@ def main() -> int:
                 f"{index}/{len(rows)} role={role} id={catalog_id} stem={stem}"
             )
             continue
-        item_root = output_root / "work" / stem
+        # Keep private extraction paths short.  Retail object names can be
+        # long enough that an otherwise valid Tex entry crosses the legacy
+        # Win32 MAX_PATH boundary when nested under the install cache.  The
+        # public asset stem remains unchanged; only this disposable work
+        # directory uses a deterministic compact key.
+        work_key = work_directory_key(stem)
+        item_root = output_root / "work" / work_key
         stage = item_root / "stage"
         images = item_root / "images"
         log = logs / f"{stem}.log"
@@ -949,6 +981,7 @@ def main() -> int:
             role == "guitar"
             and catalog_id == "stratocaster01"
             and is_default_skin
+            and qualified_fender_package.is_file()
         ):
             # This exact package—not the earlier raw-body intermediate—is the
             # user-qualified Fender reference documented in

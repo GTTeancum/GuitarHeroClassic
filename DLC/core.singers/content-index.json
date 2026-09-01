@@ -1,0 +1,25 @@
+{
+  "files": [
+    {
+      "path": "char/gh2_female_singer/og/gen/female_singer.milo_ps2",
+      "sha256": "caab73e52b4dc3d6dd6b89f2ad81db45ee927a46ce0163cb61b911c54f942957",
+      "size": 340363
+    },
+    {
+      "path": "char/gh2_male_singer/og/gen/metal_singer.milo_ps2",
+      "sha256": "948fcc57e940375325743c494df6a7426558b02d6aaba04875847f99854b3027",
+      "size": 322678
+    },
+    {
+      "path": "ui/image/dlc/core_singers/female_singer.bmp_ps2",
+      "sha256": "348b85d9b12ee9a043f9d1a1da750efe064be75eb443b6fd046c58680e6117d4",
+      "size": 32800
+    },
+    {
+      "path": "ui/image/dlc/core_singers/male_singer.bmp_ps2",
+      "sha256": "2aaefbb791ebf2d9d543bc447b5363ff8d7488006bfc98f9a8b13fcc6c05912e",
+      "size": 32800
+    }
+  ],
+  "schema_version": 1
+}

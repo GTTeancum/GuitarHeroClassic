@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.20)
+project(ghogx_character_rig_stage LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW)
+endif()
+if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/windows_toolchain_guard.cmake")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/windows_toolchain_guard.cmake")
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
+add_subdirectory(../milo ${CMAKE_BINARY_DIR}/milo)
+add_subdirectory(../milo_object ${CMAKE_BINARY_DIR}/milo_object)
+
+add_executable(milo_rig_export milo_rig_export.cpp)
+target_link_libraries(milo_rig_export PRIVATE milo milo_object)
+if(COMMAND ghogx_add_windows_import_guard)
+    ghogx_add_windows_import_guard(milo_rig_export)
+endif()

@@ -155,10 +155,11 @@ def main() -> int:
         type=Path,
         default=None,
     )
+    parser.add_argument("--source-root", type=Path)
     args = parser.parse_args()
 
     rb2_root = args.rb2_root.resolve()
-    source = rb2_root / "source_ark"
+    source = args.source_root.resolve() if args.source_root else rb2_root / "source_ark"
     instruments = source / "char" / "instruments.dta"
     locale_dir = source / "ui" / "eng"
     locale_paths = [
@@ -197,8 +198,10 @@ def main() -> int:
                 source_cost=source_cost,
                 half_cost=source_cost // 2,
                 default_outfit=default_outfit,
-                resource_milo=resource.relative_to(rb2_root),
-                variant_milo=variant.relative_to(rb2_root),
+                resource_milo=resource.relative_to(rb2_root)
+                if resource.is_relative_to(rb2_root) else resource,
+                variant_milo=variant.relative_to(rb2_root)
+                if variant.is_relative_to(rb2_root) else variant,
             )
         )
 

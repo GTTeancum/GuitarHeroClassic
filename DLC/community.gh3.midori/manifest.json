@@ -4,6 +4,14 @@
   "name": "GH3 Midori",
   "version": "0.1.0",
   "content_root": "content",
+  "content_index": "content-index.json",
+  "files": [
+    "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2",
+    "char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2",
+    "char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2",
+    "char/gh3_midori/anims/gen/gh3_midori_ui.milo_ps2",
+    "char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2"
+  ],
   "characters": [
     {
       "id": "gh3_midori",

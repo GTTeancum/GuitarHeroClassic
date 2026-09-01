@@ -1,3 +1,0 @@
-before_no_hit_fx: first pressed lane=1 held=1 flash=0.775 press=1.000 body_top=1.050 ring_top=0.220 body_tex=smasher_red.tex
-after_no_hit_fx: first pressed lane=1 held=1 flash=0.775 press=1.000 body_top=0.200 ring_top=0.220 body_tex=smasher_red.tex
-after_default: first pressed lane=1 held=1 flash=0.775 press=1.000 body_top=0.200 ring_top=0.220 body_tex=smasher_red.tex

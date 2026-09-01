@@ -5229,6 +5229,7 @@ std::string song_title_by_key(const ConfigDb& db, Symbol key) {
 std::vector<SongListEntry> quickplay_entries(
     const ConfigDb& db, const std::map<std::string, std::string>& locale) {
   std::vector<SongListEntry> out;
+  std::unordered_set<const void*> included;
   const DataArray* campaign = db.table(Symbol("campaign"));
   auto order = campaign ? campaign->find_keyed(Symbol("order")) : nullptr;
   int song_pos = 0;
@@ -5245,6 +5246,7 @@ std::vector<SongListEntry> quickplay_entries(
         Symbol song = tier->at(j).as_symbol().value_or(Symbol());
         if (!song.valid()) continue;
         out.push_back({false, song_title_by_key(db, song), song_pos++});
+        included.insert(song.id());
       }
     }
   }
@@ -5256,8 +5258,45 @@ std::vector<SongListEntry> quickplay_entries(
     for (Symbol song : bonus_songs) {
       if (!song.valid()) continue;
       out.push_back({false, song_title_by_key(db, song), song_pos++});
+      included.insert(song.id());
     }
   }
+
+  // Add-on JSON owns optional setlist grouping and labels. This keeps imported
+  // disc catalogs and future downloadable packs in the same source-authored
+  // quickplay reel without modifying GH2's base campaign/store tables.
+  for (Symbol setlist : db.setlists()) {
+    std::vector<Symbol> songs;
+    for (Symbol song : db.setlist_songs(setlist))
+      if (song.valid() && included.find(song.id()) == included.end())
+        songs.push_back(song);
+    if (songs.empty()) continue;
+    std::string label = db.setlist_label(setlist);
+    if (label.empty()) label = setlist.c_str();
+    out.push_back({true, label, -1});
+    for (Symbol song : songs) {
+      out.push_back({false, song_title_by_key(db, song), song_pos++});
+      included.insert(song.id());
+    }
+  }
+
+  // A single-song add-on is valid without a named setlist. Keep such records
+  // visible under one neutral DLC heading; packaged setlists above remain the
+  // preferred presentation path.
+  std::vector<Symbol> ungrouped;
+  for (Symbol song : db.quickplay_songs())
+    if (song.valid() && included.find(song.id()) == included.end())
+      ungrouped.push_back(song);
+  if (!ungrouped.empty()) {
+    const auto localized = locale.find("song_header_dlc");
+    out.push_back(
+        {true, localized == locale.end() ? "DLC" : localized->second, -1});
+    for (Symbol song : ungrouped) {
+      out.push_back({false, song_title_by_key(db, song), song_pos++});
+      included.insert(song.id());
+    }
+  }
+
   if (!out.empty()) return out;
 
   for (std::size_t i = 0; i < db.song_count(); ++i) {
@@ -6634,6 +6673,7 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
     }
     const std::string milo_path = "ui/gen/" + file + "_ps2";
     auto labels = extract_menu_labels(hdr, ark, milo_path);
+    for (auto& label : labels) label.runtime_owner = pn.c_str();
     milo_scene::Scene label_hierarchy;
     milo_scene::load_scene(hdr, ark, milo_path, label_hierarchy);
     annotate_label_transform_hierarchy(
@@ -7015,24 +7055,24 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       if (const char* seeded_character =
               std::getenv("GHOGX_MENU_SEED_CHARACTER")) {
         const Symbol character(seeded_character);
-        const auto variants = db.character_variants(character);
-        if (!variants.empty()) {
-          const char* requested_outfit =
-              std::getenv("GHOGX_MENU_SEED_OUTFIT");
-          const auto selected =
-              requested_outfit
-                  ? std::find_if(
-                        variants.begin(), variants.end(),
-                        [&](const CharacterVariant& variant) {
-                          return variant.selection ==
-                                 Symbol(requested_outfit);
-                        })
-                  : variants.end();
-          const CharacterVariant& variant =
-              selected == variants.end() ? variants.front() : *selected;
+        const int outfit_count = character_outfit_count(mgr, character);
+        if (outfit_count > 0) {
+          const char* requested_outfit = std::getenv("GHOGX_MENU_SEED_OUTFIT");
+          int outfit_index = 0;
+          if (requested_outfit) {
+            for (int i = 0; i < outfit_count; ++i) {
+              if (character_outfit_at(mgr, character, i) ==
+                  Symbol(requested_outfit)) {
+                outfit_index = i;
+                break;
+              }
+            }
+          }
+          const Symbol outfit =
+              character_outfit_at(mgr, character, outfit_index);
           if (Object* game = mgr.resolve_object(Symbol("game"))) {
             DataArray args;
-            args.push(DataNode::Sym(variant.selection));
+            args.push(DataNode::Sym(outfit));
             game->handle_property(Symbol("set_character"), args);
             // Multiplayer owns a per-player configuration surface. Seed P1
             // there as well so direct-start proofs exercise the same state
@@ -7046,32 +7086,34 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
               player->set_property(Symbol("character"),
                                    DataNode::Sym(character));
               player->set_property(Symbol("character_outfit"),
-                                   DataNode::Sym(variant.selection));
-              player->set_property(Symbol("outfit_index"), DataNode::Int(0));
+                                   DataNode::Sym(outfit));
+              player->set_property(Symbol("outfit_index"),
+                                   DataNode::Int(outfit_index));
             }
           }
           std::fprintf(stderr,
                        "[menu] seeded diagnostic character=%s outfit=%s\n",
-                       character.c_str(), variant.selection.c_str());
+                       character.c_str(), outfit.c_str());
         }
       }
       if (const char* seeded_character_p2 =
               std::getenv("GHOGX_MENU_SEED_CHARACTER_P2")) {
         const Symbol character(seeded_character_p2);
-        const auto variants = db.character_variants(character);
-        if (!variants.empty()) {
-          const char* requested_outfit =
-              std::getenv("GHOGX_MENU_SEED_OUTFIT_P2");
-          const auto selected =
-              requested_outfit
-                  ? std::find_if(
-                        variants.begin(), variants.end(),
-                        [&](const CharacterVariant& variant) {
-                          return variant.selection == Symbol(requested_outfit);
-                        })
-                  : variants.end();
-          const CharacterVariant& variant =
-              selected == variants.end() ? variants.front() : *selected;
+        const int outfit_count = character_outfit_count(mgr, character);
+        if (outfit_count > 0) {
+          const char* requested_outfit = std::getenv("GHOGX_MENU_SEED_OUTFIT_P2");
+          int outfit_index = 0;
+          if (requested_outfit) {
+            for (int i = 0; i < outfit_count; ++i) {
+              if (character_outfit_at(mgr, character, i) ==
+                  Symbol(requested_outfit)) {
+                outfit_index = i;
+                break;
+              }
+            }
+          }
+          const Symbol outfit =
+              character_outfit_at(mgr, character, outfit_index);
           if (Object* game = mgr.resolve_object(Symbol("game"))) {
             DataArray player_args;
             player_args.push(DataNode::Int(1));
@@ -7082,13 +7124,14 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
               player->set_property(Symbol("character"),
                                    DataNode::Sym(character));
               player->set_property(Symbol("character_outfit"),
-                                   DataNode::Sym(variant.selection));
-              player->set_property(Symbol("outfit_index"), DataNode::Int(0));
+                                   DataNode::Sym(outfit));
+              player->set_property(Symbol("outfit_index"),
+                                   DataNode::Int(outfit_index));
             }
           }
           std::fprintf(stderr,
                        "[menu] seeded diagnostic P2 character=%s outfit=%s\n",
-                       character.c_str(), variant.selection.c_str());
+                       character.c_str(), outfit.c_str());
         }
       }
       // unlock_venue_panel chooses unlockvenue<campaign-status>.milo while it
@@ -7118,15 +7161,15 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
               if (!seeded_character || !seeded_outfit) return;
               const Symbol character(seeded_character);
               const Symbol outfit(seeded_outfit);
-              const auto variants = db.character_variants(character);
-              const auto selected = std::find_if(
-                  variants.begin(), variants.end(),
-                  [&](const CharacterVariant& variant) {
-                    return variant.selection == outfit;
-                  });
-              if (selected == variants.end()) return;
-              const int outfit_index =
-                  static_cast<int>(selected - variants.begin());
+              const int outfit_count = character_outfit_count(mgr, character);
+              int outfit_index = -1;
+              for (int i = 0; i < outfit_count; ++i) {
+                if (character_outfit_at(mgr, character, i) == outfit) {
+                  outfit_index = i;
+                  break;
+                }
+              }
+              if (outfit_index < 0) return;
 
               if (Object* screen = mgr.current_screen()) {
                 DataArray activate;
@@ -7162,7 +7205,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                 outfit_panel->set_property(Symbol("ready"), DataNode::Int(0));
                 outfit_panel->handle_property(Symbol("refresh_outfit_window"),
                                               DataArray());
-                const int row = variants.size() > 2 ? 0 : outfit_index;
+                const int row = outfit_count > 2 ? 0 : outfit_index;
                 set_panel_focus(mgr, outfit_panel,
                                 row == 0 ? "outfit1.btn" : "outfit2.btn");
                 // FOCUS_MSG is the stock visual cursor path and may execute
@@ -7294,6 +7337,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   bool gameplay_results_committed = false;
   bool auto_loop_completed = false;
   std::string automated_screen;
+  bool automated_song_selected = false;
   int loaded_difficulty = std::clamp(options.preferred_difficulty, 0, 3);
   std::string loaded_song;
 
@@ -7850,6 +7894,9 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     if (Object* game = mgr.resolve_object(Symbol("game")))
       game->handle_property(Symbol("set_song_index"),
                             one_arg(DataNode::Int(static_cast<int>(index))));
+    std::fprintf(stderr,
+                 "[flow] automated quickplay selection: index=%zu song=%s\n",
+                 index, songs[index].c_str());
   };
   auto preferred_song_index = [&]() -> std::size_t {
     const std::vector<Symbol> songs = db.quickplay_songs();
@@ -7922,6 +7969,28 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     }
     loaded_song = song.c_str();
     loaded_difficulty = current_difficulty();
+    const SongRuntimeConfig song_runtime = db.song_runtime_config(song);
+    if (song_runtime.source_game.valid()) {
+      ghogx::game::Gameplay::QuickplayRig rig;
+      rig.character_outfit = song_runtime.character_outfit;
+      rig.guitar = song_runtime.guitar;
+      rig.venue = song_runtime.venue;
+      rig.anim_tempo = song_runtime.anim_tempo;
+      rig.band = song_runtime.band;
+      gameplay.set_authored_song_runtime(
+          song_runtime.source_game.c_str(), song_runtime.midi_path,
+          song_runtime.audio_path, std::move(rig));
+      std::fprintf(
+          stderr,
+          "[flow] loose song handoff: song=%s source=%s midi=%s audio=%s "
+          "character=%s guitar=%s venue=%s band=%zu\n",
+          song.c_str(), song_runtime.source_game.c_str(),
+          song_runtime.midi_path.c_str(), song_runtime.audio_path.c_str(),
+          song_runtime.character_outfit.c_str(), song_runtime.guitar.c_str(),
+          song_runtime.venue.c_str(), song_runtime.band.size());
+    } else {
+      gameplay.clear_authored_song_runtime();
+    }
     gameplay.set_diagnostic_autoplay(options.gameplay_autoplay);
     gameplay.set_diagnostic_front_camera(options.gameplay_front_camera_role);
     gameplay.set_diagnostic_unlit_performers(
@@ -8231,7 +8300,16 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       return true;
     }
     if (screen == "qp_selsong_screen") {
-      set_selected_song(preferred_song_index());
+      // Keep the selected row on screen for a short, real render interval
+      // before confirming it. This makes the process-local acceptance harness
+      // exercise and visibly prove the same list state that the confirmation
+      // handler consumes, instead of selecting and leaving in one frame.
+      if (!automated_song_selected) {
+        set_selected_song(preferred_song_index());
+        automated_song_selected = true;
+        return true;
+      }
+      if (screen_seconds < dwell + 0.35f) return false;
       automated_screen = screen;
       do_confirm(mgr);
       return true;
@@ -8495,6 +8573,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         phase_seconds = 0.0f;
         screen_seconds = 0.0f;
         automated_screen.clear();
+        automated_song_selected = false;
         std::fprintf(stderr, "[flow] YOU ROCK -> stock post-show results\n");
       }
       ++frame;
@@ -8686,6 +8765,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       shown = mgr.current_screen();
       screen_seconds = 0.0f;
       automated_screen.clear();
+      automated_song_selected = false;
       if (shown &&
           (phase == RuntimePhase::Paused || phase == RuntimePhase::Menus) &&
           screen_has_panel(shown, Symbol("world_panel"))) {

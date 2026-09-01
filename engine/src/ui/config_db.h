@@ -71,6 +71,20 @@ struct DlcSetlist {
   bool include_in_quickplay = false;
 };
 
+// Complete runtime-facing projection of one authored song record. This keeps
+// disc-imported DTB records authoritative while allowing a release package to
+// namespace source-game character, venue, instrument, and band identities.
+struct SongRuntimeConfig {
+  Symbol source_game;
+  std::string midi_path;
+  std::string audio_path;
+  std::string character_outfit;
+  std::string guitar;
+  std::string venue;
+  std::string anim_tempo;
+  std::vector<std::string> band;
+};
+
 class ConfigDb {
  public:
   // Load the named config/gen DTBs from the ARK. Missing/unparsable files are
@@ -102,6 +116,7 @@ class ConfigDb {
   // path has no extension in songs.dtb.
   std::string song_audio_path(Symbol song) const;
   std::string song_midi_path(Symbol song) const;
+  SongRuntimeConfig song_runtime_config(Symbol song) const;
   DataNode store_field(Symbol category, Symbol item, Symbol field) const;
   std::size_t store_item_count(Symbol category) const;
   Symbol store_item(Symbol category, std::size_t index) const;
@@ -132,6 +147,12 @@ class ConfigDb {
   // Generated from each game's authored roster, locale names, and asset
   // inventory. Canonical identity and exact per-game setup stay separate.
   std::vector<Symbol> characters() const;
+  // Retail ui/gen/ui.dtb macro membership, retained separately from add-on
+  // manifests so DLC can extend (never replace) the native outfit roster.
+  std::vector<Symbol> native_character_outfits(Symbol character) const;
+  // One canonical selection order shared by menus and player configuration:
+  // native GH2 first, then GH1, GH80s, and later external sources.
+  std::vector<Symbol> character_outfits(Symbol character) const;
   std::vector<CharacterVariant> character_variants(Symbol character) const;
   const CharacterVariant* character_variant(Symbol selection) const;
   Symbol character_for_variant(Symbol selection) const;
@@ -142,6 +163,7 @@ class ConfigDb {
     return dlc_packages_;
   }
   std::vector<Symbol> setlists() const;
+  std::string setlist_label(Symbol setlist) const;
   std::vector<Symbol> setlist_songs(Symbol setlist) const;
 
   // Generic keyed-record field: record's `find_keyed(field)` value (at(1)).
@@ -153,11 +175,16 @@ class ConfigDb {
 
   std::map<const void*, std::shared_ptr<DataArray>> tables_;
   std::vector<Symbol> practice_sections_;
+  std::vector<Symbol> native_characters_;
+  std::vector<Symbol> native_character_outfits_;
   std::vector<CharacterVariant> character_variants_;
   std::vector<Symbol> addon_venues_;
   std::vector<Symbol> addon_quickplay_songs_;
   std::vector<DlcSetlist> addon_setlists_;
   std::vector<DlcPackageSummary> dlc_packages_;
+  std::map<const void*, Symbol> addon_song_sources_;
+  std::map<std::string, std::string> source_routes_;
+  std::map<std::string, std::vector<std::string>> source_default_bands_;
 };
 
 }  // namespace ghogx::ui

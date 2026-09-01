@@ -50,10 +50,11 @@ def main() -> int:
     )
     parser.add_argument("--inventory", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--source-root", type=Path)
     args = parser.parse_args()
 
     rb2_root = args.rb2_root.resolve()
-    source = rb2_root / "source_ark"
+    source = args.source_root.resolve() if args.source_root else rb2_root / "source_ark"
     inventory_path = (
         args.inventory.resolve()
         if args.inventory
@@ -120,7 +121,11 @@ def main() -> int:
                     "skin_id": outfit,
                     "skin_display_name": clean_display_name(skin_name),
                     "is_default_skin": str(outfit == default_outfit).lower(),
-                    "variant_milo": str(variant.relative_to(rb2_root)),
+                    "variant_milo": str(
+                        variant.relative_to(rb2_root)
+                        if variant.is_relative_to(rb2_root)
+                        else variant
+                    ),
                 }
             )
             rows.append(row)

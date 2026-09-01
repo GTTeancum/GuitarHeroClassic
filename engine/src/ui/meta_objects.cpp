@@ -345,14 +345,16 @@ std::vector<Symbol> ui_macro_symbols(const ConfigDb& db, Symbol macro_name) {
 }
 
 std::vector<Symbol> character_symbols(const ConfigDb& db) {
-  std::vector<Symbol> characters = db.characters();
-  return characters.empty()
-             ? ui_macro_symbols(db, Symbol("CHARACTERS"))
-             : characters;
+  return db.characters();
 }
 
 std::vector<Symbol> outfits_for_character(const ConfigDb& db,
                                           Symbol character);
+
+std::vector<Symbol> stock_outfits_for_character(const ConfigDb& db,
+                                                Symbol character) {
+  return db.native_character_outfits(character);
+}
 
 bool character_variant_available(ScreenManager* mgr,
                                  const CharacterVariant& variant) {
@@ -370,13 +372,18 @@ bool character_variant_available(ScreenManager* mgr,
 
 std::vector<Symbol> available_outfits_for_character(
     ScreenManager* mgr, const ConfigDb& db, Symbol character) {
+  // Retail GH2 LOAD_CHARACTERS is the authoritative native roster. Add-on
+  // manifests extend that roster; they must not replace it merely because a
+  // character also has a GH1/GH80s outfit. Keep the requested chronology:
+  // native GH2 first, then GH1, GH80s, and any later external sources.
   std::vector<Symbol> out;
-  for (const auto& variant : db.character_variants(character)) {
-    if (character_variant_available(mgr, variant))
-      out.push_back(variant.selection);
+  for (Symbol outfit : db.character_outfits(character)) {
+    const CharacterVariant* variant = db.character_variant(outfit);
+    if (!variant || character_variant_available(mgr, *variant))
+      out.push_back(outfit);
   }
-  if (!out.empty() || !db.character_variants(character).empty()) return out;
-  return outfits_for_character(db, character);
+  if (out.empty() && character.valid()) out.push_back(character);
+  return out;
 }
 
 std::vector<Symbol> available_character_symbols(ScreenManager* mgr,
@@ -391,22 +398,7 @@ std::vector<Symbol> available_character_symbols(ScreenManager* mgr,
 
 std::vector<Symbol> outfits_for_character(const ConfigDb& db,
                                           Symbol character) {
-  std::vector<Symbol> out;
-  const auto variants = db.character_variants(character);
-  for (const auto& variant : variants) out.push_back(variant.selection);
-  if (!out.empty()) return out;
-
-  const std::string base = character.c_str();
-  for (Symbol outfit : ui_macro_symbols(db, Symbol("LOAD_CHARACTERS"))) {
-    const std::string name = outfit.c_str();
-    if (name == base ||
-        (name.rfind(base, 0) == 0 && name.size() == base.size() + 1 &&
-         name.back() >= '0' && name.back() <= '9')) {
-      out.push_back(outfit);
-    }
-  }
-  if (out.empty() && character.valid()) out.push_back(character);
-  return out;
+  return db.character_outfits(character);
 }
 
 Symbol default_venue(const ConfigDb* db) {
@@ -1319,7 +1311,16 @@ class CharacterProvider : public MetaObject {
         index = outfits.empty() ? 0 : static_cast<int>(outfits.size() - 1);
       const CharacterVariant* variant =
           outfits.empty() ? nullptr : db_->character_variant(outfits[index]);
-      out = variant ? DataNode::Str(variant->label) : DataNode();
+      if (variant) {
+        out = DataNode::Str(variant->label);
+      } else if (!outfits.empty()) {
+        const std::string token =
+            std::string(outfits[index].c_str()) + "_outfit";
+        out = DataNode::Str(mgr_ ? mgr_->localize(Symbol(token.c_str()))
+                                 : token);
+      } else {
+        out = DataNode();
+      }
       return true;
     }
     if (std::strcmp(m, "get_outfit_blurb") == 0) {
@@ -2655,6 +2656,13 @@ bool Campaign::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     }
     if (db_ && !db_->store_field(Symbol("song"), key, Symbol("price")).empty()) {
       out = DataNode::Int(node_bool(get_property(key)) ? 1 : 0);
+      return true;
+    }
+    // Installed DLC songs are neither career-tier entries nor retail store
+    // purchases. Their mounted, validated source record is the unlock fact:
+    // once the package is present they are playable in quickplay.
+    if (db_ && db_->song_runtime_config(key).source_game.valid()) {
+      out = DataNode::Int(1);
       return true;
     }
     if (const DataArray* campaign = db_ ? db_->table(Symbol("campaign")) : nullptr) {

@@ -1,8 +1,0 @@
-source_path	target_path	records	keyframes	shaky_records	adaptive_subdivisions	max_position_error	max_rotation_error	max_screen_error	max_fov_error	status
-venues/theatre/gen/camera.dtb	world/gh1_theatre/gen/gh1_theatre.milo_ps2	32	27546	12	27081	9.9954e-05	0	1.71363e-07	0	converted
-venues/big_club/gen/camera.dtb	world/gh1_big_club/gen/gh1_big_club.milo_ps2	38	12056	24	11697	9.9954e-05	0	1.75089e-07	0	converted
-venues/small_club/gen/camera.dtb	world/gh1_small_club/gen/gh1_small_club.milo_ps2	24	6062	9	5879	9.99312e-05	0	7.66976e-07	0	converted
-venues/fest/gen/camera.dtb	world/gh1_fest/gen/gh1_fest.milo_ps2	45	50144	10	49709	0.000126749	7.63312e-07	8.06351e-07	8.9407e-08	converted
-venues/arena/gen/camera.dtb	world/gh1_arena/gen/gh1_arena.milo_ps2	33	71019	4	70320	9.99312e-05	0	2.45869e-07	0	converted
-venues/small_club_multi/gen/camera.dtb	world/gh1_small_club_multi/gen/gh1_small_club_multi.milo_ps2	4	2722	0	2691	9.9913e-05	0	7.66976e-07	0	converted
-venues/basement/gen/camera.dtb	world/gh1_basement/gen/gh1_basement.milo_ps2	25	12315	9	12020	9.9954e-05	8.46512e-06	9.61125e-07	0	converted

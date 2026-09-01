@@ -81,8 +81,25 @@ bool PssVideoPlayerWin32::open(const std::string& path) {
 
   // The retail intro is 640x448 at 30000/1001.  Force that decoded contract so
   // the render loop never has to infer dimensions from the proprietary suffix.
+  char module_path[MAX_PATH]{};
+  const DWORD module_length =
+      GetModuleFileNameA(nullptr, module_path, static_cast<DWORD>(std::size(module_path)));
+  const std::filesystem::path decoder =
+      module_length > 0 && module_length < std::size(module_path)
+          ? std::filesystem::path(module_path).parent_path() / "ffmpeg.exe"
+          : std::filesystem::path("ffmpeg.exe");
+  if (!std::filesystem::is_regular_file(decoder)) {
+    CloseHandle(read_pipe);
+    CloseHandle(write_pipe);
+    if (null_handle != INVALID_HANDLE_VALUE) CloseHandle(null_handle);
+    std::fprintf(stderr, "[boot-video] bundled decoder not found: %s\n",
+                 decoder.string().c_str());
+    finished_ = true;
+    return false;
+  }
   std::string command =
-      "ffmpeg.exe -hide_banner -loglevel error -nostdin -re -i " +
+      quote_command_arg(decoder.string()) +
+      " -hide_banner -loglevel error -nostdin -re -i " +
       quote_command_arg(path) +
       " -map 0:v:0 -an -sn -vf scale=640:448,fps=30000/1001 "
       "-pix_fmt rgba -f rawvideo pipe:1";
@@ -91,7 +108,7 @@ bool PssVideoPlayerWin32::open(const std::string& path) {
 
   PROCESS_INFORMATION process{};
   const BOOL created = CreateProcessA(
-      nullptr, mutable_command.data(), nullptr, nullptr, TRUE,
+      decoder.string().c_str(), mutable_command.data(), nullptr, nullptr, TRUE,
       CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process);
   CloseHandle(write_pipe);
   if (null_handle != INVALID_HANDLE_VALUE) CloseHandle(null_handle);

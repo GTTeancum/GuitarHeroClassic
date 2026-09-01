@@ -839,6 +839,24 @@ class Gameplay {
       std::vector<std::pair<std::string, std::string>> archives) {
     auxiliary_asset_paths_ = std::move(archives);
   }
+  // The front-end owns the merged base-plus-DLC catalog. Hand its complete
+  // authored projection to gameplay so a namespaced loose catalog never has
+  // to replace config/gen/songs.dtb merely to be playable.
+  void set_authored_song_runtime(std::string source_game,
+                                 std::string midi_path,
+                                 std::string audio_path,
+                                 QuickplayRig rig) {
+    authored_song_source_game_ = std::move(source_game);
+    authored_song_midi_path_ = std::move(midi_path);
+    authored_song_audio_path_ = std::move(audio_path);
+    authored_song_rig_ = std::move(rig);
+  }
+  void clear_authored_song_runtime() {
+    authored_song_source_game_.clear();
+    authored_song_midi_path_.clear();
+    authored_song_audio_path_.clear();
+    authored_song_rig_.reset();
+  }
   // Character-select hands gameplay the exact variant routes generated from
   // the source archives. Empty strings clear the selection and restore the
   // song's authored quickplay character.
@@ -1985,6 +2003,10 @@ class Gameplay {
   std::string base_hdr_path_;
   std::string base_ark_path_;
   std::vector<std::pair<std::string, std::string>> auxiliary_asset_paths_;
+  std::string authored_song_source_game_;
+  std::string authored_song_midi_path_;
+  std::string authored_song_audio_path_;
+  std::optional<QuickplayRig> authored_song_rig_;
   std::string selected_character_selection_;
   std::string selected_character_model_path_;
   std::string selected_character_main_anim_path_;

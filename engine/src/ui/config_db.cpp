@@ -32,6 +32,48 @@ bool starts_with(std::string_view s, std::string_view prefix) {
   return s.size() >= prefix.size() && s.substr(0, prefix.size()) == prefix;
 }
 
+std::string lower_ascii(std::string_view value) {
+  std::string out(value);
+  for (char& ch : out)
+    ch = static_cast<char>(
+        std::tolower(static_cast<unsigned char>(ch)));
+  return out;
+}
+
+std::string source_route_key(std::string_view source, std::string_view kind,
+                             std::string_view value) {
+  return lower_ascii(source) + "\n" + lower_ascii(kind) + "\n" +
+         lower_ascii(value);
+}
+
+void flatten_dtb_symbols(const gh::dtb::Node& node,
+                         std::vector<Symbol>& out) {
+  if (gh::dtb::is_array(node)) {
+    for (const auto& child : gh::dtb::children(node))
+      if (child) flatten_dtb_symbols(*child, out);
+    return;
+  }
+  // Macro bodies are authored as bare symbols. Do not turn quoted strings or
+  // preprocessor directives into roster identities.
+  if (node.tag != 0x05) return;
+  if (auto value = gh::dtb::as_string(node); value && !value->empty())
+    out.emplace_back(*value);
+}
+
+std::vector<Symbol> dtb_macro_symbols(const gh::dtb::Tree& tree,
+                                      std::string_view macro) {
+  std::vector<Symbol> out;
+  for (std::size_t i = 0; i + 1 < tree.root.size(); ++i) {
+    const auto& directive = tree.root[i];
+    if (!directive || directive->tag != 0x20) continue;
+    const auto name = gh::dtb::as_string(*directive);
+    if (!name || *name != macro || !tree.root[i + 1]) continue;
+    flatten_dtb_symbols(*tree.root[i + 1], out);
+    break;
+  }
+  return out;
+}
+
 Symbol first_campaign_song(const ConfigDb& db) {
   const DataArray* campaign = db.table(Symbol("campaign"));
   auto order = campaign ? campaign->find_keyed(Symbol("order")) : nullptr;
@@ -447,6 +489,11 @@ void ConfigDb::load(const gh::ark::ArkV3Reader& ark, const std::vector<std::stri
   addon_quickplay_songs_.clear();
   addon_setlists_.clear();
   dlc_packages_.clear();
+  addon_song_sources_.clear();
+  source_routes_.clear();
+  source_default_bands_.clear();
+  native_characters_.clear();
+  native_character_outfits_.clear();
   static const struct { const char* name; const char* path; } kFiles[] = {
       {"songs", "config/gen/songs.dtb"},     {"guitars", "config/gen/guitars.dtb"},
       {"store", "config/gen/store.dtb"},     {"campaign", "config/gen/campaign.dtb"},
@@ -460,6 +507,16 @@ void ConfigDb::load(const gh::ark::ArkV3Reader& ark, const std::vector<std::stri
       if (!entry) continue;
       std::vector<uint8_t> bytes = ark.read_entry(*entry, ark_paths);
       gh::dtb::Tree tree = gh::dtb::parse(bytes);
+      if (std::string_view(f.name) == "ui") {
+        native_characters_ = dtb_macro_symbols(tree, "CHARACTERS");
+        native_character_outfits_ =
+            dtb_macro_symbols(tree, "LOAD_CHARACTERS");
+        std::fprintf(stderr,
+                     "[configdb] native character macros: characters=%zu "
+                     "outfits=%zu\n",
+                     native_characters_.size(),
+                     native_character_outfits_.size());
+      }
       tables_[Symbol(f.name).id()] = dtb_bridge::from_tree(tree);
     } catch (const std::exception& ex) {
       std::fprintf(stderr, "[configdb] %s: %s\n", f.path, ex.what());
@@ -565,12 +622,17 @@ void ConfigDb::load_addon_manifests(
   std::error_code error;
   if (fs::is_regular_file(addon_root / "manifest.json", error))
     manifests.push_back(addon_root / "manifest.json");
+  error.clear();
   if (fs::is_directory(addon_root, error)) {
+    error.clear();
     for (const auto& entry : fs::directory_iterator(addon_root, error)) {
       if (error) break;
-      if (!entry.is_directory(error)) continue;
+      std::error_code entry_error;
+      if (!entry.is_directory(entry_error) || entry_error) continue;
       const fs::path manifest = entry.path() / "manifest.json";
-      if (fs::is_regular_file(manifest, error)) manifests.push_back(manifest);
+      entry_error.clear();
+      if (fs::is_regular_file(manifest, entry_error) && !entry_error)
+        manifests.push_back(manifest);
     }
   }
   std::sort(manifests.begin(), manifests.end());
@@ -579,6 +641,9 @@ void ConfigDb::load_addon_manifests(
     const std::size_t venues_before = addon_venues_.size();
     const std::size_t quickplay_before = addon_quickplay_songs_.size();
     const std::size_t setlists_before = addon_setlists_.size();
+    const auto song_sources_before = addon_song_sources_;
+    const auto source_routes_before = source_routes_;
+    const auto source_default_bands_before = source_default_bands_;
     std::vector<std::pair<DataArray*, std::size_t>> modified_arrays;
     auto record_array_before_mutation = [&](DataArray* array) {
       if (!array) return;
@@ -605,6 +670,7 @@ void ConfigDb::load_addon_manifests(
                       }))
         throw std::runtime_error("duplicate package id " + package_id);
       const fs::path addon_dir = manifest.parent_path();
+      const std::string source_game = json_string(root, "source_game");
       std::string content_root_name = json_string(root, "content_root");
       if (content_root_name.empty()) content_root_name = "content";
       const std::string normalized_content_root =
@@ -617,12 +683,41 @@ void ConfigDb::load_addon_manifests(
 
       std::vector<gh::ark::LooseFileMount> package_mounts;
       if (fs::is_directory(content_root, error)) {
-        for (fs::recursive_directory_iterator it(content_root, error), end;
-             it != end && !error; it.increment(error)) {
-          if (!it->is_regular_file(error)) continue;
-          const std::string virtual_path = normalized_virtual_path(
-              fs::relative(it->path(), content_root, error).generic_string());
-          if (error) break;
+        std::vector<std::pair<std::string, fs::path>> package_files;
+        const auto indexed_files = json_strings(root, "files");
+        if (!indexed_files.empty()) {
+          std::unordered_set<std::string> unique_files;
+          for (const std::string& indexed_file : indexed_files) {
+            const std::string virtual_path =
+                normalized_virtual_path(indexed_file);
+            if (!unique_files.insert(virtual_path).second)
+              throw std::runtime_error("duplicate indexed content path: " +
+                                       virtual_path);
+            const fs::path loose_path =
+                (content_root / fs::path(virtual_path)).lexically_normal();
+            if (!fs::is_regular_file(loose_path, error) || error)
+              throw std::runtime_error("indexed content file is missing: " +
+                                       virtual_path);
+            package_files.emplace_back(virtual_path, loose_path);
+          }
+        } else {
+          for (fs::recursive_directory_iterator it(content_root, error), end;
+               it != end && !error; it.increment(error)) {
+            if (!it->is_regular_file(error)) continue;
+            const std::string virtual_path = normalized_virtual_path(
+                fs::relative(it->path(), content_root, error)
+                    .generic_string());
+            if (error) break;
+            package_files.emplace_back(virtual_path, it->path());
+          }
+          if (error)
+            throw std::runtime_error("cannot enumerate content directory");
+          std::sort(package_files.begin(), package_files.end(),
+                    [](const auto& left, const auto& right) {
+                      return left.first < right.first;
+                    });
+        }
+        for (const auto& [virtual_path, loose_path] : package_files) {
           if (base_paths.count(virtual_path) &&
               !replacements.count(virtual_path)) {
             throw std::runtime_error(
@@ -636,11 +731,9 @@ void ConfigDb::load_addon_manifests(
                 ": " + virtual_path);
           }
           package_mounts.push_back(
-              {virtual_path, fs::absolute(it->path()).lexically_normal(),
+              {virtual_path, fs::absolute(loose_path).lexically_normal(),
                package_id});
         }
-        if (error)
-          throw std::runtime_error("cannot enumerate content directory");
       }
       const auto asset_exists = [&](const std::string& virtual_path) {
         if (virtual_path.empty()) return true;
@@ -651,6 +744,88 @@ void ConfigDb::load_addon_manifests(
           return true;
         return base_ark && base_ark->find(virtual_path).has_value();
       };
+
+      // A preconverted release package can namespace identities that were
+      // authored before GH2. Routes are data, not character/venue-specific
+      // runtime exceptions, and apply equally to future external packages.
+      if (const auto* routes = json_array(root, "source_routes")) {
+        for (const JsonValue& route : *routes) {
+          const std::string source = json_string(route, "source");
+          const std::string kind = json_string(route, "kind");
+          const std::string from = json_string(route, "from");
+          const std::string to = json_string(route, "to");
+          if (source.empty() || kind.empty() || from.empty() || to.empty())
+            throw std::runtime_error(
+                "source route requires source, kind, from, and to");
+          const std::string key = source_route_key(source, kind, from);
+          if (!source_routes_.emplace(key, to).second)
+            throw std::runtime_error("duplicate source route " + key);
+        }
+      }
+      if (const auto* bands = json_array(root, "source_default_bands")) {
+        for (const JsonValue& band : *bands) {
+          const std::string source = json_string(band, "source");
+          const auto members = json_strings(band, "members");
+          if (source.empty() || members.empty())
+            throw std::runtime_error(
+                "source default band requires source and members");
+          if (!source_default_bands_.emplace(lower_ascii(source), members).second)
+            throw std::runtime_error("duplicate source default band " +
+                                     source);
+        }
+      }
+
+      // A disc-import package can preserve the source game's complete song
+      // records instead of projecting them through a reduced JSON schema.
+      // Catalogs live inside the package and are appended transactionally to
+      // the already-loaded GH2 songs table; the GH2 catalog itself is never
+      // replaced or rewritten.
+      if (const auto song_catalogs = json_strings(root, "song_catalogs");
+          !song_catalogs.empty()) {
+        DataArray* songs_table = nullptr;
+        auto found = tables_.find(Symbol("songs").id());
+        if (found != tables_.end()) songs_table = found->second.get();
+        if (!songs_table)
+          throw std::runtime_error("base songs table is unavailable");
+        record_array_before_mutation(songs_table);
+        for (const std::string& catalog_value : song_catalogs) {
+          const std::string catalog_path =
+              normalized_virtual_path(catalog_value);
+          const auto mount = std::find_if(
+              package_mounts.begin(), package_mounts.end(),
+              [&](const gh::ark::LooseFileMount& row) {
+                return row.virtual_path == catalog_path;
+              });
+          if (mount == package_mounts.end())
+            throw std::runtime_error(
+                "song catalog is not indexed package content: " +
+                catalog_path);
+          std::ifstream catalog_stream(mount->file_path, std::ios::binary);
+          if (!catalog_stream)
+            throw std::runtime_error("cannot open song catalog: " +
+                                     catalog_path);
+          std::vector<std::uint8_t> catalog_bytes(
+              (std::istreambuf_iterator<char>(catalog_stream)),
+              std::istreambuf_iterator<char>());
+          const auto imported =
+              dtb_bridge::from_tree(gh::dtb::parse(catalog_bytes));
+          for (std::size_t row_index = 0; row_index < imported->size();
+               ++row_index) {
+            const auto record = imported->at(row_index).as_array();
+            if (!record || record->empty()) continue;
+            const Symbol song_id =
+                record->at(0).as_symbol().value_or(Symbol());
+            if (!song_id.valid()) continue;
+            if (song_index(song_id) >= 0)
+              throw std::runtime_error("duplicate song " +
+                                       std::string(song_id.c_str()));
+            songs_table->push(imported->at(row_index));
+            addon_quickplay_songs_.push_back(song_id);
+            if (!source_game.empty())
+              addon_song_sources_[song_id.id()] = Symbol(source_game);
+          }
+        }
+      }
 
       auto append_variant = [&](const JsonValue& row,
                                 const std::string& inherited_character,
@@ -877,6 +1052,9 @@ void ConfigDb::load_addon_manifests(
       addon_venues_.resize(venues_before);
       addon_quickplay_songs_.resize(quickplay_before);
       addon_setlists_.resize(setlists_before);
+      addon_song_sources_ = song_sources_before;
+      source_routes_ = source_routes_before;
+      source_default_bands_ = source_default_bands_before;
       std::fprintf(stderr, "[configdb] addon %s: %s\n",
                    manifest.generic_string().c_str(), ex.what());
     }
@@ -997,10 +1175,69 @@ std::string ConfigDb::song_midi_path(Symbol song_name) const {
   const DataArray* record = index >= 0 ? song(static_cast<std::size_t>(index))
                                       : nullptr;
   auto source = record ? record->find_keyed(Symbol("song")) : nullptr;
-  const DataNode value = field(source.get(), Symbol("midi_file"));
+  DataNode value = field(source.get(), Symbol("midi_file"));
+  // GH1 authors midi_file at record scope; GH2/GH80s author it inside song.
+  if (value.empty())
+    value = field(record, Symbol("midi_file"));
   if (auto text = value.as_string()) return std::string(*text);
   if (auto symbol = value.as_symbol()) return std::string(symbol->c_str());
   return {};
+}
+
+SongRuntimeConfig ConfigDb::song_runtime_config(Symbol song_name) const {
+  SongRuntimeConfig out;
+  const int index = song_index(song_name);
+  const DataArray* record =
+      index >= 0 ? song(static_cast<std::size_t>(index)) : nullptr;
+  if (!record) return out;
+  if (const auto source = addon_song_sources_.find(song_name.id());
+      source != addon_song_sources_.end()) {
+    out.source_game = source->second;
+  }
+  out.midi_path = song_midi_path(song_name);
+  out.audio_path = song_audio_path(song_name);
+  auto text_value = [](const DataNode& value) {
+    if (auto text = value.as_string()) return std::string(*text);
+    if (auto symbol = value.as_symbol()) return std::string(symbol->c_str());
+    return std::string();
+  };
+  out.anim_tempo = text_value(field(record, Symbol("anim_tempo")));
+  if (auto quickplay = record->find_keyed(Symbol("quickplay"))) {
+    out.character_outfit =
+        text_value(field(quickplay.get(), Symbol("character_outfit")));
+    if (out.character_outfit.empty())
+      out.character_outfit =
+          text_value(field(quickplay.get(), Symbol("character")));
+    out.guitar = text_value(field(quickplay.get(), Symbol("guitar")));
+    out.venue = text_value(field(quickplay.get(), Symbol("venue")));
+  }
+  if (auto band = record->find_keyed(Symbol("band"))) {
+    for (std::size_t member = 1; member < band->size(); ++member) {
+      const std::string value = text_value(band->at(member));
+      if (!value.empty()) out.band.push_back(value);
+    }
+  }
+  if (!out.source_game.valid()) return out;
+  const std::string source = lower_ascii(out.source_game.c_str());
+  auto route = [&](std::string_view kind, std::string value) {
+    if (value.empty()) return value;
+    const auto found =
+        source_routes_.find(source_route_key(source, kind, value));
+    return found == source_routes_.end() ? value : found->second;
+  };
+  out.character_outfit =
+      route("character", std::move(out.character_outfit));
+  out.guitar = route("guitar", std::move(out.guitar));
+  out.venue = route("venue", std::move(out.venue));
+  if (out.band.empty()) {
+    if (const auto fallback = source_default_bands_.find(source);
+        fallback != source_default_bands_.end()) {
+      out.band = fallback->second;
+    }
+  }
+  for (std::string& member : out.band)
+    member = route("band_member", std::move(member));
+  return out;
 }
 
 DataNode ConfigDb::store_field(Symbol category, Symbol item, Symbol field_name) const {
@@ -1219,11 +1456,48 @@ Symbol ConfigDb::guitar_for_skin(Symbol skin_name) const {
 }
 
 std::vector<Symbol> ConfigDb::characters() const {
-  std::vector<Symbol> out;
+  std::vector<Symbol> out = native_characters_;
   for (const CharacterVariant& variant : character_variants_) {
     if (std::find(out.begin(), out.end(), variant.character) == out.end())
       out.push_back(variant.character);
   }
+  return out;
+}
+
+std::vector<Symbol> ConfigDb::native_character_outfits(
+    Symbol character) const {
+  std::vector<Symbol> out;
+  const std::string base = character.c_str();
+  for (Symbol outfit : native_character_outfits_) {
+    const std::string name = outfit.c_str();
+    if (name == base ||
+        (name.rfind(base, 0) == 0 && name.size() == base.size() + 1 &&
+         name.back() >= '0' && name.back() <= '9')) {
+      out.push_back(outfit);
+    }
+  }
+  return out;
+}
+
+std::vector<Symbol> ConfigDb::character_outfits(Symbol character) const {
+  std::vector<Symbol> out = native_character_outfits(character);
+  auto variants = character_variants(character);
+  const auto source_rank = [](Symbol source) {
+    if (source == Symbol("gh2")) return 0;
+    if (source == Symbol("gh1")) return 1;
+    if (source == Symbol("gh80")) return 2;
+    return 3;
+  };
+  std::stable_sort(
+      variants.begin(), variants.end(),
+      [&](const CharacterVariant& a, const CharacterVariant& b) {
+        return source_rank(a.source_game) < source_rank(b.source_game);
+      });
+  for (const CharacterVariant& variant : variants) {
+    if (std::find(out.begin(), out.end(), variant.selection) == out.end())
+      out.push_back(variant.selection);
+  }
+  if (out.empty() && character.valid()) out.push_back(character);
   return out;
 }
 
@@ -1271,6 +1545,13 @@ std::vector<Symbol> ConfigDb::setlists() const {
   out.reserve(addon_setlists_.size());
   for (const DlcSetlist& setlist : addon_setlists_) out.push_back(setlist.id);
   return out;
+}
+
+std::string ConfigDb::setlist_label(Symbol setlist) const {
+  const auto found = std::find_if(
+      addon_setlists_.begin(), addon_setlists_.end(),
+      [&](const DlcSetlist& row) { return row.id == setlist; });
+  return found == addon_setlists_.end() ? std::string() : found->label;
 }
 
 std::vector<Symbol> ConfigDb::setlist_songs(Symbol setlist) const {

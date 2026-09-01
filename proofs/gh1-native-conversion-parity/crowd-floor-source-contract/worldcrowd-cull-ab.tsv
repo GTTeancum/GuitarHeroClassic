@@ -1,4 +1,0 @@
-case	cull	crowd_runtime	bytes	sha256	result
-pre_fix_enabled	D3DCULL_CCW	enabled	2073654	6EC3E9A98A9F3E93EEFB80D8FFFB360C13E3B69E7C840DA83B9B160F169D8B2F	byte-identical to disabled control; every billboard face rejected
-pre_fix_disabled	D3DCULL_CCW	disabled	2073654	6EC3E9A98A9F3E93EEFB80D8FFFB360C13E3B69E7C840DA83B9B160F169D8B2F	no WorldCrowd pass
-corrected_enabled	D3DCULL_CW	enabled	2073654	83199B2F5D1394FC3C42A5AFA6C40C5113F08548E3D01DADDDA3C7F6FAA0ADBC	decoded crowd visibly present

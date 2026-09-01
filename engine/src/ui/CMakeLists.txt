@@ -117,6 +117,16 @@ endif()
 add_test(NAME ghogx_character_variant_catalog_test
          COMMAND ghogx_character_variant_catalog_test)
 
+add_executable(ghogx_dlc_import_catalog_test dlc_import_catalog_test.cpp)
+target_link_libraries(ghogx_dlc_import_catalog_test PRIVATE ghogx_ui_core)
+if(MSVC)
+    target_compile_options(ghogx_dlc_import_catalog_test PRIVATE /W4)
+else()
+    target_compile_options(ghogx_dlc_import_catalog_test PRIVATE -Wall -Wextra)
+endif()
+add_test(NAME ghogx_dlc_import_catalog_test
+         COMMAND ghogx_dlc_import_catalog_test)
+
 add_executable(ghogx_band_text_entry_test band_text_entry_test.cpp)
 target_link_libraries(ghogx_band_text_entry_test PRIVATE ghogx_ui_core)
 if(MSVC)

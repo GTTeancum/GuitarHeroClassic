@@ -7,10 +7,22 @@ import unittest
 
 from PIL import Image
 
+from convert_rb2_instruments import work_directory_key
 from rb2_native_assets import compose_two_color
 
 
 class ComposeTwoColorTests(unittest.TestCase):
+    def test_conversion_work_key_is_stable_compact_and_stem_specific(
+        self,
+    ) -> None:
+        stem = "rb2_guitar_stratocaster01_sunburstpearl"
+        key = work_directory_key(stem)
+
+        self.assertEqual(len(key), 16)
+        self.assertRegex(key, r"^[0-9a-f]{16}$")
+        self.assertEqual(key, work_directory_key(stem))
+        self.assertNotEqual(key, work_directory_key(stem + "_other"))
+
     def test_diffuse_alpha_interpolates_palette_and_mask_preserves_source(
         self,
     ) -> None:

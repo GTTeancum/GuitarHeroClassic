@@ -12,6 +12,7 @@ import argparse
 import csv
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,6 +27,7 @@ DEFAULT_PLAYABLE_MANIFEST = (
     / "config"
     / "playable_character_variants.tsv"
 )
+CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 
 @dataclass(frozen=True)
@@ -58,7 +60,8 @@ class Variant:
 def run_text(command: list[str]) -> str:
     return subprocess.run(
         command, check=True, text=True, encoding="utf-8",
-        errors="replace", stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+        errors="replace", stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        creationflags=CREATE_NO_WINDOW,
     ).stdout
 
 
@@ -284,7 +287,8 @@ def extract_entry(ark_tool: Path, source: Source, source_path: str,
     subprocess.run(
         [str(ark_tool), "extract", str(hdr), str(ark),
          "--path", source_path, "--out", str(destination)],
-        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        creationflags=CREATE_NO_WINDOW)
 
 
 def namespace_colliding_gh2_assets(
@@ -566,7 +570,7 @@ def main() -> int:
     write_catalog(catalog_dta, characters, rows)
     subprocess.run(
         [str(args.dtb_tool), "compile", str(catalog_dta),
-         str(catalog_dtb)], check=True)
+         str(catalog_dtb)], check=True, creationflags=CREATE_NO_WINDOW)
     overlay_paths.append("config/gen/character_variants.dtb")
 
     manifest = args.out_root / "character-variant-overlay.tsv"

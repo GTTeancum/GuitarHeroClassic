@@ -32,6 +32,21 @@ Character outfits may opt into skeleton retargeting with
 `animation_source_model`, `retarget_animation`, and role-specific
 `guitarist_hidden_roots`.
 
+Disc-imported song packs use `song_catalogs`, an array of indexed paths to
+source `songs.dtb` files within the package. The runtime appends every complete
+source record to the base GH2 table and exposes it in Quickplay. This preserves
+stem layout, preview, practice, rank, venue, band, and other authored fields;
+it does not replace `config/gen/songs.dtb`. Duplicate song IDs reject the
+package transactionally.
+
+Importer-authored song manifests may also declare `source_game`,
+`source_routes`, and `source_default_bands`. These preserve source-authored
+song records while routing their character, venue, instrument, and band IDs to
+the corresponding namespaced loose assets. The GH1 installer emits only the
+song catalog and song files from user media; converted GH1 characters,
+animations, and venues are supplied separately by the bundled
+`project.gh1.converted` package.
+
 Package IDs, mounted paths, selection IDs, and catalog IDs must be unique.
 Replacing an existing ARK path is rejected unless that exact normalized path is
 listed in `replaces`. Every referenced character asset must resolve either in
@@ -39,6 +54,12 @@ the package content tree or the base archive. A manifest is transactional: if
 any later row is invalid, none of that package's earlier catalog or table
 changes remain active. Standard JSON string escapes (including Unicode
 surrogate pairs) and exponent-form numbers are accepted.
+
+Installer-produced manifests contain a sorted `files` array listing every
+ARK-relative path below `content/`. The runtime uses this as a cached loose-path
+index and verifies that every indexed file exists. Hand-authored packages may
+omit `files`; they retain the recursive-directory fallback. Duplicate, absolute,
+escaping, or missing indexed paths reject the entire package.
 
 New character and outfit descriptions are blank when omitted; the runtime does
 not fabricate localization keys. Character order is base DTB order followed by

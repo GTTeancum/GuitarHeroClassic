@@ -30203,7 +30203,9 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
 
     // --- MIDI chart ---
     const std::string mid_path =
-        authored_song && !authored_song->midi_path.empty()
+        !authored_song_midi_path_.empty()
+            ? authored_song_midi_path_
+        : authored_song && !authored_song->midi_path.empty()
             ? authored_song->midi_path
             : "songs/" + shortname + "/" + shortname + ".mid";
     std::fprintf(stderr, "[gameplay] loading chart: %s\n", mid_path.c_str());
@@ -30270,7 +30272,9 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
 
     // --- Audio ---
     const std::string vgs_path =
-        authored_song && !authored_song->master_audio_path.empty()
+        !authored_song_audio_path_.empty()
+            ? authored_song_audio_path_ + ".vgs"
+        : authored_song && !authored_song->master_audio_path.empty()
             ? authored_song->master_audio_path + ".vgs"
             : "songs/" + shortname + "/" + shortname + ".vgs";
     std::fprintf(stderr, "[gameplay] loading audio: %s\n", vgs_path.c_str());
@@ -30280,7 +30284,16 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     facefx_animation_ =
         ghogx::character::load_facefx_animation(hdr_path, ark_path, voc_path);
 
-    quickplay_rig_ = resolve_quickplay_rig(hdr_path, ark_path, shortname);
+    quickplay_rig_ = authored_song_rig_
+                         ? authored_song_rig_
+                         : resolve_quickplay_rig(hdr_path, ark_path,
+                                                 shortname);
+    if (quickplay_rig_ && !authored_song_source_game_.empty()) {
+        std::fprintf(stderr,
+                     "[world] loose song runtime: source=%s midi=%s audio=%s\n",
+                     authored_song_source_game_.c_str(), mid_path.c_str(),
+                     vgs_path.c_str());
+    }
     if (quickplay_rig_) {
         const bool selected_character_active =
             diagnostic_character_override_.empty() &&
@@ -38710,6 +38723,16 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
         }
         auto main_milos =
             worldcrowd_actor_main_milo_candidates(*actor_path, character);
+        if (quickplay_rig_ &&
+            quickplay_rig_->venue.rfind("gh1_", 0) == 0) {
+            const std::string gh1_crowd_main =
+                "char/gh1_crowd/anims/gen/crowd_main.milo_ps2";
+            main_milos.erase(
+                std::remove(main_milos.begin(), main_milos.end(),
+                            gh1_crowd_main),
+                main_milos.end());
+            main_milos.insert(main_milos.begin(), gh1_crowd_main);
+        }
         std::map<std::string, ghogx::character::CharClip> clips_by_group;
         for (const std::string& group_name :
              {std::string{"bad"}, std::string{"ok"}, std::string{"great"},

@@ -1,9 +1,0 @@
-venue	placements	submitted_flat	actors	actors_with_pose_change	min_channels	event	group	source_clips	visual
-battle	103	103	8	8	19	excitement_peak	great	female01_1armpump_01;male01_1armpump_01;male02_1armpump_01	animation/battle.gif
-arena	450	450	5	5	19	excitement_peak	great	female01_1armpump_01;male01_1armpump_01;male02_1armpump_01	animation/arena.gif
-theatre	764	764	8	8	19	excitement_peak	great	female01_1armpump_01;male01_1armpump_01;male02_1armpump_01	animation/theatre.gif
-fest	615	615	6	6	19	excitement_peak	great	female01_1armpump_01;male01_1armpump_01	animation/fest.gif
-big	150	150	6	6	19	excitement_peak	great	female01_1armpump_01;male01_1armpump_01	animation/big.gif
-small1	146	146	8	8	19	excitement_peak	great	female01_1armpump_01;male01_1armpump_01;male02_1armpump_01	animation/small1.gif
-small2	91	91	5	5	19	excitement_peak	great	female01_1armpump_01;male01_1armpump_01	animation/small2.gif
-stone	1761	1761	3	3	19	excitement_peak	great	male01_1armpump_01	animation/stone.gif

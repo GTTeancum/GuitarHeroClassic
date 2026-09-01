@@ -1,0 +1,30 @@
+{
+  "files": [
+    {
+      "path": "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2",
+      "sha256": "56ab184108ade586ddd4d5d6d5f9ee2997dd7582fe8ad1e1550a9a0d431601d3",
+      "size": 12068
+    },
+    {
+      "path": "char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2",
+      "sha256": "f7b202330e9233378ba55c896845deef1923c885174b7c0cf49097c115c17002",
+      "size": 2691390
+    },
+    {
+      "path": "char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2",
+      "sha256": "2a416333bcabc6c1513d4b4c8f471f5c5e189f4a038cbf3181da6958b6873c5d",
+      "size": 23889
+    },
+    {
+      "path": "char/gh3_midori/anims/gen/gh3_midori_ui.milo_ps2",
+      "sha256": "2ba0719f8d511c28cec17dde7ede39ae3de1c1b638b3a539522c25ab4e30ecfa",
+      "size": 110155
+    },
+    {
+      "path": "char/gh3_midori_1/og/gen/gh3_midori_1.milo_ps2",
+      "sha256": "c8b7be6def202ab60b0e71563924b11c687dd8c947a7535436e19d81b8cea286",
+      "size": 677444
+    }
+  ],
+  "schema_version": 1
+}
