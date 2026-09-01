@@ -817,6 +817,7 @@ struct MeshBundleChunk {
     bool alpha_write = false;
     int32_t z_mode = 1;
     bool cull = true;
+    int32_t blend = 1;
 };
 
 struct MeshBundle {
@@ -991,7 +992,8 @@ MeshBundle parse_meshbundle(const fs::path& path) {
     }
     const uint32_t version = cursor.u32("version");
     if (version != 1 && version != 2 && version != 3 && version != 4 &&
-        version != 5 && version != 6 && version != 7 && version != 8)
+        version != 5 && version != 6 && version != 7 && version != 8 &&
+        version != 9)
         throw std::runtime_error("meshbundle: unsupported version");
     MeshBundle bundle;
     bundle.outfit = cursor.string("outfit");
@@ -1066,6 +1068,9 @@ MeshBundle parse_meshbundle(const fs::path& path) {
             chunk.z_mode =
                 static_cast<int32_t>(cursor.u32("material z mode"));
             chunk.cull = cursor.u8("material cull") != 0;
+            if (version >= 9)
+                chunk.blend = static_cast<int32_t>(
+                    cursor.u32("material blend"));
         }
         chunk.mesh.bsp_nodes.push_back({});
         set_identity(chunk.mesh.transformable.local);
@@ -2949,34 +2954,54 @@ int main(int argc, char** argv) {
             }
 
             size_t template_meshes_hidden = 0;
+            size_t template_meshes_unparsed = 0;
             for (auto& entry : directory.entries) {
                 if (entry.type != "Mesh") continue;
-                auto mesh = gh::milo_object::parse_mesh28(
-                    entry.body_bytes,
-                    static_cast<uint32_t>(directory.dir_version));
-                if (mesh.drawable.showing) ++template_meshes_hidden;
-                mesh.drawable.showing = false;
-                entry.body_bytes = gh::milo_object::serialize_mesh28(
-                    mesh,
-                    static_cast<uint32_t>(directory.dir_version));
-                entry.size = entry.body_bytes.size();
+                try {
+                    auto mesh = gh::milo_object::parse_mesh28(
+                        entry.body_bytes,
+                        static_cast<uint32_t>(directory.dir_version));
+                    if (mesh.drawable.showing) ++template_meshes_hidden;
+                    mesh.drawable.showing = false;
+                    entry.body_bytes = gh::milo_object::serialize_mesh28(
+                        mesh,
+                        static_cast<uint32_t>(directory.dir_version));
+                    entry.size = entry.body_bytes.size();
+                } catch (const std::exception&) {
+                    // Some retail BandCharacter directories contain opaque
+                    // Mesh revisions that the runtime deliberately skips.
+                    // The merged Character LODs are redirected to the donor
+                    // group below, so retaining those unreachable bodies is
+                    // safer than rejecting an otherwise decodable template.
+                    ++template_meshes_unparsed;
+                }
             }
 
             std::map<std::string, gh::milo_object::Trans9>
                 template_transforms;
             std::map<std::string, gh::milo_object::Trans9>
                 donor_transforms;
+            size_t template_transforms_unparsed = 0;
+            size_t donor_transforms_unparsed = 0;
             for (const auto& entry : directory.entries) {
-                if (entry.type == "Trans")
+                if (entry.type != "Trans") continue;
+                try {
                     template_transforms.emplace(
                         entry.name,
                         gh::milo_object::parse_trans9(entry.body_bytes));
+                } catch (const std::exception&) {
+                    ++template_transforms_unparsed;
+                }
             }
             for (const auto& entry : donor_directory.entries) {
-                if (entry.type == "Trans")
+                if (entry.type != "Trans") continue;
+                try {
                     donor_transforms.emplace(
                         entry.name,
                         gh::milo_object::parse_trans9(entry.body_bytes));
+                } catch (const std::exception&) {
+                    ++donor_transforms_unparsed;
+                }
             }
             std::map<std::string, std::array<float, 12>>
                 template_bind_worlds;
@@ -3307,6 +3332,12 @@ int main(int argc, char** argv) {
                       << template_controller_bodies.size()
                       << " template_meshes_hidden="
                       << template_meshes_hidden
+                      << " template_meshes_unparsed="
+                      << template_meshes_unparsed
+                      << " template_transforms_unparsed="
+                      << template_transforms_unparsed
+                      << " donor_transforms_unparsed="
+                      << donor_transforms_unparsed
                       << " render_entries_added=" << render_entries_added
                       << " entries=" << directory.entries.size()
                       << " bytes=" << target_bytes.size()
@@ -4735,6 +4766,7 @@ int main(int argc, char** argv) {
                         mat.alpha_write = mat.alpha_write || chunk.alpha_write;
                         mat.z_mode = chunk.z_mode;
                         mat.cull = mat.cull && chunk.cull;
+                        mat.blend = chunk.blend;
                         break;
                     }
                 }

@@ -641,6 +641,8 @@ void ConfigDb::load_addon_manifests(
     const std::size_t venues_before = addon_venues_.size();
     const std::size_t quickplay_before = addon_quickplay_songs_.size();
     const std::size_t setlists_before = addon_setlists_.size();
+    std::vector<std::pair<std::size_t, CharacterVariant>>
+        modified_variants;
     const auto song_sources_before = addon_song_sources_;
     const auto source_routes_before = source_routes_;
     const auto source_default_bands_before = source_default_bands_;
@@ -842,8 +844,31 @@ void ConfigDb::load_addon_manifests(
           throw std::runtime_error("character and selection are required");
         variant.character = Symbol(character);
         variant.selection = Symbol(selection);
-        if (has_selection(character_variants_, variant.selection))
+        const std::string replaces_selection =
+            json_string(row, "replaces_selection");
+        auto existing_variant = std::find_if(
+            character_variants_.begin(), character_variants_.end(),
+            [&](const CharacterVariant& existing) {
+              return existing.selection == variant.selection;
+            });
+        const bool replaces_native_outfit =
+            existing_variant == character_variants_.end() &&
+            !replaces_selection.empty() &&
+            std::find(native_character_outfits_.begin(),
+                      native_character_outfits_.end(),
+                      variant.selection) != native_character_outfits_.end();
+        if (existing_variant != character_variants_.end() &&
+            replaces_selection != selection)
           throw std::runtime_error("duplicate selection " + selection);
+        if (existing_variant == character_variants_.end() &&
+            !replaces_selection.empty() && !replaces_native_outfit)
+          throw std::runtime_error(
+              "replaces_selection names no existing selection " +
+              replaces_selection);
+        if (!replaces_selection.empty() &&
+            replaces_selection != selection)
+          throw std::runtime_error(
+              "replaces_selection must equal selection " + selection);
         std::string source = json_string(row, "source");
         variant.source_game = Symbol(source.empty() ? "addon" : source);
         variant.label = json_string(row, "label");
@@ -897,7 +922,41 @@ void ConfigDb::load_addon_manifests(
             throw std::runtime_error("missing asset for " + selection +
                                      ": " + *path);
         }
-        character_variants_.push_back(std::move(variant));
+        if (existing_variant != character_variants_.end()) {
+          if (existing_variant->addon_defined)
+            throw std::runtime_error(
+                "cannot replace addon-defined selection " + selection);
+          if (existing_variant->character != variant.character)
+            throw std::runtime_error(
+                "replacement changes character owner for " + selection);
+          const std::string replaced_model =
+              normalized_virtual_path(existing_variant->model_path);
+          if (!replacements.count(replaced_model))
+            throw std::runtime_error(
+                "selection replacement must explicitly replace its base "
+                "model path: " + replaced_model);
+          const std::size_t index = static_cast<std::size_t>(
+              std::distance(character_variants_.begin(), existing_variant));
+          modified_variants.emplace_back(index, *existing_variant);
+          *existing_variant = std::move(variant);
+        } else if (replaces_native_outfit) {
+          const auto owner_outfits = native_character_outfits(variant.character);
+          if (std::find(owner_outfits.begin(), owner_outfits.end(),
+                        variant.selection) == owner_outfits.end())
+            throw std::runtime_error(
+                "replacement changes native character owner for " +
+                selection);
+          const std::string replaced_model =
+              "char/" + selection + "/og/gen/" + selection +
+              ".milo_ps2";
+          if (!replacements.count(replaced_model))
+            throw std::runtime_error(
+                "native selection replacement must explicitly replace its "
+                "base model path: " + replaced_model);
+          character_variants_.push_back(std::move(variant));
+        } else {
+          character_variants_.push_back(std::move(variant));
+        }
       };
 
       if (const auto* characters = json_array(root, "characters")) {
@@ -1048,6 +1107,9 @@ void ConfigDb::load_addon_manifests(
       for (auto it = modified_arrays.rbegin(); it != modified_arrays.rend();
            ++it)
         it->first->resize(it->second);
+      for (auto it = modified_variants.rbegin();
+           it != modified_variants.rend(); ++it)
+        character_variants_[it->first] = std::move(it->second);
       character_variants_.resize(variants_before);
       addon_venues_.resize(venues_before);
       addon_quickplay_songs_.resize(quickplay_before);

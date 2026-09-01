@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "id": "rb2.duke_of_gravity",
+  "display_name": "The Duke of Gravity",
+  "package_name": "classic",
+  "material_prefix": "duke_",
+  "source_prefab": "guitar32",
+  "source_skeleton": "male_guitar",
+  "target_required_transforms": [
+    "bone_pos_guitar.mesh"
+  ],
+  "body_shape": {
+    "height": 0.75,
+    "weight": 0.5
+  },
+  "components": [
+    {
+      "directory": "strapjacket_resource",
+      "include": "^Mesh__strapjacket_(?:resource(?:\\.\\d+)?|skin\\.36)\\.mesh$"
+    },
+    {
+      "directory": "codpiecepants_resource",
+      "include": "^Mesh__codpiecepants_resource(?:\\.\\d+)?\\.mesh$"
+    },
+    {
+      "directory": "malebarefeet_resource",
+      "include": "^Mesh__malebarefeet_skin(?:\\.1)?\\.mesh$"
+    },
+    {
+      "directory": "naked",
+      "include": "^Mesh__naked_resource(?:\\.\\d+)?\\.mesh$"
+    },
+    {
+      "directory": "head_2",
+      "include": "^Mesh__(?:head2_wii(?:\\.\\d+)?|eye-[LR]|eyebrows_wii(?:\\.1)?|lowerteeth|upperteeth|tongue_wii)\\.mesh$"
+    },
+    {
+      "directory": "crazyhawk_resource",
+      "include": "^Mesh__crazyhawk_resource(?:\\.1|\\.2)?\\.mesh$"
+    },
+    {
+      "directory": "head_2_chops",
+      "include": "^Mesh__head2_chops(?:\\.1)?\\.mesh$"
+    },
+    {
+      "directory": "maleglasses_goggles",
+      "include": "^Mesh__maleglasses_goggles(?:\\.1)?\\.mesh$"
+    },
+    {
+      "directory": "malewrist_hercules",
+      "include": "^Mesh__hercules_resource(?:\\.1)?\\.mesh$"
+    },
+    {
+      "directory": "malerings_chief",
+      "include": "^Mesh__chief_resource[LR]\\.mesh$"
+    }
+  ],
+  "materials": {
+    "torso_strapjacket.mat": {
+      "texture": "strapjacket_pleather/strapjacket_pleather_diffuse",
+      "mask": "strapjacket_pleather/strapjacket_pleather_mask",
+      "palette": "guitar",
+      "primary": 45,
+      "secondary": 12
+    },
+    "legs_codpiecepants.mat": {
+      "texture": "codpiecepants_robotic/codpiecepants_robotic_diffuse",
+      "mask": "codpiecepants_robotic/codpiecepants_robotic_mask",
+      "palette": "guitar",
+      "primary": 12,
+      "secondary": 45
+    },
+    "torso_skin.mat": {
+      "texture": "male_guitar/torso_skin_base",
+      "palette": "skin",
+      "primary": 1
+    },
+    "feet_skin.mat": {
+      "texture": "male_guitar/torso_skin_base",
+      "palette": "skin",
+      "primary": 1
+    },
+    "head_skin.mat": {
+      "texture": "head_2/head_head2_diffuse",
+      "palette": "skin",
+      "primary": 1
+    },
+    "eyes.mat": {
+      "texture": "head_2/head_eye",
+      "mask": "head_2/eye_comp",
+      "palette": "eyes",
+      "primary": 2
+    },
+    "eyebrows.mat": {
+      "texture": "head_2/head_eyebrows_diffuse",
+      "palette": "hair",
+      "primary": 47
+    },
+    "mouth.mat": {
+      "texture": "head_2/mouth"
+    },
+    "hair_crazyhawk.mat": {
+      "texture": "crazyhawk_resource/crazyhawk_diffuse",
+      "mask": "crazyhawk_resource/crazyhawk_mask",
+      "primary_palette": "hair",
+      "primary": 38,
+      "secondary_palette": "hair_secondary",
+      "secondary": 28
+    },
+    "facehair_chops.mat": {
+      "texture": "head_2_chops/chops_diffuse",
+      "palette": "hair",
+      "primary": 28
+    },
+    "maleglasses_goggles.mat": {
+      "texture": "maleglasses_goggles/goggles_diffuse",
+      "palette": "cloth_dulled",
+      "primary": 14,
+      "secondary": 3
+    },
+    "maleglasses_goggles_lenses.mat": {
+      "texture": "maleglasses_goggles/goggles_diffuse",
+      "palette": "cloth_dulled",
+      "primary": 14,
+      "secondary": 3,
+      "blend": 3,
+      "preserve_alpha": true
+    },
+    "malewrist_hercules.mat": {
+      "texture": "malewrist_hercules/hercules_diffuse",
+      "palette": "leather",
+      "primary": 0
+    },
+    "rings_chief.mat": {
+      "texture": "malerings_chief/malerings_chief_diffuse",
+      "palette": "metal",
+      "primary": 4
+    }
+  }
+}

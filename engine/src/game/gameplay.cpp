@@ -45087,9 +45087,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         requested->c_str());
                     }
                 }
-                if (diagnostic_performer_animation_overrides_.find(
-                        perf.role) !=
-                    diagnostic_performer_animation_overrides_.end()) {
+                if (perf.external_animation_retarget &&
+                    perf.retarget_source_character &&
+                    perf.retarget_target_character) {
                     size_t retargeted_clips = 0;
                     size_t retargeted_frames = 0;
                     size_t retargeted_channels = 0;
