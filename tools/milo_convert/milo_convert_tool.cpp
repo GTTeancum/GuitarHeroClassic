@@ -5106,8 +5106,10 @@ int main(int argc, char** argv) {
             }
             for (const auto& material_name : material_names) {
                 gh::milo_object::Mat27 mat;
-                mat.use_environment = false;
-                mat.prelit = true;
+                // Baked diffuse/AO textures still need venue illumination.
+                // Skinned vertex color slots hold weights, not baked light.
+                mat.use_environment = true;
+                mat.prelit = false;
                 mat.diffuse_texture.clear();
                 for (const auto& chunk : bundle.chunks) {
                     if (chunk.material == material_name) {

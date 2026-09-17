@@ -67,6 +67,19 @@ transform application independently of the character recipe.
 
 ## Materials, atlases, and AO
 
+Generated character materials must enable `use_environment` and disable
+`prelit`: baked diffuse/AO textures still receive venue illumination, and the
+skinned vertex color slots contain weights. The mesh-bundle builder enforces
+this. Do not use an unlit material to preserve baked texture brightness.
+
+For an existing generated character, `tools/repair_character_lighting.py`
+can audit or repair Mat27 flags using `--milo-tool`, `--model`, `--audit`, and
+optional `--apply`. It requires exact native entry boundaries, changes only
+the lighting bytes, preserves already-lit donor materials, and verifies the
+repacked model. Refresh the package content-index size/hash after applying and
+run `validate_package`; verify stage lighting in native gameplay for each
+deployed character. This repair must not rebuild accepted geometry or rigs.
+
 The converter builds source-colored RGBA images from the authored diffuse,
 mask, palette, and palette-index data. RB2 ``*_comp`` textures are runtime
 compositor outputs and are never accepted as source masks. For one-color
