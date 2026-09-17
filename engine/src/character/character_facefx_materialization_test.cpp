@@ -186,6 +186,39 @@ int main() {
     ok &= near(composed_lid->quat[3], 0.5f, "neutral times active w");
   }
 
+  // Different facial proportions must receive the composed expression delta
+  // once, without the donor's absolute neutral pose replacing the target bind.
+  {
+    ghogx::character::Character source, target;
+    ghogx::milo_scene::TransObj lip;
+    lip.name = "bone_lip-L-corner.mesh";
+    for (int r = 0; r < 3; ++r)
+      for (int c = 0; c < 3; ++c) lip.local.rot[r][c] = r == c ? 1.0f : 0.0f;
+    for (int axis = 0; axis < 3; ++axis) lip.local.pos[axis] = float(axis + 1);
+    source.bones.push_back(lip);
+    for (int axis = 0; axis < 3; ++axis) lip.local.pos[axis] *= 10.0f;
+    target.bones.push_back(lip);
+    auto posed = target;
+    CharClip base = neutral;
+    base.frames = {{pos_channel("bone_lip-L-corner.mesh", 1, 2, 3)}};
+    base.output_bones = {output_bone("bone_lip-L-corner.trans")};
+    CharClip expressions = visemes;
+    expressions.output_bones = base.output_bones;
+    ok &= ghogx::character::apply_facefx_typed_animation_frame(
+        graph, {{"expressionGood1", 0.25f}}, base, expressions, posed,
+        &source, &target);
+    ok &= near(posed.bones[0].local.pos[0], 11.0f, "retarget lip x");
+    ok &= near(posed.bones[0].local.pos[1], 18.0f, "retarget lip y");
+    ok &= near(posed.bones[0].local.pos[2], 30.5f, "retarget lip z");
+    ok &= ghogx::character::apply_facefx_typed_animation_frame(
+        graph, {}, base, expressions, posed, &source, &target);
+    ok &= near(posed.bones[0].local.pos[0], 10.0f, "retarget neutral returns to bind");
+    auto stock = source;
+    ok &= ghogx::character::apply_facefx_typed_animation_frame(
+        graph, {{"expressionGood1", 0.25f}}, base, expressions, stock);
+    ok &= near(stock.bones[0].local.pos[0], 2.0f, "stock expression unchanged");
+  }
+
   ghogx::character::Character eye_character;
   auto eye_mesh = [](const char* name) {
     ghogx::character::SkinnedMesh mesh;

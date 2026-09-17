@@ -141,8 +141,8 @@
       "palette": "cloth_dulled",
       "primary": 14,
       "secondary": 3,
-      "blend": 3,
-      "preserve_alpha": true
+      "blend": 1,
+      "preserve_alpha": false
     },
     "malewrist_hercules.mat": {
       "texture": "malewrist_hercules/hercules_diffuse",

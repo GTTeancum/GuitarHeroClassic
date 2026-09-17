@@ -67,6 +67,12 @@ transform application independently of the character recipe.
 
 ## Materials, atlases, and AO
 
+Duke's lenses are intentionally opaque at the user's request. His recipe
+overrides only `maleglasses_goggles_lenses.mat` to source/opaque blending and
+fully opaque texture alpha. The original RB2 material uses source-alpha blend
+with material alpha 0.8; this is a Duke-only appearance preference, not a global
+change to glasses or source-material conversion.
+
 Generated character materials must enable `use_environment` and disable
 `prelit`: baked diffuse/AO textures still receive venue illumination, and the
 skinned vertex color slots contain weights. The mesh-bundle builder enforces
@@ -276,9 +282,10 @@ over 0.05 units and a maximum separation of 0.000031 units. Four later active
 playing captures at frames 60, 120, 180, and 240 were inspected individually:
 the eye meshes remain in the head and both complete arm chains remain connected
 through their cuffs and hands. The proof run held 60.018 steady-state FPS.
-Penelope is still work in progress: the mouth deformation is visibly malformed,
-and the necklace alpha retains substantial edge/background artifacting. Those
-fail visual acceptance and must be corrected before release.
+The malformed-mouth defect was repaired on September 16: FaceFX now rebases
+the completed neutral-plus-expression pose onto the imported face's bind pose.
+The necklace alpha retains a separate, previously observed edge/background
+artifacting issue and remains outside this face repair.
 
 ## Remaining roster-scale boundary
 
@@ -313,3 +320,11 @@ Penelope's retail hair and heavy eye-shadow makeup intentionally obscure most
 of the eyes in ordinary gameplay. Diagnostic captures may suppress the hair
 material to inspect controller behavior, but the distributed package retains
 the authored appearance.
+
+For external animation retargets, gameplay must retarget the final materialized
+FaceFX frame, not the individual viseme delta frames. Rebasing each expression
+would apply the bind correction once per active expression. The source and
+target bind characters stay immutable while the live character receives the
+result. Stock characters keep their existing facial-pose path. The native
+materialization regression covers target neutral proportions, expression
+translation, return to neutral without accumulation, and the stock path.

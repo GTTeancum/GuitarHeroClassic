@@ -121,7 +121,9 @@ bool apply_facefx_typed_animation_frame(
     const std::unordered_map<std::string, float>& registers,
     const CharClip& neutral_clip,
     const CharClip& visemes_clip,
-    Character& character);
+    Character& character,
+    Character* retarget_source = nullptr,
+    Character* retarget_bind_target = nullptr);
 
 // Legacy FAC-matrix inspection helpers. Gameplay uses the typed viseme path
 // above; the FAC matrices are not expression-shape authority.

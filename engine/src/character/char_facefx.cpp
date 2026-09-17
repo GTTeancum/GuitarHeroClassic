@@ -958,10 +958,25 @@ bool apply_facefx_typed_animation_frame(
     const std::unordered_map<std::string, float>& registers,
     const CharClip& neutral_clip,
     const CharClip& visemes_clip,
-    Character& character) {
+    Character& character,
+    Character* retarget_source,
+    Character* retarget_bind_target) {
   FaceFxMaterializedFrame frame = materialize_facefx_animation_frame(
       graph, registers, neutral_clip, visemes_clip);
   if (!frame.valid) return false;
+  if (retarget_source && retarget_bind_target) {
+    // Retarget after composing viseme deltas and the absolute neutral pass.
+    // Rebasing the delta clips separately would introduce the bind offset
+    // once per active expression and distort differently proportioned faces.
+    CharClip pose;
+    pose.loaded = true;
+    pose.relative = false;
+    pose.output_bones = std::move(frame.output_bones);
+    pose.frames.push_back(std::move(frame.channels));
+    retarget_clip_to_character(pose, *retarget_source, *retarget_bind_target);
+    frame.channels = std::move(pose.frames.front());
+    frame.output_bones = std::move(pose.output_bones);
+  }
   return apply_materialized_typed_pose(frame.channels, frame.output_bones,
                                        character);
 }

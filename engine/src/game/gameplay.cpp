@@ -49351,7 +49351,11 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 const bool applied =
                     ghogx::character::apply_facefx_typed_animation_frame(
                         *perf.facefx_graph, registers, perf.face_base_clip,
-                        perf.face_visemes_clip, character);
+                        perf.face_visemes_clip, character,
+                        perf.external_animation_retarget
+                            ? perf.retarget_source_character.get() : nullptr,
+                        perf.external_animation_retarget
+                            ? perf.retarget_target_character.get() : nullptr);
                 if (debug_face_frame) {
                     std::fprintf(
                         stderr,
