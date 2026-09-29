@@ -1,0 +1,374 @@
+{
+  "model": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\rb2.duke_of_gravity\\content\\char\\rb2_duke_of_gravity\\og\\gen\\rb2_duke_of_gravity.milo_ps2",
+  "applied": true,
+  "materials": [
+    {
+      "material": "arm.mat",
+      "identical_body_offsets": [
+        328765
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "charsys_shadow.mat",
+      "identical_body_offsets": [
+        1414649
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_eyebrows.mat",
+      "identical_body_offsets": [
+        4618037,
+        4618957,
+        4619141,
+        4619693,
+        4620429
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_head_skin.mat",
+      "identical_body_offsets": [
+        4618037,
+        4618957,
+        4619141,
+        4619693,
+        4620429
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_legs_codpiecepants.mat",
+      "identical_body_offsets": [
+        4618037,
+        4618957,
+        4619141,
+        4619693,
+        4620429
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_malewrist_hercules.mat",
+      "identical_body_offsets": [
+        4618037,
+        4618957,
+        4619141,
+        4619693,
+        4620429
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_torso_strapjacket.mat",
+      "identical_body_offsets": [
+        4618037,
+        4618957,
+        4619141,
+        4619693,
+        4620429
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_eyes.mat",
+      "identical_body_offsets": [
+        4618221,
+        4618405,
+        4618773,
+        4619325,
+        4619877,
+        4620061
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_facehair_chops.mat",
+      "identical_body_offsets": [
+        4618221,
+        4618405,
+        4618773,
+        4619325,
+        4619877,
+        4620061
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_hair_crazyhawk.mat",
+      "identical_body_offsets": [
+        4618221,
+        4618405,
+        4618773,
+        4619325,
+        4619877,
+        4620061
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_maleglasses_goggles.mat",
+      "identical_body_offsets": [
+        4618221,
+        4618405,
+        4618773,
+        4619325,
+        4619877,
+        4620061
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_mouth.mat",
+      "identical_body_offsets": [
+        4618221,
+        4618405,
+        4618773,
+        4619325,
+        4619877,
+        4620061
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_rings_chief.mat",
+      "identical_body_offsets": [
+        4618221,
+        4618405,
+        4618773,
+        4619325,
+        4619877,
+        4620061
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_feet_skin.mat",
+      "identical_body_offsets": [
+        4618589,
+        4620245
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_torso_skin.mat",
+      "identical_body_offsets": [
+        4618589,
+        4620245
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "duke_maleglasses_goggles_lenses.mat",
+      "identical_body_offsets": [
+        4619509
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "eyes.mat",
+      "identical_body_offsets": [
+        328254
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "glasses.mat",
+      "identical_body_offsets": [
+        328423
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "hair.mat",
+      "identical_body_offsets": [
+        329272
+      ],
+      "before": [
+        1,
+        1
+      ],
+      "after": [
+        1,
+        1
+      ]
+    },
+    {
+      "material": "head.mat",
+      "identical_body_offsets": [
+        329103
+      ],
+      "before": [
+        1,
+        1
+      ],
+      "after": [
+        1,
+        1
+      ]
+    },
+    {
+      "material": "legs.mat",
+      "identical_body_offsets": [
+        328934
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "torso.mat",
+      "identical_body_offsets": [
+        328595
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    }
+  ],
+  "changed_bytes": 30,
+  "only_material_lighting_changed": true,
+  "before_sha256": "71ef19b9ea8a106cd00a969c005e6837c5c52061863108d3711ebf18f45f8333",
+  "after_sha256": "cfb441221e643d344aba16ff0b28aaf59b91393e9b86c54ecdc3b2e9bce188ca",
+  "updated_packages": [
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\rb2.duke_of_gravity",
+    "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\rb2.duke_of_gravity"
+  ]
+}

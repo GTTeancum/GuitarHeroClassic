@@ -1830,6 +1830,80 @@ int main(int argc, char** argv) {
     }
   }
 
+  // Career keeps the stock band-name screen for a new profile, but both a
+  // completed new profile and an existing profile must enter the expanded
+  // Manage Band screen before difficulty selection.  Exercise the authored
+  // chooseprof/nameprof handlers so this cannot regress behind the direct
+  // --manageband proof hook again.
+  if (chooseprof_panel && nameprof_screen) {
+    auto* chooseprof_dir = dynamic_cast<ObjectDir*>(chooseprof_panel);
+    auto* nameprof_dir = dynamic_cast<ObjectDir*>(
+        mgr.find_object(Symbol("nameprof_panel")));
+    Object* band0 = chooseprof_dir
+                        ? chooseprof_dir->find(Symbol("cp_band0.btn"))
+                        : nullptr;
+    Object* profile_entry =
+        nameprof_dir ? nameprof_dir->find(Symbol("profile.ten")) : nullptr;
+    Object* campaign = mgr.resolve_object(Symbol("campaign"));
+    Object* manage_screen = mgr.find_object(Symbol("manage_band_screen"));
+    Object* manage_panel =
+        mgr.find_object(Symbol("manage_band_preferences_panel"));
+    CHECK(band0 != nullptr);
+    CHECK(profile_entry != nullptr);
+    CHECK(campaign != nullptr);
+    CHECK(manage_screen != nullptr);
+    CHECK(manage_panel != nullptr);
+    if (band0 && profile_entry && campaign && manage_screen && manage_panel) {
+      mgr.goto_screen(Symbol("chooseprof_screen"));
+      chooseprof_panel->set_property(Symbol("focus"),
+                                     DataNode::Sym(Symbol("cp_band0.btn")));
+      mgr.set_global(Symbol("component"), DataNode::Obj(band0));
+      mgr.current_screen()->handle_property(Symbol("SELECT_START_MSG"),
+                                            DataArray());
+      CHECK(mgr.current_screen() &&
+            mgr.current_screen()->name() == Symbol("nameprof_screen"));
+      CHECK(nameprof_screen->get_property(Symbol("next_screen"))
+                .as_symbol()
+                .value_or(Symbol()) == Symbol("sel_difficulty_screen"));
+
+      DataArray route_name;
+      route_name.push(DataNode::Str("ROUTE TEST"));
+      profile_entry->handle_property(Symbol("set_text"), route_name);
+      nameprof_screen->handle_property(Symbol("TEXT_ENTRY_MSG"), DataArray());
+      CHECK(mgr.current_screen() == manage_screen);
+      CHECK(manage_screen->get_property(Symbol("profile_slot"))
+                .as_int()
+                .value_or(-1) == 0);
+      CHECK(manage_screen->get_property(Symbol("completion_screen"))
+                .as_symbol()
+                .value_or(Symbol()) == Symbol("sel_difficulty_screen"));
+
+      DataArray save_return;
+      save_return.push(DataNode::Int(11));
+      manage_panel->handle_property(Symbol("debug_select_category"),
+                                    save_return);
+      mgr.set_global(Symbol("button"), DataNode::Sym(Symbol("kPad_X")));
+      manage_panel->handle_property(Symbol("BUTTON_DOWN_MSG"), DataArray());
+      CHECK(mgr.current_screen() &&
+            mgr.current_screen()->name() == Symbol("sel_difficulty_screen"));
+
+      mgr.goto_screen(Symbol("chooseprof_screen"));
+      chooseprof_panel->set_property(Symbol("focus"),
+                                     DataNode::Sym(Symbol("cp_band0.btn")));
+      mgr.set_global(Symbol("component"), DataNode::Obj(band0));
+      mgr.current_screen()->handle_property(Symbol("SELECT_START_MSG"),
+                                            DataArray());
+      CHECK(mgr.current_screen() == manage_screen);
+      CHECK(manage_screen->get_property(Symbol("profile_slot"))
+                .as_int()
+                .value_or(-1) == 0);
+
+      DataArray slot0;
+      slot0.push(DataNode::Int(0));
+      campaign->handle_property(Symbol("delete_slot"), slot0);
+    }
+  }
+
   Object* cashaward_screen = mgr.find_object(Symbol("cashaward_screen"));
   CHECK(cashaward_screen != nullptr);
   if (cashaward_screen) {

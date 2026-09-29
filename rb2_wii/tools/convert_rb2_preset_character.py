@@ -282,6 +282,18 @@ def encode_hmx_texture(image: Image.Image) -> dict[str, Any]:
     }
 
 
+def palette_detail_floor(color: tuple[int, int, int], floor: int) -> tuple[int, int, int]:
+    """Keep dark tint detail visible in diffuse-only lighting (recipe opt-in)."""
+    if not 0 <= floor <= 255:
+        raise ValueError("palette detail floor must be in 0..255")
+    peak = max(color)
+    if peak >= floor:
+        return color
+    if peak == 0:
+        return (floor, floor, floor)
+    return tuple(round(channel * floor / peak) for channel in color)
+
+
 def make_texture(
     root: Path,
     spec: dict[str, Any],
@@ -303,6 +315,11 @@ def make_texture(
             spec.get("secondary_palette", spec.get("palette")),
             int(spec["secondary"]),
         )
+    detail_floor = int(spec.get("palette_detail_floor", 0))
+    if primary is not None:
+        primary = palette_detail_floor(primary, detail_floor)
+    if secondary is not None:
+        secondary = palette_detail_floor(secondary, detail_floor)
     if primary is not None and secondary is not None:
         if "mask" in spec:
             image = compose_two_color(
@@ -349,6 +366,7 @@ def make_texture(
         "source": spec["texture"],
         "size": [image.width, image.height],
         "primary_rgb": primary,
+        "palette_detail_floor": detail_floor,
         "secondary_rgb": secondary,
         "preserve_alpha": preserve_alpha,
         "alpha_range": list(image.getchannel("A").getextrema()),
@@ -842,6 +860,7 @@ def main() -> int:
     )
     parser.add_argument("--out-bundle", type=Path, required=True)
     parser.add_argument("--audit", type=Path, required=True)
+    parser.add_argument("--texture-preview-dir", type=Path)
     args = parser.parse_args()
     recipe = json.loads(args.recipe.read_text(encoding="utf-8"))
     root = args.component_root.resolve()
@@ -981,6 +1000,11 @@ def main() -> int:
             bias=float(ao_config.get("bias", 0.06)),
             strength=float(ao_config.get("strength", 0.15)),
         )
+
+    if args.texture_preview_dir:
+        args.texture_preview_dir.mkdir(parents=True, exist_ok=True)
+        for name, image in material_images.items():
+            image.save(args.texture_preview_dir / (Path(name).stem + ".png"))
 
     atlas_textures, atlas_audit = build_texture_atlases(
         recipe, material_images, chunks

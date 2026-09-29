@@ -67,7 +67,8 @@ void SongIntroOverlay::reset(std::string visual_hdr_path,
 }
 
 bool SongIntroOverlay::load_text(std::string& title, std::string& caption,
-                                 std::string& artist) const {
+                                 std::string& artist,
+                                 const std::function<void()>& loading_pump) const {
   title = title_override_;
   artist = artist_override_;
   caption = caption_override_;
@@ -81,9 +82,9 @@ bool SongIntroOverlay::load_text(std::string& title, std::string& caption,
     if (!locale_entry)
       locale_entry = visual_archive.find("ghui/eng/gen/locale.dtb");
     if (!locale_entry) return false;
-    const auto locale =
-        gh::dtb::parse(
-            visual_archive.read_entry(*locale_entry, {ark_path_}));
+    const auto locale_bytes = visual_archive.read_entry_shared(
+        *locale_entry, {ark_path_}, loading_pump);
+    const auto locale = gh::dtb::parse(*locale_bytes);
     if (caption.empty()) {
       if (const auto row = gh::dtb::find_keyed(locale, "mtv_made_famous")) {
       const auto& children = gh::dtb::children(*row);
@@ -115,12 +116,14 @@ bool SongIntroOverlay::load_text(std::string& title, std::string& caption,
   }
 }
 
-bool SongIntroOverlay::prepare() {
-  ensure_loaded();
+bool SongIntroOverlay::prepare(
+    const std::function<void()>& loading_pump) {
+  ensure_loaded(loading_pump);
   return ready_;
 }
 
-void SongIntroOverlay::ensure_loaded() {
+void SongIntroOverlay::ensure_loaded(
+    const std::function<void()>& loading_pump) {
   if (attempted_) return;
   attempted_ = true;
   if (hdr_path_.empty() || ark_path_.empty() || song_shortname_.empty()) return;
@@ -128,7 +131,9 @@ void SongIntroOverlay::ensure_loaded() {
   std::string title;
   std::string caption;
   std::string artist;
-  if (!load_text(title, caption, artist)) return;
+  if (!load_text(title, caption, artist, loading_pump)) return;
+  if (loading_pump) loading_pump();
+  std::fprintf(stderr, "[loading-phase] song-overlay text ready\n");
 
   ghogx::milo_scene::Scene scene;
   std::string overlay_path = "ui/gen/mtv_overlay.milo_ps2";
@@ -136,19 +141,26 @@ void SongIntroOverlay::ensure_loaded() {
   std::string camera_name = "meta.cam";
   std::string font_path = "ui/gen/impactor_mtv.milo_ps2";
   if (!ghogx::milo_scene::load_scene(hdr_path_, ark_path_, camera_path,
-                                      scene)) {
+                                      scene, loading_pump)) {
     overlay_path = "ghui/mtv_overlay.gh";
     camera_path = overlay_path;
     camera_name = "ui.cam";
     font_path = "ghui/gen/resources.rnd_ps2";
     if (!ghogx::milo_scene::load_scene(hdr_path_, ark_path_, camera_path,
-                                        scene))
+                                        scene, loading_pump))
       return;
   }
-  const auto labels =
-      extract_menu_labels(hdr_path_, ark_path_, overlay_path);
-  if (!font_.load(hdr_path_, ark_path_, font_path, "impactor_mtv.font"))
+  if (loading_pump) loading_pump();
+  std::fprintf(stderr, "[loading-phase] song-overlay camera ready\n");
+  const auto labels = extract_menu_labels(hdr_path_, ark_path_, overlay_path,
+                                          loading_pump);
+  if (loading_pump) loading_pump();
+  std::fprintf(stderr, "[loading-phase] song-overlay labels ready\n");
+  if (!font_.load(hdr_path_, ark_path_, font_path, "impactor_mtv.font",
+                  loading_pump))
     return;
+  if (loading_pump) loading_pump();
+  std::fprintf(stderr, "[loading-phase] song-overlay font ready\n");
 
   std::vector<ghogx::render::MiloSceneRenderer::TextVertex> vertices;
   const float cap_height = font_.cap_height();
@@ -248,6 +260,8 @@ void SongIntroOverlay::ensure_loaded() {
   renderer_ =
       std::make_unique<ghogx::render::MiloSceneRenderer>(window_);
   renderer_->set_scene(std::move(scene), {});
+  if (loading_pump) loading_pump();
+  std::fprintf(stderr, "[loading-phase] song-overlay renderer ready\n");
   if (!renderer_->select_authored_camera(camera_name)) {
     renderer_.reset();
     return;

@@ -2300,6 +2300,19 @@ bool expect_clip_driver_helpers() {
     ok = false;
   }
 
+  ghogx::character::CharClipPlayer leaf_graph_loop_player;
+  leaf_graph_loop_player.set_source_play_multiple_clips(true);
+  leaf_graph_loop_player.play(graph_loop_clip,
+                              ghogx::character::kCharPlayGraphLoop);
+  leaf_graph_loop_player.advance_source(0.25f, 0.25f, 0.25f);
+  leaf_graph_loop_player.advance_source(2.25f, 2.0f, 2.0f);
+  if (leaf_graph_loop_player.source_stack_depth() != 1 ||
+      leaf_graph_loop_player.current_clip() != &graph_loop_clip ||
+      !nearf(leaf_graph_loop_player.source_current_beat(), 0.25f)) {
+    std::cerr << "GH2 unresolved graph-loop leaf froze at clip end\n";
+    ok = false;
+  }
+
   ghogx::character::CharClip node_loop_clip = graph_loop_clip;
   node_loop_clip.name = "node_loop";
   node_loop_clip.default_play_flags =

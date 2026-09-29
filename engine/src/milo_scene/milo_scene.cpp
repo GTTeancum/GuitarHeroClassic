@@ -10,9 +10,11 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <future>
 #include <map>
 #include <optional>
 #include <stdexcept>
@@ -4205,7 +4207,8 @@ BandPlacerObj decode_band_placer(const std::string& entry_name,
 
 MeshObj decode_mesh(const std::string& entry_name,
                     const std::vector<uint8_t>& body,
-                    int32_t parent_dir_revision) {
+                    int32_t parent_dir_revision,
+                    const std::function<void()>& loading_pump) {
   MeshObj mesh;
   mesh.name = entry_name;
   const char* decode_stage = "header";
@@ -4284,6 +4287,7 @@ MeshObj decode_mesh(const std::string& entry_name,
     mesh.verts.resize(vcount);
     decode_stage = "vertices";
     for (uint32_t i = 0; i < vcount; ++i) {
+      if (loading_pump && (i & 1023u) == 0) loading_pump();
       Vertex& v = mesh.verts[i];
       v.px = r.f32(); v.py = r.f32(); v.pz = r.f32();
       v.nx = r.f32(); v.ny = r.f32(); v.nz = r.f32();
@@ -4311,13 +4315,16 @@ MeshObj decode_mesh(const std::string& entry_name,
     mesh.face_count = fcount;
     mesh.indices.resize(static_cast<size_t>(fcount) * 3);
     for (uint32_t i = 0; i < fcount; ++i) {
+      if (loading_pump && (i & 2047u) == 0) loading_pump();
       mesh.indices[i * 3 + 0] = r.u16();
       mesh.indices[i * 3 + 1] = r.u16();
       mesh.indices[i * 3 + 2] = r.u16();
     }
 
     // Validate all indices reference real vertices.
+    std::size_t checked_index = 0;
     for (uint16_t idx : mesh.indices) {
+      if (loading_pump && (++checked_index & 8191u) == 0) loading_pump();
       if (idx >= vcount) {
         mesh.error = "face index out of range";
         return mesh;
@@ -4365,7 +4372,9 @@ MeshObj decode_mesh(const std::string& entry_name,
     }
 
     if (!mesh.bones.empty()) {
+      std::size_t weighted_vertex = 0;
       for (Vertex& vertex : mesh.verts) {
+        if (loading_pump && (++weighted_vertex & 2047u) == 0) loading_pump();
         vertex.w[0] = vertex.r;
         vertex.w[1] = vertex.g;
         vertex.w[2] = vertex.b;
@@ -4376,7 +4385,9 @@ MeshObj decode_mesh(const std::string& entry_name,
         vertex.a = 1.0f;
       }
     } else {
+      std::size_t colored_vertex = 0;
       for (Vertex& vertex : mesh.verts) {
+        if (loading_pump && (++colored_vertex & 2047u) == 0) loading_pump();
         vertex.r = source_hmx_color32_channel(vertex.r);
         vertex.g = source_hmx_color32_channel(vertex.g);
         vertex.b = source_hmx_color32_channel(vertex.b);
@@ -4389,7 +4400,9 @@ MeshObj decode_mesh(const std::string& entry_name,
       mesh.bb_min[0] = mesh.bb_max[0] = mesh.verts[0].px;
       mesh.bb_min[1] = mesh.bb_max[1] = mesh.verts[0].py;
       mesh.bb_min[2] = mesh.bb_max[2] = mesh.verts[0].pz;
+      std::size_t bounded_vertex = 0;
       for (const Vertex& v : mesh.verts) {
+        if (loading_pump && (++bounded_vertex & 2047u) == 0) loading_pump();
         const float xyz[3] = {v.px, v.py, v.pz};
         for (int k = 0; k < 3; ++k) {
           if (!std::isfinite(xyz[k])) { mesh.error = "non-finite vertex"; return mesh; }
@@ -5039,19 +5052,44 @@ std::array<float, 16> Scene::world_matrix(
 }
 
 bool load_scene(const std::string& hdr_path, const std::string& ark_path,
-                const std::string& milo_path, Scene& out) {
+                 const std::string& milo_path, Scene& out,
+                 const std::function<void()>& loading_pump) {
+  if (loading_pump) {
+    auto pending = std::async(
+        std::launch::async,
+        [hdr_path, ark_path, milo_path]() {
+          Scene loaded;
+          const bool ok = load_scene(hdr_path, ark_path, milo_path, loaded, {});
+          return std::make_pair(ok, std::move(loaded));
+        });
+    while (pending.wait_for(std::chrono::milliseconds(8)) !=
+           std::future_status::ready) {
+      loading_pump();
+    }
+    auto loaded = pending.get();
+    if (loaded.first) out = std::move(loaded.second);
+    loading_pump();
+    return loaded.first;
+  }
   try {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    if (loading_pump) loading_pump();
     auto entry = ark.find(milo_path);
     if (!entry) entry = ark.find("../../system/run/" + milo_path);
     if (!entry) {
       std::fprintf(stderr, "[milo_scene] not in ARK: %s\n", milo_path.c_str());
       return false;
     }
-    auto bytes = ark.read_entry(*entry, {ark_path});
-    auto hdr = gh::milo::parse_header(bytes);
-    auto payload = gh::milo::inflate_payload(bytes, hdr);
-    auto dir = gh::milo::parse_directory(payload);
+    const auto bytes =
+        ark.read_entry_shared(*entry, {ark_path}, loading_pump);
+    if (loading_pump) loading_pump();
+    auto hdr = gh::milo::parse_header(*bytes);
+    const auto decoded = gh::milo::inflate_directory_cached(
+        ark_path + "\n" + entry->full_path, *bytes, hdr, loading_pump);
+    if (loading_pump) loading_pump();
+    const auto& payload = decoded->payload;
+    const auto& dir = decoded->directory;
+    if (loading_pump) loading_pump();
     out.dir_name = dir.dir_name;
     out.dir_type = dir.dir_type;
     out.dir_revision = dir.dir_version;
@@ -5076,11 +5114,17 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
     size_t source_order_particles = 0;
     int world_crowd_ok = 0, world_crowd_fail = 0;
     for (const auto& de : dir.entries) {
+      // Venue directories can place several expensive RndMesh records at the
+      // front of the object table. Pump before every object; the UI callback
+      // itself rate-limits presentation to 30 Hz, so cheap records stay cheap
+      // while large meshes cannot starve the loading screen for seconds.
+      if (loading_pump) loading_pump();
       std::vector<uint8_t> b(payload.data() + de.offset,
                              payload.data() + de.offset + de.size);
       try {
         if (de.type == "Mesh") {
-          MeshObj m = decode_mesh(de.name, b, dir.dir_version);
+          MeshObj m =
+              decode_mesh(de.name, b, dir.dir_version, loading_pump);
           m.dir_index = &de - dir.entries.data();
           if (m.decoded) {
             ++mesh_ok;
@@ -5370,9 +5414,13 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
       float bb_max[3] = {};
     };
     std::map<std::string, const MeshObj*> geometry_owners;
-    for (const auto& mesh : out.meshes) geometry_owners[mesh.name] = &mesh;
+    for (const auto& mesh : out.meshes) {
+      if (loading_pump) loading_pump();
+      geometry_owners[mesh.name] = &mesh;
+    }
     std::vector<SharedSceneGeometry> shared_geometry;
     for (size_t i = 0; i < out.meshes.size(); ++i) {
+      if (loading_pump) loading_pump();
       const auto& mesh = out.meshes[i];
       const auto owner = geometry_owners.find(mesh.geometry_owner);
       if (owner == geometry_owners.end() || owner->second == &mesh) continue;
@@ -5391,6 +5439,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
       shared_geometry.push_back(std::move(row));
     }
     for (auto& row : shared_geometry) {
+      if (loading_pump) loading_pump();
       auto& mesh = out.meshes[row.index];
       mesh.vertex_count = row.vertex_count;
       mesh.face_count = row.face_count;

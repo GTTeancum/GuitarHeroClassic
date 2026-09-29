@@ -786,10 +786,10 @@ int main() {
                  "app has explicit failed and finished song presentation states");
   ok &= contains(app_main_c,
                  "gameplay_.stop_audio();"
-                 "state_=AppState::Failed;fail_hold_sec_=kFailHoldSeconds;",
+                 "state_=AppState::Failed;fail_hold_sec_=diagnostic_ending_hold(kFailHoldSeconds);",
                  "failed gameplay stops the VGS stream before holding the overlay");
   ok &= contains(app_main_c,
-                 "state_=AppState::Failed;fail_hold_sec_=kFailHoldSeconds;",
+                 "state_=AppState::Failed;fail_hold_sec_=diagnostic_ending_hold(kFailHoldSeconds);",
                  "failed gameplay stays visible before returning to title");
   ok &= contains(app_main_c,
                  "state_==AppState::Playing||state_==AppState::Failed||"
@@ -804,11 +804,11 @@ int main() {
                  "failed-song overlay uses the native GH2 pause/lose tile texture");
   ok &= contains(app_main_c,
                  "gameplay_.stop_audio();"
-                 "state_=AppState::Finished;finish_hold_sec_=kFinishHoldSeconds;",
+                 "state_=AppState::Finished;finish_hold_sec_=diagnostic_ending_hold(kFinishHoldSeconds);",
                  "finished gameplay stops the VGS stream before holding the overlay");
   ok &= contains(app_main_c,
                  "state_=AppState::Finished;"
-                 "finish_hold_sec_=kFinishHoldSeconds;",
+                 "finish_hold_sec_=diagnostic_ending_hold(kFinishHoldSeconds);",
                  "finished gameplay stays visible before returning to title");
   ok &= contains(app_main_c,
                  "elseif(state_==AppState::Finished){draw_finish_overlay();}",
@@ -2432,7 +2432,7 @@ int main() {
                  "moving note alpha test uses the shared keyed-card cutoff");
   ok &= contains(highway_renderer_c,
                  "ghogx::milo_scene::load_scene(hdr_path,ark_path,"
-                 "\"track/gen/track.milo_ps2\",track_scene)",
+                 "\"track/gen/track.milo_ps2\",track_scene,loading_pump)",
                  "highway decodes native track.milo_ps2 mesh objects");
   ok &= contains(highway_renderer_c,
                  "#include\"dtb.h\"",
@@ -4983,7 +4983,7 @@ int main() {
                  "std::fprintf(stderr,"
                  "\"[gameplay]songpresentationready:highway=%dtextures=%dt=%.3f\\n\"",
                  "gameplay marks the source TrackPanel presentation ready only from the draw path");
-  ok &= appears_before(gameplay_c,
+  ok &= appears_before(compact(function_body(gameplay, "Gameplay::draw_internal")),
                        "mark_song_presentation_ready();",
                        "highway_->draw_over_scene(highway_song_time(),chart_,difficulty_,",
                        "the prewarmed highway is marked ready before its first frame is presented");
@@ -4991,7 +4991,7 @@ int main() {
                  "1.3+0.1*static_cast<double>(next_track_intro_sfx_stage_-1)",
                  "live TrackPanel lane sounds follow the stock 1.3-to-1.7-second schedule");
   ok &= contains(gameplay_c,
-                 "if(perf.role==\"guitarist0\"){"
+                 "if(perf.role==\"guitarist0\"){pump_loading();"
                  "constautostar_power_group=ghogx::character::load_clip_group("
                  "animation_hdr_path,animation_ark_path,main_anim_milos,"
                  "\"star_power\");",
@@ -5329,7 +5329,7 @@ int main() {
                  "venue load discovers RndDir proxy objects from the authored MILO");
   ok &= contains(gameplay_c,
                  "load_venue_milo_assembly(hdr_path_,ark_path_,"
-                 "quickplay_rig_->venue)",
+                 "quickplay_rig_->venue,loading_pump_)",
                  "venue load begins from decoded source WorldDir/RndDir assembly refs");
   ok &= contains(gameplay_c,
                  "conststd::stringsource_venue=venue_source_key(venue);",
@@ -7568,7 +7568,7 @@ int main() {
                  "hdr_path_,ark_path_,std::vector<std::string>{"
                  "lighting_milo,venue_geom},"
                  "texture_names_for_scene_and_mat_anims("
-                 "lighting_scene,lighting_mat_anims_));",
+                 "lighting_scene,lighting_mat_anims_),loading_pump_);",
                  "lighting overlay textures fall back to paired venue geometry MILO");
   ok &= contains(gameplay_c,
                  "std::unordered_set<std::string>"
@@ -7595,7 +7595,7 @@ int main() {
                        "venue_geom_materials,needed_lighting_materials,"
                        "&borrowed_materials);",
                        "texture_names_for_scene_and_mat_anims("
-                       "lighting_scene,lighting_mat_anims_));",
+                       "lighting_scene,lighting_mat_anims_),loading_pump_);",
                        "lighting Mat fallback happens before texture requests");
   ok &= absent(gameplay,
                "track_light_obj.tex",
@@ -12504,7 +12504,7 @@ int main() {
                  "++hidden_flat;",
                  "WorldCrowd draw diagnostics expose source 3D-only flat suppression");
   ok &= appears_before(draw_worldcrowd_runtime_c,
-                       "if(draw_as_3d){",
+                       "if(draw_as_3d||!venue_camera_hide_crowd_){",
                        "elseif(venue_camera_hide_crowd_){",
                        "CamShot show_3d_only preserves selected 3D members before flat suppression");
   ok &= contains(draw_worldcrowd_runtime_c,
@@ -15378,11 +15378,11 @@ int main() {
                  "venue load builds a group mesh map for CamShot hide_list refs");
   ok &= contains(gameplay_c,
                  "append_resolved_subdir_tree(ark,hdr_path,ark_path,"
-                 "out.geom_milo,out.geom_subdir_milos);",
+                 "out.geom_milo,out.geom_subdir_milos,loading_pump);",
                  "venue assembly follows the recursive ObjectDir subdir tree from geometry");
   ok &= contains(gameplay_c,
                  "append_resolved_subdir_tree(ark,hdr_path,ark_path,"
-                 "out.lighting_milo,out.lighting_subdir_milos);",
+                 "out.lighting_milo,out.lighting_subdir_milos,loading_pump);",
                  "venue assembly follows the recursive ObjectDir subdir tree from lighting");
   ok &= contains(gameplay_c,
                  "log_venue_dependencies(hdr_path_,ark_path_,"
@@ -15390,7 +15390,7 @@ int main() {
                  "venue load audits every resolved direct subdir dependency");
   ok &= contains(gameplay_c,
                  "merge_visual_venue_subdirs(hdr_path_,ark_path_,"
-                 "venue_assembly.geom_subdir_milos,venue_scene)",
+                 "venue_assembly.geom_subdir_milos,venue_scene,loading_pump_)",
                  "venue load merges visual geometry subdirs before renderer setup");
   ok &= contains(gameplay_c,
                  "load_milo_textures_from_sources(hdr_path_,ark_path_,"
@@ -16915,6 +16915,21 @@ int main() {
       gameplay_c,
       "if(perf.charwalk_runtime&&perf.role==\"guitarist0\")",
       "walk controller is gated by the shared native/raw CharWalk runtime fact");
+  ok &= contains(
+      gameplay_c,
+      "mat4_rotate_basis_preserve_position_game("
+      "gh1_walk_rotation_z(angle_delta),perf.world_transform)",
+      "CharWalk facing turns preserve the guitarist stage position");
+  ok &= contains(
+      gameplay_c,
+      "mat4_rotate_basis_preserve_position_game("
+      "gh1_walk_rotation_z(regulation.yaw_adjustment),"
+      "perf.world_transform)",
+      "CharWalk corridor regulation preserves the guitarist stage position");
+  ok &= absent(
+      gameplay_c,
+      "perf.world_transform=perf.gh1_walk_target_world;",
+      "CharWalk completion must not snap the guitarist to the route target");
   ok &= contains(gameplay_h_c,
                  "intgh1_walk_state=0;intgh1_walk_phase=0;",
                  "performer keeps retail CharWalk state separate from turn/walk/stop phase");

@@ -31,6 +31,7 @@
 #include "core/symbol.h"
 
 #include "ark_v3.h"
+#include "milo.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -162,30 +163,89 @@ std::filesystem::path venue_preview_path(const std::string& hdr,
 class VenuePreviewOverlay {
  public:
   ~VenuePreviewOverlay() {
-    if (texture_) texture_->Release();
+    clear();
+  }
+
+  void clear() {
+    active_path_.clear();
+    failed_path_.clear();
+    prefetch_queue_.clear();
+    for (auto& [path, texture] : textures_)
+      if (texture) texture->Release();
+    textures_.clear();
+  }
+
+  std::size_t resident_count() const { return textures_.size(); }
+  std::size_t queued_count() const { return prefetch_queue_.size(); }
+
+  void process_one_prefetch(IDirect3DDevice9* dev) {
+    if (!dev || prefetch_queue_.empty()) return;
+    const std::string path = std::move(prefetch_queue_.front());
+    prefetch_queue_.erase(prefetch_queue_.begin());
+    if (textures_.find(path) != textures_.end()) return;
+    const asset::Image image = asset::load_bmp_file(path);
+    if (IDirect3DTexture9* texture = upload_overlay_texture(dev, image)) {
+      textures_[path] = texture;
+      std::fprintf(stderr,
+                   "[manage-band] venue prefetch ready path=%s resident=%zu\n",
+                   path.c_str(), textures_.size());
+    }
   }
 
   void draw(IDirect3DDevice9* dev, int width, int height,
-            const std::string& hdr, Symbol venue) {
+            const std::string& hdr, Symbol venue, Symbol previous,
+            Symbol next) {
     if (!dev || width <= 0 || height <= 0 || !venue.valid()) return;
     const std::filesystem::path path = venue_preview_path(hdr, venue);
     const std::string key = path.string();
-    if (key != loaded_path_) {
-      loaded_path_ = key;
-      if (texture_) {
-        texture_->Release();
-        texture_ = nullptr;
+    std::unordered_set<std::string> retain;
+    if (!key.empty()) retain.insert(key);
+    std::vector<std::string> adjacent;
+    for (Symbol candidate : {previous, next}) {
+      const std::string candidate_path =
+          venue_preview_path(hdr, candidate).string();
+      if (!candidate_path.empty() && retain.insert(candidate_path).second)
+        adjacent.push_back(candidate_path);
+    }
+    for (auto it = textures_.begin(); it != textures_.end();) {
+      if (retain.find(it->first) != retain.end()) {
+        ++it;
+        continue;
       }
-      if (!key.empty()) {
-        const asset::Image image = asset::load_bmp_file(key);
-        texture_ = upload_overlay_texture(dev, image);
-      }
-      if (!texture_)
+      if (it->second) it->second->Release();
+      it = textures_.erase(it);
+    }
+    prefetch_queue_.erase(
+        std::remove_if(prefetch_queue_.begin(), prefetch_queue_.end(),
+                       [&](const std::string& queued) {
+                         return retain.find(queued) == retain.end();
+                       }),
+        prefetch_queue_.end());
+    active_path_ = key;
+    if (!key.empty() && textures_.find(key) == textures_.end()) {
+      const asset::Image image = asset::load_bmp_file(key);
+      if (IDirect3DTexture9* texture = upload_overlay_texture(dev, image))
+        textures_[key] = texture;
+    }
+    for (const std::string& candidate : adjacent) {
+      if (textures_.find(candidate) != textures_.end() ||
+          std::find(prefetch_queue_.begin(), prefetch_queue_.end(),
+                    candidate) != prefetch_queue_.end())
+        continue;
+      prefetch_queue_.push_back(candidate);
+    }
+    const auto active = textures_.find(active_path_);
+    IDirect3DTexture9* texture =
+        active == textures_.end() ? nullptr : active->second;
+    if (!texture) {
+      if (key != failed_path_) {
+        failed_path_ = key;
         std::fprintf(stderr,
                      "[manage-band] venue preview unavailable id=%s path=%s\n",
                      venue.c_str(), key.empty() ? "<not-found>" : key.c_str());
+      }
     }
-    if (!texture_) return;
+    if (!texture) return;
 
     const float sx = static_cast<float>(width) / 960.0f;
     const float sy = static_cast<float>(height) / 720.0f;
@@ -225,7 +285,7 @@ class VenuePreviewOverlay {
                              0xff181410u);
     dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, border.data(),
                          sizeof(OverlayVertex));
-    dev->SetTexture(0, texture_);
+    dev->SetTexture(0, texture);
     dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
     dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
     dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
@@ -243,9 +303,64 @@ class VenuePreviewOverlay {
   }
 
  private:
-  std::string loaded_path_;
-  IDirect3DTexture9* texture_ = nullptr;
+  std::string active_path_;
+  std::string failed_path_;
+  std::map<std::string, IDirect3DTexture9*> textures_;
+  std::vector<std::string> prefetch_queue_;
 };
+
+void draw_manage_band_loading_wheel(IDirect3DDevice9* dev, int width,
+                                    int height, double seconds) {
+  if (!dev || width <= 0 || height <= 0) return;
+  constexpr int kSegments = 12;
+  constexpr float kTau = 6.28318530717958647692f;
+  const float sx = static_cast<float>(width) / 960.0f;
+  const float sy = static_cast<float>(height) / 720.0f;
+  const float cx = 190.0f * sx;
+  const float cy = 342.0f * sy;
+  const float inner = 18.0f * std::min(sx, sy);
+  const float outer = 29.0f * std::min(sx, sy);
+  const int head = static_cast<int>(seconds * 12.0) % kSegments;
+  std::vector<OverlayVertex> vertices;
+  vertices.reserve(kSegments * 6);
+  const auto vertex = [](float x, float y, D3DCOLOR color) {
+    return OverlayVertex{x - 0.5f, y - 0.5f, 0.0f, 1.0f, color, 0.0f, 0.0f};
+  };
+  for (int segment = 0; segment < kSegments; ++segment) {
+    const float a0 = kTau * static_cast<float>(segment) / kSegments;
+    const float a1 = kTau * static_cast<float>(segment + 1) / kSegments;
+    const int age = (head - segment + kSegments) % kSegments;
+    const unsigned alpha = static_cast<unsigned>(
+        std::clamp(230 - age * 15, 50, 230));
+    const D3DCOLOR color = D3DCOLOR_ARGB(alpha, 245, 245, 238);
+    const OverlayVertex p0 =
+        vertex(cx + std::cos(a0) * inner, cy + std::sin(a0) * inner, color);
+    const OverlayVertex p1 =
+        vertex(cx + std::cos(a0) * outer, cy + std::sin(a0) * outer, color);
+    const OverlayVertex p2 =
+        vertex(cx + std::cos(a1) * inner, cy + std::sin(a1) * inner, color);
+    const OverlayVertex p3 =
+        vertex(cx + std::cos(a1) * outer, cy + std::sin(a1) * outer, color);
+    vertices.insert(vertices.end(), {p0, p1, p2, p2, p1, p3});
+  }
+  dev->BeginScene();
+  dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+  dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+  dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+  dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+  dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+  dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+  dev->SetTexture(0, nullptr);
+  dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+  dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+  dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+  dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+  dev->SetFVF(kOverlayFvf);
+  dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
+                       static_cast<UINT>(vertices.size() / 3),
+                       vertices.data(), sizeof(OverlayVertex));
+  dev->EndScene();
+}
 
 void draw_paint_swatch(IDirect3DDevice9* dev, int width, int height,
                        int color_index, bool active) {
@@ -758,6 +873,18 @@ struct GuitarDisplayRuntimeAnim {
   std::string target;
   ghogx::render::MiloSceneRenderer::MeshTransformAnim anim;
   float frames_per_second = 30.0f;
+};
+
+struct PreparedGuitarDisplayScene {
+  std::string key;
+  milo_scene::Scene scene;
+  std::map<std::string, asset::Image> textures;
+  std::string default_environment;
+  std::array<float, 16> world_transform = {1, 0, 0, 0, 0, 1, 0, 0,
+                                           0, 0, 1, 0, 0, 0, 0, 1};
+  bool uses_screen_proxy_camera = false;
+  bool visible = false;
+  std::vector<GuitarDisplayRuntimeAnim> runtime_anims;
 };
 
 ghogx::render::MiloSceneRenderer::MeshTransformAnim to_renderer_anim(
@@ -2533,35 +2660,48 @@ void rebuild_scene(const std::string& hdr, const std::string& ark, ScreenManager
     apply_menu_meta_camera(hdr, ark, renderer);
 }
 
-bool rebuild_guitar_display_scene(const std::string& hdr, const std::string& ark,
-                                  ScreenManager& mgr, Object* screen,
-                                  const ConfigDb& db,
-                                  ghogx::render::MiloSceneRenderer& renderer) {
-  milo_scene::Scene scene;
-  std::map<std::string, asset::Image> textures;
-  std::string default_environment;
-  std::array<float, 16> scene_world_transform = identity_mat4();
-  bool uses_screen_proxy_camera = false;
-  std::vector<GuitarDisplayRuntimeAnim> runtime_anims;
-  const bool visible =
-      build_live_guitar_display_scene(hdr, ark, mgr, screen, db, scene, textures,
-                                      default_environment, scene_world_transform,
-                                      uses_screen_proxy_camera, runtime_anims);
-  renderer.set_scene(std::move(scene), textures);
-  for (auto& runtime : runtime_anims) {
+PreparedGuitarDisplayScene prepare_guitar_display_scene(
+    const std::string& hdr, const std::string& ark, ScreenManager& mgr,
+    Object* screen, const ConfigDb& db) {
+  PreparedGuitarDisplayScene prepared;
+  prepared.visible = build_live_guitar_display_scene(
+      hdr, ark, mgr, screen, db, prepared.scene, prepared.textures,
+      prepared.default_environment, prepared.world_transform,
+      prepared.uses_screen_proxy_camera, prepared.runtime_anims);
+  return prepared;
+}
+
+bool install_guitar_display_scene(
+    const std::string& hdr, const std::string& ark,
+    PreparedGuitarDisplayScene prepared,
+    ghogx::render::MiloSceneRenderer& renderer) {
+  const bool visible = prepared.visible;
+  renderer.set_scene(std::move(prepared.scene), prepared.textures);
+  for (auto& runtime : prepared.runtime_anims) {
     renderer.trigger_mesh_transform_anim(runtime.target, std::move(runtime.anim),
                                          runtime.frames_per_second, true);
   }
-  renderer.set_world_transform(scene_world_transform);
-  renderer.set_default_environment(default_environment.empty() ? "guitar_setup.env"
-                                                              : default_environment);
+  renderer.set_world_transform(prepared.world_transform);
+  renderer.set_default_environment(
+      prepared.default_environment.empty() ? "guitar_setup.env"
+                                           : prepared.default_environment);
   renderer.set_clear_depth_on_overlay(true);
   // UIProxy::DrawShowing uses the owning panel's active camera. Shared lighting
   // setup can contribute guitar_setup.cam to this scene; clear that automatic
   // selection for live proxies so draw_menu_layers supplies the owning screen
   // camera (with the proxy clipping range widened there).
-  if (uses_screen_proxy_camera) apply_menu_meta_camera(hdr, ark, renderer);
+  if (prepared.uses_screen_proxy_camera)
+    apply_menu_meta_camera(hdr, ark, renderer);
   return visible;
+}
+
+bool rebuild_guitar_display_scene(const std::string& hdr,
+                                  const std::string& ark, ScreenManager& mgr,
+                                  Object* screen, const ConfigDb& db,
+                                  ghogx::render::MiloSceneRenderer& renderer) {
+  return install_guitar_display_scene(
+      hdr, ark, prepare_guitar_display_scene(hdr, ark, mgr, screen, db),
+      renderer);
 }
 
 std::string guitar_display_selection_key(ScreenManager& mgr, Object* screen,
@@ -2622,6 +2762,18 @@ struct MenuCharacterPreview {
   std::unique_ptr<ghogx::character::CharRenderer> renderer;
 };
 
+struct ManageBandCharacterPrefetch {
+  std::string outfit;
+  std::string model_path;
+  std::string animation_path;
+};
+
+struct ManageBandGuitarPrefetch {
+  Symbol guitar;
+  Symbol skin;
+  std::string key;
+};
+
 std::string indexed_runtime_name(const char* stem, int player) {
   return std::string(stem) + "_" + std::to_string(std::max(0, player));
 }
@@ -2652,7 +2804,8 @@ bool clip_drives_transform(const ghogx::character::CharClip& clip,
 std::unique_ptr<ghogx::character::CharClip>
 load_authored_open_door_pose(const std::string& hdr, const std::string& ark,
                              const ConfigDb& db, Symbol preferred_character,
-                             std::string& source_milo) {
+                             std::string& source_milo,
+                             const std::function<void()>& loading_pump = {}) {
   std::vector<CharacterVariant> candidates;
   if (preferred_character.valid()) {
     candidates = db.character_variants(preferred_character);
@@ -2672,7 +2825,7 @@ load_authored_open_door_pose(const std::string& hdr, const std::string& ark,
       continue;
     auto clip = std::make_unique<ghogx::character::CharClip>(
         ghogx::character::load_clip(hdr, ark, candidate.ui_anim_path,
-                                    "ui_loop"));
+                                    "ui_loop", loading_pump));
     if (!clip_drives_transform(*clip, "bone_door")) continue;
     source_milo = candidate.ui_anim_path;
     return clip;
@@ -2684,7 +2837,8 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
     const std::string& hdr, const std::string& ark, ScreenManager& mgr,
     Object* screen, const ConfigDb& db, ghogx::render::Window& window,
     std::vector<MenuCharacterPreview> previous = {},
-    std::vector<MenuCharacterPreview>* inactive_cache = nullptr) {
+    std::vector<MenuCharacterPreview>* inactive_cache = nullptr,
+    const std::function<void()>& loading_pump = {}) {
   std::vector<MenuCharacterPreview> previews;
   if (!screen) return previews;
   if (inactive_cache) {
@@ -2733,7 +2887,8 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
       }
       milo_scene::Scene placement_scene;
       std::array<float, 16> placement_world = identity_mat4();
-      if (!milo_scene::load_scene(hdr, ark, placer_milo, placement_scene) ||
+      if (!milo_scene::load_scene(hdr, ark, placer_milo, placement_scene,
+                                  loading_pump) ||
           !scene_world_for_name(placement_scene, placer, placement_world)) {
         std::fprintf(stderr,
                      "[menu-char] player=%d outfit=%s missing source placer "
@@ -2818,12 +2973,14 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
                                   ? variant->ui_model_path
                                   : base + "_ui.milo_ps2";
       ghogx::character::Character character;
-      if (!ghogx::character::load_character(hdr, ark, char_milo, character)) {
+      if (!ghogx::character::load_character(hdr, ark, char_milo, character,
+                                            loading_pump)) {
         char_milo =
             variant && !variant->model_path.empty()
                 ? variant->model_path
                 : base + ".milo_ps2";
-        if (!ghogx::character::load_character(hdr, ark, char_milo, character)) {
+        if (!ghogx::character::load_character(hdr, ark, char_milo, character,
+                                              loading_pump)) {
           std::fprintf(stderr,
                        "[menu-char] player=%d failed stock character %s\n",
                        player, outfit.c_str());
@@ -2834,8 +2991,11 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
         }
       }
       const auto texture_names = character.texture_names();
+      if (loading_pump) loading_pump();
       auto textures =
-          asset::load_milo_textures(hdr, ark, char_milo, texture_names);
+          asset::load_milo_textures(hdr, ark, char_milo, texture_names,
+                                    loading_pump);
+      if (loading_pump) loading_pump();
       MenuCharacterPreview preview;
       preview.player = player;
       preview.panel = panel_name.c_str();
@@ -2855,10 +3015,12 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
           variant->model_path != char_milo) {
         ghogx::character::Character full_character;
         if (ghogx::character::load_character(
-                hdr, ark, variant->model_path, full_character)) {
+                hdr, ark, variant->model_path, full_character,
+                loading_pump)) {
           const auto full_texture_names = full_character.texture_names();
           auto full_textures = asset::load_milo_textures(
-              hdr, ark, variant->model_path, full_texture_names);
+              hdr, ark, variant->model_path, full_texture_names,
+              loading_pump);
           preview.renderer->set_character(std::move(full_character),
                                           full_textures);
           if (preview.renderer->has_drawable_geometry()) {
@@ -2885,7 +3047,7 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
         ghogx::character::Character source_character;
         if (!ghogx::character::load_character(
                 hdr, ark, variant->animation_source_model_path,
-                source_character)) {
+                source_character, loading_pump)) {
           std::fprintf(stderr,
                        "[menu-char] outfit=%s missing retarget source=%s\n",
                        outfit.c_str(),
@@ -2985,10 +3147,11 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
               : "char/" + ui_anim_owner + "/anims/gen/" + ui_anim_owner +
                     "_ui.milo_ps2";
       preview.ui_clip = std::make_unique<ghogx::character::CharClip>(
-          ghogx::character::load_clip(hdr, ark, ui_anim_milo, "ui_loop"));
+          ghogx::character::load_clip(hdr, ark, ui_anim_milo, "ui_loop",
+                                      loading_pump));
       if (!preview.ui_clip->loaded) {
         const auto catalog = ghogx::character::load_clip_catalog(
-            hdr, ark, {ui_anim_milo});
+            hdr, ark, {ui_anim_milo}, loading_pump);
         auto authored_idle = std::find_if(
             catalog.begin(), catalog.end(), [](const auto& clip) {
               constexpr std::string_view suffix = "_idle_ui";
@@ -3008,7 +3171,8 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
           preview.ui_clip =
               std::make_unique<ghogx::character::CharClip>(
                   ghogx::character::load_clip(
-                      hdr, ark, selected->milo_path, selected->name));
+                      hdr, ark, selected->milo_path, selected->name,
+                      loading_pump));
         }
       }
       if (!variant && !preview.ui_clip->loaded && !ui_anim_owner.empty() &&
@@ -3020,7 +3184,8 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
         ui_anim_milo = "char/" + ui_anim_owner + "/anims/gen/" +
                        ui_anim_owner + "_ui.milo_ps2";
         preview.ui_clip = std::make_unique<ghogx::character::CharClip>(
-            ghogx::character::load_clip(hdr, ark, ui_anim_milo, "ui_loop"));
+            ghogx::character::load_clip(hdr, ark, ui_anim_milo, "ui_loop",
+                                        loading_pump));
       }
       if (!preview.ui_clip->loaded) {
         std::fprintf(stderr,
@@ -3042,14 +3207,16 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
       if (panel_name != Symbol("manage_band_char_preview") &&
           slots == 1 && char_event == Symbol("animate")) {
         preview.ui_enter_clip = std::make_unique<ghogx::character::CharClip>(
-            ghogx::character::load_clip(hdr, ark, ui_anim_milo, "ui_enter"));
+            ghogx::character::load_clip(hdr, ark, ui_anim_milo, "ui_enter",
+                                        loading_pump));
       }
       if (preview.has_door_binding &&
           !clip_drives_transform(*preview.ui_clip, "bone_door")) {
         const Symbol preferred_character =
             variant ? variant->character : db.character_for_variant(outfit);
         preview.open_door_pose_clip = load_authored_open_door_pose(
-            hdr, ark, db, preferred_character, preview.open_door_pose_milo);
+            hdr, ark, db, preferred_character, preview.open_door_pose_milo,
+            loading_pump);
         if (preview.open_door_pose_clip) {
           preview.open_door_pose_player.play(
               *preview.open_door_pose_clip,
@@ -3146,7 +3313,10 @@ std::vector<MenuCharacterPreview> rebuild_character_display_scenes(
       if (!old.renderer || old.panel != "manage_band_char_preview") continue;
       inactive_cache->push_back(std::move(old));
     }
-    constexpr std::size_t kMaxManageBandCharacterCache = 24;
+    // The active preview lives in `previews`; retain only the two adjacent
+    // candidates.  The old 24-entry cache kept every visited character's GPU
+    // resources alive for the entire application session.
+    constexpr std::size_t kMaxManageBandCharacterCache = 2;
     if (inactive_cache->size() > kMaxManageBandCharacterCache)
       inactive_cache->erase(
           inactive_cache->begin(),
@@ -4834,7 +5004,11 @@ std::vector<MenuLabel> make_manage_band_labels(
     labels.push_back(std::move(title));
   }
   constexpr int selected_row = 2;
-  constexpr int visible_rows = 7;
+  const bool compact_guitar_menu =
+      symbol_value(panel->get_property(Symbol("stage"))) == Symbol("values") &&
+      panel->get_property(Symbol("category")).as_int().value_or(-1) == 1;
+  const int visible_rows = std::clamp(
+      panel->get_property(Symbol("visible_rows")).as_int().value_or(7), 1, 8);
   for (int row_index = 0; row_index < visible_rows; ++row_index) {
     const std::string property = "row_text_" + std::to_string(row_index);
     const std::string text_value =
@@ -4847,10 +5021,13 @@ std::vector<MenuLabel> make_manage_band_labels(
         text_value.substr(0, break_at),
         break_at == std::string::npos ? std::string()
                                       : text_value.substr(break_at + 1)};
-    // Seven entries occupy the usable column while retaining one uniform,
-    // readable font size.
-    // The font remains large; only the excessive line gaps are removed.
-    const float slot_z = 112.0f - 38.0f * row_index;
+    // The guitar catalog contains substantially longer names than the other
+    // Manage Band reels. Give only that submenu a modestly tighter, uniform
+    // treatment and spend the recovered height on an eighth visible choice.
+    const float row_step = compact_guitar_menu ? 34.0f : 38.0f;
+    const float row_text_size = compact_guitar_menu ? 29.0f : 32.0f;
+    const float row_height = compact_guitar_menu ? 38.0f : 42.0f;
+    const float slot_z = 112.0f - row_step * row_index;
     for (int line_index = 0; line_index < 2; ++line_index) {
       if (lines[static_cast<std::size_t>(line_index)].empty()) continue;
       MenuLabel row = *row_source;
@@ -4871,8 +5048,8 @@ std::vector<MenuLabel> make_manage_band_labels(
       // units fits the longest current authored label inside the 60% bay.
       row.text_tail.fit_text = 1;
       row.text_tail.alignment = 33;
-      row.text_tail.height = 42.0f;
-      row.text_tail.text_size = 32.0f;
+      row.text_tail.height = row_height;
+      row.text_tail.text_size = row_text_size;
       row.text_tail.width = 820.0f;
       row.text_tail.width_bound = 820.0f;
       row.text_tail.color =
@@ -5556,6 +5733,10 @@ void append_help_footer(Object* screen, const MenuFont& font,
   if (display.empty()) display = screen->get_property(Symbol("helpbar"));
   display = focused_help_display(display, focused);
   collect_help_tokens(display, items);
+  const bool bucket_footer = screen->name() == Symbol("qp_selsong_screen");
+  if (bucket_footer)
+    items = {{"fret1", "Defaults"}, {"fret2", "Back"},
+             {"fret3", "Setlist"}, {"fret4", "My Band"}, {"strum", "Songs"}};
   if (items.empty()) return;
 
   // `helpbar.milo_ps2` owns the shared panel geometry; `splash.dtb` owns the
@@ -5584,13 +5765,13 @@ void append_help_footer(Object* screen, const MenuFont& font,
   int max_items = max_labels;
   if (max_buttons > 0)
     max_items = max_items > 0 ? std::min(max_items, max_buttons) : max_buttons;
-  if (max_items > 0 && items.size() > static_cast<std::size_t>(max_items))
+  if (!bucket_footer && max_items > 0 && items.size() > static_cast<std::size_t>(max_items))
     items.resize(static_cast<std::size_t>(max_items));
   const float source_size =
       source_style.valid && source_style.text_size > 0.0f
           ? source_style.text_size
           : 18.0f;
-  const float kFooterScale = source_size / std::max(1.0f, font.cap_height());
+  const float kFooterScale = (bucket_footer ? 14.0f : source_size) / std::max(1.0f, font.cap_height());
   const uint32_t kFooterCol =
       source_style.valid ? pack_rgba_color(source_style.color)
                          : 0xFFE6E6E6u;
@@ -5602,6 +5783,13 @@ void append_help_footer(Object* screen, const MenuFont& font,
   const float second_icon_left = first_icon_left + fret_slot_step;
   const float third_icon_left = first_icon_left + fret_slot_step * 2.0f;
   auto icon_left_for_control = [&](const std::string& control) {
+    if (bucket_footer) {
+      if (control == "fret1") return -303.0f;
+      if (control == "fret2") return -167.0f;
+      if (control == "fret3") return -66.0f;
+      if (control == "fret4") return 47.0f;
+      if (control == "strum") return 177.0f;
+    }
     if (control == "fret1" || control == "start") return first_icon_left;
     if (control == "fret2") return second_icon_left;
     if (control == "fret3") return third_icon_left;
@@ -5609,6 +5797,7 @@ void append_help_footer(Object* screen, const MenuFont& font,
     return first_icon_left;
   };
   auto text_x_for_control = [&](const std::string& control) {
+    if (bucket_footer) return icon_left_for_control(control) + (control == "strum" ? 66.0f : 34.0f);
     // HelpBarPanel populates fixed widget slots; the small residuals below are
     // from the settled PS2-populated footer boxes after applying help_bar.txt.
     constexpr float kFirstFretTextResidual = 5.915f;
@@ -5634,6 +5823,7 @@ void append_help_footer(Object* screen, const MenuFont& font,
     if (control == "fret1") return "hb_fret1.tex";
     if (control == "fret2") return "hb_fret2.tex";
     if (control == "fret3") return "hb_fret3.tex";
+    if (control == "fret4") return "hb_fret4.tex";
     if (control == "strum") return "hb_strum.tex";
     if (control == "start") return "hb_start.tex";
     return "";
@@ -5779,80 +5969,13 @@ std::string song_title_by_key(const ConfigDb& db, Symbol key) {
 std::vector<SongListEntry> quickplay_entries(
     const ConfigDb& db, const std::map<std::string, std::string>& locale) {
   std::vector<SongListEntry> out;
-  std::unordered_set<const void*> included;
-  const DataArray* campaign = db.table(Symbol("campaign"));
-  auto order = campaign ? campaign->find_keyed(Symbol("order")) : nullptr;
   int song_pos = 0;
-  if (order) {
-    for (std::size_t i = 1; i < order->size(); ++i) {
-      auto tier = order->at(i).as_array();
-      if (!tier || tier->empty()) continue;
-      Symbol tier_name = tier->at(0).as_symbol().value_or(Symbol());
-      std::string header_key = std::string("song_header_") + tier_name.c_str();
-      std::string header = header_key;
-      if (auto it = locale.find(header_key); it != locale.end()) header = it->second;
-      out.push_back({true, header, -1});
-      for (std::size_t j = 1; j < tier->size(); ++j) {
-        Symbol song = tier->at(j).as_symbol().value_or(Symbol());
-        if (!song.valid()) continue;
-        out.push_back({false, song_title_by_key(db, song), song_pos++});
-        included.insert(song.id());
-      }
-    }
-  }
-  const auto bonus_songs = db.store_items(Symbol("song"));
-  if (!bonus_songs.empty()) {
-    std::string header = "song_header_store";
-    if (auto it = locale.find(header); it != locale.end()) header = it->second;
-    out.push_back({true, header, -1});
-    for (Symbol song : bonus_songs) {
-      if (!song.valid()) continue;
+  for (const auto& section : db.active_quickplay_bucket().sections) {
+    if (section.songs.empty()) continue;
+    const auto found = locale.find(section.label);
+    out.push_back({true, found == locale.end() ? section.label : found->second, -1});
+    for (Symbol song : section.songs)
       out.push_back({false, song_title_by_key(db, song), song_pos++});
-      included.insert(song.id());
-    }
-  }
-
-  // Add-on JSON owns optional setlist grouping and labels. This keeps imported
-  // disc catalogs and future downloadable packs in the same source-authored
-  // quickplay reel without modifying GH2's base campaign/store tables.
-  for (Symbol setlist : db.setlists()) {
-    std::vector<Symbol> songs;
-    for (Symbol song : db.setlist_songs(setlist))
-      if (song.valid() && included.find(song.id()) == included.end())
-        songs.push_back(song);
-    if (songs.empty()) continue;
-    std::string label = db.setlist_label(setlist);
-    if (label.empty()) label = setlist.c_str();
-    out.push_back({true, label, -1});
-    for (Symbol song : songs) {
-      out.push_back({false, song_title_by_key(db, song), song_pos++});
-      included.insert(song.id());
-    }
-  }
-
-  // A single-song add-on is valid without a named setlist. Keep such records
-  // visible under one neutral DLC heading; packaged setlists above remain the
-  // preferred presentation path.
-  std::vector<Symbol> ungrouped;
-  for (Symbol song : db.quickplay_songs())
-    if (song.valid() && included.find(song.id()) == included.end())
-      ungrouped.push_back(song);
-  if (!ungrouped.empty()) {
-    const auto localized = locale.find("song_header_dlc");
-    out.push_back(
-        {true, localized == locale.end() ? "DLC" : localized->second, -1});
-    for (Symbol song : ungrouped) {
-      out.push_back({false, song_title_by_key(db, song), song_pos++});
-      included.insert(song.id());
-    }
-  }
-
-  if (!out.empty()) return out;
-
-  for (std::size_t i = 0; i < db.song_count(); ++i) {
-    std::string title(db.song_field(i, Symbol("name")).as_string().value_or(""));
-    if (title.empty()) title = db.song_key(i).c_str();
-    out.push_back({false, title, static_cast<int>(i)});
   }
   return out;
 }
@@ -7184,8 +7307,28 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
   bool foreground_before_text = false;
   auto help_icons = asset::load_milo_textures(
       hdr, ark, "ui/gen/helpbar.milo_ps2",
-      {"hb_fret1.tex", "hb_fret2.tex", "hb_fret3.tex", "hb_strum.tex", "hb_start.tex",
+      {"hb_fret1.tex", "hb_fret2.tex", "hb_fret3.tex", "hb_fret4.tex", "hb_strum.tex", "hb_start.tex",
        "help_box_mid.tex", "help_box_corner.tex"});
+  if (screen && screen->name() == Symbol("qp_selsong_screen")) {
+    // GH2's helpbar omits Blue. Reuse its native Green silhouette and shading
+    // for both extra palette slots, retaining the original transparent edge.
+    const auto green = help_icons.find("hb_fret1.tex");
+    if (green != help_icons.end() && green->second.valid()) {
+      for (int fret : {3, 4}) {
+        auto icon = green->second;
+        for (std::size_t i = 0; i + 3 < icon.rgba.size(); i += 4) {
+          const auto red = icon.rgba[i], g = icon.rgba[i + 1], blue = icon.rgba[i + 2];
+          if (g > red && g > blue) {
+            const auto bright = static_cast<uint8_t>(std::min(255, static_cast<int>(g) * 3 / 2));
+            icon.rgba[i] = fret == 3 ? bright : g / 5;
+            icon.rgba[i + 1] = fret == 3 ? bright : g / 2;
+            icon.rgba[i + 2] = fret == 3 ? g / 5 : bright;
+          }
+        }
+        help_icons["hb_fret" + std::to_string(fret) + ".tex"] = std::move(icon);
+      }
+    }
+  }
   milo_scene::Scene helpbar_scene;
   milo_scene::load_scene(hdr, ark, "ui/gen/helpbar.milo_ps2",
                          helpbar_scene);
@@ -7468,6 +7611,24 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
     batch.verts = std::move(song_verts);
     batch.atlas = &song_font.atlas();
     batches.push_back(std::move(batch));
+  }
+  if (screen && screen->name() == Symbol("qp_selsong_screen") && song_font.valid()) {
+    // Keep the bucket identity readable while the paper and song rows scroll.
+    static const asset::Image backdrop{1, 1, {14, 14, 14, 240}};
+    ghogx::render::MiloSceneRenderer::TextBatch strip;
+    append_image_quad(0.0f, 0.0f, 207.0f, 640.0f, 40.0f, 0xFFFFFFFFu, strip.verts);
+    strip.atlas = &backdrop;
+    batches.push_back(std::move(strip));
+    ghogx::render::MiloSceneRenderer::TextBatch caption;
+    const auto label = db.active_quickplay_bucket().label;
+    float width = 0.0f;
+    song_font.layout(label, &width);
+    const float scale = std::min(15.0f / std::max(1.0f, song_font.cap_height()),
+                                 575.0f / std::max(1.0f, width));
+    append_song_string_centered_z(label, song_font, -290.0f, 0.0f, 207.0f,
+                                  scale, 0xFFF2F2F2u, caption.verts);
+    caption.atlas = &song_font.atlas();
+    batches.push_back(std::move(caption));
   }
   {
     ghogx::render::MiloSceneRenderer::TextBatch batch;
@@ -7794,15 +7955,25 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       }
       mgr.goto_screen(start_screen);
       if (start_screen == Symbol("manage_band_screen")) {
+        const char* proof_category =
+            std::getenv("GHOGX_MANAGE_BAND_PROOF_CATEGORY");
+        const char* proof_index =
+            std::getenv("GHOGX_MANAGE_BAND_PROOF_INDEX");
         const char* venue_id =
             std::getenv("GHOGX_MANAGE_BAND_PROOF_VENUE");
         const char* venue_index =
             std::getenv("GHOGX_MANAGE_BAND_PROOF_VENUE_INDEX");
-        if (venue_id || venue_index) {
+        if (proof_category || venue_id || venue_index) {
           if (Object* panel =
                   mgr.find_object(Symbol("manage_band_preferences_panel"))) {
             DataArray args;
-            if (venue_id) {
+            if (proof_category) {
+              args.push(DataNode::Int(std::clamp(std::atoi(proof_category),
+                                                 0, 11)));
+              args.push(DataNode::Int(
+                  proof_index ? std::max(0, std::atoi(proof_index)) : 0));
+              panel->handle_property(Symbol("debug_open_category"), args);
+            } else if (venue_id) {
               args.push(DataNode::Sym(Symbol(venue_id)));
               panel->handle_property(Symbol("debug_open_venue"), args);
             } else {
@@ -7811,10 +7982,12 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
               panel->handle_property(Symbol("debug_open_category"), args);
             }
             std::fprintf(stderr,
-                         "[manage-band] proof opened venue submenu id=%s "
-                         "index=%s\n",
+                         "[manage-band] proof opened submenu category=%s "
+                         "id=%s index=%s\n",
+                         proof_category ? proof_category : "8",
                          venue_id ? venue_id : "-",
-                         venue_index ? venue_index : "-");
+                         proof_index ? proof_index
+                                     : (venue_index ? venue_index : "-"));
           }
         }
       }
@@ -7986,9 +8159,17 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   ghogx::render::MiloSceneRenderer outgoing_guitar_renderer(*win);
   std::vector<MenuCharacterPreview> character_previews;
   std::vector<MenuCharacterPreview> manage_band_character_cache;
+  std::vector<ManageBandCharacterPrefetch> manage_band_prefetch_queue;
+  std::vector<PreparedGuitarDisplayScene> manage_band_guitar_cache;
+  std::vector<ManageBandGuitarPrefetch> manage_band_guitar_prefetch_queue;
+  bool manage_band_character_loading = false;
+  auto manage_band_prefetch_not_before = std::chrono::steady_clock::now();
+  auto manage_band_guitar_prefetch_not_before =
+      std::chrono::steady_clock::now();
   std::vector<MenuCharacterPreview> outgoing_character_previews;
   std::vector<LiveMenuAnimationSource> outgoing_menu_animation_sources;
   bool outgoing_transition_visible = false;
+  bool outgoing_manage_band_transition = false;
   bool outgoing_guitar_visible = false;
   ghogx::game::Gameplay gameplay;
   ghogx::chart::Chart soundcheck_chart = make_soundcheck_chart();
@@ -8025,6 +8206,13 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   const bool explicit_start_screen = !requested_start_screen.empty();
   const bool disable_live_input =
       std::getenv("GHOGX_MENU_DISABLE_LIVE_INPUT") != nullptr;
+  // The stock splash script starts an attract song after 60 seconds. The
+  // native attract gameplay/return path is not yet release-safe: a failed
+  // demo can strand the player in Quickplay without valid screen history.
+  // Keep normal builds stationary at the splash screen; fidelity diagnostics
+  // can opt into the authored behavior explicitly.
+  const bool enable_idle_attract =
+      std::getenv("GHOGX_ENABLE_IDLE_ATTRACT") != nullptr;
   RuntimePhase phase =
       options.play_boot_presentation && !explicit_start_screen
           ? RuntimePhase::BootLogos
@@ -8204,10 +8392,6 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       rebuild_guitar_display_scene(hdr, ark, mgr, shown, db, guitar_renderer);
   std::string guitar_selection_key =
       guitar_display_selection_key(mgr, shown, db);
-  character_previews =
-      rebuild_character_display_scenes(hdr, ark, mgr, shown, db, *win, {},
-                                       &manage_band_character_cache);
-  if (!character_previews.empty()) mgr.update(0.0f);
   apply_loading_source_anims(hdr, ark, mgr, shown, renderer);
   rebuild_text(hdr, ark, mgr, shown, renderer, fonts, db, locale);
   auto live_menu_animation_sources =
@@ -8286,9 +8470,341 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
           if (clear_target)
             scene_renderer.draw();
           else
-            scene_renderer.draw_over_scene(scene_renderer.camera());
+          scene_renderer.draw_over_scene(scene_renderer.camera());
         }
       };
+  auto last_loading_heartbeat = std::chrono::steady_clock::now();
+  auto loading_heartbeat_started = last_loading_heartbeat;
+  std::uint64_t loading_heartbeat_frames = 0;
+  double loading_heartbeat_max_gap = 0.0;
+  auto pump_and_present_loading_frame = [&]() {
+    const auto pump_started = std::chrono::steady_clock::now();
+    win->pump();
+    const auto now = std::chrono::steady_clock::now();
+    const float heartbeat_dt = static_cast<float>(
+        std::chrono::duration<double>(now - last_loading_heartbeat).count());
+    if (heartbeat_dt < 1.0f / 30.0f) return;
+    loading_heartbeat_max_gap =
+        std::max(loading_heartbeat_max_gap, static_cast<double>(heartbeat_dt));
+    last_loading_heartbeat = now;
+    ++loading_heartbeat_frames;
+    // Keep source menu animation clocks alive while asset decode and D3D
+    // upload remain synchronous on this thread.  No menu input is dispatched
+    // here, so a long load cannot accidentally advance the current flow.
+    mgr.update(heartbeat_dt);
+    const auto update_finished = std::chrono::steady_clock::now();
+    apply_loading_material_source_anim(mgr, shown,
+                                       loading_word_material_anim, renderer);
+    apply_live_menu_animation_frames(live_menu_animation_sources, renderer);
+    renderer.update(heartbeat_dt);
+    guitar_renderer.update(heartbeat_dt);
+    const auto animation_finished = std::chrono::steady_clock::now();
+    draw_menu_layers(renderer, guitar_renderer, guitar_visible,
+                     character_previews, /*clear_target=*/true);
+    const auto draw_finished = std::chrono::steady_clock::now();
+    if (manage_band_character_loading && shown &&
+        shown->name() == Symbol("manage_band_screen")) {
+      const double elapsed =
+          std::chrono::duration<double>(now - loading_heartbeat_started)
+              .count();
+      draw_manage_band_loading_wheel(d3d, win->bb_width(), win->bb_height(),
+                                     elapsed);
+    }
+    if (const char* proof_dir =
+            std::getenv("GHOGX_LOADING_HEARTBEAT_PROOF_DIR");
+        proof_dir && *proof_dir &&
+        (loading_heartbeat_frames == 1 || loading_heartbeat_frames == 11 ||
+         loading_heartbeat_frames == 21)) {
+      std::error_code ec;
+      std::filesystem::create_directories(proof_dir, ec);
+      const std::filesystem::path proof_path =
+          std::filesystem::path(proof_dir) /
+          ("loading-heartbeat-" +
+           std::to_string(loading_heartbeat_frames) + ".bmp");
+      win->save_screenshot(proof_path.string().c_str());
+    }
+    win->present();
+    const auto present_finished = std::chrono::steady_clock::now();
+    const double pump_cost =
+        std::chrono::duration<double>(present_finished - pump_started).count();
+    if (pump_cost >= 0.25) {
+      std::fprintf(
+          stderr,
+          "[loading-heartbeat] frame-cost total=%.3f update=%.3f anim=%.3f draw=%.3f present=%.3f\n",
+          pump_cost,
+          std::chrono::duration<double>(update_finished - now).count(),
+          std::chrono::duration<double>(animation_finished - update_finished)
+              .count(),
+          std::chrono::duration<double>(draw_finished - animation_finished)
+              .count(),
+          std::chrono::duration<double>(present_finished - draw_finished)
+              .count());
+    }
+    if (heartbeat_dt >= 0.1f) {
+      std::fprintf(stderr,
+                   "[loading-heartbeat] long-gap frame=%llu gap=%.3f elapsed=%.3f\n",
+                   static_cast<unsigned long long>(loading_heartbeat_frames),
+                   heartbeat_dt,
+                   std::chrono::duration<double>(now -
+                                                 loading_heartbeat_started)
+                       .count());
+    }
+    if (loading_heartbeat_frames == 1 ||
+        loading_heartbeat_frames % 60 == 0) {
+      std::fprintf(stderr,
+                   "[loading-heartbeat] frames=%llu screen=%s elapsed=%.3f\n",
+                   static_cast<unsigned long long>(loading_heartbeat_frames),
+                   shown ? shown->name().c_str() : "<none>",
+                   std::chrono::duration<double>(now -
+                                                 loading_heartbeat_started)
+                       .count());
+    }
+  };
+  gameplay.set_loading_pump(pump_and_present_loading_frame);
+  // Build the first visible character only after the cooperative presentation
+  // callback exists. Direct Manage Band starts and normal navigation now share
+  // the same continuously rotating load indicator instead of freezing on the
+  // first requested guitarist.
+  manage_band_character_loading =
+      shown && shown->name() == Symbol("manage_band_screen");
+  character_previews = rebuild_character_display_scenes(
+      hdr, ark, mgr, shown, db, *win, {}, &manage_band_character_cache,
+      pump_and_present_loading_frame);
+  manage_band_character_loading = false;
+  if (!character_previews.empty()) mgr.update(0.0f);
+  const auto manage_band_guitar_key = [](Symbol guitar, Symbol skin) {
+    if (!guitar.valid()) return std::string{};
+    std::string key = "manage_band_guitar_preview:0:";
+    key += guitar.c_str();
+    key += ':';
+    if (skin.valid()) key += skin.c_str();
+    key += ';';
+    return key;
+  };
+  auto refresh_manage_band_prefetch_queue = [&]() {
+    manage_band_prefetch_queue.clear();
+    if (!shown || shown->name() != Symbol("manage_band_screen")) return;
+    Object* panel = mgr.find_object(Symbol("manage_band_char_preview"));
+    if (!panel || !panel_showing(panel)) return;
+    const std::string active =
+        symbol_value(panel->get_property(Symbol("char_outfit_0"))).c_str();
+    std::unordered_set<std::string> keep;
+    const auto queue = [&](const char* stem) {
+      const std::string outfit =
+          symbol_value(panel->get_property(
+                           Symbol((std::string(stem) + "_outfit").c_str())))
+              .c_str();
+      if (outfit.empty() || outfit == active || !keep.insert(outfit).second)
+        return;
+      const bool already_cached = std::any_of(
+          manage_band_character_cache.begin(),
+          manage_band_character_cache.end(), [&](const auto& cached) {
+            return cached.outfit == outfit;
+          });
+      if (already_cached) return;
+      ManageBandCharacterPrefetch request;
+      request.outfit = outfit;
+      request.model_path = std::string(
+          panel->get_property(
+                   Symbol((std::string(stem) + "_model_path").c_str()))
+              .as_string()
+              .value_or(""));
+      request.animation_path = std::string(
+          panel->get_property(
+                   Symbol((std::string(stem) + "_anim_path").c_str()))
+              .as_string()
+              .value_or(""));
+      manage_band_prefetch_queue.push_back(std::move(request));
+    };
+    queue("preview_previous");
+    queue("preview_next");
+    // Anything outside the active selection's immediate neighborhood is stale
+    // and must release its renderer, textures, clips, and decoded character.
+    manage_band_character_cache.erase(
+        std::remove_if(manage_band_character_cache.begin(),
+                       manage_band_character_cache.end(),
+                       [&](const auto& cached) {
+                         return keep.find(cached.outfit) == keep.end();
+                       }),
+        manage_band_character_cache.end());
+    // Let quick user navigation settle before doing a synchronous adjacent
+    // decode. The request remains queued, but a player can pass over a row
+    // without paying the full cost of a large add-on character.
+    manage_band_prefetch_not_before =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(750);
+  };
+  auto refresh_manage_band_guitar_prefetch_queue = [&]() {
+    manage_band_guitar_prefetch_queue.clear();
+    if (!shown || shown->name() != Symbol("manage_band_screen")) return;
+    Object* panel = mgr.find_object(Symbol("manage_band_guitar_preview"));
+    if (!panel || !panel_showing(panel)) {
+      manage_band_guitar_cache.clear();
+      return;
+    }
+    std::unordered_set<std::string> keep;
+    const auto queue = [&](const char* stem) {
+      const Symbol guitar = symbol_value(panel->get_property(
+          Symbol((std::string(stem) + "_guitar").c_str())));
+      Symbol skin = symbol_value(panel->get_property(
+          Symbol((std::string(stem) + "_skin").c_str())));
+      if (!guitar.valid()) return;
+      if (!skin.valid()) skin = db.first_guitar_skin(guitar);
+      const std::string key = manage_band_guitar_key(guitar, skin);
+      if (key.empty() || key == guitar_selection_key || !keep.insert(key).second)
+        return;
+      const bool cached = std::any_of(
+          manage_band_guitar_cache.begin(), manage_band_guitar_cache.end(),
+          [&](const auto& prepared) { return prepared.key == key; });
+      if (!cached)
+        manage_band_guitar_prefetch_queue.push_back({guitar, skin, key});
+    };
+    queue("preview_previous");
+    queue("preview_next");
+    manage_band_guitar_cache.erase(
+        std::remove_if(manage_band_guitar_cache.begin(),
+                       manage_band_guitar_cache.end(),
+                       [&](const auto& prepared) {
+                         return keep.find(prepared.key) == keep.end();
+                       }),
+        manage_band_guitar_cache.end());
+    manage_band_guitar_prefetch_not_before =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(750);
+  };
+  auto process_one_manage_band_prefetch = [&]() -> bool {
+    if (manage_band_prefetch_queue.empty() || !shown ||
+        shown->name() != Symbol("manage_band_screen") ||
+        std::chrono::steady_clock::now() < manage_band_prefetch_not_before)
+      return false;
+    ManageBandCharacterPrefetch request =
+        std::move(manage_band_prefetch_queue.front());
+    manage_band_prefetch_queue.erase(manage_band_prefetch_queue.begin());
+    if (std::any_of(manage_band_character_cache.begin(),
+                    manage_band_character_cache.end(),
+                    [&](const auto& cached) {
+                      return cached.outfit == request.outfit;
+                    }))
+      return false;
+    Object* panel = mgr.find_object(Symbol("manage_band_char_preview"));
+    if (!panel || !panel_showing(panel)) return false;
+    constexpr std::array<const char*, 7> kSnapshotProperties = {
+        "char_outfit_0",      "char_loaded_0", "char_object_0",
+        "char_event_0",       "char_transfer_pending_0",
+        "preview_model_path", "preview_anim_path"};
+    std::array<DataNode, kSnapshotProperties.size()> snapshot;
+    for (std::size_t i = 0; i < kSnapshotProperties.size(); ++i)
+      snapshot[i] = panel->get_property(Symbol(kSnapshotProperties[i]));
+    panel->set_property(Symbol("char_outfit_0"),
+                        DataNode::Sym(Symbol(request.outfit.c_str())));
+    panel->set_property(Symbol("char_loaded_0"), DataNode::Int(0));
+    panel->set_property(Symbol("char_object_0"), DataNode());
+    panel->set_property(Symbol("char_transfer_pending_0"), DataNode::Int(0));
+    panel->set_property(Symbol("preview_model_path"),
+                        request.model_path.empty()
+                            ? DataNode()
+                            : DataNode::Str(request.model_path));
+    panel->set_property(Symbol("preview_anim_path"),
+                        request.animation_path.empty()
+                            ? DataNode()
+                            : DataNode::Str(request.animation_path));
+    std::fprintf(stderr, "[manage-band] prefetch begin outfit=%s\n",
+                 request.outfit.c_str());
+    manage_band_character_loading = true;
+    auto prefetched = rebuild_character_display_scenes(
+        hdr, ark, mgr, shown, db, *win, {}, nullptr,
+        pump_and_present_loading_frame);
+    manage_band_character_loading = false;
+    for (std::size_t i = 0; i < kSnapshotProperties.size(); ++i)
+      panel->set_property(Symbol(kSnapshotProperties[i]), snapshot[i]);
+    for (auto& candidate : prefetched) {
+      if (!candidate.renderer ||
+          candidate.panel != "manage_band_char_preview")
+        continue;
+      manage_band_character_cache.push_back(std::move(candidate));
+    }
+    constexpr std::size_t kMaxAdjacentPreviews = 2;
+    if (manage_band_character_cache.size() > kMaxAdjacentPreviews)
+      manage_band_character_cache.erase(
+          manage_band_character_cache.begin(),
+          manage_band_character_cache.begin() +
+              static_cast<std::ptrdiff_t>(manage_band_character_cache.size() -
+                                          kMaxAdjacentPreviews));
+    std::fprintf(stderr,
+                 "[manage-band] prefetch end outfit=%s resident_adjacent=%zu\n",
+                 request.outfit.c_str(), manage_band_character_cache.size());
+    // Spread the two neighbors across separate idle windows. This keeps one
+    // expensive add-on from immediately chaining into another decode.
+    manage_band_prefetch_not_before =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(750);
+    return true;
+  };
+  auto process_one_manage_band_guitar_prefetch = [&]() -> bool {
+    if (manage_band_guitar_prefetch_queue.empty() || !shown ||
+        shown->name() != Symbol("manage_band_screen") ||
+        std::chrono::steady_clock::now() <
+            manage_band_guitar_prefetch_not_before)
+      return false;
+    ManageBandGuitarPrefetch request =
+        std::move(manage_band_guitar_prefetch_queue.front());
+    manage_band_guitar_prefetch_queue.erase(
+        manage_band_guitar_prefetch_queue.begin());
+    if (std::any_of(manage_band_guitar_cache.begin(),
+                    manage_band_guitar_cache.end(),
+                    [&](const auto& prepared) {
+                      return prepared.key == request.key;
+                    }))
+      return false;
+    Object* panel = mgr.find_object(Symbol("manage_band_guitar_preview"));
+    if (!panel || !panel_showing(panel)) return false;
+    const DataNode old_guitar = panel->get_property(Symbol("guitar"));
+    const DataNode old_skin = panel->get_property(Symbol("guitar_skin"));
+    panel->set_property(Symbol("guitar"), DataNode::Sym(request.guitar));
+    panel->set_property(Symbol("guitar_skin"), DataNode::Sym(request.skin));
+    std::fprintf(stderr,
+                 "[manage-band] guitar prefetch begin guitar=%s skin=%s\n",
+                 request.guitar.c_str(), request.skin.c_str());
+    manage_band_character_loading = true;
+    PreparedGuitarDisplayScene prepared =
+        prepare_guitar_display_scene(hdr, ark, mgr, shown, db);
+    manage_band_character_loading = false;
+    panel->set_property(Symbol("guitar"), old_guitar);
+    panel->set_property(Symbol("guitar_skin"), old_skin);
+    prepared.key = request.key;
+    if (prepared.visible)
+      manage_band_guitar_cache.push_back(std::move(prepared));
+    constexpr std::size_t kMaxAdjacentGuitars = 2;
+    if (manage_band_guitar_cache.size() > kMaxAdjacentGuitars)
+      manage_band_guitar_cache.erase(
+          manage_band_guitar_cache.begin(),
+          manage_band_guitar_cache.begin() +
+              static_cast<std::ptrdiff_t>(manage_band_guitar_cache.size() -
+                                          kMaxAdjacentGuitars));
+    std::fprintf(stderr,
+                 "[manage-band] guitar prefetch end guitar=%s skin=%s "
+                 "resident_adjacent=%zu\n",
+                 request.guitar.c_str(), request.skin.c_str(),
+                 manage_band_guitar_cache.size());
+    manage_band_guitar_prefetch_not_before =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(750);
+    return true;
+  };
+  auto activate_guitar_display = [&](const std::string& key) {
+    const auto cached = std::find_if(
+        manage_band_guitar_cache.begin(), manage_band_guitar_cache.end(),
+        [&](const auto& prepared) { return prepared.key == key; });
+    if (cached == manage_band_guitar_cache.end())
+      return rebuild_guitar_display_scene(hdr, ark, mgr, shown, db,
+                                          guitar_renderer);
+    PreparedGuitarDisplayScene prepared = std::move(*cached);
+    manage_band_guitar_cache.erase(cached);
+    std::fprintf(stderr,
+                 "[manage-band] guitar cache hit key=%s "
+                 "resident_adjacent=%zu\n",
+                 key.c_str(), manage_band_guitar_cache.size());
+    return install_guitar_display_scene(hdr, ark, std::move(prepared),
+                                        guitar_renderer);
+  };
+  refresh_manage_band_prefetch_queue();
+  refresh_manage_band_guitar_prefetch_queue();
   auto draw_soundcheck_layers = [&]() {
     renderer.draw_scene_only();
     Object* panel = mgr.find_object(Symbol("soundcheck_panel"));
@@ -8692,7 +9208,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     return 1;
   };
   auto set_selected_song = [&](std::size_t index) {
-    const std::vector<Symbol> songs = db.quickplay_songs();
+    const std::vector<Symbol> songs = db.active_quickplay_songs();
     if (songs.empty()) return;
     index = std::min(index, songs.size() - 1);
     if (Object* list = mgr.resolve_object(Symbol("ss_song.lst")))
@@ -8709,7 +9225,9 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                  index, songs[index].c_str());
   };
   auto preferred_song_index = [&]() -> std::size_t {
-    const std::vector<Symbol> songs = db.quickplay_songs();
+    if (!options.preferred_song.empty())
+      db.select_quickplay_bucket_for_song(Symbol(options.preferred_song));
+    const std::vector<Symbol> songs = db.active_quickplay_songs();
     Object* game = mgr.resolve_object(Symbol("game"));
     const Symbol current =
         game ? symbol_value(game->get_property(Symbol("song"))) : Symbol();
@@ -8720,6 +9238,35 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       if (wanted == songs[i].c_str()) return i;
     }
     return 0;
+  };
+  auto on_quickplay_setlist = [&]() {
+    Object* screen = mgr.current_screen();
+    Object* provider = mgr.resolve_object(Symbol("song_provider"));
+    return screen && screen->name() == Symbol("qp_selsong_screen") && provider &&
+        provider->handle_property(Symbol("get_quickplay"), DataArray()).as_int().value_or(0) != 0;
+  };
+  auto switch_quickplay_bucket = [&]() {
+    if (!on_quickplay_setlist() || !db.next_quickplay_bucket()) return false;
+    const auto bucket = db.active_quickplay_bucket();
+    if (Object* list = panel_child(mgr, Symbol("sel_song_panel"), Symbol("ss_song.lst"))) {
+      list->set_property(Symbol("provider_num_data"), DataNode::Int(static_cast<int>(bucket.songs.size())));
+      list->handle_property(Symbol("set_selected"), one_arg(DataNode::Int(0)));
+    }
+    if (Object* panel = mgr.find_object(Symbol("sel_song_panel"))) {
+      panel->set_property(Symbol("ss_song_selected"), DataNode::Int(0));
+      if (Object* game = mgr.resolve_object(Symbol("game")))
+        game->handle_property(Symbol("set_song_index"), one_arg(DataNode::Int(0)));
+      mgr.handle_property(Symbol("SCROLL_MSG"), DataArray());
+      panel->handle_property(Symbol("SCROLL_MSG"), DataArray());
+    }
+    std::fprintf(stderr, "[setlists] selected=%s songs=%zu first=%s\n",
+        bucket.id.c_str(), bucket.songs.size(), bucket.songs.empty() ? "" : bucket.songs.front().c_str());
+    return true;
+  };
+  auto confirm_quickplay = [&](bool preferences) {
+    if (on_quickplay_setlist())
+      mgr.set_global(Symbol("quickplay_use_preferences"), DataNode::Int(preferences ? 1 : 0));
+    do_confirm(mgr);
   };
   auto prepare_gameplay = [&]() -> bool {
     Object* song_provider = mgr.resolve_object(Symbol("song_provider"));
@@ -8756,6 +9303,8 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                           ->handle_property(Symbol("get_quickplay"), DataArray())
                           .as_int()
                           .value_or(0) != 0;
+    const bool quickplay_preferences = quickplay &&
+        mgr.get_global(Symbol("quickplay_use_preferences")).as_int().value_or(0) != 0;
     const auto manage_preference = [&](const char* key) {
       Object* campaign = mgr.resolve_object(Symbol("campaign"));
       if (!campaign) return Symbol();
@@ -8774,6 +9323,16 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         manage_preference("preferred_male_singer");
     const Symbol preferred_female_singer =
         manage_preference("preferred_female_singer");
+    const Symbol preferred_quickplay_character =
+        manage_preference("favorite_character");
+    const Symbol preferred_quickplay_outfit =
+        manage_preference("favorite_outfit");
+    const Symbol preferred_quickplay_guitar =
+        manage_preference("favorite_guitar");
+    const Symbol preferred_quickplay_guitar_skin =
+        manage_preference("favorite_guitar_skin");
+    const Symbol preferred_quickplay_venue =
+        manage_preference("favorite_venue");
     gameplay.set_backing_band_preferences(
         preferred_bassist.c_str(), preferred_drummer.c_str(),
         preferred_keyboardist.c_str(), preferred_male_singer.c_str(),
@@ -8830,7 +9389,18 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     gameplay.set_deterministic_clock(fixed_dt > 0.0f);
     Symbol selected_venue;
     bool encore = false;
-    if (!quickplay) {
+    if (quickplay_preferences && preferred_quickplay_venue.valid() &&
+        db.is_venue(preferred_quickplay_venue)) {
+      selected_venue = preferred_quickplay_venue;
+      if (game_config)
+        game_config->set_property(Symbol("venue"),
+                                  DataNode::Sym(selected_venue));
+    } else if (quickplay) {
+      selected_venue = db.quickplay_default_venue(song);
+      if (!selected_venue.valid()) selected_venue = Symbol(song_runtime.venue);
+      if (game_config && selected_venue.valid())
+        game_config->set_property(Symbol("venue"), DataNode::Sym(selected_venue));
+    } else {
       selected_venue = db.campaign_venue(song);
       const auto tier_songs = db.campaign_songs(selected_venue);
       encore = !tier_songs.empty() && tier_songs.back() == song;
@@ -8840,11 +9410,33 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     }
     gameplay.set_selected_venue(selected_venue.c_str());
     gameplay.set_intro_camera_category(encore ? "INTRO_ENCORE" : "INTRO");
-    const Symbol selected_outfit =
+    Symbol selected_character =
+        player0_config
+            ? symbol_value(player0_config->get_property(Symbol("character")))
+            : Symbol();
+    Symbol selected_outfit =
         player0_config
             ? symbol_value(
                   player0_config->get_property(Symbol("character_outfit")))
             : Symbol();
+    if (quickplay) {
+      selected_outfit = Symbol(song_runtime.character_outfit);
+      selected_character = db.character_for_variant(selected_outfit);
+    }
+    if (quickplay_preferences && preferred_quickplay_character.valid()) {
+      const std::vector<Symbol> preferred_outfits =
+          db.character_outfits(preferred_quickplay_character);
+      const auto saved_outfit =
+          std::find(preferred_outfits.begin(), preferred_outfits.end(),
+                    preferred_quickplay_outfit);
+      if (saved_outfit != preferred_outfits.end()) {
+        selected_character = preferred_quickplay_character;
+        selected_outfit = *saved_outfit;
+      } else if (!preferred_outfits.empty()) {
+        selected_character = preferred_quickplay_character;
+        selected_outfit = preferred_outfits.front();
+      }
+    }
     const CharacterVariant* selected_character_variant =
         db.character_variant(selected_outfit);
     Symbol selected_guitar =
@@ -8854,6 +9446,11 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                                                   DataArray()))
             : Symbol();
     bool selected_guitar_from_character = false;
+    if (quickplay) selected_guitar = Symbol(song_runtime.guitar);
+    if (quickplay_preferences && preferred_quickplay_guitar.valid() &&
+        db.guitar(preferred_quickplay_guitar)) {
+      selected_guitar = preferred_quickplay_guitar;
+    }
     if (!selected_guitar.valid() && selected_character_variant &&
         selected_character_variant->preferred_guitar.valid() &&
         db.guitar(selected_character_variant->preferred_guitar)) {
@@ -8873,14 +9470,19 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         db.guitar(preferred_npc_bass))
       selected_bass = preferred_npc_bass;
     const auto resolve_skin =
-        [&](Symbol instrument, Object* player,
+        [&](Symbol instrument, Object* player, Symbol explicit_skin,
             const CharacterVariant* character_variant,
             bool use_character_preference)
             -> std::tuple<Symbol, Symbol, int, int> {
       if (!instrument.valid()) return {};
-      Symbol skin = use_character_preference && character_variant
-                        ? character_variant->preferred_guitar_skin
-                        : Symbol();
+      const bool use_explicit_skin =
+          db.guitar_for_skin(explicit_skin) == instrument;
+      Symbol skin = use_explicit_skin ? explicit_skin : Symbol();
+      if (!skin.valid()) {
+        skin = use_character_preference && character_variant
+                   ? character_variant->preferred_guitar_skin
+                   : Symbol();
+      }
       if (!skin.valid()) {
         skin = player && !use_character_preference
               ? symbol_value(player->handle_property(
@@ -8904,7 +9506,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         if (character_variant->preferred_guitar_paint_secondary >= 0)
           paint_secondary =
               character_variant->preferred_guitar_paint_secondary;
-      } else if (paint_primary >= 0 && player) {
+      } else if (!use_explicit_skin && paint_primary >= 0 && player) {
         const int stored_primary = int_value(
             player->handle_property(Symbol("get_guitar_paint_primary"),
                                     DataArray()),
@@ -8927,13 +9529,14 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     const auto [selected_guitar_outfit, selected_guitar_mat,
                 selected_guitar_paint_primary,
                 selected_guitar_paint_secondary] =
-        resolve_skin(selected_guitar, player0_config,
+        resolve_skin(selected_guitar, quickplay && !quickplay_preferences ? nullptr : player0_config,
+                     quickplay_preferences ? preferred_quickplay_guitar_skin : Symbol(),
                      selected_character_variant,
                      selected_guitar_from_character);
     const auto [selected_bass_outfit, selected_bass_mat,
                 selected_bass_paint_primary,
                 selected_bass_paint_secondary] =
-        resolve_skin(selected_bass, player1_config, nullptr, false);
+        resolve_skin(selected_bass, player1_config, Symbol(), nullptr, false);
     gameplay.set_selected_instruments(
         selected_guitar.valid() ? selected_guitar.c_str() : "",
         selected_guitar_outfit.valid() ? selected_guitar_outfit.c_str() : "",
@@ -8961,6 +9564,23 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                                               : "<default>",
                  selected_bass_mat.valid() ? selected_bass_mat.c_str()
                                            : "<default>");
+    if (quickplay) {
+      std::fprintf(stderr,
+                   "[flow] Quickplay handoff: selection=%s character=%s "
+                   "outfit=%s guitar=%s skin=%s venue=%s\n",
+                   quickplay_preferences ? "preferences" : "defaults",
+                   selected_character.valid() ? selected_character.c_str()
+                                              : "<player>",
+                   selected_outfit.valid() ? selected_outfit.c_str()
+                                           : "<player>",
+                   selected_guitar.valid() ? selected_guitar.c_str()
+                                           : "<player>",
+                   preferred_quickplay_guitar_skin.valid()
+                       ? preferred_quickplay_guitar_skin.c_str()
+                       : "<default>",
+                   selected_venue.valid() ? selected_venue.c_str()
+                                          : "<song>");
+    }
     std::fprintf(
         stderr,
         "[flow] selected song handoff: provider_index=%zu song=%s mode=%s "
@@ -8989,11 +9609,6 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       // authored track surface. Previously this branch cleared the selection,
       // allowing the song's quickplay demo rig to replace both with an
       // unrelated character (and therefore the wrong fretboard).
-      const Symbol selected_character =
-          player0_config
-              ? symbol_value(
-                    player0_config->get_property(Symbol("character")))
-              : Symbol();
       const std::vector<Symbol> native_outfits =
           db.native_character_outfits(selected_character);
       const bool native_outfit =
@@ -9088,7 +9703,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     song_intro_overlay.reset(
         hdr, ark, gameplay_hdr, gameplay_ark, loaded_song, intro_title,
         intro_artist, mgr.localize(Symbol("mtv_made_famous")));
-    if (!song_intro_overlay.prepare()) {
+    if (!song_intro_overlay.prepare(pump_and_present_loading_frame)) {
       std::fprintf(stderr,
                    "[flow] song intro overlay preparation failed: song=%s "
                    "title='%s' artist='%s'\n",
@@ -9587,7 +10202,15 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         !gameplay_loaded && screen_seconds >= 0.15f) {
       practice_gameplay = live_screen->name() != Symbol("loading_screen");
       if (prepare_gameplay()) {
-        live_screen->handle_property(Symbol("TRANSITION_COMPLETE_MSG"),
+        std::fprintf(
+            stderr,
+            "[loading-heartbeat] complete frames=%llu elapsed=%.3f max_gap=%.3f\n",
+            static_cast<unsigned long long>(loading_heartbeat_frames),
+            std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                          loading_heartbeat_started)
+                .count(),
+            loading_heartbeat_max_gap);
+          live_screen->handle_property(Symbol("TRANSITION_COMPLETE_MSG"),
                                      DataArray());
         phase = RuntimePhase::Gameplay;
         phase_seconds = 0.0f;
@@ -9661,7 +10284,14 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     if (!pause_start && !text_entry_start && !disable_live_input &&
         (!soundcheck_timing_capture || soundcheck_measurement_failed) &&
         win->action_pressed(Action::Confirm)) {
-      do_confirm(mgr);
+      confirm_quickplay(false);
+      visual_dirty = true;
+    }
+    if (!disable_live_input && win->action_pressed(Action::YellowFret))
+      visual_dirty = switch_quickplay_bucket() || visual_dirty;
+    if (!disable_live_input && on_quickplay_setlist() &&
+        win->action_pressed(Action::BlueFret)) {
+      confirm_quickplay(true);
       visual_dirty = true;
     }
     // Red is a playable fret. Do not let a red-fret edge abort a timing pass;
@@ -9685,8 +10315,13 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         focus_move(mgr, cur_labels, cur_disabled, -1, quickplay_song_count(db),
                    credit_count);
         visual_dirty = true;
+      } else if (a == "yellow") {
+        visual_dirty = switch_quickplay_bucket() || visual_dirty;
+      } else if (a == "blue" && on_quickplay_setlist()) {
+        confirm_quickplay(true);
+        visual_dirty = true;
       } else if (a == "confirm") {
-        do_confirm(mgr);
+        confirm_quickplay(false);
         visual_dirty = true;
       } else if (a == "strum") {
         Object* screen = mgr.current_screen();
@@ -9764,6 +10399,44 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
 
     if (automate_current_screen()) visual_dirty = true;
 
+    if (!enable_idle_attract && mgr.current_screen() &&
+        mgr.current_screen()->name() == Symbol("splash_screen")) {
+      mgr.set_global(Symbol("disable_attract_mode"), DataNode::Sym(Symbol("TRUE")));
+    }
+
+    // Deterministic menu proofs run inside this process and never emit host
+    // input. Format: frame:up,frame:down,frame:back,frame:confirm,frame:start.
+    if (const char* proof = std::getenv("GHOGX_MENU_PROOF_INPUT")) {
+      const char* cursor = proof;
+      while (*cursor) {
+        char* end = nullptr;
+        const auto at = std::strtoull(cursor, &end, 10);
+        if (end == cursor || *end != ':') break;
+        cursor = end + 1;
+        const char* separator = std::strchr(cursor, ',');
+        const std::string action(cursor, separator ? separator :
+                                                  cursor + std::strlen(cursor));
+        if (at == frame) {
+          std::fprintf(stderr, "[menu-proof] frame=%llu action=%s\n",
+                       static_cast<unsigned long long>(frame), action.c_str());
+          if (action == "up" || action == "down")
+            focus_move(mgr, cur_labels, cur_disabled,
+                       action == "down" ? 1 : -1, quickplay_song_count(db),
+                       credit_count);
+          else if (action == "back")
+            do_back(mgr);
+          else if (action == "confirm")
+            confirm_quickplay(false);
+          else if (action == "yellow")
+            switch_quickplay_bucket();
+          else if (action == "blue" && on_quickplay_setlist())
+            confirm_quickplay(true);
+          visual_dirty = true;
+        }
+        if (!separator) break;
+        cursor = separator + 1;
+      }
+    }
     mgr.update(dt);
 
     if (practice_gameplay && gameplay_loaded) {
@@ -9799,10 +10472,18 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     // Reload the scene + text when the screen changed; re-render text (re-colour)
     // when only the focus moved.
     if (mgr.current_screen() != shown) {
+      const bool leaving_manage_band =
+          shown && shown->name() == Symbol("manage_band_screen");
       const auto transition = mgr.transition_snapshot();
       outgoing_transition_visible =
           transition.active && transition.duration > 0.0001f &&
           transition.exiting_screen == shown;
+      // A transition can advance through an intermediate screen pointer before
+      // its authored outgoing snapshot finishes. Preserve the ownership bit
+      // until that snapshot is actually purged below.
+      outgoing_manage_band_transition =
+          outgoing_manage_band_transition ||
+          (leaving_manage_band && outgoing_transition_visible);
       if (outgoing_transition_visible) {
         rebuild_scene(hdr, ark, mgr, shown, db, outgoing_renderer);
         outgoing_guitar_visible = rebuild_guitar_display_scene(
@@ -9818,12 +10499,65 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         outgoing_character_previews.clear();
         outgoing_menu_animation_sources.clear();
       }
+      if (leaving_manage_band) {
+        const std::size_t released = manage_band_character_cache.size();
+        const std::size_t cancelled = manage_band_prefetch_queue.size();
+        const std::size_t released_guitars =
+            manage_band_guitar_cache.size();
+        const std::size_t cancelled_guitars =
+            manage_band_guitar_prefetch_queue.size();
+        const std::size_t released_venues =
+            venue_preview_overlay.resident_count();
+        const std::size_t cancelled_venues =
+            venue_preview_overlay.queued_count();
+        const std::size_t transition_owned =
+            outgoing_transition_visible ? outgoing_character_previews.size()
+                                        : 0;
+        // No-transition exits have no authored outgoing frame to preserve.
+        // Drop the active renderers immediately; transition exits transfer
+        // exactly one outgoing snapshot and release it when that transition
+        // completes below.
+        if (!outgoing_transition_visible) {
+          character_previews.clear();
+          guitar_renderer.clear_scene();
+        }
+        manage_band_character_cache.clear();
+        manage_band_prefetch_queue.clear();
+        manage_band_guitar_cache.clear();
+        manage_band_guitar_prefetch_queue.clear();
+        manage_band_prefetch_not_before = std::chrono::steady_clock::now();
+        manage_band_guitar_prefetch_not_before =
+            std::chrono::steady_clock::now();
+        manage_band_character_loading = false;
+        venue_preview_overlay.clear();
+        gh::milo::clear_inflated_directory_cache();
+        gh::ark::ArkV3Reader::clear_entry_byte_cache();
+        std::fprintf(stderr,
+                     "[manage-band] exit purge inactive_previews=%zu "
+                     "cancelled_prefetch=%zu adjacent_guitars=%zu "
+                     "cancelled_guitar_prefetch=%zu venue_previews=%zu "
+                     "cancelled_venue_prefetch=%zu parsed_assets=cleared "
+                     "active_renderers=%s outgoing_previews=%zu\n",
+                     released, cancelled, released_guitars,
+                     cancelled_guitars, released_venues,
+                     cancelled_venues,
+                     outgoing_transition_visible ? "transition-owned"
+                                                  : "cleared",
+                     transition_owned);
+      }
       shown = mgr.current_screen();
       if (practice_gameplay && gameplay_loaded && shown &&
           !screen_has_panel(shown, Symbol("practice_panel"))) {
         gameplay.stop_audio();
         gameplay_loaded = false;
         phase = RuntimePhase::Menus;
+      }
+      if (shown && shown->name() == Symbol("loading_screen")) {
+        const auto loading_started = std::chrono::steady_clock::now();
+        last_loading_heartbeat = loading_started;
+        loading_heartbeat_started = loading_started;
+        loading_heartbeat_frames = 0;
+        loading_heartbeat_max_gap = 0.0;
       }
       screen_seconds = 0.0f;
       automated_screen.clear();
@@ -9842,14 +10576,23 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       guitar_visible =
       rebuild_guitar_display_scene(hdr, ark, mgr, shown, db, guitar_renderer);
       guitar_selection_key = guitar_display_selection_key(mgr, shown, db);
+      if (shown && shown->name() == Symbol("manage_band_screen"))
+        rebuild_text(hdr, ark, mgr, shown, renderer, fonts, db, locale);
+      manage_band_character_loading =
+          shown && shown->name() == Symbol("manage_band_screen");
       character_previews =
           rebuild_character_display_scenes(hdr, ark, mgr, shown, db, *win, {},
-                                           &manage_band_character_cache);
+                                           &manage_band_character_cache,
+                                           pump_and_present_loading_frame);
+      manage_band_character_loading = false;
       if (!character_previews.empty()) mgr.update(0.0f);
       apply_loading_source_anims(hdr, ark, mgr, shown, renderer);
-      rebuild_text(hdr, ark, mgr, shown, renderer, fonts, db, locale);
+      if (!shown || shown->name() != Symbol("manage_band_screen"))
+        rebuild_text(hdr, ark, mgr, shown, renderer, fonts, db, locale);
       live_menu_animation_sources =
           collect_live_menu_animation_sources(hdr, ark, mgr, shown);
+      refresh_manage_band_prefetch_queue();
+      refresh_manage_band_guitar_prefetch_queue();
       last_focus = focus_name();
     } else if (visual_dirty) {
       cur_labels = gather_labels(hdr, ark, mgr, shown);
@@ -9865,12 +10608,14 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
         std::fprintf(stderr,
                      "[manage-band] cache-hit static backdrop and source "
                      "animations\n");
+        // The heartbeat shown during a slow character decode needs the newly
+        // selected menu row, not the previous frame's text.
+        rebuild_text(hdr, ark, mgr, shown, renderer, fonts, db, locale);
       }
       const std::string next_guitar_key =
           guitar_display_selection_key(mgr, shown, db);
       if (next_guitar_key != guitar_selection_key) {
-        guitar_visible = rebuild_guitar_display_scene(
-            hdr, ark, mgr, shown, db, guitar_renderer);
+        guitar_visible = activate_guitar_display(next_guitar_key);
         guitar_selection_key = next_guitar_key;
       } else if (manage_band) {
         std::fprintf(stderr,
@@ -9878,12 +10623,18 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
                      guitar_selection_key.empty() ? "<hidden>"
                                                   : guitar_selection_key.c_str());
       }
+      manage_band_character_loading = manage_band;
       character_previews =
           rebuild_character_display_scenes(hdr, ark, mgr, shown, db, *win,
                                            std::move(character_previews),
-                                           &manage_band_character_cache);
+                                           &manage_band_character_cache,
+                                           pump_and_present_loading_frame);
+      manage_band_character_loading = false;
       if (!character_previews.empty()) mgr.update(0.0f);
-      rebuild_text(hdr, ark, mgr, shown, renderer, fonts, db, locale);
+      if (!manage_band)
+        rebuild_text(hdr, ark, mgr, shown, renderer, fonts, db, locale);
+      refresh_manage_band_prefetch_queue();
+      refresh_manage_band_guitar_prefetch_queue();
       last_focus = focus_name();
     } else if (focus_name() != last_focus) {
       last_focus = focus_name();
@@ -9892,10 +10643,22 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
 
     if (outgoing_transition_visible &&
         !mgr.transition_snapshot().active) {
+      const bool releasing_manage_band = outgoing_manage_band_transition;
+      const std::size_t released_previews =
+          outgoing_character_previews.size();
       outgoing_transition_visible = false;
+      outgoing_manage_band_transition = false;
       outgoing_guitar_visible = false;
       outgoing_character_previews.clear();
       outgoing_menu_animation_sources.clear();
+      outgoing_guitar_renderer.clear_scene();
+      outgoing_renderer.clear_scene();
+      if (releasing_manage_band)
+        std::fprintf(stderr,
+                     "[manage-band] transition purge outgoing_previews=%zu "
+                     "outgoing_scene=cleared outgoing_guitar=cleared "
+                     "animations=cleared\n",
+                     released_previews);
     }
 
     apply_loading_material_source_anim(mgr, shown, loading_word_material_anim,
@@ -9973,17 +10736,72 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
               mgr.find_object(Symbol("manage_band_preferences_panel"))) {
         const Symbol venue =
             symbol_value(panel->get_property(Symbol("preview_venue")));
+        const Symbol previous = symbol_value(
+            panel->get_property(Symbol("preview_previous_venue")));
+        const Symbol next = symbol_value(
+            panel->get_property(Symbol("preview_next_venue")));
         venue_preview_overlay.draw(d3d, win->bb_width(), win->bb_height(), hdr,
-                                   venue);
+                                   venue, previous, next);
       }
     }
     draw_live_paint_swatches();
 
     capture_frame();
     win->present();
+    venue_preview_overlay.process_one_prefetch(d3d);
+    if (!process_one_manage_band_prefetch())
+      process_one_manage_band_guitar_prefetch();
 
     ++frame;
     if (max_frames > 0 && frame >= static_cast<uint64_t>(max_frames)) break;
+  }
+  // A bounded/headless run can end while an authored exit transition is still
+  // active, and application shutdown can occur while Manage Band itself is
+  // still current.  Do the same explicit purge in both cases instead of
+  // relying on process teardown to eventually release preview resources.
+  const bool shutting_down_manage_band =
+      (shown && shown->name() == Symbol("manage_band_screen")) ||
+      outgoing_manage_band_transition;
+  if (shutting_down_manage_band) {
+    const std::size_t active_previews = character_previews.size();
+    const std::size_t outgoing_previews =
+        outgoing_character_previews.size();
+    const std::size_t cached_characters = manage_band_character_cache.size();
+    const std::size_t queued_characters = manage_band_prefetch_queue.size();
+    const std::size_t cached_guitars = manage_band_guitar_cache.size();
+    const std::size_t queued_guitars =
+        manage_band_guitar_prefetch_queue.size();
+    const std::size_t cached_venues = venue_preview_overlay.resident_count();
+    const std::size_t queued_venues = venue_preview_overlay.queued_count();
+    character_previews.clear();
+    outgoing_character_previews.clear();
+    manage_band_character_cache.clear();
+    manage_band_prefetch_queue.clear();
+    manage_band_guitar_cache.clear();
+    manage_band_guitar_prefetch_queue.clear();
+    venue_preview_overlay.clear();
+    live_menu_animation_sources.clear();
+    outgoing_menu_animation_sources.clear();
+    guitar_renderer.clear_scene();
+    outgoing_guitar_renderer.clear_scene();
+    renderer.clear_scene();
+    outgoing_renderer.clear_scene();
+    gh::milo::clear_inflated_directory_cache();
+    gh::ark::ArkV3Reader::clear_entry_byte_cache();
+    if (shown && shown->name() == Symbol("manage_band_screen")) {
+      if (Object* panel =
+              mgr.find_object(Symbol("manage_band_preferences_panel")))
+        panel->handle_property(Symbol("unload"), DataArray());
+    }
+    std::fprintf(stderr,
+                 "[manage-band] shutdown purge active_previews=%zu "
+                 "outgoing_previews=%zu cached_characters=%zu "
+                 "queued_characters=%zu cached_guitars=%zu "
+                 "queued_guitars=%zu cached_venues=%zu queued_venues=%zu "
+                 "scenes=cleared animations=cleared parsed_assets=cleared\n",
+                 active_previews, outgoing_previews, cached_characters,
+                 queued_characters, cached_guitars, queued_guitars,
+                 cached_venues, queued_venues);
   }
   return 0;
 }

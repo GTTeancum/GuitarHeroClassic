@@ -1,0 +1,120 @@
+{
+  "date": "2026-09-16",
+  "installed_executable": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\ghogx_app.exe",
+  "executable_sha256": "3b7ba20a5246db1e484d02d8a38df068077ff1d0ca21619f3181d0a11cb81582",
+  "setlists_sha256": "7b20f6552930682d6749e0467971cd995b80be66946734fda8b854e6155f9c54",
+  "tests": {
+    "native_setlist_checks": 17,
+    "installer_unit_tests": 27,
+    "build_exit": 0,
+    "native_run_exits": {
+      "menu": 0,
+      "defaults": 0,
+      "preferences": 0,
+      "tier-override": 0,
+      "gh80s": 0,
+      "installed": 0
+    }
+  },
+  "bucket_counts": {
+    "gh2": 64,
+    "gh1": 47,
+    "gh80s": 30
+  },
+  "capture_method": "Native application renderer; hidden process-local menu input; no host OS input or capture",
+  "runtime_common_args": [
+    "--menu",
+    "--ark-dir",
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN",
+    "--fixed-dt",
+    "0.016666667",
+    "--mute-audio"
+  ],
+  "menu_proof_input": "180:yellow,360:yellow,540:yellow",
+  "launch_proof_input": "120:yellow,180:down,200:down,220:down,240:down,260:down,420:confirm,560:confirm",
+  "launch_preferences_change": "420:blue replaces 420:confirm",
+  "tier_override_change": "gh1 sections[1].default_venue changed from gh1_small_club to gh1_big_club in a temporary JSON copy",
+  "gameplay_seek_seconds": 30,
+  "gameplay_capture_frame": 1350,
+  "visual_review": "Reviewed final menu frames 120/300/480/660, GH1 section frame 360, four gameplay frames 1350 (defaults/preferences/tier-override/gh80s), and installed frame 360. Sampled still review; not every frame. Backgrounds, footer, bucket caption, selection, section labels, venues, instruments, notes and score inspected.",
+  "audio_validation": "Preview load/seek/play routing checked in native logs for each bucket; diagnostic output muted, so no listening verification.",
+  "not_certified": [
+    "Original Xbox physical guitar input/hardware",
+    "Full installer media extraction rerun; setup file install/idempotence/edit preservation unit-tested and frozen resource inclusion updated",
+    "Full-song completion for every song/venue combination"
+  ],
+  "proofs": {
+    "gh1.png": "004ddfc70a39deb747545d38255e8c662653d0c54fccfccd3adcf9da86413dfd",
+    "gh80s-installed.png": "5bd04c4d7a6bd9310a78af6099ed6cd3181555eca6f4dff6e0a02087fadd9d01",
+    "section-header.png": "2e1baca9b319e2ad031ef3676465dac088dc14de55c3d152f88378591db8adef",
+    "json-venue-override.png": "a400a9bc8eedea1cd89d7506af6636cefad45bfe0c7208b2c8eff119dc579298",
+    "saved-preferences.png": "d8acdb5e9548abab9facdbae599768469dba237f46c33414f5a80f7165a468da"
+  },
+  "native_evidence": {
+    "menu": [
+      "[song-preview] playing song=shoutatthedevil start=65.500 end=85.500 path=songs/shoutatthedevil/shoutatthedevil.vgs",
+      "[setlists] selected=gh1 songs=47 first=iloverockandroll",
+      "[song-preview] playing song=iloverockandroll start=43.885 end=73.000 path=songs/iloverockandroll/iloverockandroll.vgs",
+      "[setlists] selected=gh80s songs=30 first=bangyourhead",
+      "[song-preview] playing song=bangyourhead start=76.500 end=93.400 path=songs/bangyourhead/bangyourhead.vgs",
+      "[setlists] selected=gh2 songs=64 first=shoutatthedevil",
+      "[song-preview] playing song=shoutatthedevil start=65.500 end=85.500 path=songs/shoutatthedevil/shoutatthedevil.vgs"
+    ],
+    "defaults": [
+      "[song-preview] playing song=shoutatthedevil start=65.500 end=85.500 path=songs/shoutatthedevil/shoutatthedevil.vgs",
+      "[setlists] selected=gh1 songs=47 first=iloverockandroll",
+      "[song-preview] playing song=iloverockandroll start=43.885 end=73.000 path=songs/iloverockandroll/iloverockandroll.vgs",
+      "[song-preview] playing song=iwannabesedated start=34.365 end=65.000 path=songs/iwannabesedated/iwannabesedated.vgs",
+      "[song-preview] playing song=thunderkiss65 start=34.644 end=66.343 path=songs/thunderkiss65/thunderkiss65.vgs",
+      "[song-preview] playing song=smokeonthewater start=96.130 end=120.158 path=songs/smokeonthewater/smokeonthewater.vgs",
+      "[song-preview] playing song=infected start=109.892 end=133.000 path=songs/infected/infected.vgs",
+      "[song-preview] playing song=ironman start=39.102 end=70.000 path=songs/ironman/ironman.vgs",
+      "[flow] Quickplay handoff: selection=defaults character=metal outfit=gh1_metal guitar=sg skin=<default> venue=gh1_small_club",
+      "[flow] selected song handoff: provider_index=5 song=ironman mode=quickplay venue=gh1_small_club intro_category=INTRO",
+      "[flow] gameplay ready: ironman diff=1 autoplay=1"
+    ],
+    "preferences": [
+      "[song-preview] playing song=shoutatthedevil start=65.500 end=85.500 path=songs/shoutatthedevil/shoutatthedevil.vgs",
+      "[setlists] selected=gh1 songs=47 first=iloverockandroll",
+      "[song-preview] playing song=iloverockandroll start=43.885 end=73.000 path=songs/iloverockandroll/iloverockandroll.vgs",
+      "[song-preview] playing song=iwannabesedated start=34.365 end=65.000 path=songs/iwannabesedated/iwannabesedated.vgs",
+      "[song-preview] playing song=thunderkiss65 start=34.644 end=66.343 path=songs/thunderkiss65/thunderkiss65.vgs",
+      "[song-preview] playing song=smokeonthewater start=96.130 end=120.158 path=songs/smokeonthewater/smokeonthewater.vgs",
+      "[song-preview] playing song=infected start=109.892 end=133.000 path=songs/infected/infected.vgs",
+      "[song-preview] playing song=ironman start=39.102 end=70.000 path=songs/ironman/ironman.vgs",
+      "[flow] Quickplay handoff: selection=preferences character=funk1 outfit=funk1 guitar=flying_v skin=<default> venue=arena",
+      "[flow] selected song handoff: provider_index=5 song=ironman mode=quickplay venue=arena intro_category=INTRO",
+      "[flow] gameplay ready: ironman diff=1 autoplay=1"
+    ],
+    "tier-override": [
+      "[song-preview] playing song=shoutatthedevil start=65.500 end=85.500 path=songs/shoutatthedevil/shoutatthedevil.vgs",
+      "[setlists] selected=gh1 songs=47 first=iloverockandroll",
+      "[song-preview] playing song=iloverockandroll start=43.885 end=73.000 path=songs/iloverockandroll/iloverockandroll.vgs",
+      "[song-preview] playing song=iwannabesedated start=34.365 end=65.000 path=songs/iwannabesedated/iwannabesedated.vgs",
+      "[song-preview] playing song=thunderkiss65 start=34.644 end=66.343 path=songs/thunderkiss65/thunderkiss65.vgs",
+      "[song-preview] playing song=smokeonthewater start=96.130 end=120.158 path=songs/smokeonthewater/smokeonthewater.vgs",
+      "[song-preview] playing song=infected start=109.892 end=133.000 path=songs/infected/infected.vgs",
+      "[song-preview] playing song=ironman start=39.102 end=70.000 path=songs/ironman/ironman.vgs",
+      "[flow] Quickplay handoff: selection=defaults character=metal outfit=gh1_metal guitar=sg skin=<default> venue=gh1_big_club",
+      "[flow] selected song handoff: provider_index=5 song=ironman mode=quickplay venue=gh1_big_club intro_category=INTRO",
+      "[flow] gameplay ready: ironman diff=1 autoplay=1"
+    ],
+    "gh80s": [
+      "[song-preview] playing song=shoutatthedevil start=65.500 end=85.500 path=songs/shoutatthedevil/shoutatthedevil.vgs",
+      "[setlists] selected=gh1 songs=47 first=iloverockandroll",
+      "[song-preview] playing song=iloverockandroll start=43.885 end=73.000 path=songs/iloverockandroll/iloverockandroll.vgs",
+      "[setlists] selected=gh80s songs=30 first=bangyourhead",
+      "[song-preview] playing song=bangyourhead start=76.500 end=93.400 path=songs/bangyourhead/bangyourhead.vgs",
+      "[flow] Quickplay handoff: selection=defaults character=<player> outfit=alterna1 guitar=flying_v skin=<default> venue=battle",
+      "[flow] selected song handoff: provider_index=0 song=bangyourhead mode=quickplay venue=battle intro_category=INTRO",
+      "[flow] gameplay ready: bangyourhead diff=1 autoplay=1"
+    ],
+    "installed": [
+      "[song-preview] playing song=shoutatthedevil start=65.500 end=85.500 path=songs/shoutatthedevil/shoutatthedevil.vgs",
+      "[setlists] selected=gh1 songs=47 first=iloverockandroll",
+      "[song-preview] playing song=iloverockandroll start=43.885 end=73.000 path=songs/iloverockandroll/iloverockandroll.vgs",
+      "[setlists] selected=gh80s songs=30 first=bangyourhead",
+      "[song-preview] playing song=bangyourhead start=76.500 end=93.400 path=songs/bangyourhead/bangyourhead.vgs"
+    ]
+  }
+}

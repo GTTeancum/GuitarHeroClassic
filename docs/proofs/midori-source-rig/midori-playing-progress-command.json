@@ -1,0 +1,43 @@
+{
+  "command": [
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\ghogx_app.exe",
+    "--ark-dir",
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN",
+    "--addons-dir",
+    "C:\\Users\\smmel\\AppData\\Local\\Temp\\midori-playing-fix-20260908\\DLC",
+    "--mute-audio",
+    "--defer-window-show",
+    "--render-size",
+    "640x720",
+    "--fixed-dt",
+    "0.0166666667",
+    "--frames",
+    "423",
+    "--auto-start",
+    "--song",
+    "shoutatthedevil",
+    "--difficulty",
+    "3",
+    "--diagnostic-autoplay",
+    "--diagnostic-song-start",
+    "30",
+    "--diagnostic-character-variant",
+    "gh3_midori_1",
+    "--diagnostic-front-camera",
+    "guitarist0",
+    "--diagnostic-proof-lighting",
+    "--diagnostic-guitar",
+    "xplorer",
+    "--screenshot-dir",
+    "C:\\Users\\smmel\\AppData\\Local\\Temp\\midori-playing-fix-20260908\\playing-frames",
+    "--screenshot-frames",
+    "60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,204,208,212,216,220,224,228,232,236,240,244,248,252,256,260,264,268,272,276,280,284,288,292,296,300,304,308,312,316,320,324,328,332,336,340,344,348,352,356,360,364,368,372,376,380,384,388,392,396,400,404,408,412,416"
+  ],
+  "environment": {
+    "GHOGX_HIDE_HUD": "1",
+    "GHOGX_HIDE_HIGHWAY": "1",
+    "GHOGX_DIAGNOSTIC_FRONT_CAMERA_DISTANCE": "150",
+    "GHOGX_DIAGNOSTIC_FRONT_CAMERA_TARGET_Z": "-8"
+  },
+  "status": "Unapproved source conversion; normal source servo enabled; actual song autoplay with HUD/highway hidden for hand visibility"
+}

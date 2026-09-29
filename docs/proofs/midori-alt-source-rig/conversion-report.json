@@ -1,0 +1,579 @@
+{
+  "status": "conversion_probe_not_published",
+  "source_model": "models/guitarists/midori_2.skin.ps2",
+  "source_outfit": "midori_2",
+  "source_skeleton": "skeletons/gh3_guitarist_midori.ske.ps2",
+  "source_clip": "anims/band/guitarist/midori/gh3_guit_mido_a_med_idle01.ska.ps2",
+  "skeleton_unit_scale": 39.37007874015748,
+  "source_overlays": [
+    "anims/band/guitarist/midori/face/gh3_guitarist_midori_idle.ska.ps2",
+    "anims/band/guitarist/midori/gh3_guitarist_midori_acc01.ska.ps2"
+  ],
+  "delta_layer_order": "base local rotation @ source delta; requires source runtime validation",
+  "bones": 72,
+  "triangles": 5041,
+  "vertices": 4271,
+  "chunks": 55,
+  "bind_matrix_max_error": 3.0370600935247793e-06,
+  "animation_world_basis_max_error": 3.552713678800501e-14,
+  "validated_partial_masks": 279,
+  "exported_channels": 84,
+  "clip_flags": 12582912,
+  "source_duration": 6.933333396911621,
+  "exported_duration": 6.933333396911621,
+  "frame_rebases": {
+    "bone_pos_guitar": [
+      [
+        -0.0023188470919120064,
+        -0.026812720535710297,
+        0.999637784882921,
+        0.0
+      ],
+      [
+        0.014270873105849834,
+        0.9995377871253365,
+        0.026843142315614747,
+        0.0
+      ],
+      [
+        -0.999895477101957,
+        0.01432794912237424,
+        -0.0019351343585441644,
+        0.0
+      ],
+      [
+        2.7383887498403934,
+        -0.39533297422010005,
+        -1.8582408838139055,
+        1.0
+      ]
+    ],
+    "bone_fret": [
+      [
+        -0.0438017242542429,
+        -0.027337565069763165,
+        0.9986661436578314,
+        0.0
+      ],
+      [
+        0.01827396331545994,
+        0.9994363752821196,
+        0.02816014963873453,
+        0.0
+      ],
+      [
+        -0.9988731006574799,
+        0.019483051583029945,
+        -0.04327747085854901,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "bone_L-upperArm": [
+      [
+        -0.9999999999999994,
+        0.0,
+        3.159948237519909e-08,
+        0.0
+      ],
+      [
+        -3.159948237519832e-08,
+        2.2089830998274838e-07,
+        -0.999999999999975,
+        0.0
+      ],
+      [
+        -6.980272257474077e-15,
+        -0.9999999999999756,
+        -2.208983099827483e-07,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "bone_L-foreArm": [
+      [
+        -0.9999999999987625,
+        1.5718169037623863e-06,
+        -6.549237099009943e-08,
+        0.0
+      ],
+      [
+        6.549271820185216e-08,
+        2.2089829456735493e-07,
+        -0.9999999999999735,
+        0.0
+      ],
+      [
+        -1.5718168892951915e-06,
+        -0.9999999999987403,
+        -2.2089839750964314e-07,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "bone_R-upperArm": [
+      [
+        -0.9999999999994806,
+        -1.0111834360058462e-06,
+        1.2639792950073078e-07,
+        0.0
+      ],
+      [
+        -1.2639792950079542e-07,
+        2.524354896707238e-29,
+        -0.9999999999999919,
+        0.0
+      ],
+      [
+        1.011183436005838e-06,
+        -0.9999999999994887,
+        -1.2781149265663903e-13,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "bone_R-foreArm": [
+      [
+        -0.99999999999944,
+        -1.0478768377952827e-06,
+        1.4735768031496165e-07,
+        0.0
+      ],
+      [
+        -1.4735768031504257e-07,
+        0.0,
+        -0.999999999999989,
+        0.0
+      ],
+      [
+        1.0478768377952713e-06,
+        -0.999999999999451,
+        -1.5441270007337496e-13,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "isolated_transforms": [
+    "bone_fret_hand",
+    "bone_strum_hand"
+  ],
+  "palette_weight_changes": [
+    {
+      "mesh": 0,
+      "vertex": 199,
+      "bone": "bone_L-foreArm",
+      "removed_weight": 0.03125
+    },
+    {
+      "mesh": 0,
+      "vertex": 667,
+      "bone": "bone_spine2",
+      "removed_weight": 0.1875
+    },
+    {
+      "mesh": 0,
+      "vertex": 713,
+      "bone": "bone_spine2",
+      "removed_weight": 0.0625
+    },
+    {
+      "mesh": 0,
+      "vertex": 1032,
+      "bone": "bone_neck",
+      "removed_weight": 0.0625
+    },
+    {
+      "mesh": 0,
+      "vertex": 1031,
+      "bone": "bone_L-clavicle",
+      "removed_weight": 0.03125
+    },
+    {
+      "mesh": 0,
+      "vertex": 1301,
+      "bone": "bone_gh3_7268c230",
+      "removed_weight": 0.0625
+    },
+    {
+      "mesh": 0,
+      "vertex": 1300,
+      "bone": "bone_gh3_2d0f83f3",
+      "removed_weight": 0.25
+    },
+    {
+      "mesh": 0,
+      "vertex": 1303,
+      "bone": "bone_gh3_2d0f83f3",
+      "removed_weight": 0.125
+    },
+    {
+      "mesh": 0,
+      "vertex": 1287,
+      "bone": "bone_gh3_4d506ad0",
+      "removed_weight": 0.03125
+    },
+    {
+      "mesh": 0,
+      "vertex": 1358,
+      "bone": "bone_gh3_2d0f83f3",
+      "removed_weight": 0.0625
+    },
+    {
+      "mesh": 0,
+      "vertex": 1331,
+      "bone": "bone_gh3_2d0f83f3",
+      "removed_weight": 0.25
+    },
+    {
+      "mesh": 0,
+      "vertex": 1361,
+      "bone": "bone_gh3_d5f3bb76",
+      "removed_weight": 0.21875
+    },
+    {
+      "mesh": 0,
+      "vertex": 1344,
+      "bone": "bone_gh3_2d0f83f3",
+      "removed_weight": 0.09375
+    },
+    {
+      "mesh": 0,
+      "vertex": 1456,
+      "bone": "bone_gh3_a6bc7033",
+      "removed_weight": 0.0625
+    },
+    {
+      "mesh": 0,
+      "vertex": 1874,
+      "bone": "bone_head",
+      "removed_weight": 0.25
+    },
+    {
+      "mesh": 0,
+      "vertex": 1876,
+      "bone": "bone_gh3_a97792e0",
+      "removed_weight": 0.21875
+    }
+  ],
+  "bone_names": [
+    {
+      "source": "Control_Root",
+      "target": "Control_Root"
+    },
+    {
+      "source": "Bone_Pelvis",
+      "target": "bone_pelvis"
+    },
+    {
+      "source": "Bone_Thigh_L",
+      "target": "bone_L-thigh"
+    },
+    {
+      "source": "Bone_Knee_L",
+      "target": "bone_L-knee"
+    },
+    {
+      "source": "Bone_Thigh_R",
+      "target": "bone_R-thigh"
+    },
+    {
+      "source": "Bone_Knee_R",
+      "target": "bone_R-knee"
+    },
+    {
+      "source": "Bone_Stomach_Lower",
+      "target": "bone_spine1"
+    },
+    {
+      "source": "Bone_Stomach_Upper",
+      "target": "bone_spine2"
+    },
+    {
+      "source": "Bone_Chest",
+      "target": "bone_spine3"
+    },
+    {
+      "source": "Bone_Collar_L",
+      "target": "bone_L-clavicle"
+    },
+    {
+      "source": "Bone_Bicep_L",
+      "target": "bone_L-upperArm"
+    },
+    {
+      "source": "Bone_Forearm_L",
+      "target": "bone_L-foreArm"
+    },
+    {
+      "source": "Bone_Palm_L",
+      "target": "bone_L-hand"
+    },
+    {
+      "source": "Bone_Collar_R",
+      "target": "bone_R-clavicle"
+    },
+    {
+      "source": "Bone_Bicep_R",
+      "target": "bone_R-upperArm"
+    },
+    {
+      "source": "Bone_Forearm_R",
+      "target": "bone_R-foreArm"
+    },
+    {
+      "source": "Bone_Palm_R",
+      "target": "bone_R-hand"
+    },
+    {
+      "source": "Bone_Neck",
+      "target": "bone_neck"
+    },
+    {
+      "source": "Bone_Head",
+      "target": "bone_head"
+    },
+    {
+      "source": "Bone_Ankle_L",
+      "target": "bone_L-ankle"
+    },
+    {
+      "source": "Bone_Toe_L",
+      "target": "bone_L-toe"
+    },
+    {
+      "source": "Bone_Ankle_R",
+      "target": "bone_R-ankle"
+    },
+    {
+      "source": "Bone_Toe_R",
+      "target": "bone_R-toe"
+    },
+    {
+      "source": "Bone_Hand_Index_Base_L",
+      "target": "bone_L-index01"
+    },
+    {
+      "source": "Bone_Hand_Index_Mid_L",
+      "target": "bone_L-index02"
+    },
+    {
+      "source": "Bone_Hand_Index_Top_L",
+      "target": "bone_L-index03"
+    },
+    {
+      "source": "Bone_Hand_Index_Base_R",
+      "target": "bone_R-index01"
+    },
+    {
+      "source": "Bone_Hand_Index_Mid_R",
+      "target": "bone_R-index02"
+    },
+    {
+      "source": "Bone_Hand_Middle_Base_L",
+      "target": "bone_L-middlefinger01"
+    },
+    {
+      "source": "Bone_Hand_Middle_Mid_L",
+      "target": "bone_L-middlefinger02"
+    },
+    {
+      "source": "Bone_Hand_Middle_Top_L",
+      "target": "bone_L-middlefinger03"
+    },
+    {
+      "source": "Bone_Hand_Middle_Base_R",
+      "target": "bone_R-middlefinger01"
+    },
+    {
+      "source": "Bone_Hand_Middle_Mid_R",
+      "target": "bone_R-middlefinger02"
+    },
+    {
+      "source": "Bone_Hand_Ring_Base_L",
+      "target": "bone_L-ringfinger01"
+    },
+    {
+      "source": "Bone_Hand_Ring_Mid_L",
+      "target": "bone_L-ringfinger02"
+    },
+    {
+      "source": "Bone_Hand_Ring_Top_L",
+      "target": "bone_L-ringfinger03"
+    },
+    {
+      "source": "Bone_Hand_Ring_Base_R",
+      "target": "bone_R-ringfinger01"
+    },
+    {
+      "source": "Bone_Hand_Ring_Mid_R",
+      "target": "bone_R-ringfinger02"
+    },
+    {
+      "source": "Bone_Hand_Pinkey_Base_L",
+      "target": "bone_L-pinky01"
+    },
+    {
+      "source": "Bone_Hand_Pinkey_Mid_L",
+      "target": "bone_L-pinky02"
+    },
+    {
+      "source": "Bone_Hand_Pinkey_Top_L",
+      "target": "bone_L-pinky03"
+    },
+    {
+      "source": "Bone_Hand_Pinkey_Base_R",
+      "target": "bone_R-pinky01"
+    },
+    {
+      "source": "Bone_Hand_Pinkey_Mid_R",
+      "target": "bone_R-pinky02"
+    },
+    {
+      "source": "Bone_Hand_Thumb_Base_L",
+      "target": "bone_L-thumb01"
+    },
+    {
+      "source": "Bone_Hand_Thumb_Mid_L",
+      "target": "bone_L-thumb02"
+    },
+    {
+      "source": "Bone_Hand_Thumb_Top_L",
+      "target": "bone_L-thumb03"
+    },
+    {
+      "source": "Bone_Hand_Thumb_Base_R",
+      "target": "bone_R-thumb01"
+    },
+    {
+      "source": "Bone_Hand_Thumb_Mid_R",
+      "target": "bone_R-thumb02"
+    },
+    {
+      "source": "Bone_Hand_Thumb_Top_R",
+      "target": "bone_R-thumb03"
+    },
+    {
+      "source": "Bone_Jaw",
+      "target": "bone_gh3_7268c230"
+    },
+    {
+      "source": "Bone_Eyelid_Upper_L",
+      "target": "bone_gh3_91e24d11"
+    },
+    {
+      "source": "Bone_Eyelid_Upper_R",
+      "target": "bone_gh3_6bed7072"
+    },
+    {
+      "source": "Bone_Mouth_L",
+      "target": "bone_gh3_2ffc8615"
+    },
+    {
+      "source": "Bone_Mouth_R",
+      "target": "bone_gh3_d5f3bb76"
+    },
+    {
+      "source": "Bone_Lip_Lower_Mid",
+      "target": "bone_gh3_2d0f83f3"
+    },
+    {
+      "source": "Bone_Lip_Upper_Mid",
+      "target": "bone_gh3_4d506ad0"
+    },
+    {
+      "source": "bone_gh3_e8e9bb36",
+      "target": "bone_gh3_e8e9bb36"
+    },
+    {
+      "source": "bone_gh3_12e68655",
+      "target": "bone_gh3_12e68655"
+    },
+    {
+      "source": "bone_gh3_2a8d0c00",
+      "target": "bone_gh3_2a8d0c00"
+    },
+    {
+      "source": "bone_gh3_7c73f6cf",
+      "target": "bone_gh3_7c73f6cf"
+    },
+    {
+      "source": "bone_gh3_867ccbac",
+      "target": "bone_gh3_867ccbac"
+    },
+    {
+      "source": "bone_gh3_5378af83",
+      "target": "bone_gh3_5378af83"
+    },
+    {
+      "source": "bone_gh3_a97792e0",
+      "target": "bone_gh3_a97792e0"
+    },
+    {
+      "source": "bone_gh3_b8ca856b",
+      "target": "bone_gh3_b8ca856b"
+    },
+    {
+      "source": "bone_gh3_c8a071e4",
+      "target": "bone_gh3_c8a071e4"
+    },
+    {
+      "source": "bone_gh3_a6bc7033",
+      "target": "bone_gh3_a6bc7033"
+    },
+    {
+      "source": "bone_guitar_body",
+      "target": "bone_pos_guitar"
+    },
+    {
+      "source": "bone_gh3_c00e3395",
+      "target": "bone_gh3_c00e3395"
+    },
+    {
+      "source": "bone_gh3_00d7df90",
+      "target": "bone_fret"
+    },
+    {
+      "source": "bone_ik_hand_guitar_l",
+      "target": "bone_fret_hand"
+    },
+    {
+      "source": "bone_gh3_a2a3f6df",
+      "target": "bone_strum"
+    },
+    {
+      "source": "bone_ik_hand_guitar_r",
+      "target": "bone_strum_hand"
+    }
+  ],
+  "pending": [
+    "native skinning parity",
+    "GH2 animation call surface and hand IK",
+    "retail validation"
+  ]
+}

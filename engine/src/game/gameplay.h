@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -996,6 +997,12 @@ class Gameplay {
   // the caller is still presenting its loading screen. This keeps asset
   // decoding and GPU resource creation out of the first playable frame.
   bool prepare_world(ghogx::render::Window& win);
+  // Renderer resource creation owns the D3D device thread, so world loading
+  // remains synchronous. The menu supplies this heartbeat to keep pumping and
+  // presenting its authored loading screen during long decode/upload passes.
+  void set_loading_pump(std::function<void()> pump) {
+    loading_pump_ = std::move(pump);
+  }
 
   // Draw the highway for this frame.
   void draw(ghogx::render::Window& win);
@@ -1151,6 +1158,9 @@ class Gameplay {
 
  private:
   void draw_internal(ghogx::render::Window& win, bool initialize_only);
+  void pump_loading() {
+    if (loading_pump_) loading_pump_();
+  }
 
   struct LightPresetEnvLightStateSnapshot {
     std::map<std::string, std::array<float, 4>> lighting_environment_colors;
@@ -2149,6 +2159,7 @@ class Gameplay {
   std::string highway_asset_hdr_path_;
   std::string highway_asset_ark_path_;
   std::string song_shortname_;
+  std::function<void()> loading_pump_;
 };
 
 }  // namespace ghogx::game

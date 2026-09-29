@@ -1,0 +1,18 @@
+{
+  "date": "2026-09-12",
+  "finding": "The original mockup red note was a standard note, not a HOPO. The native blue HOPO cap has no expanded black ring.",
+  "standard_trace": "[highway-note-draw] kind=standard tick=31200 lane=1 y=162.760 gems=1 star=0 hopo=0 hopo_tappable=0 gem=1 top=1 hopo_mesh=1 std_top=1 hopo_top=0 hopo_fallback_top=0 star_top=0 star_black_top=0 star_base=0 bonus=1",
+  "hopo_trace": "[highway-note-draw] kind=hopo tick=125760 lane=3 y=162.645 gems=1 star=0 hopo=1 hopo_tappable=3 gem=1 top=1 hopo_mesh=1 std_top=0 hopo_top=1 hopo_fallback_top=0 star_top=0 star_black_top=0 star_base=0 bonus=1",
+  "native_capture": {
+    "song": "badreputation",
+    "difficulty": 3,
+    "start_seconds": 125,
+    "frame": 40,
+    "fixed_dt": 0.016666667,
+    "autoplay": true
+  },
+  "source": "engine/src/game/highway_renderer.cpp",
+  "standard_ring_origin_commit": "b8d600c8",
+  "fallback_risk": "draw_hopo_top_over_body calls draw_standard_top_over_body if the HOPO mesh is missing. All five HOPO meshes loaded in these tests; fallback was not used.",
+  "limits": "One native HOPO passage verified. Freebird diagnostic seek at 330 seconds ended before capture; not used as evidence. No renderer or asset changes made."
+}

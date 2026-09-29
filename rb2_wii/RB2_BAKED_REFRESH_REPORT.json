@@ -1,0 +1,107 @@
+{
+  "date": "2026-09-08",
+  "scope": [
+    "The Duke of Gravity",
+    "Penelope McQueen"
+  ],
+  "tests_passed": 20,
+  "ao": {
+    "samples": 64,
+    "strength": 0.38,
+    "max_distance": 5.0,
+    "bias": 0.06
+  },
+  "geometry_changed": false,
+  "normal_bump_textures_found_in_extracted_resources": false,
+  "native_review": "Individual native manage-band captures inspected; texture/preview check only, not full gameplay acceptance.",
+  "remaining_issues": [
+    "Duke arm/waist gaps also visible in original package capture.",
+    "Previously documented Penelope facial/necklace acceptance issues remain outside this texture pass."
+  ],
+  "characters": {
+    "duke_of_gravity": {
+      "counts": {
+        "chunks": 95,
+        "vertices": 6023,
+        "faces": 7135,
+        "animated_bones": 103,
+        "transforms": 603,
+        "textures": 3
+      },
+      "stock_primary_geometry_triangles": 6248,
+      "comparison_note": "Geometry inventory excluding lod1, shadow and __ facial pose targets; not a draw-call measurement",
+      "refresh": {
+        "textures": [
+          {
+            "texture": "Tex__rb2_duke_of_gravity_atlas_0.tex",
+            "bytes": 1048646,
+            "changed": true,
+            "sha256": "5cbcfe11979e2443236c63c57048bd8c8e2b0188b93fad013dc792990e817feb"
+          },
+          {
+            "texture": "Tex__rb2_duke_of_gravity_atlas_1.tex",
+            "bytes": 1048646,
+            "changed": true,
+            "sha256": "1b99e60e0af0a8cc9c5b48ec1485b2ddff56fa3b2565c7f09d1e2d524db31fae"
+          },
+          {
+            "texture": "Tex__rb2_duke_of_gravity_atlas_2.tex",
+            "bytes": 1048646,
+            "changed": true,
+            "sha256": "373e002060551a257b6ebc13e5e12a1d35acbf05b923a8d70ebbf85d780bfae8"
+          }
+        ],
+        "non_texture_payload_unchanged": true,
+        "texture_headers_and_alpha_unchanged": true,
+        "output_sha256": "7d9def55825ffcc2cd0691ce165083cc05e8d79f6b9292163129f17aad81faef"
+      },
+      "penelope_clothing_palette_detail_floor": null,
+      "deployed_locations": [
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\rb2.duke_of_gravity",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\rb2.duke_of_gravity"
+      ]
+    },
+    "penelope_mcqueen": {
+      "counts": {
+        "chunks": 141,
+        "vertices": 5793,
+        "faces": 6929,
+        "animated_bones": 139,
+        "transforms": 795,
+        "textures": 3
+      },
+      "stock_primary_geometry_triangles": 6387,
+      "comparison_note": "Geometry inventory excluding lod1, shadow and __ facial pose targets; not a draw-call measurement",
+      "refresh": {
+        "textures": [
+          {
+            "texture": "Tex__rb2_penelope_mcqueen_atlas_0.tex",
+            "bytes": 1048646,
+            "changed": true,
+            "sha256": "36555cde4f89128bd99dab3887569efe9728e1628231327a35ad6c09a9863377"
+          },
+          {
+            "texture": "Tex__rb2_penelope_mcqueen_atlas_1.tex",
+            "bytes": 1048646,
+            "changed": true,
+            "sha256": "4bd2453bd1b3b2d87313b3aa805cab6ded91396629316f9b01277a6aed63ad10"
+          },
+          {
+            "texture": "Tex__rb2_penelope_mcqueen_atlas_2.tex",
+            "bytes": 1048646,
+            "changed": true,
+            "sha256": "7cb2ac924569ab2530ca04543b8ddd2ce4edcf1f64223b428c7ebfc674387111"
+          }
+        ],
+        "non_texture_payload_unchanged": true,
+        "texture_headers_and_alpha_unchanged": true,
+        "output_sha256": "31dbd5e533edf3cd987c7bf4ab6721b6a9b4019052e7beb9ef716a895c71ddf0"
+      },
+      "penelope_clothing_palette_detail_floor": 32,
+      "deployed_locations": [
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\rb2.penelope_mcqueen",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\rb2.penelope_mcqueen"
+      ]
+    }
+  }
+}

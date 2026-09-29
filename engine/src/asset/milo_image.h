@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <array>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -68,7 +69,8 @@ Image load_milo_texture_named(const std::string& hdr_path,
 // Returns a map keyed by entry name; entries that fail to decode are omitted.
 std::map<std::string, Image> load_milo_textures(
     const std::string& hdr_path, const std::string& ark_path,
-    const std::string& milo_path, const std::vector<std::string>& entry_names);
+    const std::string& milo_path, const std::vector<std::string>& entry_names,
+    const std::function<void()>& loading_pump = {});
 
 // Load MULTIPLE named Tex entries from the first MILO that contains each entry.
 // This mirrors PS2 venue composition where overlay MILOs may reference textures
@@ -76,7 +78,8 @@ std::map<std::string, Image> load_milo_textures(
 std::map<std::string, Image> load_milo_textures_from_sources(
     const std::string& hdr_path, const std::string& ark_path,
     const std::vector<std::string>& milo_paths,
-    const std::vector<std::string>& entry_names);
+    const std::vector<std::string>& entry_names,
+    const std::function<void()>& loading_pump = {});
 
 // Load a raw PS2 HMX bitmap entry directly from the ARK, e.g.
 // track/surfaces/gen/<character>_keep.bmp_ps2 (GH2) or

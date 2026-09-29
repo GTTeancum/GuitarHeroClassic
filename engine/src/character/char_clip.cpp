@@ -50,6 +50,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <future>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -3371,22 +3372,25 @@ std::shared_ptr<const LoadedClipMilo>& loaded_clip_milo_cache_value() {
 
 std::shared_ptr<const LoadedClipMilo> load_clip_milo(
     const std::string& hdr_path, const std::string& ark_path,
-    const std::string& milo_path) {
+    const std::string& milo_path,
+    const std::function<void()>& loading_pump = {}) {
   if (clip_milo_missing_cached(hdr_path, milo_path)) return {};
   const std::string key =
       hdr_path + "\n" + ark_path + "\n" + milo_path;
   {
     std::lock_guard<std::mutex> lock(loaded_clip_milo_cache_mutex());
     if (loaded_clip_milo_cache_key() == key) {
+      if (loading_pump) loading_pump();
       return loaded_clip_milo_cache_value();
     }
   }
 
   auto loaded = std::make_shared<LoadedClipMilo>();
-  std::vector<uint8_t> bytes;
+  std::shared_ptr<const std::vector<uint8_t>> bytes;
   if (hdr_path.empty()) {
     loaded->resolved_path = milo_path;
-    bytes = read_binary_file(milo_path);
+    bytes = std::make_shared<const std::vector<uint8_t>>(
+        read_binary_file(milo_path));
   } else {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
     std::string resolved_path = milo_path;
@@ -3402,11 +3406,15 @@ std::shared_ptr<const LoadedClipMilo> load_clip_milo(
       return {};
     }
     loaded->resolved_path = std::move(resolved_path);
-    bytes = ark.read_entry(*entry, {ark_path});
+    bytes = ark.read_entry_shared(*entry, {ark_path}, loading_pump);
   }
-  const auto header = gh::milo::parse_header(bytes);
-  loaded->payload = gh::milo::inflate_payload(bytes, header);
-  loaded->directory = gh::milo::parse_directory(loaded->payload);
+  if (loading_pump) loading_pump();
+  const auto header = gh::milo::parse_header(*bytes);
+  loaded->payload = gh::milo::inflate_payload(*bytes, header, loading_pump);
+  if (loading_pump) loading_pump();
+  loaded->directory =
+      gh::milo::parse_directory(loaded->payload, loading_pump);
+  if (loading_pump) loading_pump();
   try {
     loaded->gh2_binding = std::make_shared<const Gh2ClipSetBinding>(
         decode_gh2_clip_set_binding(loaded->directory));
@@ -4063,7 +4071,8 @@ std::shared_ptr<const Gh2ClipSetBinding> load_gh2_clip_set_binding(
 }
 
 CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
-                   const std::string& milo_path, const std::string& clip_name) {
+                   const std::string& milo_path, const std::string& clip_name,
+                   const std::function<void()>& loading_pump) {
   CharClip result;
   result.name = clip_name;
   if (clip_milo_missing_cached(hdr_path, milo_path)) {
@@ -4075,7 +4084,7 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
   }
   try {
     const auto loaded =
-        load_clip_milo(hdr_path, ark_path, milo_path);
+        load_clip_milo(hdr_path, ark_path, milo_path, loading_pump);
     if (!loaded) return result;
     result.source_milo_path = loaded->resolved_path;
     result.gh2_binding = loaded->gh2_binding;
@@ -4083,7 +4092,10 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
     const auto& payload = loaded->payload;
     const auto& dir = loaded->directory;
 
+    std::size_t decoded_entry_count = 0;
     for (const auto& de : dir.entries) {
+      if (loading_pump && (decoded_entry_count++ % 12u) == 0u)
+        loading_pump();
       if (de.type != "CharBone") continue;
       try {
         const uint8_t* body = payload.data() + de.offset;
@@ -4119,7 +4131,10 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
       }
     }
 
+    decoded_entry_count = 0;
     for (const auto& de : dir.entries) {
+      if (loading_pump && (decoded_entry_count++ % 12u) == 0u)
+        loading_pump();
       if (de.type != "CharClipSamples" || de.name != clip_name) continue;
       const uint8_t* body = payload.data() + de.offset;
       size_t sz = (size_t)de.size;
@@ -4417,15 +4432,32 @@ CharClipGroup load_clip_group(
 
 std::vector<CharClipCatalogEntry> load_clip_catalog(
     const std::string& hdr_path, const std::string& ark_path,
-    const std::vector<std::string>& milo_paths) {
+    const std::vector<std::string>& milo_paths,
+    const std::function<void()>& loading_pump) {
+  if (loading_pump) {
+    auto pending = std::async(
+        std::launch::async, [hdr_path, ark_path, milo_paths]() {
+          return load_clip_catalog(hdr_path, ark_path, milo_paths, {});
+        });
+    while (pending.wait_for(std::chrono::milliseconds(8)) !=
+           std::future_status::ready) {
+      loading_pump();
+    }
+    auto result = pending.get();
+    loading_pump();
+    return result;
+  }
   (void)ark_path;
   std::vector<CharClipCatalogEntry> result;
   std::unordered_set<std::string> seen;
   for (const auto& milo_path : milo_paths) {
     try {
-      const auto loaded = load_clip_milo(hdr_path, ark_path, milo_path);
+      const auto loaded =
+          load_clip_milo(hdr_path, ark_path, milo_path, loading_pump);
       if (!loaded) continue;
+      std::size_t entry_count = 0;
       for (const auto& entry : loaded->directory.entries) {
+        if (loading_pump && (entry_count++ % 12u) == 0u) loading_pump();
         if (entry.type != "CharClipSamples" ||
             entry.offset + entry.size > loaded->payload.size() ||
             !seen.insert(entry.name).second) {
@@ -14829,7 +14861,16 @@ void CharClipPlayer::advance_source(float frame, float dframe,
       }
     }
 
-    if ((layer.flags & 0xF0u) == kCharPlayLoop) {
+    const uint32_t loop_mode = layer.flags & 0xF0u;
+    // A retail GraphLoop normally receives its next node from the owning
+    // CharDriver graph. Some band scripts resolve that node back to the one
+    // clip already on a play-multiple driver, where the duplicate guard
+    // correctly refuses to stack it. In that leaf case there is no successor
+    // to blend to, so keep the authored clip moving instead of pinning the
+    // performer on its final frame.
+    const bool leaf_graph_loop =
+        loop_mode == kCharPlayGraphLoop && layers_.size() == 1;
+    if (loop_mode == kCharPlayLoop || leaf_graph_loop) {
       const float overrun = layer.beat - layer.clip->end_beat;
       if (overrun > 0.0f) {
         layer.beat = layer.clip->start_beat + overrun;
@@ -14843,7 +14884,7 @@ void CharClipPlayer::advance_source(float frame, float dframe,
       layer.time_seconds += dt_seconds * layer.speed;
       const float duration = layer.clip->duration_seconds();
       if (duration > 0.0f &&
-          (layer.flags & 0xF0u) == kCharPlayLoop) {
+          (loop_mode == kCharPlayLoop || leaf_graph_loop)) {
         layer.time_seconds =
             positive_remainder(layer.time_seconds, duration);
       } else {

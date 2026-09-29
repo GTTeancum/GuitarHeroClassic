@@ -801,6 +801,27 @@ def install_package(package: Path, dlc_root: Path, replace_existing: bool) -> di
     return {"id": package_id, "status": "installed", "sha256": source_fingerprint}
 
 
+def install_quickplay_setlists(install_root: Path) -> dict[str, Any]:
+    """Seed the shared GH1/GH80s definition without replacing user edits."""
+    source = resource_root() / "Setlists" / "10-disc-setlists.json"
+    if not source.is_file():
+        raise InstallError(f"Missing bundled Quickplay setlists: {source}")
+    definition = json.loads(source.read_text(encoding="utf-8"))
+    if definition.get("schema_version") != 1 or [
+        row.get("id") for row in definition.get("setlists", [])
+    ] != ["gh1", "gh80s"]:
+        raise InstallError("Bundled Quickplay setlists must define GH1 and GH80s")
+    destination = install_root / "Setlists" / source.name
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        status = "unchanged" if sha256_file(source) == sha256_file(destination) else "preserved_user_file"
+    else:
+        shutil.copy2(source, destination)
+        status = "installed"
+    return {"path": str(destination), "status": status,
+            "sha256": sha256_file(destination)}
+
+
 def install_gh2_base(source: ArkSource, base_gen: Path) -> dict[str, Any]:
     source_files = [source.hdr, *source.arks]
     source_rows = [
@@ -1803,6 +1824,7 @@ def main() -> int:
             validate_package(dlc_root / row["id"])
             for row in audit["packages"]
         ]
+        audit["quickplay_setlists"] = install_quickplay_setlists(base_gen.parent)
         audit["status"] = "complete"
         audit["completed_utc"] = utc_now()
         write_json(audit_path, audit)

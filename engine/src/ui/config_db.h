@@ -74,11 +74,18 @@ struct DlcPackageSummary {
   std::size_t mounted_files = 0;
 };
 
+struct SetlistSection {
+  std::string label;
+  Symbol default_venue;
+  std::vector<Symbol> songs;
+};
+
 struct DlcSetlist {
   Symbol id;
   std::string label;
   std::vector<Symbol> songs;
   bool include_in_quickplay = false;
+  std::vector<SetlistSection> sections;
 };
 
 // Complete runtime-facing projection of one authored song record. This keeps
@@ -176,6 +183,14 @@ class ConfigDb {
   std::vector<Symbol> setlists() const;
   std::string setlist_label(Symbol setlist) const;
   std::vector<Symbol> setlist_songs(Symbol setlist) const;
+  // Files contain ordered setlists -> sections -> songs. Load after catalogs.
+  void load_quickplay_setlists(const std::filesystem::path& directory);
+  std::vector<DlcSetlist> quickplay_buckets() const;
+  DlcSetlist active_quickplay_bucket() const;
+  std::vector<Symbol> active_quickplay_songs() const;
+  bool next_quickplay_bucket();
+  bool select_quickplay_bucket_for_song(Symbol song);
+  Symbol quickplay_default_venue(Symbol song) const;
 
   // Generic keyed-record field: record's `find_keyed(field)` value (at(1)).
   static DataNode field(const DataArray* record, Symbol key);
@@ -193,6 +208,8 @@ class ConfigDb {
   std::vector<std::pair<Symbol, std::string>> addon_venue_labels_;
   std::vector<Symbol> addon_quickplay_songs_;
   std::vector<DlcSetlist> addon_setlists_;
+  std::vector<DlcSetlist> quickplay_setlists_;
+  std::size_t quickplay_bucket_index_ = 0;
   std::vector<DlcPackageSummary> dlc_packages_;
   std::map<const void*, Symbol> addon_song_sources_;
   std::map<std::string, std::string> source_routes_;

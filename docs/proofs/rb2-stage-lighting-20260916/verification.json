@@ -1,0 +1,29 @@
+{
+  "tests": "10/10: repair safety/idempotence, native builder integration and package validation",
+  "native_visual_review": "Inspected all five new retained frames: Duke before, both repaired at matching frame/seek 30, both repaired at seek 60. Compared existing Penelope before frame. Red illumination, yellow/green edge highlights and dark unlit sides are visible; textures, stage, notes and scoring render.",
+  "limits": [
+    "Muted diagnostic autoplay; selected stills, not every-frame review",
+    "Existing rig/facial defects not repaired or certified"
+  ],
+  "packages": [
+    {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\rb2.penelope_mcqueen",
+      "bytes": 1413386
+    },
+    {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\rb2.penelope_mcqueen",
+      "bytes": 1413386
+    },
+    {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\rb2.duke_of_gravity",
+      "bytes": 1763143
+    },
+    {
+      "path": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\rb2.duke_of_gravity",
+      "bytes": 1763143
+    }
+  ],
+  "original_profile_sha256": "5d69e29c64ef478b0688c763e2b02e74a2c7a911d8647f6bc01fc72e89608469",
+  "converter_sha256": "20ff66fbdb74ff74c8cd4898f560bb03ff4b9a5cc25183b7c49dfee6bd443a16",
+  "temporary_artifacts_remaining": []
+}

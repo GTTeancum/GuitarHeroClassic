@@ -50,7 +50,8 @@ class Window {
     Left,
     Right,
     Start,
-    YellowFret
+    YellowFret,
+    BlueFret
   };
   bool action_pressed(Action a) const;
   // Number of currently connected XInput pads across the four retail-style

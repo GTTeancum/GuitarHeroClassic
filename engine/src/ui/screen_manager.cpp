@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 
 namespace ghogx::ui {
@@ -455,6 +456,46 @@ void ScreenManager::goto_screen(Symbol name) {
   if ((name == Symbol("lag_screen") || name == Symbol("pause_lag_screen")) &&
       find_object(Symbol("soundcheck_screen")))
     name = Symbol("soundcheck_screen");
+
+  // Stock Career sends both an existing band selection and a newly completed
+  // band name straight to difficulty selection.  Manage Band is now the
+  // required setup step between those screens.  Keep the original name-entry
+  // screen for a new band, then bridge its authored sel_difficulty_screen
+  // destination (and the existing-band destination) through Manage Band.
+  // Options -> Manage Band already targets manage_band_screen directly and
+  // must retain its ordinary history-based return behavior.
+  const Symbol source = current_ ? current_->name() : Symbol();
+  const bool career_band_setup =
+      name == Symbol("sel_difficulty_screen") &&
+      (source == Symbol("chooseprof_screen") ||
+       source == Symbol("nameprof_screen")) &&
+      find_object(Symbol("manage_band_screen"));
+  if (career_band_setup) {
+    Object* manage_band = find_object(Symbol("manage_band_screen"));
+    Object* campaign = resolve_object(Symbol("campaign"));
+    const int slot = campaign
+                         ? campaign->get_property(Symbol("profile_slot"))
+                               .as_int()
+                               .value_or(-1)
+                         : -1;
+    manage_band->set_property(Symbol("profile_slot"), DataNode::Int(slot));
+    manage_band->set_property(
+        Symbol("completion_screen"),
+        DataNode::Sym(Symbol("sel_difficulty_screen")));
+    manage_band->set_property(Symbol("back_screen"),
+                              DataNode::Sym(Symbol("chooseprof_screen")));
+    name = Symbol("manage_band_screen");
+    std::fprintf(stderr,
+                 "[manage-band] career profile route source=%s slot=%d\n",
+                 source.c_str(), slot);
+  } else if (name == Symbol("manage_band_screen")) {
+    // A direct route is the Options flow (or the proof hook), not Career.
+    // Clear context left by an earlier Career visit before entering.
+    if (Object* manage_band = find_object(Symbol("manage_band_screen"))) {
+      manage_band->set_property(Symbol("completion_screen"), DataNode());
+      manage_band->set_property(Symbol("back_screen"), DataNode());
+    }
+  }
   const bool back = consume_backwards_anim();
   Object* target = find_object(name);
   if (!target) { on_unhandled(std::string("goto_screen?:") + name.c_str()); return; }

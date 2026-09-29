@@ -1,0 +1,232 @@
+{
+  "lighting_commit": "9a0c1607",
+  "tests": {
+    "ghogx_character_facefx_materialization_test": 0,
+    "ghogx_character_eye_bridge_contract_test": 0
+  },
+  "package_validation": "all four live/repository packages passed",
+  "executable_sha256": "0a2512ddef5b85f4bb1e455bdf1e8a4212b3c4dd503b2d5643d745b7e2fb0290",
+  "installed_quickplay": {
+    "exit_code": 0,
+    "source_profile_unchanged": true,
+    "executable_sha256": "0a2512ddef5b85f4bb1e455bdf1e8a4212b3c4dd503b2d5643d745b7e2fb0290",
+    "evidence": [
+      "[flow] Quickplay handoff: selection=preferences character=rb2_penelope_mcqueen outfit=rb2_penelope_mcqueen_default guitar=rb2_guitar_jaguar03 skin=rb2_guitar_jaguar03_woodmaple_skin venue=gh1_big_club",
+      "[world] performer retarget audit: role=guitarist0 target=rb2_penelope_mcqueen source=rock1 clips=112 frames=8799 channels=491794 matched_outputs=6644/6708",
+      "[flow] gameplay ready: ironman diff=1 autoplay=1"
+    ]
+  },
+  "captures": {
+    "penelope-before.bmp": "penelope-detail-before/frame_00850.bmp",
+    "penelope-face-fixed.bmp": "penelope-detail-after/frame_00850.bmp",
+    "penelope-normal.bmp": "penelope-normal-after/frame_00850.bmp",
+    "duke-opaque.bmp": "duke-close-after/frame_00850.bmp",
+    "installed-quickplay.bmp": "installed-quickplay/frame_01350.bmp"
+  },
+  "reviewed_frames": {
+    "penelope_detail_after": [
+      700,
+      850,
+      999
+    ],
+    "penelope_normal_after": [
+      700,
+      850,
+      999
+    ],
+    "penelope_detail_before": [
+      850
+    ],
+    "duke_before": [
+      850
+    ],
+    "duke_after": [
+      850
+    ],
+    "installed_quickplay": [
+      1350
+    ],
+    "manage_band": [
+      480
+    ]
+  },
+  "capture_method": "Native hidden-window screenshots; process-local diagnostic input. Close-ups use proof lighting and hide HUD; hair suppressed only in face-detail pair. Installed Quickplay uses original saved-profile copy and natural stage lighting.",
+  "limits": [
+    "Sampled stills, not every-frame review",
+    "Muted autoplay; physical input/audio not certified",
+    "Existing necklace transparency artifacts are separate from repaired facial pose"
+  ],
+  "runs": {
+    "penelope-detail-before": {
+      "args": [
+        "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\ghogx_app.exe",
+        "--ark-dir",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN",
+        "--song",
+        "shoutatthedevil",
+        "--diagnostic-character-variant",
+        "rb2_penelope_mcqueen_default",
+        "--diagnostic-venue",
+        "battle",
+        "--diagnostic-front-camera",
+        "guitarist0",
+        "--diagnostic-proof-lighting",
+        "--diagnostic-autoplay",
+        "--mute-audio",
+        "--fixed-dt",
+        "0.016666667",
+        "--frames",
+        "1000",
+        "--screenshot-dir",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\ghogx-penelope-face-20260916\\penelope-detail-before",
+        "--screenshot-frames",
+        "700,850,999",
+        "--auto-start",
+        "--diagnostic-song-start",
+        "30"
+      ],
+      "env": {
+        "GHOGX_HIDE_WINDOW": "1",
+        "GHOGX_DISABLE_PROFILE_PERSISTENCE": "1",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_TARGET_Z": "17",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_DISTANCE": "35",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_FOV": "0.45",
+        "GHOGX_DEBUG_FACE": "1",
+        "GHOGX_SKIP_MATERIAL": "penelope_hair",
+        "GHOGX_HIDE_HIGHWAY": "1",
+        "GHOGX_HIDE_GAMEPLAY_HUD": "1",
+        "GHOGX_HIDE_HUD": "1"
+      },
+      "exit": 0
+    },
+    "penelope-detail-after": {
+      "args": [
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\ghogx-penelope-face-20260916\\engine-build\\src\\app\\Release\\ghogx_app.exe",
+        "--ark-dir",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN",
+        "--song",
+        "shoutatthedevil",
+        "--diagnostic-character-variant",
+        "rb2_penelope_mcqueen_default",
+        "--diagnostic-venue",
+        "battle",
+        "--diagnostic-front-camera",
+        "guitarist0",
+        "--diagnostic-proof-lighting",
+        "--diagnostic-autoplay",
+        "--mute-audio",
+        "--fixed-dt",
+        "0.016666667",
+        "--frames",
+        "1000",
+        "--screenshot-dir",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\ghogx-penelope-face-20260916\\penelope-detail-after",
+        "--screenshot-frames",
+        "700,850,999",
+        "--auto-start",
+        "--diagnostic-song-start",
+        "30"
+      ],
+      "env": {
+        "GHOGX_HIDE_WINDOW": "1",
+        "GHOGX_DISABLE_PROFILE_PERSISTENCE": "1",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_TARGET_Z": "17",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_DISTANCE": "35",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_FOV": "0.45",
+        "GHOGX_DEBUG_FACE": "1",
+        "GHOGX_SKIP_MATERIAL": "penelope_hair",
+        "GHOGX_HIDE_HIGHWAY": "1",
+        "GHOGX_HIDE_GAMEPLAY_HUD": "1",
+        "GHOGX_HIDE_HUD": "1"
+      },
+      "exit": 0
+    },
+    "penelope-normal-after": {
+      "args": [
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\ghogx-penelope-face-20260916\\engine-build\\src\\app\\Release\\ghogx_app.exe",
+        "--ark-dir",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN",
+        "--song",
+        "shoutatthedevil",
+        "--diagnostic-character-variant",
+        "rb2_penelope_mcqueen_default",
+        "--diagnostic-venue",
+        "battle",
+        "--diagnostic-front-camera",
+        "guitarist0",
+        "--diagnostic-proof-lighting",
+        "--diagnostic-autoplay",
+        "--mute-audio",
+        "--fixed-dt",
+        "0.016666667",
+        "--frames",
+        "1000",
+        "--screenshot-dir",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\ghogx-penelope-face-20260916\\penelope-normal-after",
+        "--screenshot-frames",
+        "700,850,999",
+        "--auto-start",
+        "--diagnostic-song-start",
+        "30"
+      ],
+      "env": {
+        "GHOGX_HIDE_WINDOW": "1",
+        "GHOGX_DISABLE_PROFILE_PERSISTENCE": "1",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_TARGET_Z": "17",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_DISTANCE": "35",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_FOV": "0.45",
+        "GHOGX_DEBUG_FACE": "1",
+        "GHOGX_HIDE_HIGHWAY": "1",
+        "GHOGX_HIDE_GAMEPLAY_HUD": "1",
+        "GHOGX_HIDE_HUD": "1"
+      },
+      "exit": 0
+    },
+    "duke-close-after": {
+      "args": [
+        "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\ghogx_app.exe",
+        "--ark-dir",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN",
+        "--song",
+        "shoutatthedevil",
+        "--diagnostic-character",
+        "rb2_duke_of_gravity",
+        "--diagnostic-character-variant",
+        "rb2_duke_of_gravity_default",
+        "--diagnostic-venue",
+        "battle",
+        "--diagnostic-front-camera",
+        "guitarist0",
+        "--diagnostic-proof-lighting",
+        "--diagnostic-autoplay",
+        "--mute-audio",
+        "--fixed-dt",
+        "0.016666667",
+        "--frames",
+        "1000",
+        "--screenshot-dir",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\ghogx-penelope-face-20260916\\duke-close-after",
+        "--screenshot-frames",
+        "700,850,999",
+        "--auto-start",
+        "--diagnostic-song-start",
+        "30"
+      ],
+      "env": {
+        "GHOGX_HIDE_WINDOW": "1",
+        "GHOGX_DISABLE_PROFILE_PERSISTENCE": "1",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_TARGET_Z": "17",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_DISTANCE": "35",
+        "GHOGX_DIAGNOSTIC_FRONT_CAMERA_FOV": "0.45",
+        "GHOGX_DEBUG_FACE": "1"
+      },
+      "exit": 0
+    }
+  },
+  "followup_commit": "75d838e4",
+  "cleanup": {
+    "blocked_by": "Automatic approval review: blocked by policy; no further reason supplied",
+    "scratch_path": "C:\\Users\\smmel\\AppData\\Local\\Temp\\ghogx-penelope-face-20260916",
+    "remaining_bytes": 439716693
+  }
+}

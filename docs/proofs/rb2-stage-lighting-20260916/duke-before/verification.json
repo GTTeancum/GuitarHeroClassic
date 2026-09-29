@@ -1,0 +1,24 @@
+{
+  "exit_code": 0,
+  "lit_meshes": 0,
+  "unlit_meshes": 95,
+  "handoff": [
+    "[flow] Quickplay handoff: selection=preferences character=rb2_duke_of_gravity outfit=rb2_duke_of_gravity_default guitar=rb2_guitar_jaguar03 skin=rb2_guitar_jaguar03_woodmaple_skin venue=gh1_big_club"
+  ],
+  "lighting_samples": [
+    "[char3d] performer lighting material=duke_torso_strapjacket.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_torso_skin.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_legs_codpiecepants.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_feet_skin.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_eyes.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_eyebrows.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_mouth.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_head_skin.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_hair_crazyhawk.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_facehair_chops.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_maleglasses_goggles.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_maleglasses_goggles_lenses.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_malewrist_hercules.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting material=duke_rings_chief.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)"
+  ]
+}

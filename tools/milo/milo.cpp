@@ -8,10 +8,13 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <chrono>
 #include <cstring>
 #include <functional>
 #include <fstream>
+#include <future>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -19,6 +22,16 @@
 namespace gh::milo {
 
 namespace {
+
+struct InflatedDirectoryCache {
+    std::mutex mutex;
+    std::map<std::string, std::shared_ptr<const InflatedDirectory>> rows;
+};
+
+InflatedDirectoryCache& inflated_directory_cache() {
+    static InflatedDirectoryCache cache;
+    return cache;
+}
 
 bool read_u32_at(const std::vector<uint8_t>& p, size_t& pos, uint32_t& out) {
     if (pos + 4 > p.size()) return false;
@@ -351,17 +364,25 @@ Header parse_header(const std::vector<uint8_t>& src) {
     return h;
 }
 
-std::vector<uint8_t> inflate_payload(const std::vector<uint8_t>& src,
-                                     const Header& h) {
+std::vector<uint8_t> inflate_payload(
+    const std::vector<uint8_t>& src, const Header& h,
+    const std::function<void()>& progress) {
     if (h.structure == BlockStructure::NONE) {
         if (h.first_block_offset > src.size())
             throw std::runtime_error("milo: NONE first_block_offset past EOF");
-        return std::vector<uint8_t>(src.begin() + h.first_block_offset, src.end());
+        if (progress) progress();
+        auto out =
+            std::vector<uint8_t>(src.begin() + h.first_block_offset, src.end());
+        if (progress) progress();
+        return out;
     }
     if (h.structure == BlockStructure::GZIP) {
-        return inflate_gzip(src.data() + h.first_block_offset,
-                            src.size() - h.first_block_offset,
-                            h.max_block_uncompressed_size);
+        if (progress) progress();
+        auto out = inflate_gzip(src.data() + h.first_block_offset,
+                                src.size() - h.first_block_offset,
+                                h.max_block_uncompressed_size);
+        if (progress) progress();
+        return out;
     }
 
     std::vector<uint8_t> out;
@@ -369,6 +390,7 @@ std::vector<uint8_t> inflate_payload(const std::vector<uint8_t>& src,
     size_t pos = h.first_block_offset;
 
     for (uint32_t i = 0; i < h.block_count; ++i) {
+        if (progress) progress();
         uint32_t raw_size = h.block_sizes[i];
         // MILO_D uses the high byte to mark an UNCOMPRESSED block (raw size flag set);
         // for compressed blocks the high byte is 0 and the low 24 bits hold the size.
@@ -399,6 +421,7 @@ std::vector<uint8_t> inflate_payload(const std::vector<uint8_t>& src,
         }
         pos += block_disk_size;
     }
+    if (progress) progress();
     return out;
 }
 
@@ -1114,6 +1137,61 @@ std::vector<uint8_t> read_file(const std::string& path) {
     f.read(reinterpret_cast<char*>(buf.data()), sz);
     if (!f) throw std::runtime_error("short read on " + path);
     return buf;
+}
+
+std::shared_ptr<const InflatedDirectory> inflate_directory_cached(
+    const std::string& cache_key, const std::vector<uint8_t>& bytes,
+    const Header& header, const std::function<void()>& progress) {
+    auto& cache = inflated_directory_cache();
+    {
+        std::lock_guard<std::mutex> lock(cache.mutex);
+        const auto found = cache.rows.find(cache_key);
+        if (found != cache.rows.end()) return found->second;
+    }
+
+    auto decode = [&bytes, &header]() {
+        auto value = std::make_shared<InflatedDirectory>();
+        value->payload = inflate_payload(bytes, header);
+        value->directory = parse_directory(value->payload);
+        return value;
+    };
+    std::shared_ptr<InflatedDirectory> decoded;
+    if (!progress) {
+        decoded = decode();
+    } else {
+        // Directory boundary recovery can be CPU-heavy for large venue and
+        // character MILOs. Keep that pure work off the render thread while
+        // the caller pumps the authored loading screen at a stable cadence.
+        // The future owns no renderer or cache state; cache publication stays
+        // on this thread after decoding completes.
+        auto pending = std::async(std::launch::async, decode);
+        while (pending.wait_for(std::chrono::milliseconds(8)) !=
+               std::future_status::ready) {
+            progress();
+        }
+        decoded = pending.get();
+        progress();
+    }
+    {
+        std::lock_guard<std::mutex> lock(cache.mutex);
+        const auto [found, inserted] = cache.rows.emplace(cache_key, decoded);
+        if (!inserted) return found->second;
+    }
+    return decoded;
+}
+
+std::shared_ptr<const InflatedDirectory> find_inflated_directory_cached(
+    const std::string& cache_key) {
+    auto& cache = inflated_directory_cache();
+    std::lock_guard<std::mutex> lock(cache.mutex);
+    const auto found = cache.rows.find(cache_key);
+    return found == cache.rows.end() ? nullptr : found->second;
+}
+
+void clear_inflated_directory_cache() {
+    auto& cache = inflated_directory_cache();
+    std::lock_guard<std::mutex> lock(cache.mutex);
+    cache.rows.clear();
 }
 
 }  // namespace gh::milo

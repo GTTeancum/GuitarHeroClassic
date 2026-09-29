@@ -489,6 +489,8 @@ void ConfigDb::load(const gh::ark::ArkV3Reader& ark, const std::vector<std::stri
   addon_venue_labels_.clear();
   addon_quickplay_songs_.clear();
   addon_setlists_.clear();
+  quickplay_setlists_.clear();
+  quickplay_bucket_index_ = 0;
   dlc_packages_.clear();
   addon_song_sources_.clear();
   source_routes_.clear();
@@ -598,6 +600,9 @@ void ConfigDb::load(const gh::ark::ArkV3Reader& ark, const std::vector<std::stri
   load_addon_manifests(addon_root && *addon_root ? fs::path(addon_root)
                                                  : fs::path("DLC"),
                        &ark);
+  const char* setlists_root = std::getenv("GHOGX_SETLISTS_DIR");
+  load_quickplay_setlists(setlists_root && *setlists_root
+                             ? fs::path(setlists_root) : fs::path("Setlists"));
   if (!character_variants_.empty()) {
     std::fprintf(stderr,
                  "[configdb] character catalog: characters=%zu variants=%zu\n",
@@ -1727,6 +1732,178 @@ void ConfigDb::load_practice_sections(
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "[configdb] practice sections: %s\n", ex.what());
   }
+}
+
+void ConfigDb::load_quickplay_setlists(const fs::path& directory) {
+  std::vector<fs::path> files;
+  std::error_code error;
+  if (fs::is_directory(directory, error)) {
+    for (const auto& entry : fs::directory_iterator(directory))
+      if (entry.is_regular_file() && entry.path().extension() == ".json")
+        files.push_back(entry.path());
+  }
+  std::sort(files.begin(), files.end());
+  std::vector<DlcSetlist> loaded;
+  for (const auto& file : files) {
+    const auto before = loaded.size();
+    try {
+      std::ifstream stream(file);
+      const std::string text((std::istreambuf_iterator<char>(stream)), {});
+      const auto root = JsonParser(text).parse();
+      if (json_int(root, "schema_version") != 1)
+        throw std::runtime_error("schema_version must be 1");
+      const auto* buckets = json_array(root, "setlists");
+      if (!buckets) throw std::runtime_error("setlists must be an array");
+      for (const auto& row : *buckets) {
+        DlcSetlist bucket;
+        const auto id = json_string(row, "id");
+        bucket.label = json_string(row, "label");
+        if (id.empty() || id == "dlc" || bucket.label.empty())
+          throw std::runtime_error("setlist requires id and label; dlc is reserved");
+        bucket.id = Symbol(id);
+        bucket.include_in_quickplay = true;
+        if (std::any_of(loaded.begin(), loaded.end(), [&](const auto& b) {
+              return b.id == bucket.id;
+            })) throw std::runtime_error("duplicate setlist " + id);
+        const auto* sections = json_array(row, "sections");
+        if (!sections) throw std::runtime_error("setlist requires sections");
+        std::unordered_set<const void*> seen;
+        for (const auto& section_row : *sections) {
+          SetlistSection section;
+          section.label = json_string(section_row, "label");
+          const auto venue = json_string(section_row, "default_venue");
+          if (section.label.empty() || venue.empty() ||
+              !json_array(section_row, "songs"))
+            throw std::runtime_error("section requires label, default_venue and songs");
+          section.default_venue = Symbol(venue);
+          for (const auto& name : json_strings(section_row, "songs")) {
+            const Symbol song(name);
+            if (name.empty() || !seen.insert(song.id()).second)
+              throw std::runtime_error("empty or duplicate song in " + id);
+            // A shared setup file can describe optional discs not installed yet.
+            if (song_index(song) < 0) continue;
+            section.songs.push_back(song);
+            bucket.songs.push_back(song);
+          }
+          if (!section.songs.empty()) {
+            if (!is_venue(section.default_venue))
+              throw std::runtime_error("unknown default_venue " + venue);
+            bucket.sections.push_back(std::move(section));
+          }
+        }
+        loaded.push_back(std::move(bucket));
+      }
+      std::fprintf(stderr, "[setlists] loaded %s: %zu buckets\n",
+                   file.generic_string().c_str(), loaded.size() - before);
+    } catch (const std::exception& ex) {
+      loaded.resize(before);
+      std::fprintf(stderr, "[setlists] rejected %s: %s\n",
+                   file.generic_string().c_str(), ex.what());
+    }
+  }
+  quickplay_setlists_ = std::move(loaded);
+  quickplay_bucket_index_ = 0;
+}
+
+std::vector<DlcSetlist> ConfigDb::quickplay_buckets() const {
+  std::vector<DlcSetlist> out;
+  std::unordered_set<const void*> assigned;
+  auto append = [&](DlcSetlist bucket) {
+    if (bucket.songs.empty()) return;
+    for (Symbol song : bucket.songs) assigned.insert(song.id());
+    out.push_back(std::move(bucket));
+  };
+  const bool explicit_gh2 = std::any_of(
+      quickplay_setlists_.begin(), quickplay_setlists_.end(),
+      [](const auto& b) { return b.id == Symbol("gh2"); });
+  if (!explicit_gh2) {
+    DlcSetlist stock;
+    stock.id = Symbol("gh2");
+    stock.label = "Guitar Hero II";
+    stock.include_in_quickplay = true;
+    auto add_section = [&](std::string label, Symbol venue,
+                           const std::vector<Symbol>& songs) {
+      SetlistSection section{std::move(label), venue, {}};
+      for (Symbol song : songs) {
+        if (song_index(song) < 0 ||
+            std::find(stock.songs.begin(), stock.songs.end(), song) != stock.songs.end())
+          continue;
+        section.songs.push_back(song);
+        stock.songs.push_back(song);
+      }
+      if (!section.songs.empty()) stock.sections.push_back(std::move(section));
+    };
+    const auto* campaign = table(Symbol("campaign"));
+    const auto order = campaign ? campaign->find_keyed(Symbol("order")) : nullptr;
+    if (order) for (std::size_t i = 1; i < order->size(); ++i) {
+      const auto tier = order->at(i).as_array();
+      if (!tier || tier->empty()) continue;
+      const auto venue = tier->at(0).as_symbol().value_or(Symbol());
+      std::vector<Symbol> songs;
+      for (std::size_t j = 1; j < tier->size(); ++j)
+        songs.push_back(tier->at(j).as_symbol().value_or(Symbol()));
+      add_section(std::string("song_header_") + venue.c_str(), venue, songs);
+    }
+    add_section("song_header_store", Symbol(), store_items(Symbol("song")));
+    append(std::move(stock));
+  }
+  for (const auto& bucket : quickplay_setlists_) append(bucket);
+  for (auto bucket : addon_setlists_) {
+    if (!bucket.include_in_quickplay ||
+        std::any_of(out.begin(), out.end(), [&](const auto& b) {
+          return b.id == bucket.id;
+        })) continue;
+    bucket.songs.erase(std::remove_if(bucket.songs.begin(), bucket.songs.end(),
+        [&](Symbol song) { return assigned.count(song.id()) != 0; }), bucket.songs.end());
+    if (bucket.sections.empty())
+      bucket.sections.push_back({bucket.label, Symbol(), bucket.songs});
+    append(std::move(bucket));
+  }
+  DlcSetlist remainder;
+  remainder.id = Symbol("dlc");
+  remainder.label = "DLC";
+  for (Symbol song : quickplay_songs())
+    if (!assigned.count(song.id())) remainder.songs.push_back(song);
+  remainder.sections.push_back({"DLC", Symbol(), remainder.songs});
+  append(std::move(remainder));
+  return out;
+}
+
+DlcSetlist ConfigDb::active_quickplay_bucket() const {
+  const auto buckets = quickplay_buckets();
+  return buckets.empty() ? DlcSetlist{} : buckets[quickplay_bucket_index_ % buckets.size()];
+}
+
+std::vector<Symbol> ConfigDb::active_quickplay_songs() const {
+  return active_quickplay_bucket().songs;
+}
+
+bool ConfigDb::next_quickplay_bucket() {
+  const auto buckets = quickplay_buckets();
+  if (buckets.size() < 2) return false;
+  quickplay_bucket_index_ = (quickplay_bucket_index_ + 1) % buckets.size();
+  return true;
+}
+
+bool ConfigDb::select_quickplay_bucket_for_song(Symbol song) {
+  const auto current = active_quickplay_songs();
+  if (std::find(current.begin(), current.end(), song) != current.end()) return true;
+  const auto buckets = quickplay_buckets();
+  for (std::size_t i = 0; i < buckets.size(); ++i) {
+    if (std::find(buckets[i].songs.begin(), buckets[i].songs.end(), song) !=
+        buckets[i].songs.end()) {
+      quickplay_bucket_index_ = i;
+      return true;
+    }
+  }
+  return false;
+}
+
+Symbol ConfigDb::quickplay_default_venue(Symbol song) const {
+  for (const auto& section : active_quickplay_bucket().sections)
+    if (std::find(section.songs.begin(), section.songs.end(), song) != section.songs.end())
+      return section.default_venue;
+  return Symbol();
 }
 
 }  // namespace ghogx::ui

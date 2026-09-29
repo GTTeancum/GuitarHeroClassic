@@ -127,6 +127,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -2430,7 +2431,8 @@ BandPlacerObj decode_band_placer(const std::string& entry_name,
 // and a populated .error, so the `mesh` subcommand can report it.
 MeshObj decode_mesh(const std::string& entry_name,
                     const std::vector<uint8_t>& body,
-                    int32_t parent_dir_revision = 24);
+                    int32_t parent_dir_revision = 24,
+                    const std::function<void()>& loading_pump = {});
 MultiMeshObj decode_multi_mesh(const std::string& entry_name,
                                const std::vector<uint8_t>& body);
 ParticleSysObj decode_particle_sys(const std::string& entry_name,
@@ -2553,7 +2555,8 @@ struct Scene {
 // logged reason) if the MILO can't be read; partial decodes (some objects fail)
 // still return true with those objects flagged.
 bool load_scene(const std::string& hdr_path, const std::string& ark_path,
-                const std::string& milo_path, Scene& out);
+                 const std::string& milo_path, Scene& out,
+                 const std::function<void()>& loading_pump = {});
 
 // Rebuild the RndDir-style group draw metadata after tests or diagnostics
 // mutate a Scene by hand. load_scene calls this automatically.

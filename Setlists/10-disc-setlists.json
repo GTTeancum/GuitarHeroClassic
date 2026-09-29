@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "setlists": [
+    {
+      "id": "gh1",
+      "label": "Guitar Hero",
+      "sections": [
+        {
+          "label": "Basement",
+          "default_venue": "gh1_basement",
+          "songs": [
+            "iloverockandroll",
+            "iwannabesedated",
+            "thunderkiss65",
+            "smokeonthewater",
+            "infected"
+          ]
+        },
+        {
+          "label": "Small Club",
+          "default_venue": "gh1_small_club",
+          "songs": [
+            "ironman",
+            "morethanafeeling",
+            "yougotanotherthingcomin",
+            "takemeout",
+            "sharpdressedman"
+          ]
+        },
+        {
+          "label": "Big Club",
+          "default_venue": "gh1_big_club",
+          "songs": [
+            "killerqueen",
+            "heyyou",
+            "stellar",
+            "heartfullofblack",
+            "symphofdestruction"
+          ]
+        },
+        {
+          "label": "Theatre",
+          "default_venue": "gh1_theatre",
+          "songs": [
+            "ziggystardust",
+            "fatlip",
+            "cochise",
+            "takeitoff",
+            "unsung"
+          ]
+        },
+        {
+          "label": "Festival",
+          "default_venue": "gh1_fest",
+          "songs": [
+            "spanishcastlemagic",
+            "higherground",
+            "nooneknows",
+            "aceofspades",
+            "crossroads"
+          ]
+        },
+        {
+          "label": "Arena",
+          "default_venue": "gh1_arena",
+          "songs": [
+            "godzilla",
+            "texasflood",
+            "frankenstein",
+            "cowboysfromhell",
+            "barkatthemoon"
+          ]
+        },
+        {
+          "label": "Bonus Songs",
+          "default_venue": "gh1_big_club",
+          "songs": [
+            "fireitup",
+            "cheatonthechurch",
+            "cavemanrejoice",
+            "eureka",
+            "allofthis",
+            "behindthemask",
+            "breakingwheel",
+            "callout",
+            "decontrol",
+            "evenrats",
+            "farewellmyth",
+            "flyonthewall",
+            "getready2rokk",
+            "guitarhero",
+            "hey",
+            "sailyourshipby",
+            "storyofmylove"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gh80s",
+      "label": "Guitar Hero Encore: Rocks the 80s",
+      "sections": [
+        {
+          "label": "Opening Licks",
+          "default_venue": "battle",
+          "songs": [
+            "bangyourhead",
+            "wegotthebeat",
+            "iran",
+            "ballstothewall",
+            "18andlife"
+          ]
+        },
+        {
+          "label": "Amp-Warmers",
+          "default_venue": "small1",
+          "songs": [
+            "noonelikeyou",
+            "shakin",
+            "heatofthemoment",
+            "radarlove",
+            "becauseitsmidnite"
+          ]
+        },
+        {
+          "label": "String-Snappers",
+          "default_venue": "small2",
+          "songs": [
+            "holydiver",
+            "turningjapanese",
+            "holdonloosely",
+            "thewarrior",
+            "iwannarock"
+          ]
+        },
+        {
+          "label": "Return of the Shred",
+          "default_venue": "theatre",
+          "songs": [
+            "whatilikeaboutyou",
+            "synchronicity2",
+            "ballroomblitz",
+            "onlyalad",
+            "roundandround"
+          ]
+        },
+        {
+          "label": "Relentless Riffs",
+          "default_venue": "fest",
+          "songs": [
+            "aintnothinbut",
+            "lonelyisthenight",
+            "bathroomwall",
+            "losangeles",
+            "wrathchild"
+          ]
+        },
+        {
+          "label": "Furious Fretwork",
+          "default_venue": "arena",
+          "songs": [
+            "electriceye",
+            "policetruck",
+            "seventeen",
+            "caughtinamosh",
+            "playwithme"
+          ]
+        }
+      ]
+    }
+  ]
+}

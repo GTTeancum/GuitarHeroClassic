@@ -1,0 +1,68 @@
+{
+  "date": "2026-09-08",
+  "change": "Iterative validation of forced modern object boundaries, plus pruning of impossible suffix partitions in ambiguous-boundary recovery. GH1 parser unchanged.",
+  "deployed": true,
+  "old_executable_sha256": "686863e8698fdc63c1f0da2c69f356199d1310629e5b4e0a681d61a4ed71475f",
+  "new_executable_sha256": "075ffa645bdd571680e5d6bab4bd4dbb3bfe30278d88779fad76ddef2250b868",
+  "deployment_paths": [
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\ghogx_app.exe",
+    "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\engine\\out\\build\\win-amd64-release\\src\\app\\ghogx_app.exe"
+  ],
+  "isolation": "Relinked existing engine objects with only a rebuilt MILO parser library; all 29 link inputs predate the original executable. Existing engine build objects and libraries were not changed.",
+  "asset_comparison": [
+    {
+      "character": "duke",
+      "before_seconds": 8.232917,
+      "after_seconds": 0.402106,
+      "listing_byte_identical": true,
+      "listing_sha256": "73feb2fbf977ce1835841a4ee48b7b54e6e046339eddec7dc9deb7bdefbbf114"
+    },
+    {
+      "character": "penelope",
+      "before_seconds": 15.981411,
+      "after_seconds": 0.038074,
+      "listing_byte_identical": true,
+      "listing_sha256": "9784747a30d33ad95c91233e9f45c23f93e2c933e4b9ab4f09b90f313aae0987"
+    }
+  ],
+  "game_comparison": [
+    {
+      "name": "clive",
+      "launch_to_ready_seconds": 1.400927,
+      "submenu_to_ready_seconds": 0.371993,
+      "ready": "[menu-char] loaded player=0 outfit=classic source=char/classic/og/gen/classic_ui.milo_ps2 placer=char_multi0.placer placement=ui/gen/multi_sel_character.milo_ps2",
+      "before_submenu_to_ready_seconds": 0.572005
+    },
+    {
+      "name": "duke",
+      "launch_to_ready_seconds": 1.163055,
+      "submenu_to_ready_seconds": 0.379946,
+      "ready": "[menu-char] loaded player=0 outfit=rb2_duke_of_gravity_default source=char/rb2_duke_of_gravity/og/gen/rb2_duke_of_gravity.milo_ps2 placer=char_multi0.placer placement=ui/gen/multi_sel_character.milo_ps2",
+      "before_submenu_to_ready_seconds": 5.096174
+    },
+    {
+      "name": "casey",
+      "launch_to_ready_seconds": 0.93128,
+      "submenu_to_ready_seconds": 0.29659,
+      "ready": "[menu-char] loaded player=0 outfit=rock2 source=char/rock2/og/gen/rock2_ui.milo_ps2 placer=char_multi0.placer placement=ui/gen/multi_sel_character.milo_ps2",
+      "before_submenu_to_ready_seconds": 0.935722
+    },
+    {
+      "name": "penelope",
+      "launch_to_ready_seconds": 1.168164,
+      "submenu_to_ready_seconds": 0.356548,
+      "ready": "[menu-char] loaded player=0 outfit=rb2_penelope_mcqueen_default source=char/rb2_penelope_mcqueen/og/gen/rb2_penelope_mcqueen.milo_ps2 placer=char_multi0.placer placement=ui/gen/multi_sel_character.milo_ps2",
+      "before_submenu_to_ready_seconds": 16.901694
+    }
+  ],
+  "validation": [
+    "Native milo_test passed, including 1000-object bounded-work and exact roundtrip fixtures with/without embedded markers, ambiguous-boundary selection and serialization rejection, existing GH1/GH2/container/cache tests.",
+    "RB2 object listings byte-identical between original and patched native tools.",
+    "Native Clive, Casey rock2, Duke and Penelope previews load; Duke and Penelope screenshots inspected individually.",
+    "Windows executable import check passed."
+  ],
+  "limitations": [
+    "Single-run timings; OS file cache not flushed. Before measurements came from the immediately preceding diagnostic.",
+    "Existing RB2 visual/rig issues are unchanged. Geometry, textures, rigs and DLC manifests were not modified."
+  ]
+}

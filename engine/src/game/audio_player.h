@@ -14,6 +14,7 @@
 #pragma once
 
 #include <memory>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -32,7 +33,8 @@ class AudioPlayer {
   // and the platform voice but does not start playback. Returns false (and logs)
   // on any failure; gameplay then proceeds silently.
   bool load_vgs(const std::string& hdr_path, const std::string& ark_path,
-                const std::string& vgs_path);
+                const std::string& vgs_path,
+                const std::function<void()>& loading_pump = {});
 
   // Load one or more stock MILO sound banks without opening a song stream.
   // This is the front-end Synth path used by menu DTB calls such as

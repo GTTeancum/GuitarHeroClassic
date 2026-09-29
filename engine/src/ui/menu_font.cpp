@@ -120,7 +120,8 @@ struct Reader {
 
 bool MenuFont::load(const std::string& hdr_path, const std::string& ark_path,
                     const std::string& milo_path,
-                    const std::string& font_entry_name) {
+                    const std::string& font_entry_name,
+                    const std::function<void()>& loading_pump) {
   std::string atlas_entry_name;
   material_color_ = {{1.0f, 1.0f, 1.0f, 1.0f}};
   has_material_color_ = false;
@@ -132,10 +133,12 @@ bool MenuFont::load(const std::string& hdr_path, const std::string& ark_path,
       std::fprintf(stderr, "[font] milo not in ARK: %s\n", milo_path.c_str());
       return false;
     }
-    auto bytes = ark.read_entry(*entry, {ark_path});
-    auto h = gh::milo::parse_header(bytes);
-    auto payload = gh::milo::inflate_payload(bytes, h);
-    auto dir = gh::milo::parse_directory(payload);
+    const auto bytes = ark.read_entry_shared(*entry, {ark_path}, loading_pump);
+    auto h = gh::milo::parse_header(*bytes);
+    const auto decoded = gh::milo::inflate_directory_cached(
+        ark_path + "\n" + entry->full_path, *bytes, h, loading_pump);
+    const auto& payload = decoded->payload;
+    const auto& dir = decoded->directory;
 
     // Find the Font entry body.
     const gh::milo::Entry* fe = nullptr;
@@ -177,10 +180,14 @@ bool MenuFont::load(const std::string& hdr_path, const std::string& ark_path,
   }
 
   // Decode the atlas (white glyphs in the alpha channel) and segment glyphs.
-  atlas_ = atlas_entry_name.empty()
-               ? asset::load_milo_texture(hdr_path, ark_path, milo_path)
-               : asset::load_milo_texture_named(
-                     hdr_path, ark_path, milo_path, atlas_entry_name);
+  if (atlas_entry_name.empty()) {
+    atlas_ = asset::load_milo_texture(hdr_path, ark_path, milo_path);
+  } else {
+    auto atlases = asset::load_milo_textures(
+        hdr_path, ark_path, milo_path, {atlas_entry_name}, loading_pump);
+    const auto atlas = atlases.find(atlas_entry_name);
+    if (atlas != atlases.end()) atlas_ = std::move(atlas->second);
+  }
   if (!atlas_.valid()) {
     std::fprintf(stderr, "[font] atlas decode failed for %s\n", milo_path.c_str());
     return false;

@@ -12,6 +12,8 @@
 #include <cstdint>
 #include <fstream>
 #include <filesystem>
+#include <functional>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -92,6 +94,9 @@ public:
     // a subset of files. Throws on out-of-range reads or missing path.
     std::vector<uint8_t> read_entry(const Entry& e,
                                     const std::vector<std::string>& ark_paths) const;
+    std::shared_ptr<const std::vector<uint8_t>> read_entry_shared(
+        const Entry& e, const std::vector<std::string>& ark_paths,
+        const std::function<void()>& progress = {}) const;
 
     std::optional<Entry> find(std::string_view full_path) const;
 
@@ -102,6 +107,12 @@ public:
     static void set_loose_file_mounts(std::vector<LooseFileMount> mounts);
     static void clear_loose_file_mounts();
     static std::vector<LooseFileMount> loose_file_mounts();
+
+    // Synchronous runtime loaders often inspect the same large MILO several
+    // times while assembling one screen/world. Keep a bounded copy of recent
+    // packed entry bytes and let screen owners explicitly release it at their
+    // lifecycle boundary.
+    static void clear_entry_byte_cache();
 
 private:
     uint32_t version_ = 0;

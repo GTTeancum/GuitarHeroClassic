@@ -1,0 +1,24 @@
+{
+  "exit_code": 0,
+  "song_seek_seconds": 60,
+  "command": [
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\ghogx_app.exe",
+    "--menu",
+    "--ark-dir",
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN",
+    "--fixed-dt",
+    "0.016666667",
+    "--mute-audio",
+    "--diagnostic-autoplay",
+    "--frames",
+    "1400",
+    "--screenshot-dir",
+    "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\docs\\proofs\\rb2-stage-lighting-20260916\\penelope-later",
+    "--screenshot-frames",
+    "1350"
+  ],
+  "handoff": [
+    "[flow] Quickplay handoff: selection=preferences character=rb2_penelope_mcqueen outfit=rb2_penelope_mcqueen_default guitar=rb2_guitar_jaguar03 skin=rb2_guitar_jaguar03_woodmaple_skin venue=gh1_big_club",
+    "[flow] gameplay ready: ironman diff=1 autoplay=1"
+  ]
+}

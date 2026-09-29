@@ -61,6 +61,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -6920,6 +6921,7 @@ std::optional<float> rnd_morph_pose_peak_frame(
 // Returns false (with a logged reason) if the MILO cannot be read; a partial
 // decode (some meshes fail) still returns true with those meshes flagged.
 bool load_character(const std::string& hdr_path, const std::string& ark_path,
-                    const std::string& milo_path, Character& out);
+                    const std::string& milo_path, Character& out,
+                    const std::function<void()>& loading_pump = {});
 
 }  // namespace ghogx::character

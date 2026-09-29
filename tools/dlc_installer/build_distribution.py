@@ -89,6 +89,7 @@ def build_setup_exe(
             "rb2_wii/tools",
         )
     add_resource(command, "--add-data", REPO / "release", "release")
+    add_resource(command, "--add-data", REPO / "Setlists", "Setlists")
     add_resource(
         command, "--add-data", REPO / "config/character_variant_labels.tsv",
         "config",

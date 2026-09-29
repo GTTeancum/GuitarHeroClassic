@@ -466,7 +466,7 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
   int sample_rate = 44100;
   int channels = 0;
   uint32_t total_frames = 0;
-  std::vector<uint8_t> raw_vgs;
+  std::shared_ptr<const std::vector<uint8_t>> raw_vgs;
   double base_position_sec = 0.0;
 
   // --- streaming ring ---
@@ -1442,13 +1442,36 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     teardown();
     reset_stream_health();
     stream = gh::vgs::Stream{};
-    if (raw_vgs.empty()) {
+    if (!raw_vgs || raw_vgs->empty()) {
       std::fprintf(stderr, "[audio] VGS empty\n");
       return false;
     }
 
-    std::vector<uint8_t> source_bytes = raw_vgs;
-    if (!stream.open(std::make_unique<gh::vgs::MemByteSource>(std::move(source_bytes)))) {
+    class SharedMemByteSource final : public gh::vgs::ByteSource {
+     public:
+      explicit SharedMemByteSource(
+          std::shared_ptr<const std::vector<uint8_t>> bytes)
+          : bytes_(std::move(bytes)) {}
+      uint32_t size() const override {
+        return static_cast<uint32_t>(bytes_ ? bytes_->size() : 0u);
+      }
+      void read(uint32_t offset, void* dst, uint32_t count) const override {
+        auto* output = static_cast<uint8_t*>(dst);
+        if (!output || count == 0) return;
+        const size_t available =
+            bytes_ && offset < bytes_->size()
+                ? std::min<size_t>(count, bytes_->size() - offset)
+                : 0u;
+        if (available != 0)
+          std::memcpy(output, bytes_->data() + offset, available);
+        if (available < count)
+          std::memset(output + available, 0, count - available);
+      }
+
+     private:
+      std::shared_ptr<const std::vector<uint8_t>> bytes_;
+    };
+    if (!stream.open(std::make_unique<SharedMemByteSource>(raw_vgs))) {
       std::fprintf(stderr, "[audio] VGS decode-open failed: %s\n", vgs_path);
       return false;
     }
@@ -1540,8 +1563,10 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
 AudioPlayer::AudioPlayer() : impl_(std::make_unique<Impl>()) {}
 AudioPlayer::~AudioPlayer() = default;
 
-bool AudioPlayer::load_vgs(const std::string& hdr_path, const std::string& ark_path,
-                           const std::string& vgs_path) {
+bool AudioPlayer::load_vgs(const std::string& hdr_path,
+                           const std::string& ark_path,
+                           const std::string& vgs_path,
+                           const std::function<void()>& loading_pump) {
   impl_ = std::make_unique<Impl>();
   if (hdr_path.empty() || ark_path.empty()) {
     std::fprintf(stderr, "[audio] no ARK paths; skipping audio\n");
@@ -1550,18 +1575,20 @@ bool AudioPlayer::load_vgs(const std::string& hdr_path, const std::string& ark_p
 
   // Read the compressed VGS out of the ARK (PC: resident in RAM; on Xbox a
   // disk-backed ByteSource would stream it instead).
-  std::vector<uint8_t> raw;
+  std::shared_ptr<const std::vector<uint8_t>> raw;
   try {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    if (loading_pump) loading_pump();
     auto entry = ark.find(vgs_path);
     if (!entry) { std::fprintf(stderr, "[audio] VGS not in ARK: %s\n", vgs_path.c_str()); return false; }
-    raw = ark.read_entry(*entry, {ark_path});
+    raw = ark.read_entry_shared(*entry, {ark_path}, loading_pump);
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "[audio] ARK read error: %s\n", ex.what());
     return false;
   }
-  if (raw.empty()) { std::fprintf(stderr, "[audio] VGS empty\n"); return false; }
+  if (!raw || raw->empty()) { std::fprintf(stderr, "[audio] VGS empty\n"); return false; }
   impl_->raw_vgs = std::move(raw);
+  if (loading_pump) loading_pump();
   if (!impl_->setup_streaming_voice(0, vgs_path.c_str())) return false;
   impl_->load_beatmatcher_config(hdr_path, ark_path);
   impl_->load_gameplay_sfx_bank(hdr_path, ark_path);
@@ -1628,7 +1655,9 @@ void AudioPlayer::stop() {
 }
 
 bool AudioPlayer::seek(double seconds) {
-  if (!impl_ || impl_->raw_vgs.empty() || impl_->sample_rate <= 0) return false;
+  if (!impl_ || !impl_->raw_vgs || impl_->raw_vgs->empty() ||
+      impl_->sample_rate <= 0)
+    return false;
   const double duration =
       impl_->total_frames / static_cast<double>(impl_->sample_rate);
   const double finite_seconds = std::isfinite(seconds) ? seconds : 0.0;

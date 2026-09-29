@@ -1499,17 +1499,21 @@ std::optional<Gh1LabelResource> find_gh1_label_resource(
 
 std::vector<MenuLabel> extract_menu_labels(const std::string& hdr_path,
                                            const std::string& ark_path,
-                                           const std::string& milo_path) {
+                                           const std::string& milo_path,
+                                           const std::function<void()>&
+                                               loading_pump) {
   std::vector<MenuLabel> out;
   try {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
     auto entry = ark.find(milo_path);
     if (!entry) entry = ark.find("../../system/run/" + milo_path);
     if (!entry) return out;
-    auto bytes = ark.read_entry(*entry, {ark_path});
-    auto h = gh::milo::parse_header(bytes);
-    auto payload = gh::milo::inflate_payload(bytes, h);
-    auto dir = gh::milo::parse_directory(payload);
+    const auto bytes = ark.read_entry_shared(*entry, {ark_path}, loading_pump);
+    auto h = gh::milo::parse_header(*bytes);
+    const auto decoded = gh::milo::inflate_directory_cached(
+        ark_path + "\n" + entry->full_path, *bytes, h, loading_pump);
+    const auto& payload = decoded->payload;
+    const auto& dir = decoded->directory;
     std::optional<gh::dtb::Tree> gh1_config;
     if (std::any_of(dir.entries.begin(), dir.entries.end(),
                     [](const gh::milo::Entry& e) {

@@ -1,0 +1,14 @@
+{
+  "scope": "rb2.duke_of_gravity only, explicit user preference",
+  "material": "Mat__duke_maleglasses_goggles_lenses.mat",
+  "before_blend": 3,
+  "after_blend": 1,
+  "changed_payload_bytes": 1,
+  "before_sha256": "cfb441221e643d344aba16ff0b28aaf59b91393e9b86c54ecdc3b2e9bce188ca",
+  "after_sha256": "b8b20d34b8153c37f29d8057046ccf4f6b49a88636ad43097791bcf9e84f92c2",
+  "future_recipe_texture_alpha_range": [
+    255,
+    255
+  ],
+  "future_recipe_blend": 1
+}

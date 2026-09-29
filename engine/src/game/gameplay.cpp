@@ -56,6 +56,19 @@ namespace {
 
 constexpr float kMaxAuthoredGameLightColor = 64.0f;
 
+std::shared_ptr<const gh::milo::InflatedDirectory> load_cached_milo_directory(
+    const gh::ark::ArkV3Reader& ark, const gh::ark::Entry& entry,
+    const std::string& ark_path,
+    const std::function<void()>& loading_pump = {}) {
+    const std::string key = ark_path + "\n" + entry.full_path;
+    if (auto cached = gh::milo::find_inflated_directory_cached(key))
+        return cached;
+    const auto bytes = ark.read_entry_shared(entry, {ark_path}, loading_pump);
+    const auto header = gh::milo::parse_header(*bytes);
+    return gh::milo::inflate_directory_cached(key, *bytes, header,
+                                               loading_pump);
+}
+
 using CameraSourceRand = ghogx::camera::SourceRand;
 CameraSourceRand& camera_selection_random();
 
@@ -4502,10 +4515,10 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             "world/" + venue + "/gen/" + venue + ".milo_ps2";
         auto entry = ark.find(milo_path);
         if (!entry) return {};
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         const auto worlddir_camshot_overrides =
             worlddir_camshot_override_set(decode_worlddir_camshot_overrides(
                 dir, payload, milo_path));
@@ -6037,10 +6050,10 @@ load_venue_script_object_instances(const std::string& hdr_path,
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         for (const auto& de : dir.entries) {
             if (de.type != "ObjectDir" || de.offset + de.size > payload.size())
                 continue;
@@ -6090,10 +6103,10 @@ load_venue_event_script_messages(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         std::map<std::string, std::vector<std::string>> group_proxy_objects;
         for (const auto& de : dir.entries) {
             if (de.type != "Group" || de.offset + de.size > payload.size())
@@ -6681,10 +6694,10 @@ std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         for (const auto& de : dir.entries) {
             if (de.type != "MatAnim" || de.offset + de.size > payload.size())
                 continue;
@@ -6959,10 +6972,10 @@ std::map<std::string, Gameplay::VenueEnvironmentAnim> load_venue_env_anims(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         for (const auto& de : dir.entries) {
             if (de.type != "EnvAnim" || de.offset + de.size > payload.size())
                 continue;
@@ -7017,10 +7030,10 @@ std::map<std::string, Gameplay::VenueLightAnim> load_venue_light_anims(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         for (const auto& de : dir.entries) {
             if (de.type != "LightAnim" || de.offset + de.size > payload.size())
                 continue;
@@ -7129,10 +7142,10 @@ load_venue_event_light_anims(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
 
         std::map<std::string, std::vector<std::string>> filter_refs;
         std::map<std::string, std::vector<std::string>> group_refs;
@@ -7318,10 +7331,10 @@ load_venue_event_env_anims(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
 
         std::map<std::string, std::vector<std::string>> filter_refs;
         std::map<std::string, std::vector<std::string>> group_refs;
@@ -7808,10 +7821,10 @@ load_venue_event_particles(const std::string& hdr_path,
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
 
         std::unordered_set<std::string> particle_names;
         std::map<std::string, Gameplay::VenueParticleRoute> panim_routes;
@@ -8048,10 +8061,10 @@ load_venue_event_mat_anims(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
 
         std::map<std::string, std::vector<std::string>> filter_mat_anims;
         std::map<std::string, std::vector<std::string>> filter_group_refs;
@@ -8360,10 +8373,10 @@ std::map<std::string, std::vector<std::string>> load_venue_event_filters(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         for (const auto& de : dir.entries) {
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
                 continue;
@@ -8414,10 +8427,10 @@ std::map<std::string, std::vector<std::string>> load_venue_event_next_links(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         for (const auto& de : dir.entries) {
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
                 continue;
@@ -8482,10 +8495,10 @@ std::vector<Gameplay::VenueEventTriggerGate> load_venue_event_trigger_gates(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         for (const auto& de : dir.entries) {
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
                 continue;
@@ -8581,10 +8594,10 @@ std::map<std::string, std::vector<std::string>> load_venue_filter_mesh_targets(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         for (const auto& de : dir.entries) {
             if (de.type != "Group" || de.offset + de.size > payload.size())
                 continue;
@@ -9516,10 +9529,10 @@ std::vector<Gameplay::LightingPreset> load_lighting_presets(
             "world/" + venue + "/og/gen/" + venue + "_lighting.milo_ps2";
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         LightingObjectNameSets local_names =
             names ? *names : LightingObjectNameSets{};
         LightingSpotlightSetMap spotlight_sets;
@@ -11223,7 +11236,8 @@ void configure_gh1_crowd_actor(
 bool load_clip_first_from_milos(
     ghogx::character::CharClip& out, const std::string& hdr_path,
     const std::string& ark_path, const std::vector<std::string>& milos,
-    const std::vector<std::string>& names);
+    const std::vector<std::string>& names,
+    const std::function<void()>& loading_pump = {});
 std::optional<std::array<float, 16>> worldcrowd_projected_axis_source_world(
     const std::array<float, 16>& basis_world,
     const std::array<float, 3>& source_pos,
@@ -12452,9 +12466,11 @@ std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
 bool load_clip_first(ghogx::character::CharClip& out,
                      const std::string& hdr_path, const std::string& ark_path,
                      const std::string& milo_path,
-                     std::initializer_list<const char*> names) {
+                     std::initializer_list<const char*> names,
+                     const std::function<void()>& loading_pump = {}) {
     const bool debug_clip_load = std::getenv("GHOGX_DEBUG_CLIP_LOAD") != nullptr;
     for (const char* name : names) {
+        if (loading_pump) loading_pump();
         if (debug_clip_load) {
             std::fprintf(stderr,
                          "[clip-load-probe] begin milo=%s clip=%s\n",
@@ -12472,6 +12488,7 @@ bool load_clip_first(ghogx::character::CharClip& out,
             std::fflush(stderr);
         }
         if (out.loaded) return true;
+        if (loading_pump) loading_pump();
     }
     return false;
 }
@@ -12479,9 +12496,11 @@ bool load_clip_first(ghogx::character::CharClip& out,
 bool load_clip_first(ghogx::character::CharClip& out,
                      const std::string& hdr_path, const std::string& ark_path,
                      const std::string& milo_path,
-                     const std::vector<std::string>& names) {
+                     const std::vector<std::string>& names,
+                     const std::function<void()>& loading_pump = {}) {
     const bool debug_clip_load = std::getenv("GHOGX_DEBUG_CLIP_LOAD") != nullptr;
     for (const auto& name : names) {
+        if (loading_pump) loading_pump();
         if (debug_clip_load) {
             std::fprintf(stderr,
                          "[clip-load-probe] begin milo=%s clip=%s\n",
@@ -12499,6 +12518,7 @@ bool load_clip_first(ghogx::character::CharClip& out,
             std::fflush(stderr);
         }
         if (out.loaded) return true;
+        if (loading_pump) loading_pump();
     }
     return false;
 }
@@ -12506,9 +12526,12 @@ bool load_clip_first(ghogx::character::CharClip& out,
 bool load_clip_first_from_milos(
     ghogx::character::CharClip& out, const std::string& hdr_path,
     const std::string& ark_path, const std::vector<std::string>& milos,
-    const std::vector<std::string>& names) {
+    const std::vector<std::string>& names,
+    const std::function<void()>& loading_pump) {
     for (const auto& milo_path : milos) {
-        if (load_clip_first(out, hdr_path, ark_path, milo_path, names))
+        if (loading_pump) loading_pump();
+        if (load_clip_first(out, hdr_path, ark_path, milo_path, names,
+                            loading_pump))
             return true;
     }
     return false;
@@ -12605,10 +12628,10 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
             }
         }
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         if (anim_name.compare(0, kDirectIntroCamShotPrefixLen,
                               kDirectIntroCamShotPrefix) == 0) {
             const std::string shot_name =
@@ -12839,10 +12862,10 @@ load_venue_camera_fov_anims(const std::string& hdr_path,
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         for (const auto& de : dir.entries) {
             if (de.type != "CamAnim" ||
                 de.offset + de.size > payload.size()) {
@@ -13689,10 +13712,10 @@ load_rnddir_root_object_lists(const std::string& hdr_path,
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         if (dir.dir_entry_offset + dir.dir_entry_size > payload.size())
             return out;
         const uint8_t* body = payload.data() + dir.dir_entry_offset;
@@ -14248,16 +14271,18 @@ bool objectdir_base_cursor_for_directory(const gh::milo::Directory& dir,
 
 MiloDirectoryRefs load_milo_directory_refs(const std::string& hdr_path,
                                            const std::string& ark_path,
-                                           const std::string& milo_path) {
+                                           const std::string& milo_path,
+                                           const std::function<void()>&
+                                               loading_pump = {}) {
     MiloDirectoryRefs out;
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded = load_cached_milo_directory(
+            ark, *entry, ark_path, loading_pump);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         out.dir_type = dir.dir_type;
         out.dir_name = dir.dir_name;
         for (const auto& entry_row : dir.entries)
@@ -14471,10 +14496,9 @@ std::optional<VenueMiloDependencyInfo> inspect_venue_milo_dependency(
     auto entry = ark.find(milo_path);
     if (!entry) entry = ark.find("../../system/run/" + milo_path);
     if (!entry) return std::nullopt;
-    auto bytes = ark.read_entry(*entry, {ark_path});
-    auto hdr = gh::milo::parse_header(bytes);
-    auto payload = gh::milo::inflate_payload(bytes, hdr);
-    auto dir = gh::milo::parse_directory(payload);
+    const auto decoded =
+        load_cached_milo_directory(ark, *entry, ark_path);
+    const auto& dir = decoded->directory;
 
     VenueMiloDependencyInfo info;
     info.path = milo_path;
@@ -14499,10 +14523,9 @@ size_t count_milo_entries_of_type(const std::string& hdr_path,
         auto entry = ark.find(milo_path);
         if (!entry) entry = ark.find("../../system/run/" + milo_path);
         if (!entry) return 0;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& dir = decoded->directory;
         size_t count = 0;
         for (const auto& de : dir.entries) {
             if (de.type == type) ++count;
@@ -14533,10 +14556,10 @@ std::map<std::string, std::string> load_venue_camera_postprocess_summaries(
             auto entry = ark.find(milo_path);
             if (!entry) entry = ark.find("../../system/run/" + milo_path);
             if (!entry) continue;
-            auto bytes = ark.read_entry(*entry, {ark_path});
-            auto hdr = gh::milo::parse_header(bytes);
-            auto payload = gh::milo::inflate_payload(bytes, hdr);
-            auto dir = gh::milo::parse_directory(payload);
+            const auto decoded =
+                load_cached_milo_directory(ark, *entry, ark_path);
+            const auto& payload = decoded->payload;
+            const auto& dir = decoded->directory;
             for (const auto& de : dir.entries) {
                 if (de.type != "PostProc" ||
                     de.offset + de.size > payload.size()) {
@@ -14809,7 +14832,8 @@ void log_venue_floor_meshes(
 
 std::vector<std::string> merge_visual_venue_subdirs(
     const std::string& hdr_path, const std::string& ark_path,
-    const std::vector<std::string>& subdirs, ghogx::milo_scene::Scene& scene) {
+    const std::vector<std::string>& subdirs, ghogx::milo_scene::Scene& scene,
+    const std::function<void()>& loading_pump = {}) {
     std::vector<std::string> visual_sources;
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
@@ -14819,7 +14843,7 @@ std::vector<std::string> merge_visual_venue_subdirs(
             if (info->visual_entries == 0) continue;
             ghogx::milo_scene::Scene subdir_scene;
             if (!ghogx::milo_scene::load_scene(hdr_path, ark_path, subdir,
-                                               subdir_scene)) {
+                                               subdir_scene, loading_pump)) {
                 continue;
             }
             append_scene_for_venue_subdir(scene, std::move(subdir_scene));
@@ -14857,16 +14881,19 @@ void append_resolved_subdir_tree_impl(const gh::ark::ArkV3Reader& ark,
                                       const std::string& ark_path,
                                       const std::string& owner_milo,
                                       std::vector<std::string>& out,
-                                      std::unordered_set<std::string>& seen) {
+                                      std::unordered_set<std::string>& seen,
+                                      const std::function<void()>&
+                                          loading_pump) {
     if (owner_milo.empty() || !seen.insert(owner_milo).second) return;
-    const auto refs = load_milo_directory_refs(hdr_path, ark_path, owner_milo);
+    const auto refs = load_milo_directory_refs(
+        hdr_path, ark_path, owner_milo, loading_pump);
     for (const auto& ref : refs.subdirs) {
         const std::string resolved =
             resolve_milo_ref_from_ark(ark, owner_milo, ref);
         if (resolved.empty()) continue;
         push_unique_ref(out, resolved);
         append_resolved_subdir_tree_impl(ark, hdr_path, ark_path, resolved, out,
-                                         seen);
+                                         seen, loading_pump);
     }
 }
 
@@ -14874,15 +14901,18 @@ void append_resolved_subdir_tree(const gh::ark::ArkV3Reader& ark,
                                  const std::string& hdr_path,
                                  const std::string& ark_path,
                                  const std::string& owner_milo,
-                                 std::vector<std::string>& out) {
+                                 std::vector<std::string>& out,
+                                 const std::function<void()>& loading_pump = {}) {
     std::unordered_set<std::string> seen;
     append_resolved_subdir_tree_impl(ark, hdr_path, ark_path, owner_milo, out,
-                                     seen);
+                                     seen, loading_pump);
 }
 
 VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
-                                           const std::string& ark_path,
-                                           const std::string& venue) {
+                                            const std::string& ark_path,
+                                            const std::string& venue,
+                                            const std::function<void()>&
+                                                loading_pump = {}) {
     VenueMiloAssembly out;
     const std::string source_venue = venue_source_key(venue);
     if (source_venue != venue && debug_venue_filters_enabled()) {
@@ -14896,8 +14926,11 @@ VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
                      "_chars.milo_ps2";
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        if (loading_pump) loading_pump();
         const auto world_refs =
-            load_milo_directory_refs(hdr_path, ark_path, out.world_milo);
+            load_milo_directory_refs(hdr_path, ark_path, out.world_milo,
+                                     loading_pump);
+        if (loading_pump) loading_pump();
         out.world_dir_type = world_refs.dir_type;
         out.world_dir_decoded = world_refs.decoded;
         for (const auto& ref : world_refs.subdirs) {
@@ -14906,7 +14939,9 @@ VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
                 resolve_milo_ref_from_ark(ark, out.world_milo, ref);
             if (resolved.empty()) continue;
             const auto section_refs =
-                load_milo_directory_refs(hdr_path, ark_path, resolved);
+                load_milo_directory_refs(hdr_path, ark_path, resolved,
+                                         loading_pump);
+            if (loading_pump) loading_pump();
             const bool semantic_lighting_section =
                 section_refs.entry_types.count("LightAnim") != 0 ||
                 section_refs.entry_types.count("EnvAnim") != 0 ||
@@ -14923,7 +14958,9 @@ VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
             }
         }
         const auto chars_refs =
-            load_milo_directory_refs(hdr_path, ark_path, out.chars_milo);
+            load_milo_directory_refs(hdr_path, ark_path, out.chars_milo,
+                                     loading_pump);
+        if (loading_pump) loading_pump();
         for (const auto& ref : chars_refs.subdirs) {
             const std::string lower = lower_ascii(ref);
             if (lower.find("_geom.milo") == std::string::npos) continue;
@@ -14961,12 +14998,15 @@ VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
         }
         if (!out.geom_milo.empty()) {
             append_resolved_subdir_tree(ark, hdr_path, ark_path, out.geom_milo,
-                                        out.geom_subdir_milos);
+                                        out.geom_subdir_milos, loading_pump);
+            if (loading_pump) loading_pump();
         }
         if (!out.lighting_milo.empty()) {
             append_resolved_subdir_tree(ark, hdr_path, ark_path,
                                         out.lighting_milo,
-                                        out.lighting_subdir_milos);
+                                        out.lighting_subdir_milos,
+                                        loading_pump);
+            if (loading_pump) loading_pump();
         }
         const auto append_dependency = [&](const std::string& subdir) {
             if (subdir == out.world_milo || subdir == out.chars_milo ||
@@ -16833,10 +16873,10 @@ load_venue_group_visibility(const std::string& hdr_path,
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
 
         for (const auto& de : dir.entries) {
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
@@ -16988,10 +17028,10 @@ load_venue_anim_filters(const std::string& hdr_path,
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
 
         std::map<std::string, VenueTransAnimDecode> transanim_decodes;
         std::map<std::string, std::string> transanim_mesh;
@@ -17742,11 +17782,9 @@ std::vector<Gameplay::VenueAnimFilter> load_world_fx_anim_filters(
         auto entry = ark.find(milo_path);
         if (!entry) entry = ark.find("../../system/run/" + milo_path);
         if (!entry) return out;
-        const auto bytes = ark.read_entry(*entry, {ark_path});
-        const auto header = gh::milo::parse_header(bytes);
-        const auto payload = gh::milo::inflate_payload(bytes, header);
-        const auto directory = gh::milo::parse_directory(payload);
-        for (const auto& entry_row : directory.entries) {
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        for (const auto& entry_row : decoded->directory.entries) {
             if (entry_row.type != "AnimFilter") continue;
             const auto found =
                 direct.find(canonical_milo_ref(entry_row.name));
@@ -18067,10 +18105,10 @@ load_all_venue_particle_routes(const std::string& hdr_path,
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         std::unordered_set<std::string> particle_names;
         std::map<std::string, Gameplay::VenueParticleRoute> panim_routes;
         for (const auto& de : dir.entries) {
@@ -18141,10 +18179,10 @@ Gameplay::VenueAnimFilter load_rnddir_directory_anim(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return filter;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         std::map<std::string, VenueTransAnimDecode> transanim_decodes;
         std::map<std::string, Gameplay::VenueMeshAnim> meshanim_anims;
         std::unordered_set<std::string> mesh_refs;
@@ -18235,10 +18273,10 @@ std::map<std::string, Gameplay::VenueProxyObject> load_venue_proxy_objects(
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(owner_milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         for (const auto& de : dir.entries) {
             if (de.type != "RndDir" || de.offset + de.size > payload.size())
                 continue;
@@ -18363,10 +18401,10 @@ DrumAnimData load_drum_anim_data(const std::string& hdr_path,
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         std::map<std::string, std::string> transanim_mesh;
         std::map<std::string, std::vector<std::string>> group_children;
         std::map<std::string, std::vector<std::string>> filter_children;
@@ -18495,10 +18533,10 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             "world/" + venue + "/gen/" + venue + ".milo_ps2";
         auto entry = ark.find(milo_path);
         if (!entry) return out;
-        auto bytes = ark.read_entry(*entry, {ark_path});
-        auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded =
+            load_cached_milo_directory(ark, *entry, ark_path);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         const auto worlddir_camshot_overrides =
             worlddir_camshot_override_set(decode_worlddir_camshot_overrides(
                 dir, payload, milo_path));
@@ -30920,6 +30958,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
         std::fprintf(stderr, "[gameplay] no ARK paths; cannot load song\n");
         return false;
     }
+    pump_loading();
 
     const auto authored_song =
         resolve_song_catalog_entry(hdr_path, ark_path, shortname);
@@ -30947,6 +30986,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
         return false;
     }
 
+    pump_loading();
     chart_ = ghogx::chart::parse_midi(mid_bytes);
     for (int d = 0; d < 4; ++d) {
         note_consumed_[d].assign(chart_.notes[d].size(), 0);
@@ -30971,6 +31011,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
         star_power_ = gameplay_session_mirror_->star_power_state();
     }
     chart_loaded_ = true;
+    pump_loading();
 
     std::fprintf(stderr, "[gameplay] chart loaded: diff=%d notes=%zu dur=%.1fs\n",
                  difficulty_,
@@ -30994,6 +31035,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
         strum_hand_maps_ = load_strum_hand_maps(hdr_path, ark_path);
     }
 
+    pump_loading();
+
     // --- Audio ---
     const std::string vgs_path =
         !authored_song_audio_path_.empty()
@@ -31002,11 +31045,14 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
             ? authored_song->master_audio_path + ".vgs"
             : "songs/" + shortname + "/" + shortname + ".vgs";
     std::fprintf(stderr, "[gameplay] loading audio: %s\n", vgs_path.c_str());
-    audio_.load_vgs(hdr_path, ark_path, vgs_path);  // non-fatal on failure
+    audio_.load_vgs(hdr_path, ark_path, vgs_path,
+                    loading_pump_);  // non-fatal on failure
+    pump_loading();
 
     const std::string voc_path = "songs/" + shortname + "/" + shortname + ".voc";
     facefx_animation_ =
         ghogx::character::load_facefx_animation(hdr_path, ark_path, voc_path);
+    pump_loading();
 
     quickplay_rig_ = authored_song_rig_
                          ? authored_song_rig_
@@ -39425,6 +39471,10 @@ void Gameplay::refresh_worldcrowd_actor_source_targets_for_camera() {
 }
 
 void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
+    const auto pump_crowd_loading = [&]() {
+        if (loading_pump_) loading_pump_();
+    };
+    pump_crowd_loading();
     worldcrowd_actor_runtime_.clear();
     worldcrowd_actor_runtime_placements_ = 0;
     worldcrowd_widescreen_ =
@@ -39472,7 +39522,7 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
         std::string resolved_actor_path = *actor_path;
         if (!ghogx::character::load_character(hdr_path_, ark_path_,
                                               resolved_actor_path,
-                                              character)) {
+                                              character, loading_pump_)) {
             // The preconverted GH1 venue bundle contains its authored crowd
             // placements and animation set, but not duplicate crowd character
             // MILOs.  Reuse the matching GH2 actor body rather than falling
@@ -39483,7 +39533,8 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
                            : std::optional<std::string>{};
             if (!gh2_actor_path ||
                 !ghogx::character::load_character(
-                    hdr_path_, ark_path_, *gh2_actor_path, character)) {
+                    hdr_path_, ark_path_, *gh2_actor_path, character,
+                    loading_pump_)) {
                 std::fprintf(stderr,
                              "[world] RELEASE CROWD INVARIANT: close-crowd "
                              "3-D actor unavailable: %s; selected-region "
@@ -39518,6 +39569,7 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
             std::vector<std::string> clip_names =
                 load_char_clip_group(hdr_path_, ark_path_, main_milos,
                                      group_name);
+            pump_crowd_loading();
             const auto fallback_names =
                 worldcrowd_actor_clip_candidates(actor_name, group_name);
             for (const auto& name : fallback_names) {
@@ -39531,6 +39583,7 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
                                            main_milos, clip_names)) {
                 clips_by_group[group_name] = std::move(group_clip);
             }
+            pump_crowd_loading();
         }
         ghogx::character::CharClip clip;
         const size_t animation_ordinal = worldcrowd_actor_runtime_.size();
@@ -39554,7 +39607,8 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
         }
         auto textures = ghogx::asset::load_milo_textures(
             hdr_path_, ark_path_, resolved_actor_path,
-            character.texture_names());
+            character.texture_names(), loading_pump_);
+        pump_crowd_loading();
 
         WorldCrowdActorRuntime runtime;
         runtime.actor_name = actor_name;
@@ -39570,6 +39624,7 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
         runtime.renderer =
             std::make_unique<ghogx::character::CharRenderer>(win);
         runtime.renderer->set_character(std::move(character), textures);
+        pump_crowd_loading();
         runtime.renderer->set_min_lod(active_force_char_lod_);
         runtime.renderer->set_use_scene_lighting(true);
         auto& runtime_character = runtime.renderer->character();
@@ -39619,6 +39674,7 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
         runtime.world_fxes = load_character_world_fx_runtime(
             win, hdr_path_, ark_path_, resolved_actor_path, runtime_character,
             actor_name);
+        pump_crowd_loading();
 
         auto inserted = worldcrowd_actor_runtime_.emplace(
             runtime_key, std::move(runtime));
@@ -39646,6 +39702,7 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
         const auto recipes = gh1_crowd_actor_recipe(quickplay_rig_->venue);
         size_t loaded = 0;
         for (size_t ordinal = 0; ordinal < recipes.size(); ++ordinal) {
+            pump_crowd_loading();
             const auto& recipe = recipes[ordinal];
             char key_buffer[64];
             std::snprintf(key_buffer, sizeof(key_buffer),
@@ -39670,6 +39727,7 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
     }
 
     for (const auto& crowd : venue_chars_scene_.world_crowds) {
+        pump_crowd_loading();
         if (!crowd.decoded || crowd.area_mesh.empty()) continue;
         const auto area_it =
             mesh_worlds.find(canonical_milo_ref(crowd.area_mesh));
@@ -39678,6 +39736,7 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
         const bool use_area_local_basis = worldcrowd_render_area_local_basis();
         size_t crowd_actor_index = 0;
         for (const auto& set : crowd.placement_sets) {
+            pump_crowd_loading();
             WorldCrowdActorRuntime* runtime = runtime_for_actor(
                 set.actor_name, std::string{}, std::string{}, nullptr);
             if (!runtime || !runtime->renderer) {
@@ -39696,6 +39755,8 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
                                             set.placements.size());
             size_t crowd_placement_index = 0;
             for (const auto& placement : set.placements) {
+                if ((crowd_placement_index & 31u) == 0u)
+                    pump_crowd_loading();
                 const auto placement_world = xfm_to_mat4(placement);
                 const auto area_local_world =
                     mat4_mul_game(placement_world, area_world_inv);
@@ -42384,7 +42445,9 @@ bool Gameplay::prepare_world(ghogx::render::Window& win) {
     if (!chart_loaded_) return false;
     if (world_init_attempted_) return true;
     const auto started = std::chrono::steady_clock::now();
+    pump_loading();
     draw_internal(win, true);
+    pump_loading();
     if (!highway_) {
         highway_ = std::make_unique<HighwayRenderer>(win);
     }
@@ -42396,7 +42459,8 @@ bool Gameplay::prepare_world(ghogx::render::Window& win) {
             !highway_asset_ark_path_.empty()
                 ? highway_asset_ark_path_
                 : (base_ark_path_.empty() ? ark_path_ : base_ark_path_),
-            highway_surface_ref_);
+            highway_surface_ref_, false, loading_pump_);
+        pump_loading();
     }
     const double seconds = std::chrono::duration<double>(
                                std::chrono::steady_clock::now() - started)
@@ -42405,6 +42469,8 @@ bool Gameplay::prepare_world(ghogx::render::Window& win) {
                  "[gameplay] world preparation complete: ready=%d "
                  "seconds=%.3f\n",
                  world_init_attempted_ ? 1 : 0, seconds);
+    gh::milo::clear_inflated_directory_cache();
+    gh::ark::ArkV3Reader::clear_entry_byte_cache();
     return world_init_attempted_;
 }
 
@@ -42516,7 +42582,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
         if (quickplay_rig_) {
             const VenueMiloAssembly venue_assembly =
                 load_venue_milo_assembly(hdr_path_, ark_path_,
-                                         quickplay_rig_->venue);
+                                         quickplay_rig_->venue,
+                                         loading_pump_);
+            pump_loading();
             const std::string venue_geom = venue_assembly.geom_milo;
             std::vector<ghogx::milo_scene::MatObj> venue_geom_materials;
             ghogx::milo_scene::Scene venue_scene;
@@ -42527,7 +42595,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
             venue_camera_postprocess_summaries_.clear();
             bool chars_scene_loaded = false;
             if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_, venue_geom,
-                                              venue_scene)) {
+                                              venue_scene, loading_pump_)) {
+                pump_loading();
                 log_venue_dependencies(hdr_path_, ark_path_,
                                        venue_assembly.dependency_milos);
                 std::vector<std::string> venue_postprocess_sources;
@@ -42542,16 +42611,21 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 venue_camera_postprocess_summaries_ =
                     load_venue_camera_postprocess_summaries(
                         hdr_path_, ark_path_, venue_postprocess_sources);
+                pump_loading();
                 const std::vector<std::string> venue_visual_subdir_sources =
                     merge_visual_venue_subdirs(
                         hdr_path_, ark_path_,
-                        venue_assembly.geom_subdir_milos, venue_scene);
+                        venue_assembly.geom_subdir_milos, venue_scene,
+                        loading_pump_);
+                pump_loading();
                 venue_camera_rndcam_summaries_ =
                     build_venue_camera_rndcam_summaries(venue_scene);
                 std::vector<std::string> venue_extra_visual_sources =
                     venue_visual_subdir_sources;
                 chars_scene_loaded = ghogx::milo_scene::load_scene(
-                    hdr_path_, ark_path_, chars_milo, venue_chars_scene_for_load);
+                    hdr_path_, ark_path_, chars_milo, venue_chars_scene_for_load,
+                    loading_pump_);
+                pump_loading();
                 if (chars_scene_loaded) {
                     venue_worldcrowd_refs_.clear();
                     for (const auto& crowd :
@@ -42643,6 +42717,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 log_venue_floor_meshes(venue_scene, hidden_venue_meshes);
                 const auto root_object_lists = load_rnddir_root_object_lists(
                     hdr_path_, ark_path_, venue_geom);
+                pump_loading();
                 if (debug_venue_filters_enabled() &&
                     !root_object_lists.empty()) {
                     std::fprintf(
@@ -42747,6 +42822,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 }
                 auto venue_mat_anims =
                     load_venue_mat_anims(hdr_path_, ark_path_, venue_geom);
+                pump_loading();
                 std::vector<std::string> venue_texture_sources{venue_geom};
                 for (const auto& source : venue_extra_visual_sources)
                     push_unique_ref(venue_texture_sources, source);
@@ -42754,55 +42830,72 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     ghogx::asset::load_milo_textures_from_sources(
                         hdr_path_, ark_path_, venue_texture_sources,
                         texture_names_for_scene_and_mat_anims(
-                            venue_scene, venue_mat_anims));
+                            venue_scene, venue_mat_anims),
+                        loading_pump_);
+                pump_loading();
                 venue_mat_anims_ = std::move(venue_mat_anims);
                 venue_event_mat_anims_ =
                     load_venue_event_mat_anims(hdr_path_, ark_path_,
                                                venue_geom);
+                pump_loading();
                 venue_env_anims_ =
                     load_venue_env_anims(hdr_path_, ark_path_, venue_geom);
+                pump_loading();
                 venue_event_env_anims_ =
                     load_venue_event_env_anims(hdr_path_, ark_path_,
                                                venue_geom);
+                pump_loading();
                 venue_light_anims_ =
                     load_venue_light_anims(hdr_path_, ark_path_, venue_geom);
+                pump_loading();
                 venue_event_light_anims_ =
                     load_venue_event_light_anims(hdr_path_, ark_path_,
                                                  venue_geom);
+                pump_loading();
                 venue_event_particle_systems_ =
                     load_venue_event_particles(hdr_path_, ark_path_,
                                                venue_geom);
+                pump_loading();
                 venue_direct_particle_anims_ =
                     load_direct_venue_particle_anims(hdr_path_, ark_path_,
                                                      venue_geom);
+                pump_loading();
                 venue_camera_fov_anims_ =
                     load_venue_camera_fov_anims(hdr_path_, ark_path_,
                                                 venue_geom);
+                pump_loading();
                 log_venue_camera_fov_anim_rndcam_targets(
                     venue_camera_fov_anims_, venue_camera_rndcam_summaries_);
                 venue_event_filters_ =
                     load_venue_event_filters(hdr_path_, ark_path_, venue_geom);
+                pump_loading();
                 venue_filter_mesh_targets_ =
                     load_venue_filter_mesh_targets(hdr_path_, ark_path_,
                                                    venue_geom, venue_scene);
+                pump_loading();
                 venue_event_anim_filters_ =
                     load_venue_anim_filters(hdr_path_, ark_path_, venue_geom,
                                             venue_scene,
                                             &venue_direct_anim_filters_,
                                             &venue_poll_anim_filters_);
+                pump_loading();
                 venue_event_group_visibility_ =
                     load_venue_group_visibility(hdr_path_, ark_path_,
                                                 venue_geom, venue_scene);
+                pump_loading();
                 venue_event_next_links_ =
                     load_venue_event_next_links(hdr_path_, ark_path_,
                                                 venue_geom);
+                pump_loading();
                 venue_event_trigger_gates_ =
                     load_venue_event_trigger_gates(hdr_path_, ark_path_,
                                                    venue_geom);
+                pump_loading();
                 {
                     const VenueScriptData script_data =
                         load_venue_script_handlers(hdr_path_, ark_path_,
                                                    quickplay_rig_->venue);
+                    pump_loading();
                     venue_script_handlers_ = script_data.handlers;
                     venue_script_functions_ = script_data.functions;
                     venue_script_object_handlers_ =
@@ -42816,9 +42909,11 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     venue_event_script_messages_.clear();
                     auto script_objects = load_venue_script_object_instances(
                         hdr_path_, ark_path_, venue_geom);
+                    pump_loading();
                     venue_proxy_objects_ =
                         load_venue_proxy_objects(hdr_path_, ark_path_,
                                                  venue_geom, win);
+                    pump_loading();
                     for (const auto& [name, proxy] : venue_proxy_objects_) {
                         VenueScriptObjectInstance object;
                         object.type = proxy.type.empty() ? "RndDir" : proxy.type;
@@ -42878,6 +42973,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 venue_geom_materials = venue_scene.mats;
                 world_ = std::make_unique<ghogx::render::MiloSceneRenderer>(win);
                 world_->set_scene(std::move(venue_scene), venue_textures);
+                pump_loading();
                 world_->set_transform_parent_overrides(
                     venue_transform_parent_overrides_);
                 world_->set_flare_steps(venue_flare_steps_);
@@ -42937,6 +43033,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 const VenueCameraPolicy camera_policy =
                     load_venue_camera_policy(hdr_path_, ark_path_,
                                              quickplay_rig_->venue);
+                pump_loading();
                 camera_duration_bars_ = camera_policy.duration_bars;
                 reset_world_camera_script_state_like_source(
                     "world_objects_worldbase.dta::intro_start_msg");
@@ -42961,6 +43058,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 camera_keys_ = load_camera_position_keys(
                     hdr_path_, ark_path_, quickplay_rig_->venue,
                     intro_camera.anim);
+                pump_loading();
                 // Native CamShot data is authoritative. The legacy GH1 DTB
                 // reader is only a compatibility fallback for old bundles
                 // that have not been converted yet.
@@ -43252,6 +43350,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     hdr_path_, ark_path_, quickplay_rig_->venue,
                     camera_manager_random_seed_,
                     camera_manager_random_seed_source_.c_str());
+                pump_loading();
                 if (regular_camera_keys_.empty()) {
                     if (require_native_assets_enabled()) {
                         throw std::runtime_error(
@@ -43398,7 +43497,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
             const std::string lighting_milo = venue_assembly.lighting_milo;
             ghogx::milo_scene::Scene lighting_scene;
             if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_,
-                                              lighting_milo, lighting_scene)) {
+                                              lighting_milo, lighting_scene,
+                                              loading_pump_)) {
+                pump_loading();
                 lighting_spotlights_.clear();
                 lighting_spotlights_.reserve(lighting_scene.spotlights.size());
                 lighting_spots_by_name_.clear();
@@ -43468,32 +43569,42 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 }
                 lighting_mat_anims_ =
                     load_venue_mat_anims(hdr_path_, ark_path_, lighting_milo);
+                pump_loading();
                 lighting_event_mat_anims_ =
                     load_venue_event_mat_anims(hdr_path_, ark_path_,
                                                lighting_milo);
+                pump_loading();
                 lighting_env_anims_ =
                     load_venue_env_anims(hdr_path_, ark_path_, lighting_milo);
+                pump_loading();
                 lighting_event_env_anims_ =
                     load_venue_event_env_anims(hdr_path_, ark_path_,
                                                lighting_milo);
+                pump_loading();
                 lighting_light_anims_ =
                     load_venue_light_anims(hdr_path_, ark_path_, lighting_milo);
+                pump_loading();
                 lighting_event_light_anims_ =
                     load_venue_event_light_anims(hdr_path_, ark_path_,
                                                  lighting_milo);
+                pump_loading();
                 lighting_event_particle_systems_ =
                     load_venue_event_particles(hdr_path_, ark_path_,
                                                lighting_milo);
+                pump_loading();
                 lighting_direct_particle_anims_ =
                     load_direct_venue_particle_anims(hdr_path_, ark_path_,
                                                      lighting_milo);
+                pump_loading();
                 lighting_event_anim_filters_ =
                     load_venue_anim_filters(hdr_path_, ark_path_,
                                             lighting_milo, lighting_scene,
                                             &lighting_direct_anim_filters_);
+                pump_loading();
                 lighting_event_group_visibility_ =
                     load_venue_group_visibility(hdr_path_, ark_path_,
                                                 lighting_milo, lighting_scene);
+                pump_loading();
                 merge_venue_event_next_links(
                     venue_event_next_links_,
                     load_venue_event_next_links(hdr_path_, ark_path_,
@@ -43527,6 +43638,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 lighting_presets_ = load_lighting_presets(
                     hdr_path_, ark_path_, quickplay_rig_->venue,
                     &lighting_object_names);
+                pump_loading();
                 log_lighting_light_object_coverage(lighting_scene,
                                                    lighting_presets_,
                                                    venue_lights_,
@@ -43556,7 +43668,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         hdr_path_, ark_path_,
                         std::vector<std::string>{lighting_milo, venue_geom},
                         texture_names_for_scene_and_mat_anims(
-                            lighting_scene, lighting_mat_anims_));
+                            lighting_scene, lighting_mat_anims_),
+                        loading_pump_);
+                pump_loading();
                 lighting_ =
                     std::make_unique<ghogx::render::MiloSceneRenderer>(win);
                 lighting_base_hidden_meshes_.clear();
@@ -43606,6 +43720,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     gh1_arena_spot_route_active_);
                 lighting_->set_scene(std::move(lighting_scene),
                                      lighting_textures);
+                pump_loading();
                 // GH1 Arena owns a single Crowd. Section assembly already
                 // placed these objects in world_; the lighting pass retains
                 // its animation targets, but must not redraw the identical
@@ -43845,6 +43960,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             : 0.0f);
                 }
                 rebuild_worldcrowd_actor_runtime(win);
+                pump_loading();
             }
             performers_.reserve(4);
             std::vector<ghogx::character::CharacterTypeScriptWaypoint>
@@ -43878,6 +43994,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                          std::string(),
                                      int prop_paint_primary = -1,
                                      int prop_paint_secondary = -1) {
+                pump_loading();
                 const bool selected_guitarist_variant =
                     role == "guitarist0" &&
                     diagnostic_character_override_.empty() &&
@@ -44058,7 +44175,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     character = ghogx::character::Character{};
                     char_milo = gh2_char_milo;
                     if (ghogx::character::load_character(
-                            archive.hdr, archive.ark, char_milo, character)) {
+                            archive.hdr, archive.ark, char_milo, character,
+                            loading_pump_)) {
                         character_hdr_path = archive.hdr;
                         character_ark_path = archive.ark;
                         character_archive_role = archive.role;
@@ -44075,7 +44193,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     character = ghogx::character::Character{};
                     char_milo = gh1_char_milo;
                     if (ghogx::character::load_character(
-                            archive.hdr, archive.ark, char_milo, character)) {
+                            archive.hdr, archive.ark, char_milo, character,
+                            loading_pump_)) {
                         character_hdr_path = archive.hdr;
                         character_ark_path = archive.ark;
                         character_archive_role = archive.role;
@@ -44116,7 +44235,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         ghogx::character::Character face;
                         if (ghogx::character::load_character(
                                 character_hdr_path, character_ark_path,
-                                *face_milo, face)) {
+                                *face_milo, face, loading_pump_)) {
                             const size_t face_meshes = face.meshes.size();
                             const size_t face_morphs = face.morphs.size();
                             append_gh1_face_directory(character,
@@ -44186,7 +44305,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         if (!ghogx::character::load_character(
                                 archive.hdr, archive.ark,
                                 selected_animation_source_model_path,
-                                animation_character)) {
+                                animation_character, loading_pump_)) {
                             continue;
                         }
                         animation_model_name =
@@ -44256,7 +44375,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         if (ghogx::character::load_character(
                                 archive.hdr, archive.ark,
                                 gh2_animation_character_milo,
-                                animation_character)) {
+                                animation_character, loading_pump_)) {
                             animation_char_milo =
                                 gh2_animation_character_milo;
                             animation_gh1_content_layout = false;
@@ -44267,7 +44386,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             if (!ghogx::character::load_character(
                                     archive.hdr, archive.ark,
                                     gh1_animation_character_milo,
-                                    animation_character)) {
+                                    animation_character, loading_pump_)) {
                                 continue;
                             }
                             animation_char_milo =
@@ -44365,9 +44484,11 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             prioritize_selected_driver_milo(driver_name,
                                                             candidates);
                             for (const auto& candidate : candidates) {
+                                pump_loading();
                                 if (load_clip_first(out, animation_hdr_path,
                                                     animation_ark_path,
-                                                    candidate, native_names)) {
+                                                    candidate, native_names,
+                                                    loading_pump_)) {
                                     return true;
                                 }
                             }
@@ -44389,9 +44510,11 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             prioritize_selected_driver_milo(driver_name,
                                                             candidates);
                             for (const auto& candidate : candidates) {
+                                pump_loading();
                                 if (load_clip_first(out, animation_hdr_path,
                                                     animation_ark_path,
-                                                    candidate, native_names)) {
+                                                    candidate, native_names,
+                                                    loading_pump_)) {
                                     return true;
                                 }
                             }
@@ -44417,7 +44540,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 };
                 auto textures = ghogx::asset::load_milo_textures(
                     character_hdr_path, character_ark_path, char_milo,
-                    character.texture_names());
+                    character.texture_names(), loading_pump_);
+                pump_loading();
 
                 const bool external_bass_replacement =
                     role == "bassist" &&
@@ -44561,6 +44685,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                 perf.renderer =
                     std::make_unique<ghogx::character::CharRenderer>(win);
                 perf.renderer->set_character(std::move(character), textures);
+                pump_loading();
                 if (external_bass_replacement) {
                     const bool hidden =
                         perf.renderer->set_object_showing("guitar.mesh",
@@ -45013,7 +45138,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         base_ark_path_.empty() ? ark_path_ : base_ark_path_;
                     bool prop_loaded = ghogx::milo_scene::load_scene(
                         prop_hdr_path, prop_ark_path, resolved_prop_milo,
-                        prop_scene);
+                        prop_scene, loading_pump_);
+                    pump_loading();
                     if (!prop_loaded &&
                         (lower_ascii(prop_hdr_path) !=
                              lower_ascii(character_hdr_path) ||
@@ -45022,7 +45148,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         prop_scene = {};
                         prop_loaded = ghogx::milo_scene::load_scene(
                             character_hdr_path, character_ark_path,
-                            resolved_prop_milo, prop_scene);
+                            resolved_prop_milo, prop_scene, loading_pump_);
                         if (prop_loaded) {
                             prop_hdr_path = character_hdr_path;
                             prop_ark_path = character_ark_path;
@@ -45041,7 +45167,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             prop_scene = {};
                             prop_loaded = ghogx::milo_scene::load_scene(
                                 character_hdr_path, character_ark_path,
-                                resolved_prop_milo, prop_scene);
+                                resolved_prop_milo, prop_scene,
+                                loading_pump_);
                             if (prop_loaded) {
                                 prop_hdr_path = character_hdr_path;
                                 prop_ark_path = character_ark_path;
@@ -45053,7 +45180,8 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                                        prop_material);
                         auto prop_textures = ghogx::asset::load_milo_textures(
                             prop_hdr_path, prop_ark_path, resolved_prop_milo,
-                            texture_names_for_scene(prop_scene));
+                            texture_names_for_scene(prop_scene), loading_pump_);
+                        pump_loading();
                         if (prop_paint_primary >= 0) {
                             const auto paint_diff =
                                 ghogx::asset::load_milo_texture_named(
@@ -45076,6 +45204,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         perf.renderer->set_attached_prop(
                             std::move(prop_scene), prop_textures,
                             prop_attach_bone);
+                        pump_loading();
                         perf.prop_milo_ref = resolved_prop_milo;
                         std::fprintf(
                             stderr,
@@ -45128,23 +45257,27 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         [&](std::string_view group_name,
                             std::vector<Performer::Gh1WalkClip>&
                                 destination) {
+                            pump_loading();
                             const auto group =
                                 ghogx::character::load_clip_group(
                                     animation_hdr_path,
                                     animation_ark_path,
                                     main_anim_milos,
                                     std::string(group_name));
+                            pump_loading();
                             for (const auto& clip_name : group.clips) {
+                                pump_loading();
                                 ghogx::character::CharClip clip;
                                 if (load_clip_first_from_milos(
                                         clip, animation_hdr_path,
                                         animation_ark_path,
                                         main_anim_milos,
                                         std::vector<std::string>{
-                                            clip_name})) {
+                                            clip_name}, loading_pump_)) {
                                     destination.push_back(
                                         {std::move(clip), {}});
                                 }
+                                pump_loading();
                             }
                             return group;
                         };
@@ -45188,15 +45321,17 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     !main_clip_search.driver_authoritative) {
                     load_clip_first(perf.idle_clip, animation_hdr_path,
                                     animation_ark_path,
-                                    anim_milo, idle_names);
+                                    anim_milo, idle_names, loading_pump_);
                 }
+                pump_loading();
                 if (!load_driver_clip_first(perf.intro_clip, "main.drv",
                                             intro_names) &&
                     !main_clip_search.driver_authoritative) {
                     load_clip_first(perf.intro_clip, animation_hdr_path,
                                     animation_ark_path,
-                                    anim_milo, intro_names);
+                                    anim_milo, intro_names, loading_pump_);
                 }
+                pump_loading();
                 const auto ordered_active_names =
                     clip_candidates_by_anim_tempo(active_names,
                                                   rig_anim_tempo);
@@ -45206,8 +45341,10 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                                animation_hdr_path,
                                                animation_ark_path,
                                                main_anim_milos,
-                                               ordered_active_names);
+                                               ordered_active_names,
+                                               loading_pump_);
                 }
+                pump_loading();
                 std::vector<std::string> gh1_body_acps;
                 std::vector<std::string> gh1_finger_acps;
                 auto load_gh1_inventory_clip =
@@ -45685,14 +45822,17 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                            character_hdr_path,
                                            character_ark_path, face_milos,
                                            std::vector<std::string>{"neutral"});
+                pump_loading();
                 keep_face_channels(perf.face_base_clip);
                 load_clip_first_from_milos(
                     perf.face_visemes_clip, character_hdr_path,
                     character_ark_path, face_milos,
                     std::vector<std::string>{"visemes"});
+                pump_loading();
                 keep_face_channels(perf.face_visemes_clip);
                 if (!active_group_names.empty()) {
                     for (const auto& clip_name : active_group_names) {
+                        pump_loading();
                         ghogx::character::CharClip clip;
                         if (load_clip_first_from_milos(
                                 clip, animation_hdr_path,
@@ -45703,6 +45843,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             clip.name = clip_name;
                             perf.active_group_clips.push_back(std::move(clip));
                         }
+                        pump_loading();
                     }
                     if (!perf.active_group_clips.empty()) {
                         if (const auto selected =
@@ -45719,6 +45860,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     }
                 }
                 if (perf.role == "guitarist0") {
+                    pump_loading();
                     const auto star_power_group =
                         ghogx::character::load_clip_group(
                             animation_hdr_path, animation_ark_path,
@@ -45726,6 +45868,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             "star_power");
                     perf.star_power_group_which = star_power_group.which;
                     for (const auto& clip_name : star_power_group.clips) {
+                        pump_loading();
                         ghogx::character::CharClip clip;
                         if (load_clip_first_from_milos(
                                 clip, animation_hdr_path,
@@ -45734,6 +45877,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             perf.star_power_group_clips.push_back(
                                 std::move(clip));
                         }
+                        pump_loading();
                     }
                     std::fprintf(
                         stderr,
@@ -45745,6 +45889,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     load_char_clip_group(animation_hdr_path,
                                          animation_ark_path,
                                          main_anim_milos, "sync_jump");
+                pump_loading();
                 if (band_jump_names.empty()) {
                     if (perf.role == "bassist") {
                         band_jump_names = {"bassist_band_jump", "band_jump"};
@@ -45763,6 +45908,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                                    main_anim_milos,
                                                    band_jump_names);
                     }
+                    pump_loading();
                 }
                 if (perf.band_jump_clip.loaded) {
                     std::fprintf(
@@ -45786,6 +45932,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             animation_ark_path,
                             main_anim_milos, drummer_active_allbeat_names);
                     }
+                    pump_loading();
                     const auto drummer_active_double_names =
                         clip_candidates_by_anim_tempo(
                             {"drummer_active_medium_double",
@@ -45799,6 +45946,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             animation_ark_path,
                             main_anim_milos, drummer_active_double_names);
                     }
+                    pump_loading();
                     const auto drummer_active_half_names =
                         clip_candidates_by_anim_tempo(
                             {"drummer_active_medium_half",
@@ -45812,6 +45960,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             animation_ark_path,
                             main_anim_milos, drummer_active_half_names);
                     }
+                    pump_loading();
                     const auto drummer_active_nosnare_names =
                         clip_candidates_by_anim_tempo(
                             {"drummer_active_medium_nosnare",
@@ -45825,6 +45974,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             animation_ark_path,
                             main_anim_milos, drummer_active_nosnare_names);
                     }
+                    pump_loading();
                     if (animation_gh1_content_layout) {
                         const std::string tempo =
                             rig_anim_tempo == "kTempoFast" ? "fast" : "medium";
@@ -45848,6 +45998,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             {"_active_" + tempo + "_nosnare",
                              "_active_medium_nosnare",
                              "_active_fast_nosnare"});
+                        pump_loading();
                     }
                 }
                 auto& hand_character = perf.renderer->character();
@@ -45971,6 +46122,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                             animation_ark_path, strum_milo,
                                             {"strum_open"});
                     }
+                    pump_loading();
                     keep_hand_overlay_channels(perf.strum_open_clip);
                     if (!load_driver_clip_first(
                             perf.strum_clip, "right_hand.drv",
@@ -45988,9 +46140,11 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                 {"strum_short_01", "strum_long_01",
                                  "strum_pick_01"});
                     }
+                    pump_loading();
                     keep_hand_overlay_channels(perf.strum_clip);
                     for (const auto& clip_name :
                          all_strum_hand_clip_names(strum_hand_maps_)) {
+                        pump_loading();
                         if (clip_name == "strum_open") continue;
                         ghogx::character::CharClip named_clip;
                         const std::vector<std::string> names{clip_name};
@@ -46010,12 +46164,14 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             perf.strum_named_clips[clip_name] =
                                 std::move(named_clip);
                         }
+                        pump_loading();
                     }
                     static const char* kLaneFretClips[5] = {
                         "finger_hold_index", "finger_hold_middle",
                         "finger_hold_ring", "finger_hold_pinky",
                         "finger_hold_pinky_hi"};
                     for (const char* clip_name : kLaneFretClips) {
+                        pump_loading();
                         ghogx::character::CharClip lane_clip;
                         if (!load_driver_clip_first(lane_clip, "left_hand.drv",
                                                     {clip_name})) {
@@ -46029,6 +46185,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         }
                         keep_hand_overlay_channels(lane_clip);
                         perf.fret_lane_clips.push_back(std::move(lane_clip));
+                        pump_loading();
                     }
                     if (!load_driver_clip_first(
                             perf.fret_open_clip, "left_hand.drv",
@@ -46042,6 +46199,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                             animation_ark_path, fret_milo,
                                             {"finger_open"});
                     }
+                    pump_loading();
                     keep_hand_overlay_channels(perf.fret_open_clip);
                     if (!load_driver_clip_first(
                             perf.fret_clip, "left_hand.drv",
@@ -46058,9 +46216,11 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                                 {"finger_powerchord_1", "finger_chord_bar",
                                  "finger_open"});
                     }
+                    pump_loading();
                     keep_hand_overlay_channels(perf.fret_clip);
                     for (const auto& clip_name :
                          all_fret_hand_clip_names(fret_hand_maps_)) {
+                        pump_loading();
                         ghogx::character::CharClip named_clip;
                         const std::vector<std::string> names{clip_name};
                         if (!load_driver_clip_names(named_clip, "left_hand.drv",
@@ -46078,6 +46238,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                             perf.fret_named_clips[clip_name] =
                                 std::move(named_clip);
                         }
+                        pump_loading();
                     }
                     const bool right_hand_loaded =
                         perf.strum_open_clip.loaded || perf.strum_clip.loaded ||
@@ -46280,9 +46441,15 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     runtime.clip_catalog =
                         ghogx::character::load_clip_catalog(
                             animation_hdr_path, animation_ark_path,
-                            runtime.milo_paths);
+                            runtime.milo_paths, loading_pump_);
                     if (source_servo_requested) {
+                        std::unordered_set<std::string> binding_milos;
                         for (const auto& catalog_entry : runtime.clip_catalog) {
+                            if (!binding_milos
+                                     .insert(catalog_entry.milo_path)
+                                     .second) {
+                                continue;
+                            }
                             auto binding =
                                 ghogx::character::load_gh2_clip_set_binding(
                                     animation_hdr_path, animation_ark_path,
@@ -46312,6 +46479,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                     }
                     perf.authored_drivers.emplace(
                         driver.name, std::move(runtime));
+                    pump_loading();
                 }
                 const bool authored_main_driver_available =
                     perf.authored_drivers.find("main.drv") !=
@@ -46429,6 +46597,7 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         stored.role.c_str(), stored.source_servos.size(),
                         stored.authored_drivers.size());
                 }
+                pump_loading();
             };
 
             const std::string equipped_guitar_outfit =
@@ -46574,7 +46743,9 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         "_drums.milo_ps2";
                     ghogx::milo_scene::Scene drums_scene;
                     if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_,
-                                                      drums_milo, drums_scene)) {
+                                                      drums_milo, drums_scene,
+                                                      loading_pump_)) {
+                        pump_loading();
                         if (venue_chars_scene_loaded_) {
                             const size_t lights_before = drums_scene.lights.size();
                             const size_t environs_before =
@@ -46592,17 +46763,19 @@ void Gameplay::draw_internal(ghogx::render::Window& win,
                         }
                         auto drum_textures = ghogx::asset::load_milo_textures(
                             hdr_path_, ark_path_, drums_milo,
-                            texture_names_for_scene(drums_scene));
+                            texture_names_for_scene(drums_scene), loading_pump_);
                         drum_kit_ =
                             std::make_unique<ghogx::render::MiloSceneRenderer>(
                                 win);
                         drum_kit_->set_scene(std::move(drums_scene),
                                              drum_textures);
+                        pump_loading();
                         drum_kit_->set_default_environment("drummer.env");
                         drum_kit_->set_world_transform(xfm_to_mat4(*start));
                         auto drum_anim_data =
                             load_drum_anim_data(hdr_path_, ark_path_,
                                                 drums_milo);
+                        pump_loading();
                         drum_mesh_transform_anims_ =
                             std::move(drum_anim_data.mesh_transform_anims);
                         drum_event_mesh_targets_ =

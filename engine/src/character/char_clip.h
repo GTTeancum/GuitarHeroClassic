@@ -1502,7 +1502,8 @@ std::shared_ptr<const Gh2ClipSetBinding> load_gh2_clip_set_binding(
 CharClip load_clip(const std::string& hdr_path,
                    const std::string& ark_path,
                    const std::string& milo_path,
-                   const std::string& clip_name);
+                   const std::string& clip_name,
+                   const std::function<void()>& loading_pump = {});
 
 // GH1 stores AnimClipSamples as standalone .acp entries: class/name strings
 // followed by the same serialized sample body used inside later MILOs.
@@ -1520,7 +1521,8 @@ CharClipGroup load_clip_group(
 
 std::vector<CharClipCatalogEntry> load_clip_catalog(
     const std::string& hdr_path, const std::string& ark_path,
-    const std::vector<std::string>& milo_paths);
+    const std::vector<std::string>& milo_paths,
+    const std::function<void()>& loading_pump = {});
 
 std::vector<CharClipGroup> load_clip_group_catalog(
     const std::string& hdr_path, const std::string& ark_path,

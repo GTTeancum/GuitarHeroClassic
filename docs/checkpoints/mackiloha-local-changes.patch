@@ -1,0 +1,57 @@
+diff --git a/Src/Apps/SuperFreq/Apps/Png2TextureApp.cs b/Src/Apps/SuperFreq/Apps/Png2TextureApp.cs
+deleted file mode 100644
+index 06594e0..0000000
+--- a/Src/Apps/SuperFreq/Apps/Png2TextureApp.cs
++++ /dev/null
+@@ -1,32 +0,0 @@
+-﻿using Mackiloha.App;
+-using Mackiloha.App.Extensions;
+-using SuperFreq.Helpers;
+-using SuperFreq.Options;
+-
+-namespace SuperFreq.Apps;
+-
+-public class Png2TextureApp
+-{
+-    protected readonly ILogManager LogManager;
+-
+-    public Png2TextureApp(ILogManager logManager)
+-    {
+-        LogManager = logManager;
+-    }
+-
+-    public void Parse(Png2TextureOptions op)
+-    {
+-        LogManager.SetLogLevel(op.GetLogLevel());
+-
+-        op.UpdateOptions();
+-
+-        var appState = AppState.FromFile(op.InputPath);
+-        appState.UpdateSystemInfo(op.GetSystemInfo());
+-
+-        var bitmap = TextureExtensions.BitmapFromImage(op.InputPath, appState.SystemInfo);
+-        var serializer = appState.GetSerializer();
+-        serializer.WriteToFile(op.OutputPath, bitmap);
+-
+-        Log.Information("Wrote image to \"{outputPath}\"", op.OutputPath);
+-    }
+-}
+diff --git a/Src/Apps/SuperFreq/Options/Png2TextureOptions.cs b/Src/Apps/SuperFreq/Options/Png2TextureOptions.cs
+deleted file mode 100644
+index e7c4570..0000000
+--- a/Src/Apps/SuperFreq/Options/Png2TextureOptions.cs
++++ /dev/null
+@@ -1,13 +0,0 @@
+-﻿using CommandLine;
+-
+-namespace SuperFreq.Options;
+-
+-[Verb("png2tex", HelpText = "Converts HMX texture to png")]
+-public class Png2TextureOptions : GameOptions
+-{
+-    [Value(0, Required = true, MetaName = "pngPath", HelpText = "Path to input png")]
+-    public string InputPath { get; set; }
+-
+-    [Value(1, Required = true, MetaName = "texPath", HelpText = "Path to output texture")]
+-    public string OutputPath { get; set; }
+-}

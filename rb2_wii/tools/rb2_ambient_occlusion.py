@@ -227,7 +227,9 @@ def _rasterize_triangle(
                 continue
             index = y * width + x
             value = a * values[0] + b * values[1] + c * values[2]
-            factors[index] = min(factors[index], value) if coverage[index] else value
+            # Shared/mirrored UVs must not erase a contact shadow with a later,
+            # unoccluded triangle. Use a deterministic conservative union.
+            factors[index] = max(factors[index], value) if coverage[index] else value
             coverage[index] = 1
 
 
@@ -241,9 +243,15 @@ def bake_ambient_occlusion(
     bias: float = 0.06,
     strength: float = 0.15,
 ) -> dict[str, Any]:
-    values, audit = vertex_occlusion(chunks, samples, max_distance, bias)
+    if samples < 1 or max_distance <= 0 or bias <= 0 or not 0 <= strength <= 1:
+        raise ValueError("invalid ambient-occlusion bake settings")
+    # Alpha cards and transparent lenses are neither opaque occluders nor
+    # receivers. Without opacity-aware tracing their triangles cast false
+    # rectangular shadows on otherwise opaque skin/clothing.
+    opaque_chunks = [c for c in chunks if c["material"] not in excluded_materials]
+    values, audit = vertex_occlusion(opaque_chunks, samples, max_distance, bias)
     by_material: dict[str, list[tuple[dict[str, Any], list[float]]]] = {}
-    for chunk, row in zip(chunks, values):
+    for chunk, row in zip(opaque_chunks, values):
         by_material.setdefault(chunk["material"], []).append((chunk, row))
     material_audit: dict[str, Any] = {}
     for material, image in images.items():

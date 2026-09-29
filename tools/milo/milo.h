@@ -17,6 +17,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -100,6 +101,14 @@ struct Directory {
     std::vector<uint8_t> trailing_bytes;
 };
 
+// A short-lived parsed container shared by the loaders that consume different
+// object classes from the same MILO.  Gameplay deliberately clears this cache
+// after world preparation, and menu owners clear it when their screen exits.
+struct InflatedDirectory {
+    std::vector<uint8_t> payload;
+    Directory directory;
+};
+
 // Parse the container header only (no decompression).
 Header parse_header(const std::vector<uint8_t>& bytes);
 
@@ -136,7 +145,8 @@ Container make_object_aligned_container(
 // first 4 bytes of each block are an uncompressed-size prefix before the
 // deflate stream. For MILO_A it's just concatenation.
 std::vector<uint8_t> inflate_payload(const std::vector<uint8_t>& bytes,
-                                     const Header& header);
+                                     const Header& header,
+                                     const std::function<void()>& progress = {});
 
 // Parse the post-decompression object directory. Retail revision-10 GH1
 // boundaries are solved and proven as one complete type/revision-constrained
@@ -146,6 +156,13 @@ std::vector<uint8_t> inflate_payload(const std::vector<uint8_t>& bytes,
 Directory parse_directory(
     const std::vector<uint8_t>& payload,
     const std::function<void()>& progress = {});
+
+std::shared_ptr<const InflatedDirectory> inflate_directory_cached(
+    const std::string& cache_key, const std::vector<uint8_t>& bytes,
+    const Header& header, const std::function<void()>& progress = {});
+std::shared_ptr<const InflatedDirectory> find_inflated_directory_cached(
+    const std::string& cache_key);
+void clear_inflated_directory_cache();
 
 // Serialize the exact structural prefix through the object table and, for
 // revisions 7-16, the external-resource vector. Root/child bodies are not

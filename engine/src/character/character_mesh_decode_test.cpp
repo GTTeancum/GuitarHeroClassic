@@ -4350,6 +4350,20 @@ int main() {
   CHECK(draw_lod1.meshes.count("authored_accessory.mesh") == 1);
   CHECK(draw_lod1.meshes.count("ungrouped_helper.mesh") == 0);
 
+  ghogx::character::Character empty_ui_lod;
+  empty_ui_lod.root_decoded = true;
+  empty_ui_lod.root_lods = {{1.0f, "outfit0_lod0"}};
+  ghogx::milo_scene::GroupObj empty_ui_group;
+  empty_ui_group.name = "outfit0_lod0";
+  empty_ui_lod.groups = {empty_ui_group};
+  ghogx::character::SkinnedMesh resident_ui_mesh;
+  resident_ui_mesh.name = "grim.mesh";
+  empty_ui_lod.meshes.push_back(std::move(resident_ui_mesh));
+  const auto empty_ui_draw =
+      ghogx::character::source_character_draw_closure(empty_ui_lod, 0);
+  CHECK(!empty_ui_draw.authoritative);
+  CHECK(empty_ui_draw.meshes.empty());
+
   std::vector<uint8_t> mesh_hide_body;
   put_u32(mesh_hide_body, 2);  // CharMeshHide revision
   put_u32(mesh_hide_body, 0);  // Hmx::Object fields revision

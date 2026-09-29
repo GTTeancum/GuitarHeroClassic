@@ -149,6 +149,11 @@ class MiloSceneRenderer {
   // frames the orbit camera on the scene bounding box.
   void set_scene(milo_scene::Scene scene,
                  const std::map<std::string, ghogx::asset::Image>& textures);
+  // Release every scene-owned CPU/D3D resource and discard sampled runtime
+  // state.  Menu preview renderers call this when their owning screen unloads
+  // so a later visit cannot inherit meshes, textures, animation samples, or
+  // material/environment overrides from the previous selection.
+  void clear_scene();
   bool select_authored_camera(const std::string& name);
   bool select_scene_panel_camera();
   const std::string& scene_panel_environment() const {

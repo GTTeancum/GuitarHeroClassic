@@ -3,6 +3,7 @@
 #include "ui/menu_font.h"
 
 #include <memory>
+#include <functional>
 #include <string>
 
 namespace ghogx::render {
@@ -31,13 +32,14 @@ class SongIntroOverlay {
              std::string title_override = {},
              std::string artist_override = {},
              std::string caption_override = {});
-  bool prepare();
+  bool prepare(const std::function<void()>& loading_pump = {});
   void draw(double song_time_seconds);
 
  private:
   bool load_text(std::string& title, std::string& caption,
-                 std::string& artist) const;
-  void ensure_loaded();
+                 std::string& artist,
+                 const std::function<void()>& loading_pump = {}) const;
+  void ensure_loaded(const std::function<void()>& loading_pump = {});
 
   ghogx::render::Window& window_;
   MenuFont font_;

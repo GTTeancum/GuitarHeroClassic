@@ -1005,7 +1005,7 @@ class SongProvider : public MetaObject {
     std::vector<Symbol> songs;
     if (!db_) return songs;
     if (node_bool(get_property(Symbol("quickplay")))) {
-      return db_->quickplay_songs();
+      return db_->active_quickplay_songs();
     }
     Symbol venue;
     if (mgr_) {

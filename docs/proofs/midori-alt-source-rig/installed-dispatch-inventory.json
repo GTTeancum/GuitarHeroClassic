@@ -1,0 +1,708 @@
+{
+  "status": "incomplete_call_inventory",
+  "character": "gh3_midori",
+  "stock_character": "rock1",
+  "banks": {
+    "main:char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2": {
+      "stock_clip_count": 113,
+      "covered_clip_names": [
+        "idle_medium_01"
+      ],
+      "missing_clip_names": [
+        "band_jump",
+        "extreme_fast_01",
+        "extreme_fast_02",
+        "extreme_fast_03",
+        "extreme_fast_04",
+        "extreme_medium_01",
+        "extreme_medium_02",
+        "extreme_medium_03",
+        "extreme_medium_04",
+        "extreme_medium_05",
+        "extreme_medium_06",
+        "idle_fast_01",
+        "idle_fast_02",
+        "idle_medium_02",
+        "interactive_01",
+        "intro_01",
+        "intro_02",
+        "intro_03",
+        "lose_01",
+        "lose_02",
+        "lose_03",
+        "lose_idle_1",
+        "multi_fast_01",
+        "multi_fast_02",
+        "multi_medium_01",
+        "multi_medium_02",
+        "special_01",
+        "special_02",
+        "stand_bad_01",
+        "stand_bad_02",
+        "stand_fast_01",
+        "stand_fast_02",
+        "stand_fast_03",
+        "stand_fast_04",
+        "stand_fast_05",
+        "stand_medium_02",
+        "stand_medium_03",
+        "stand_medium_04",
+        "stand_medium_05",
+        "stand_medium_06",
+        "stop_backward_lf_fast",
+        "stop_backward_lf_medium",
+        "stop_backward_rf_fast",
+        "stop_backward_rf_medium",
+        "stop_forward_lf_fast",
+        "stop_forward_lf_medium",
+        "stop_forward_rf_fast",
+        "stop_forward_rf_medium",
+        "stop_left_135_lf_fast",
+        "stop_left_135_lf_medium",
+        "stop_left_135_rf_fast",
+        "stop_left_135_rf_medium",
+        "stop_left_45_lf_fast",
+        "stop_left_45_lf_medium",
+        "stop_left_45_rf_fast",
+        "stop_left_45_rf_medium",
+        "stop_left_90_lf_fast",
+        "stop_left_90_lf_medium",
+        "stop_left_90_rf_fast",
+        "stop_left_90_rf_medium",
+        "stop_right_135_lf_fast",
+        "stop_right_135_lf_medium",
+        "stop_right_135_rf_fast",
+        "stop_right_135_rf_medium",
+        "stop_right_45_lf_fast",
+        "stop_right_45_lf_medium",
+        "stop_right_45_rf_fast",
+        "stop_right_45_rf_medium",
+        "stop_right_90_lf_fast",
+        "stop_right_90_lf_medium",
+        "stop_right_90_rf_fast",
+        "stop_right_90_rf_medium",
+        "turn_backward_fast",
+        "turn_backward_medium",
+        "turn_forward_fast",
+        "turn_forward_medium",
+        "turn_left_135_fast",
+        "turn_left_135_medium",
+        "turn_left_180_fast",
+        "turn_left_180_medium",
+        "turn_left_45_fast",
+        "turn_left_45_medium",
+        "turn_left_90_fast",
+        "turn_left_90_medium",
+        "turn_right_135_fast",
+        "turn_right_135_medium",
+        "turn_right_180_fast",
+        "turn_right_180_medium",
+        "turn_right_45_fast",
+        "turn_right_45_medium",
+        "turn_right_90_fast",
+        "turn_right_90_medium",
+        "walk_backward_fast",
+        "walk_backward_medium",
+        "walk_forward_fast",
+        "walk_forward_medium",
+        "walk_left_fast",
+        "walk_left_medium",
+        "walk_normal_backward_fast",
+        "walk_normal_backward_medium",
+        "walk_normal_forward_fast",
+        "walk_normal_forward_medium",
+        "walk_normal_left_fast",
+        "walk_normal_left_medium",
+        "walk_normal_right_fast",
+        "walk_normal_right_medium",
+        "walk_right_fast",
+        "walk_right_medium",
+        "win_01",
+        "win_02",
+        "win_final",
+        "win_idle_1"
+      ],
+      "missing_group_names": [
+        "bad",
+        "big_exclude",
+        "big_multi_exclude",
+        "extreme",
+        "fest_exclude",
+        "idle",
+        "interact_back",
+        "interact_right",
+        "interact_stage",
+        "intro",
+        "lose",
+        "lose_idle",
+        "multi_exclude",
+        "shared",
+        "small1_exclude",
+        "small1_multi_exclude",
+        "small2_multi_exclude",
+        "solo",
+        "star_power",
+        "sync_head_bang",
+        "sync_jump",
+        "sync_wag",
+        "theatre_exclude",
+        "walk_stop",
+        "walk_turn",
+        "walk_walk",
+        "win",
+        "win_finals",
+        "win_idle"
+      ],
+      "empty_groups": [],
+      "dangling_groups": {},
+      "groups": {
+        "shared": {
+          "stock_members": [
+            "intro_01",
+            "intro_02",
+            "lose_01",
+            "lose_02",
+            "lose_03",
+            "win_01"
+          ],
+          "candidate_members": []
+        },
+        "extreme": {
+          "stock_members": [
+            "extreme_fast_01",
+            "extreme_fast_02",
+            "extreme_fast_04",
+            "extreme_medium_01",
+            "extreme_medium_02",
+            "extreme_medium_03",
+            "extreme_medium_04",
+            "extreme_fast_03",
+            "extreme_medium_05",
+            "extreme_medium_06"
+          ],
+          "candidate_members": []
+        },
+        "win_idle": {
+          "stock_members": [
+            "win_idle_1"
+          ],
+          "candidate_members": []
+        },
+        "bad": {
+          "stock_members": [
+            "stand_bad_01",
+            "stand_bad_02"
+          ],
+          "candidate_members": []
+        },
+        "big_multi_exclude": {
+          "stock_members": [
+            "intro_03"
+          ],
+          "candidate_members": []
+        },
+        "walk_turn": {
+          "stock_members": [
+            "turn_backward_fast",
+            "turn_backward_medium",
+            "turn_forward_fast",
+            "turn_forward_medium",
+            "turn_left_135_fast",
+            "turn_left_135_medium",
+            "turn_left_180_fast",
+            "turn_left_180_medium",
+            "turn_left_45_fast",
+            "turn_left_45_medium",
+            "turn_left_90_fast",
+            "turn_left_90_medium",
+            "turn_right_135_fast",
+            "turn_right_135_medium",
+            "turn_right_180_fast",
+            "turn_right_180_medium",
+            "turn_right_45_fast",
+            "turn_right_45_medium",
+            "turn_right_90_fast",
+            "turn_right_90_medium"
+          ],
+          "candidate_members": []
+        },
+        "solo": {
+          "stock_members": [
+            "stand_fast_01",
+            "stand_fast_02",
+            "stand_fast_03",
+            "stand_medium_03",
+            "stand_medium_04",
+            "stand_fast_04",
+            "stand_fast_05",
+            "stand_medium_02",
+            "stand_medium_05",
+            "stand_medium_06"
+          ],
+          "candidate_members": []
+        },
+        "sync_jump": {
+          "stock_members": [
+            "band_jump"
+          ],
+          "candidate_members": []
+        },
+        "normal": {
+          "stock_members": [
+            "stand_fast_01",
+            "stand_fast_02",
+            "stand_fast_03",
+            "stand_medium_03",
+            "stand_medium_04",
+            "stand_fast_04",
+            "stand_fast_05",
+            "stand_medium_02",
+            "stand_medium_05",
+            "stand_medium_06"
+          ],
+          "candidate_members": [
+            "idle_medium_01",
+            "gh3_source_idle",
+            "idle",
+            "idle1",
+            "ui_loop"
+          ]
+        },
+        "big_exclude": {
+          "stock_members": [
+            "intro_03"
+          ],
+          "candidate_members": []
+        },
+        "idle": {
+          "stock_members": [
+            "idle_fast_01",
+            "idle_medium_01",
+            "idle_fast_02",
+            "idle_medium_02"
+          ],
+          "candidate_members": []
+        },
+        "walk_stop": {
+          "stock_members": [
+            "stop_backward_lf_fast",
+            "stop_backward_lf_medium",
+            "stop_backward_rf_fast",
+            "stop_backward_rf_medium",
+            "stop_forward_lf_fast",
+            "stop_forward_lf_medium",
+            "stop_forward_rf_fast",
+            "stop_forward_rf_medium",
+            "stop_left_135_lf_fast",
+            "stop_left_135_lf_medium",
+            "stop_left_135_rf_fast",
+            "stop_left_135_rf_medium",
+            "stop_left_45_lf_fast",
+            "stop_left_45_lf_medium",
+            "stop_left_45_rf_fast",
+            "stop_left_45_rf_medium",
+            "stop_left_90_lf_fast",
+            "stop_left_90_lf_medium",
+            "stop_left_90_rf_fast",
+            "stop_left_90_rf_medium",
+            "stop_right_135_lf_fast",
+            "stop_right_135_lf_medium",
+            "stop_right_135_rf_fast",
+            "stop_right_135_rf_medium",
+            "stop_right_45_lf_fast",
+            "stop_right_45_lf_medium",
+            "stop_right_45_rf_fast",
+            "stop_right_45_rf_medium",
+            "stop_right_90_lf_fast",
+            "stop_right_90_lf_medium",
+            "stop_right_90_rf_fast",
+            "stop_right_90_rf_medium"
+          ],
+          "candidate_members": []
+        },
+        "fest_exclude": {
+          "stock_members": [
+            "extreme_medium_02",
+            "win_02",
+            "lose_03",
+            "intro_03"
+          ],
+          "candidate_members": []
+        },
+        "win": {
+          "stock_members": [
+            "win_01",
+            "win_02"
+          ],
+          "candidate_members": []
+        },
+        "win_finals": {
+          "stock_members": [
+            "win_final"
+          ],
+          "candidate_members": []
+        },
+        "small1_exclude": {
+          "stock_members": [
+            "intro_03",
+            "win_01"
+          ],
+          "candidate_members": []
+        },
+        "small2_multi_exclude": {
+          "stock_members": [
+            "intro_03"
+          ],
+          "candidate_members": []
+        },
+        "multi_exclude": {
+          "stock_members": [],
+          "candidate_members": []
+        },
+        "intro": {
+          "stock_members": [
+            "intro_01",
+            "intro_02",
+            "intro_03"
+          ],
+          "candidate_members": []
+        },
+        "lose_idle": {
+          "stock_members": [
+            "lose_idle_1"
+          ],
+          "candidate_members": []
+        },
+        "sync_head_bang": {
+          "stock_members": [
+            "multi_fast_02",
+            "multi_medium_02"
+          ],
+          "candidate_members": []
+        },
+        "interact_stage": {
+          "stock_members": [
+            "interactive_01"
+          ],
+          "candidate_members": []
+        },
+        "small1_multi_exclude": {
+          "stock_members": [
+            "intro_03",
+            "win_01"
+          ],
+          "candidate_members": []
+        },
+        "interact_right": {
+          "stock_members": [],
+          "candidate_members": []
+        },
+        "sync_wag": {
+          "stock_members": [
+            "multi_fast_01",
+            "multi_medium_01"
+          ],
+          "candidate_members": []
+        },
+        "lose": {
+          "stock_members": [
+            "lose_01",
+            "lose_02",
+            "lose_03"
+          ],
+          "candidate_members": []
+        },
+        "interact_back": {
+          "stock_members": [],
+          "candidate_members": []
+        },
+        "walk_walk": {
+          "stock_members": [
+            "walk_backward_fast",
+            "walk_backward_medium",
+            "walk_forward_fast",
+            "walk_forward_medium",
+            "walk_left_fast",
+            "walk_left_medium",
+            "walk_normal_backward_fast",
+            "walk_normal_backward_medium",
+            "walk_normal_forward_fast",
+            "walk_normal_forward_medium",
+            "walk_normal_left_fast",
+            "walk_normal_left_medium",
+            "walk_normal_right_fast",
+            "walk_normal_right_medium",
+            "walk_right_fast",
+            "walk_right_medium"
+          ],
+          "candidate_members": []
+        },
+        "star_power": {
+          "stock_members": [
+            "special_01",
+            "special_02"
+          ],
+          "candidate_members": []
+        },
+        "theatre_exclude": {
+          "stock_members": [
+            "intro_03"
+          ],
+          "candidate_members": []
+        }
+      },
+      "role": "main",
+      "stock_path": "char/rock1/anims/gen/rock1_main.milo_ps2",
+      "candidate_path": "char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2",
+      "stock_sha256": "a3a5b62dfd45953c457d37b9e97f64e8fb7958afc7718527774829349394e4b9",
+      "candidate_sha256": "1d8e896004ebf6a0295f6955f266845b4fc912b1a38dd9d820ad02c3abeba685",
+      "outfits": [
+        "gh3_midori_1",
+        "gh3_midori_2"
+      ],
+      "duplicate_names": {
+        "stock_clips": [],
+        "stock_groups": [],
+        "candidate_clips": [],
+        "candidate_groups": []
+      }
+    },
+    "ui:char/gh3_midori/anims/gen/gh3_midori_ui.milo_ps2": {
+      "stock_clip_count": 2,
+      "covered_clip_names": [
+        "ui_loop"
+      ],
+      "missing_clip_names": [
+        "ui_enter"
+      ],
+      "missing_group_names": [],
+      "empty_groups": [],
+      "dangling_groups": {},
+      "groups": {},
+      "role": "ui",
+      "stock_path": "char/rock1/anims/gen/rock1_ui.milo_ps2",
+      "candidate_path": "char/gh3_midori/anims/gen/gh3_midori_ui.milo_ps2",
+      "stock_sha256": "2ba0719f8d511c28cec17dde7ede39ae3de1c1b638b3a539522c25ab4e30ecfa",
+      "candidate_sha256": "1d8e896004ebf6a0295f6955f266845b4fc912b1a38dd9d820ad02c3abeba685",
+      "outfits": [
+        "gh3_midori_1",
+        "gh3_midori_2"
+      ],
+      "duplicate_names": {
+        "stock_clips": [],
+        "stock_groups": [],
+        "candidate_clips": [],
+        "candidate_groups": []
+      }
+    },
+    "fret:char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2": {
+      "stock_clip_count": 25,
+      "covered_clip_names": [
+        "finger_chord_bar",
+        "finger_hold_index",
+        "finger_hold_middle",
+        "finger_hold_pinky",
+        "finger_hold_pinky_hi",
+        "finger_hold_ring",
+        "finger_open",
+        "finger_powerchord_1",
+        "finger_powerchord_2"
+      ],
+      "missing_clip_names": [
+        "finger_chord_cmajor",
+        "finger_chord_dmajor",
+        "finger_chord_openmajor",
+        "finger_chord_openminor",
+        "finger_chord_seventh",
+        "finger_hold_index_hi",
+        "finger_hold_middle_hi",
+        "finger_hold_ring_hi",
+        "finger_vibrato_index",
+        "finger_vibrato_index_hi",
+        "finger_vibrato_middle",
+        "finger_vibrato_middle_hi",
+        "finger_vibrato_pinky",
+        "finger_vibrato_pinky_hi",
+        "finger_vibrato_ring",
+        "finger_vibrato_ring_hi"
+      ],
+      "missing_group_names": [],
+      "empty_groups": [],
+      "dangling_groups": {},
+      "groups": {},
+      "role": "fret",
+      "stock_path": "char/rock1/anims/gen/rock1_fret.milo_ps2",
+      "candidate_path": "char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2",
+      "stock_sha256": "56ab184108ade586ddd4d5d6d5f9ee2997dd7582fe8ad1e1550a9a0d431601d3",
+      "candidate_sha256": "5bb04b0908ee11af614663ab46c02182bc90100af76cf0916054f4de6ff1fc86",
+      "outfits": [
+        "gh3_midori_1",
+        "gh3_midori_2"
+      ],
+      "duplicate_names": {
+        "stock_clips": [],
+        "stock_groups": [],
+        "candidate_clips": [],
+        "candidate_groups": []
+      }
+    },
+    "strum:char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2": {
+      "stock_clip_count": 17,
+      "covered_clip_names": [
+        "strum_long_01",
+        "strum_open",
+        "strum_pick_01",
+        "strum_short_01"
+      ],
+      "missing_clip_names": [
+        "bass_pluck_middle",
+        "bass_pluck_open",
+        "bass_pluck_pointer",
+        "bass_slap_open",
+        "bass_slap_pull",
+        "bass_slap_thumb",
+        "strum_long_02",
+        "strum_long_03",
+        "strum_long_04",
+        "strum_pick_02",
+        "strum_short_02",
+        "strum_short_03",
+        "strum_short_04"
+      ],
+      "missing_group_names": [],
+      "empty_groups": [],
+      "dangling_groups": {},
+      "groups": {},
+      "role": "strum",
+      "stock_path": "char/rock1/anims/gen/rock1_strum.milo_ps2",
+      "candidate_path": "char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2",
+      "stock_sha256": "2a416333bcabc6c1513d4b4c8f471f5c5e189f4a038cbf3181da6958b6873c5d",
+      "candidate_sha256": "cd2a1b33f7f47e0ec24f38af22d4143111827f4844f93bbbd2782ce42ca25c21",
+      "outfits": [
+        "gh3_midori_1",
+        "gh3_midori_2"
+      ],
+      "duplicate_names": {
+        "stock_clips": [],
+        "stock_groups": [],
+        "candidate_clips": [],
+        "candidate_groups": []
+      }
+    }
+  },
+  "declared_mappings": [
+    {
+      "recipe": "midori_1.json",
+      "role": "main",
+      "source": "anims/band/guitarist/midori/gh3_guit_mido_a_med_idle01.ska.ps2",
+      "target_aliases": [
+        "idle",
+        "idle1",
+        "idle_medium_01",
+        "ui_loop",
+        "gh3_source_idle"
+      ],
+      "semantic_verification": "not_established_by_name_audit"
+    },
+    {
+      "recipe": "midori_1.json",
+      "role": "strum",
+      "source": "gh3_hnd_guit_strum_mido_norm_l01_d.ska.ps2",
+      "target_aliases": [
+        "strum_long_01"
+      ],
+      "semantic_verification": "not_established_by_name_audit"
+    },
+    {
+      "recipe": "midori_1.json",
+      "role": "strum",
+      "source": "gh3_hnd_guit_strum_mido_norm_s01_d.ska.ps2",
+      "target_aliases": [
+        "strum_short_01"
+      ],
+      "semantic_verification": "not_established_by_name_audit"
+    },
+    {
+      "recipe": "midori_1.json",
+      "role": "strum",
+      "source": "gh3_hnd_guit_strum_mido_norm_m01_d.ska.ps2",
+      "target_aliases": [
+        "strum_pick_01"
+      ],
+      "semantic_verification": "not_established_by_name_audit"
+    },
+    {
+      "recipe": "midori_1.json",
+      "role": "strum",
+      "source": "gh3_hnd_guit_strum_mido_nostrum_d.ska.ps2",
+      "target_aliases": [
+        "strum_open"
+      ],
+      "semantic_verification": "not_established_by_name_audit"
+    },
+    {
+      "recipe": "midori_1.json",
+      "role": "fret",
+      "source": "gh3_hnd_guit_chord_mid_empty_d.ska.ps2",
+      "target_aliases": [
+        "finger_open"
+      ],
+      "semantic_verification": "not_established_by_name_audit"
+    },
+    {
+      "recipe": "midori_1.json",
+      "role": "fret",
+      "source": "gh3_hnd_guit_chord_mid_bar1_d.ska.ps2",
+      "target_aliases": [
+        "finger_powerchord_1",
+        "finger_hold_index"
+      ],
+      "semantic_verification": "not_established_by_name_audit"
+    },
+    {
+      "recipe": "midori_1.json",
+      "role": "fret",
+      "source": "gh3_hnd_guit_chord_mid_bar2_d.ska.ps2",
+      "target_aliases": [
+        "finger_powerchord_2",
+        "finger_hold_middle"
+      ],
+      "semantic_verification": "not_established_by_name_audit"
+    },
+    {
+      "recipe": "midori_1.json",
+      "role": "fret",
+      "source": "gh3_hnd_guit_chord_mid_bar3_d.ska.ps2",
+      "target_aliases": [
+        "finger_hold_ring"
+      ],
+      "semantic_verification": "not_established_by_name_audit"
+    },
+    {
+      "recipe": "midori_1.json",
+      "role": "fret",
+      "source": "gh3_hnd_guit_chord_mid_bar4_d.ska.ps2",
+      "target_aliases": [
+        "finger_hold_pinky"
+      ],
+      "semantic_verification": "not_established_by_name_audit"
+    },
+    {
+      "recipe": "midori_1.json",
+      "role": "fret",
+      "source": "gh3_hnd_guit_chord_mid_bar5_d.ska.ps2",
+      "target_aliases": [
+        "finger_hold_pinky_hi",
+        "finger_chord_bar"
+      ],
+      "semantic_verification": "not_established_by_name_audit"
+    }
+  ],
+  "fully_compatible": false,
+  "remaining_verification": [
+    "Determine required runtime calls versus optional stock variants from GH2 dispatch contracts",
+    "Verify source action semantics for each target call and group",
+    "Verify selection flags, tempo, looping, transitions, events and layer ownership",
+    "Exercise actual dispatch with runtime traces and visual proof"
+  ]
+}

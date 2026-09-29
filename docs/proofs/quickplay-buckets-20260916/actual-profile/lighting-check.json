@@ -1,0 +1,53 @@
+{
+  "exit_code": 0,
+  "executable_sha256": "3b7ba20a5246db1e484d02d8a38df068077ff1d0ca21619f3181d0a11cb81582",
+  "command": [
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\ghogx_app.exe",
+    "--menu",
+    "--ark-dir",
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN",
+    "--fixed-dt",
+    "0.016666667",
+    "--mute-audio",
+    "--diagnostic-autoplay",
+    "--frames",
+    "900"
+  ],
+  "additional_environment": {
+    "GHOGX_LOG_PERFORMER_LIGHTING": "1"
+  },
+  "evidence": [
+    "[flow] Quickplay handoff: selection=preferences character=rb2_penelope_mcqueen outfit=rb2_penelope_mcqueen_default guitar=rb2_guitar_jaguar03 skin=rb2_guitar_jaguar03_woodmaple_skin venue=gh1_big_club",
+    "[flow] gameplay ready: ironman diff=1 autoplay=1",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_000.mesh material=penelope_hair_hippybangs.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_028.mesh material=penelope_hair_maohat.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_029.mesh material=penelope_torso_puffedsleeves_necklace.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_031.mesh material=penelope_torso_puffedsleeves.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_050.mesh material=penelope_torso_skin.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_054.mesh material=penelope_legs_socks.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_058.mesh material=penelope_puffyskirt.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_080.mesh material=penelope_feet_thighhighheel.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_098.mesh material=penelope_eyes.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_100.mesh material=penelope_eyebrows.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_102.mesh material=penelope_head_skin.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)",
+    "[char3d] performer lighting mesh=rb2_penelope_mcqueen_113.mesh material=penelope_mouth.mat scene=1 use_env=0 prelit=1 fixed_lit=0 color_mod=(1.000 1.000 1.000 1.000)"
+  ],
+  "profile_copy_bytes_unchanged": true,
+  "penelope_mesh_count": 141,
+  "penelope_unlit_mesh_count": 141,
+  "material_states": {
+    "penelope_hair_hippybangs.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 28,
+    "penelope_hair_maohat.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 1,
+    "penelope_torso_puffedsleeves_necklace.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 2,
+    "penelope_torso_puffedsleeves.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 19,
+    "penelope_torso_skin.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 20,
+    "penelope_legs_socks.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 4,
+    "penelope_puffyskirt.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 22,
+    "penelope_feet_thighhighheel.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 2,
+    "penelope_eyes.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 2,
+    "penelope_eyebrows.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 2,
+    "penelope_head_skin.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 26,
+    "penelope_mouth.mat scene=1 use_env=0 prelit=1 fixed_lit=0": 13
+  },
+  "finding": "All logged Penelope meshes disable venue lighting: scene=1, use_env=0, fixed_lit=0. Installed conversion material flags are the immediate cause."
+}

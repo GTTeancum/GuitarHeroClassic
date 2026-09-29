@@ -28,11 +28,13 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <future>
 #include <map>
 #include <optional>
 #include <set>
@@ -865,15 +867,26 @@ std::optional<float> track_panel_y_per_second_from_body(
   return std::nullopt;
 }
 
+std::shared_ptr<const gh::milo::InflatedDirectory> load_cached_milo_directory(
+    const gh::ark::ArkV3Reader& ark, const gh::ark::Entry& entry,
+    const std::string& ark_path,
+    const std::function<void()>& loading_pump = {}) {
+  const std::string key = ark_path + "\n" + entry.full_path;
+  if (auto cached = gh::milo::find_inflated_directory_cached(key))
+    return cached;
+  const auto bytes = ark.read_entry_shared(entry, {ark_path}, loading_pump);
+  const auto header = gh::milo::parse_header(*bytes);
+  return gh::milo::inflate_directory_cached(key, *bytes, header, loading_pump);
+}
+
 std::optional<float> load_track_panel_y_per_second(
     const gh::ark::ArkV3Reader& ark, const std::string& ark_path) {
   auto entry = ark.find("track/gen/track.milo_ps2");
   if (!entry) entry = ark.find("../../system/run/track/gen/track.milo_ps2");
   if (!entry) return std::nullopt;
-  const auto bytes = ark.read_entry(*entry, {ark_path});
-  const auto hdr = gh::milo::parse_header(bytes);
-  const auto payload = gh::milo::inflate_payload(bytes, hdr);
-  const auto dir = gh::milo::parse_directory(payload);
+  const auto decoded = load_cached_milo_directory(ark, *entry, ark_path);
+  const auto& payload = decoded->payload;
+  const auto& dir = decoded->directory;
   if (dir.dir_type != "PanelDir" || dir.dir_name != "track" ||
       dir.dir_entry_offset + dir.dir_entry_size > payload.size()) {
     return std::nullopt;
@@ -1063,10 +1076,9 @@ std::vector<HighwayRenderer::QuatAnimKey> load_track_transanim_rotation_keys(
     auto entry = ark.find("track/gen/track.milo_ps2");
     if (!entry) entry = ark.find("../../system/run/track/gen/track.milo_ps2");
     if (!entry) return out;
-    const auto bytes = ark.read_entry(*entry, {ark_path});
-    const auto hdr = gh::milo::parse_header(bytes);
-    const auto payload = gh::milo::inflate_payload(bytes, hdr);
-    const auto dir = gh::milo::parse_directory(payload);
+    const auto decoded = load_cached_milo_directory(ark, *entry, ark_path);
+    const auto& payload = decoded->payload;
+    const auto& dir = decoded->directory;
     for (const auto& de : dir.entries) {
       if (de.type != "TransAnim" || de.name != anim_name ||
           de.offset + de.size > payload.size()) {
@@ -1092,10 +1104,9 @@ HighwayRenderer::MeshTransformAnim load_track_transanim_transform_anim(
     auto entry = ark.find("track/gen/track.milo_ps2");
     if (!entry) entry = ark.find("../../system/run/track/gen/track.milo_ps2");
     if (!entry) return out;
-    const auto bytes = ark.read_entry(*entry, {ark_path});
-    const auto hdr = gh::milo::parse_header(bytes);
-    const auto payload = gh::milo::inflate_payload(bytes, hdr);
-    const auto dir = gh::milo::parse_directory(payload);
+    const auto decoded = load_cached_milo_directory(ark, *entry, ark_path);
+    const auto& payload = decoded->payload;
+    const auto& dir = decoded->directory;
     for (const auto& de : dir.entries) {
       if (de.type != "TransAnim" || de.name != anim_name ||
           de.offset + de.size > payload.size()) {
@@ -1478,10 +1489,9 @@ std::map<std::string, MatAnimColorKeys> load_track_mat_anim_colors(
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
     auto entry = ark.find("track/gen/track.milo_ps2");
     if (!entry) return out;
-    auto bytes = ark.read_entry(*entry, {ark_path});
-    auto hdr = gh::milo::parse_header(bytes);
-    auto payload = gh::milo::inflate_payload(bytes, hdr);
-    auto dir = gh::milo::parse_directory(payload);
+    const auto decoded = load_cached_milo_directory(ark, *entry, ark_path);
+    const auto& payload = decoded->payload;
+    const auto& dir = decoded->directory;
     for (const auto& de : dir.entries) {
       if (de.type != "MatAnim" || de.offset + de.size > payload.size())
         continue;
@@ -1580,10 +1590,9 @@ HighwayRenderer::MeshTransformAnim load_track_intro_transanim_source_order(
     auto entry = ark.find("track/gen/track.milo_ps2");
     if (!entry) entry = ark.find("../../system/run/track/gen/track.milo_ps2");
     if (!entry) return out;
-    const auto bytes = ark.read_entry(*entry, {ark_path});
-    const auto hdr = gh::milo::parse_header(bytes);
-    const auto payload = gh::milo::inflate_payload(bytes, hdr);
-    const auto dir = gh::milo::parse_directory(payload);
+    const auto decoded = load_cached_milo_directory(ark, *entry, ark_path);
+    const auto& payload = decoded->payload;
+    const auto& dir = decoded->directory;
     for (const auto& de : dir.entries) {
       if (de.type != "TransAnim" || de.name != anim_name ||
           de.offset + de.size > payload.size()) {
@@ -1706,10 +1715,9 @@ std::map<std::string, TrackParticleAnim> load_track_particle_anims(
     auto entry = ark.find("track/gen/track.milo_ps2");
     if (!entry) entry = ark.find("../../system/run/track/gen/track.milo_ps2");
     if (!entry) return out;
-    const auto bytes = ark.read_entry(*entry, {ark_path});
-    const auto hdr = gh::milo::parse_header(bytes);
-    const auto payload = gh::milo::inflate_payload(bytes, hdr);
-    const auto dir = gh::milo::parse_directory(payload);
+    const auto decoded = load_cached_milo_directory(ark, *entry, ark_path);
+    const auto& payload = decoded->payload;
+    const auto& dir = decoded->directory;
 
     auto read_count = [](const uint8_t* body, size_t size, size_t& pos,
                          uint32_t& count) {
@@ -3205,10 +3213,26 @@ void HighwayRenderer::load_track_graphics_config(const std::string& hdr_path,
 bool HighwayRenderer::load_textures(const std::string& hdr_path,
                                     const std::string& ark_path,
                                     const std::string& surface_ref,
-                                    bool timing_preview) {
+                                    bool timing_preview,
+                                    const std::function<void()>& loading_pump) {
   if (!dev_) return false;
+  const auto pump = [&]() {
+    if (loading_pump) loading_pump();
+  };
   if (!textures_.empty()) release_textures();
-  load_track_graphics_config(hdr_path, ark_path);
+  if (loading_pump) {
+    auto config = std::async(std::launch::async, [this, hdr_path, ark_path]() {
+      load_track_graphics_config(hdr_path, ark_path);
+    });
+    while (config.wait_for(std::chrono::milliseconds(8)) !=
+           std::future_status::ready) {
+      pump();
+    }
+    config.get();
+  } else {
+    load_track_graphics_config(hdr_path, ark_path);
+  }
+  pump();
   for (auto& mesh : gem_mesh_) mesh = RuntimeMesh{};
   for (auto& mesh : gem_specular_mesh_) mesh = RuntimeMesh{};
   for (auto& mesh : hopo_mesh_) mesh = RuntimeMesh{};
@@ -3343,9 +3367,11 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
   ghogx::milo_scene::Scene track_scene;
   if (ghogx::milo_scene::load_scene(hdr_path, ark_path,
                                     "track/gen/track.milo_ps2",
-                                    track_scene)) {
+                                    track_scene, loading_pump)) {
+    pump();
     const auto track_particle_anims =
         load_track_particle_anims(hdr_path, ark_path);
+    pump();
     std::vector<std::string> track_env_light_refs;
     if (const auto* track_env = track_scene.find_environ("track.env")) {
       track_env_light_refs = track_env->lights;
@@ -3778,6 +3804,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
       smasher_ring_add_meshes_[lane] =
           convert_mesh("smasher_rim.mesh", "now_ring_" + name + "_1.mat");
       alpha_key_source_alpha_ring_add(smasher_ring_add_meshes_[lane]);
+      pump();
     }
     star_base_mesh_ = convert_mesh("star_base.mesh");
     star_overlay_mesh_ = convert_mesh("star2.mesh");
@@ -3886,6 +3913,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
     };
     pc_standard_top_mesh_ = make_pc_standard_top_mesh(gem_top_mesh_);
     gem_glow_mesh_ = convert_mesh("glow.mesh");
+    pump();
     held_tight_tail_mesh_ = convert_mesh("tail02.mesh", "tail_glow_tight.mat");
     held_tight_tail_line_material_ =
         convert_line_material("tail_glow_tight.mat");
@@ -3963,6 +3991,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
     }
     bonus_spark1_mesh_ = convert_mesh("gem_bonus_spark1.mesh");
     bonus_spark2_mesh_ = convert_mesh("gem_bonus_spark2.mesh");
+    pump();
     track_surface_mesh_ = convert_mesh("track_surface5.mesh");
     track_mask_mesh_ = convert_mesh("track_mask.mesh");
     if (track_surface_mesh_.ok) {
@@ -3993,6 +4022,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
     track_lane_lines_mesh_ = convert_mesh("track_lane_lines5.mesh");
     track_extend_anim_ = load_track_intro_transanim_source_order(
         hdr_path, ark_path, "extend_track_normal.tnm");
+    pump();
     if (!mesh_transform_anim_empty(track_extend_anim_)) {
       std::fprintf(
           stderr,
@@ -4085,8 +4115,10 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
                      combo_lightning_anim_[i].scale_keys.size(),
                      combo_lightning_anim_duration_frames_[i]);
       }
+      pump();
     }
     const auto side_rail_anims = load_track_mat_anim_colors(hdr_path, ark_path);
+    pump();
     side_rails_building_ = side_rail_color_from_anim(
         side_rail_anims, "side_rails_building.mnm", false);
     side_rails_none_ =
@@ -4459,7 +4491,9 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
   const std::vector<std::string> names(texture_names.begin(),
                                        texture_names.end());
   auto imgs = ghogx::asset::load_milo_textures(hdr_path, ark_path,
-                                               "track/gen/track.milo_ps2", names);
+                                               "track/gen/track.milo_ps2", names,
+                                               loading_pump);
+  pump();
   if (imgs.empty()) { std::fprintf(stderr, "[highway] no track textures\n"); return false; }
 
   slot_lane_colors_ = kDefaultSlotLaneColors;
@@ -4507,6 +4541,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
     return t;
   };
 
+  std::size_t uploaded_images = 0;
   for (auto& kv : imgs) {
     const bool alpha_key_black_card =
         is_note_black_card_tex_name(kv.first, slot_color_names_);
@@ -4522,6 +4557,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
         textures_[kStarBlackTopTextureAlias] = t;
       }
     }
+    if (++uploaded_images % 8 == 0) pump();
   }
   for (const auto& source_name : smasher_ring_add_alpha_key_sources) {
     auto it = imgs.find(source_name);
@@ -4556,6 +4592,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
   const ghogx::asset::Image surface =
       ghogx::asset::load_track_surface_bitmap(
           hdr_path, ark_path, surface_ref, &surface_path);
+  pump();
   if (!surface_path.empty()) {
     if (IDirect3DTexture9* t =
             upload_image(surface, HighwayTextureAlphaMode::Raw)) {

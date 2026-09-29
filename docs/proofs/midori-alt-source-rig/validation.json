@@ -1,0 +1,27 @@
+{
+  "status": "alternate outfit gameplay probe; pending visual approval",
+  "shared_animation_banks_identical": {
+    "community.gh3.midori/content/char/gh3_midori/anims/gen/gh3_midori_fret.milo_ps2": true,
+    "community.gh3.midori/content/char/gh3_midori/anims/gen/gh3_midori_main.milo_ps2": true,
+    "community.gh3.midori/content/char/gh3_midori/anims/gen/gh3_midori_strum.milo_ps2": true,
+    "community.gh3.midori/content/char/gh3_midori/anims/gen/gh3_midori_ui.milo_ps2": true
+  },
+  "source_geometry_check": "Independent NXTools render confirms large bow geometry; not retail runtime validation",
+  "reviewed_gameplay_frames": [
+    60,
+    120,
+    180,
+    238
+  ],
+  "runtime": [
+    "[world] performer hand map clips: role=guitarist0 handDriver=1 loaded=12 maps=7 ikHands=2 ikMidis=1",
+    "[world] performer loaded: role=guitarist0 track=PART GUITAR char=gh3_midori_2 model=char/gh3_midori_2/og/gen/gh3_midori_2.milo_ps2",
+    "[source-servo] role=guitarist0 enabled=1 main=gh3_source_idle servos=1 owner=Character.local hand_publish=compatibility-after-servo"
+  ],
+  "reviewed_final_camera_frames": [
+    60,
+    120,
+    238
+  ],
+  "review_scope": "Sampled still frames; not an exhaustive frame-by-frame review. reviewed_gameplay_frames refers to the initial closer camera."
+}

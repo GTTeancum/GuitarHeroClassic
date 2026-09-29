@@ -1,0 +1,324 @@
+{
+  "model": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\rb2.penelope_mcqueen\\content\\char\\rb2_penelope_mcqueen\\og\\gen\\rb2_penelope_mcqueen.milo_ps2",
+  "applied": true,
+  "materials": [
+    {
+      "material": "penelope_eyebrows.mat",
+      "identical_body_offsets": [
+        4080474,
+        4080659,
+        4081214,
+        4081769
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "penelope_eyes.mat",
+      "identical_body_offsets": [
+        4080474,
+        4080659,
+        4081214,
+        4081769
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "penelope_hair_maohat.mat",
+      "identical_body_offsets": [
+        4080474,
+        4080659,
+        4081214,
+        4081769
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "penelope_mouth.mat",
+      "identical_body_offsets": [
+        4080474,
+        4080659,
+        4081214,
+        4081769
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "penelope_feet_thighhighheel.mat",
+      "identical_body_offsets": [
+        4080844,
+        4081029,
+        4082509
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "penelope_hair_hippybangs.mat",
+      "identical_body_offsets": [
+        4080844,
+        4081029,
+        4082509
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "penelope_torso_skin.mat",
+      "identical_body_offsets": [
+        4080844,
+        4081029,
+        4082509
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "penelope_head_skin.mat",
+      "identical_body_offsets": [
+        4081399,
+        4081584,
+        4081954,
+        4082139
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "penelope_legs_socks.mat",
+      "identical_body_offsets": [
+        4081399,
+        4081584,
+        4081954,
+        4082139
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "penelope_puffyskirt.mat",
+      "identical_body_offsets": [
+        4081399,
+        4081584,
+        4081954,
+        4082139
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "penelope_torso_puffedsleeves.mat",
+      "identical_body_offsets": [
+        4081399,
+        4081584,
+        4081954,
+        4082139
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "penelope_torso_puffedsleeves_necklace.mat",
+      "identical_body_offsets": [
+        4082324
+      ],
+      "before": [
+        0,
+        1
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "rock1_hair2.mat",
+      "identical_body_offsets": [
+        383031
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "rocker1_armL.mat",
+      "identical_body_offsets": [
+        383533
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "rocker1_armR.mat",
+      "identical_body_offsets": [
+        382711
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "rocker1_hair.mat",
+      "identical_body_offsets": [
+        383366
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "rocker1_head.mat",
+      "identical_body_offsets": [
+        383700
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "rocker1_legs.mat",
+      "identical_body_offsets": [
+        382544
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "rocker1_torso.mat",
+      "identical_body_offsets": [
+        383198
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    },
+    {
+      "material": "shadow.mat",
+      "identical_body_offsets": [
+        382878
+      ],
+      "before": [
+        1,
+        0
+      ],
+      "after": [
+        1,
+        0
+      ]
+    }
+  ],
+  "changed_bytes": 24,
+  "only_material_lighting_changed": true,
+  "before_sha256": "31dbd5e533edf3cd987c7bf4ab6721b6a9b4019052e7beb9ef716a895c71ddf0",
+  "after_sha256": "e744a573e5aa26d7071fcba7ae768d95a004a954598badd10795c96e91e0d22f",
+  "updated_packages": [
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\DLC\\rb2.penelope_mcqueen",
+    "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\DLC\\rb2.penelope_mcqueen"
+  ]
+}

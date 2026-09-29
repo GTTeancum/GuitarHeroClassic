@@ -1,0 +1,28 @@
+{
+  "before": {
+    "frames": 181,
+    "range_inches": [
+      0.5724514818697601,
+      0.63170150619161,
+      0.3021079953721282
+    ],
+    "max_step_inches": 0.4917467233298065
+  },
+  "after": {
+    "frames": 181,
+    "range_inches": [
+      1.0454518462572455,
+      1.1822960783690437,
+      0.42493624442741584
+    ],
+    "max_step_inches": 0.8747167267208162
+  },
+  "strict_binding_all_pages_exit": 0,
+  "change": "No forced beat alignment; zero crossfade for source delta hand strokes. Authored samples unchanged.",
+  "stock_strum_default_play_flags": 0,
+  "pages": [
+    "PAGES\tC:\\Users\\smmel\\AppData\\Local\\Temp\\midori-strum-fix-20260908\\DLC\\community.gh3.midori\\content\\char\\gh3_midori\\anims\\gen\\gh3_midori_main.milo_ps2\t5\t5\t1045\t1228920\t30",
+    "PAGES\tC:\\Users\\smmel\\AppData\\Local\\Temp\\midori-strum-fix-20260908\\DLC\\community.gh3.midori\\content\\char\\gh3_midori\\anims\\gen\\gh3_midori_fret.milo_ps2\t9\t9\t279\t124992\t54",
+    "PAGES\tC:\\Users\\smmel\\AppData\\Local\\Temp\\midori-strum-fix-20260908\\DLC\\community.gh3.midori\\content\\char\\gh3_midori\\anims\\gen\\gh3_midori_strum.milo_ps2\t4\t4\t73\t28616\t24"
+  ]
+}

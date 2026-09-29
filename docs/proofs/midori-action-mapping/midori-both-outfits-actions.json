@@ -1,0 +1,36 @@
+{
+  "format": "Native game captures, 15 fps, silent, side-by-side, selected segments",
+  "segments": [
+    {
+      "action": "Playing",
+      "first_frame": 360,
+      "end_frame_exclusive": 540
+    },
+    {
+      "action": "Idle",
+      "first_frame": 180,
+      "end_frame_exclusive": 300
+    },
+    {
+      "action": "Solo",
+      "first_frame": 600,
+      "end_frame_exclusive": 840
+    },
+    {
+      "action": "Extreme",
+      "first_frame": 960,
+      "end_frame_exclusive": 1140
+    },
+    {
+      "action": "Jump and resume",
+      "first_frame": 1260,
+      "end_frame_exclusive": 1440
+    },
+    {
+      "action": "Walking while playing",
+      "first_frame": 1800,
+      "end_frame_exclusive": 2160
+    }
+  ],
+  "duration_seconds": 21.0
+}

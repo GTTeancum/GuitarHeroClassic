@@ -28,6 +28,7 @@ class ManageBandPanel final : public UiObject {
   enum class Stage { Categories, Values };
 
   void enter();
+  void unload();
   void handle_button(Symbol button);
   void move(int direction);
   void confirm();

@@ -16,6 +16,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -329,7 +330,9 @@ struct MenuTextStyle {
 // text-bearing objects. Empty on failure (logged).
 std::vector<MenuLabel> extract_menu_labels(const std::string& hdr_path,
                                            const std::string& ark_path,
-                                           const std::string& milo_path);
+                                           const std::string& milo_path,
+                                           const std::function<void()>&
+                                               loading_pump = {});
 
 // Decode CheckBox/CheckboxDisplay widget state and RndTrans matrices. The
 // renderer uses this to draw the shared checkbox.milo resource at the authored

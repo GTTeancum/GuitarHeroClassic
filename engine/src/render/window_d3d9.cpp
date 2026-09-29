@@ -22,6 +22,7 @@ struct Window::Impl {
   IDirect3D9* d3d = nullptr;
   IDirect3DDevice9* dev = nullptr;
   bool should_close = false;
+  bool accepts_input = false;
   int bb_w = 0;  // back-buffer dimensions (full-screen quad size)
   int bb_h = 0;
   IDirect3DTexture9* blit_tex = nullptr;  // lazily (re)created for blit
@@ -130,6 +131,15 @@ LRESULT CALLBACK wnd_proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       return 0;
     case WM_KEYUP:
       if (impl && wp < 256) impl->key_now[wp] = false;
+      return 0;
+    case WM_KILLFOCUS:
+      // Key-up messages are not guaranteed to return to this window after it
+      // loses focus. Do not leave a menu/gameplay key logically held while the
+      // player is using another application.
+      if (impl) {
+        std::memset(impl->key_now, 0, sizeof(impl->key_now));
+        std::memset(impl->key_prev, 0, sizeof(impl->key_prev));
+      }
       return 0;
     default:
       return DefWindowProc(h, msg, wp, lp);
@@ -282,6 +292,13 @@ void Window::pump() {
     TranslateMessage(&msg);
     DispatchMessage(&msg);  // updates impl_->key_now via wnd_proc
   }
+
+  // XInput is process-global and continues reporting a controller while this
+  // window is in the background. Keep sampling it below so edge history stays
+  // coherent, but expose no live input unless this game owns the foreground.
+  // Otherwise controller input meant for another game can navigate GHOGX all
+  // the way into a song behind that game's window.
+  impl_->accepts_input = impl_->hwnd && GetForegroundWindow() == impl_->hwnd;
 
   const bool mouse_active =
       impl_->relative_mouse && impl_->hwnd &&
@@ -451,10 +468,12 @@ void Window::pump() {
 }
 
 uint32_t Window::guitar_input_edge() const {
+  if (!impl_->accepts_input) return 0;
   return impl_->gh_now & ~impl_->gh_prev;  // bits that rose 0→1 this frame
 }
 
 uint32_t Window::guitar_input_held() const {
+  if (!impl_->accepts_input) return 0;
   return impl_->gh_now & (0x1Fu | (1u << 7));
 }
 
@@ -465,11 +484,13 @@ void Window::show_no_activate() {
 }
 
 float Window::guitar_whammy_axis() const {
+  if (!impl_->accepts_input) return 0.0f;
   return impl_->gh_whammy_axis;
 }
 
 bool Window::action_pressed(Action a) const {
   const Impl* p = impl_.get();
+  if (!p->accepts_input) return false;
   auto key_edge = [p](int vk) { return p->key_now[vk] && !p->key_prev[vk]; };
   auto pad_edge = [p](unsigned short m) {
     return (p->pad_now & m) != 0 && (p->pad_prev & m) == 0;
@@ -498,6 +519,8 @@ bool Window::action_pressed(Action a) const {
       return key_edge(VK_LEFT) || pad_edge(XINPUT_GAMEPAD_DPAD_LEFT);
     case Action::Right:
       return key_edge(VK_RIGHT) || pad_edge(XINPUT_GAMEPAD_DPAD_RIGHT);
+    case Action::BlueFret:
+      return guitar_edge(1u << 3);
     case Action::YellowFret:
       // Use the guitar abstraction so keyboard D, an Xbox guitar, and the
       // standard-controller RB fallback all produce exactly the same edge.
@@ -513,6 +536,7 @@ int Window::connected_gamepads() const {
 
 bool Window::key_down(int virtual_key) const {
   if (!impl_ || virtual_key < 0 || virtual_key >= 256) return false;
+  if (!impl_->accepts_input) return false;
   return impl_->key_now[virtual_key];
 }
 

@@ -1,0 +1,56 @@
+{
+  "executable": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\ghogx_app.exe",
+  "executable_sha256": "3b7ba20a5246db1e484d02d8a38df068077ff1d0ca21619f3181d0a11cb81582",
+  "working_directory": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets",
+  "profile_source": "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\save\\ghogx_profile_v1.txt",
+  "profile_source_sha256": "5d69e29c64ef478b0688c763e2b02e74a2c7a911d8647f6bc01fc72e89608469",
+  "profile_source_unchanged": true,
+  "profile_method": "Byte-identical copy of actual saved profile at run start; only the copy may be written by game.",
+  "setlists_sha256": "7b20f6552930682d6749e0467971cd995b80be66946734fda8b854e6155f9c54",
+  "command": [
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\ghogx_app.exe",
+    "--menu",
+    "--ark-dir",
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN",
+    "--fixed-dt",
+    "0.016666667",
+    "--mute-audio",
+    "--diagnostic-autoplay",
+    "--frames",
+    "1400",
+    "--screenshot-dir",
+    "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\docs\\proofs\\quickplay-buckets-20260916\\actual-profile",
+    "--screenshot-frames",
+    "360,1350"
+  ],
+  "environment_overrides": {
+    "GHOGX_PROFILE_PATH": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\docs\\proofs\\quickplay-buckets-20260916\\actual-profile\\profile-input.txt",
+    "GHOGX_MENU_START_SCREEN": "qp_selsong_screen",
+    "GHOGX_MENU_DISABLE_LIVE_INPUT": "1",
+    "GHOGX_HIDE_WINDOW": "1",
+    "GHOGX_MENU_PROOF_INPUT": "120:yellow,180:down,200:down,220:down,240:down,260:down,420:blue,560:confirm",
+    "GHOGX_MENU_DIAGNOSTIC_SONG_START_SEC": "30"
+  },
+  "exit_code": 0,
+  "evidence": [
+    "[setlists] loaded Setlists/10-disc-setlists.json: 2 buckets",
+    "[setlists] loaded Setlists/10-disc-setlists.json: 2 buckets",
+    "[profile] loaded path=C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\docs\\proofs\\quickplay-buckets-20260916\\actual-profile\\profile-input.txt version=2 active=0 cash=0 profiles=1 unlocks=0 values=0",
+    "[profile] saved path=C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\docs\\proofs\\quickplay-buckets-20260916\\actual-profile\\profile-input.txt version=2 active=0 cash=0 unlocks=0 values=0",
+    "[setlists] selected=gh1 songs=47 first=iloverockandroll",
+    "[ghogx] screenshot saved: C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\docs\\proofs\\quickplay-buckets-20260916\\actual-profile\\frame_00360.bmp (960x720)",
+    "[flow] Quickplay handoff: selection=preferences character=rb2_penelope_mcqueen outfit=rb2_penelope_mcqueen_default guitar=rb2_guitar_jaguar03 skin=rb2_guitar_jaguar03_woodmaple_skin venue=gh1_big_club",
+    "[flow] selected song handoff: provider_index=5 song=ironman mode=quickplay venue=gh1_big_club intro_category=INTRO",
+    "[flow] gameplay ready: ironman diff=1 autoplay=1",
+    "[ghogx] screenshot saved: C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\docs\\proofs\\quickplay-buckets-20260916\\actual-profile\\frame_01350.bmp (960x720)"
+  ],
+  "visual_review": {
+    "frame_00360.bmp": "GH1 header, Small Club section, selected Iron Man, Yellow Setlist and Blue My Band footer visible.",
+    "frame_01350.bmp": "Penelope on GH1 Big Club stage; live notes, crowd, scoring visible. Saved Jaguar selection confirmed in native handoff; mesh/skin fidelity not certified."
+  },
+  "limits": [
+    "Selected stills only",
+    "Muted diagnostic autoplay",
+    "No physical controller verification"
+  ]
+}

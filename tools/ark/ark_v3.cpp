@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -188,6 +189,18 @@ struct CachedHdr {
     FileStamp stamp;
     ArkV3Reader reader;
 };
+
+struct EntryByteCache {
+    std::mutex mutex;
+    std::map<std::string, std::shared_ptr<const std::vector<uint8_t>>> entries;
+    std::deque<std::string> insertion_order;
+    size_t total_bytes = 0;
+};
+
+EntryByteCache& entry_byte_cache() {
+    static EntryByteCache cache;
+    return cache;
+}
 
 }  // anonymous namespace
 
@@ -457,18 +470,37 @@ ArkV3Reader ArkV3Reader::load(const std::string& hdr_path) {
 }
 
 std::vector<uint8_t> ArkV3Reader::read_entry(const Entry& e,
-                                             const std::vector<std::string>& ark_paths) const {
+                                              const std::vector<std::string>& ark_paths) const {
+    return *read_entry_shared(e, ark_paths);
+}
+
+std::shared_ptr<const std::vector<uint8_t>> ArkV3Reader::read_entry_shared(
+    const Entry& e, const std::vector<std::string>& ark_paths,
+    const std::function<void()>& progress) const {
+    const auto read_bytes = [&](std::ifstream& file, size_t byte_count,
+                                const std::string& source) {
+        auto mutable_bytes = std::make_shared<std::vector<uint8_t>>(byte_count);
+        constexpr size_t kReadChunk = 1024u * 1024u;
+        size_t position = 0;
+        while (position < byte_count) {
+            const size_t count = std::min(kReadChunk, byte_count - position);
+            file.read(reinterpret_cast<char*>(mutable_bytes->data() + position),
+                      static_cast<std::streamsize>(count));
+            if (!file) throw std::runtime_error("short read on " + source);
+            position += count;
+            if (progress) progress();
+        }
+        return std::shared_ptr<const std::vector<uint8_t>>(mutable_bytes);
+    };
     if (!e.loose_path.empty()) {
         std::ifstream f(e.loose_path, std::ios::binary | std::ios::ate);
         if (!f) throw std::runtime_error("cannot open loose file " + e.loose_path);
         const std::streamoff size = f.tellg();
         if (size < 0) throw std::runtime_error("cannot size loose file " + e.loose_path);
+        if (progress) progress();
         f.seekg(0);
-        std::vector<uint8_t> buf(static_cast<size_t>(size));
-        if (!buf.empty())
-            f.read(reinterpret_cast<char*>(buf.data()), size);
-        if (!f) throw std::runtime_error("short read on loose file " + e.loose_path);
-        return buf;
+        return read_bytes(f, static_cast<size_t>(size),
+                          "loose file " + e.loose_path);
     }
     const std::vector<std::string> expanded_paths =
         expand_ark_paths_from_first_part(ark_paths, ark_part_sizes_.size());
@@ -476,14 +508,61 @@ std::vector<uint8_t> ArkV3Reader::read_entry(const Entry& e,
         expanded_paths[e.ark_part].empty()) {
         throw std::runtime_error("ark_paths missing entry for part " + std::to_string(e.ark_part));
     }
-    std::ifstream f(expanded_paths[e.ark_part], std::ios::binary);
-    if (!f) throw std::runtime_error("cannot open " + expanded_paths[e.ark_part]);
+    const std::string& source_path = expanded_paths[e.ark_part];
+    const FileStamp source_stamp = stamp_file(source_path);
+    std::ostringstream cache_key_stream;
+    cache_key_stream << cache_key_for(source_path) << '|' << e.offset << '|'
+                     << e.size;
+    if (source_stamp.valid) {
+        cache_key_stream << '|' << source_stamp.size << '|'
+                         << source_stamp.write_time.time_since_epoch().count();
+    }
+    const std::string byte_cache_key = cache_key_stream.str();
+    {
+        auto& cache = entry_byte_cache();
+        std::lock_guard<std::mutex> lock(cache.mutex);
+        const auto cached = cache.entries.find(byte_cache_key);
+        if (cached != cache.entries.end()) return cached->second;
+    }
+
+    if (progress) progress();
+    std::ifstream f(source_path, std::ios::binary);
+    if (!f) throw std::runtime_error("cannot open " + source_path);
     f.seekg(static_cast<std::streamoff>(e.offset));
-    if (!f) throw std::runtime_error("seek past end of " + expanded_paths[e.ark_part]);
-    std::vector<uint8_t> buf(e.size);
-    f.read(reinterpret_cast<char*>(buf.data()), e.size);
-    if (!f) throw std::runtime_error("short read on " + expanded_paths[e.ark_part]);
+    if (!f) throw std::runtime_error("seek past end of " + source_path);
+    auto buf = read_bytes(f, e.size, source_path);
+    constexpr size_t kMaxCachedEntryBytes = 128u * 1024u * 1024u;
+    constexpr size_t kMaxEntryCacheBytes = 256u * 1024u * 1024u;
+    if (buf->size() <= kMaxCachedEntryBytes) {
+        auto& cache = entry_byte_cache();
+        std::lock_guard<std::mutex> lock(cache.mutex);
+        while (!cache.insertion_order.empty() &&
+               cache.total_bytes + buf->size() > kMaxEntryCacheBytes) {
+            const std::string oldest = std::move(cache.insertion_order.front());
+            cache.insertion_order.pop_front();
+            const auto found = cache.entries.find(oldest);
+            if (found == cache.entries.end()) continue;
+            cache.total_bytes -= found->second->size();
+            cache.entries.erase(found);
+        }
+        const auto [it, inserted] =
+            cache.entries.emplace(byte_cache_key, buf);
+        if (inserted) {
+            cache.total_bytes += it->second->size();
+            cache.insertion_order.push_back(byte_cache_key);
+        } else {
+            return it->second;
+        }
+    }
     return buf;
+}
+
+void ArkV3Reader::clear_entry_byte_cache() {
+    auto& cache = entry_byte_cache();
+    std::lock_guard<std::mutex> lock(cache.mutex);
+    cache.entries.clear();
+    cache.insertion_order.clear();
+    cache.total_bytes = 0;
 }
 
 std::optional<Entry> ArkV3Reader::find(std::string_view full_path) const {

@@ -16,6 +16,23 @@ import first_run_setup as first_run
 
 
 class DlcInstallerTests(unittest.TestCase):
+    def test_shared_quickplay_file_is_installed_and_user_edits_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            result = installer.install_quickplay_setlists(root)
+            path = Path(result["path"])
+            document = json.loads(path.read_text())
+            self.assertEqual([row["id"] for row in document["setlists"]], ["gh1", "gh80s"])
+            self.assertEqual([sum(len(s["songs"]) for s in row["sections"])
+                              for row in document["setlists"]], [47, 30])
+            self.assertTrue(all(s["default_venue"] for row in document["setlists"]
+                                for s in row["sections"]))
+            self.assertEqual(installer.install_quickplay_setlists(root)["status"], "unchanged")
+            document["setlists"][0]["label"] = "My GH1 setlist"
+            path.write_text(json.dumps(document))
+            self.assertEqual(installer.install_quickplay_setlists(root)["status"], "preserved_user_file")
+            self.assertEqual(json.loads(path.read_text())["setlists"][0]["label"], "My GH1 setlist")
+
     def test_windowed_worker_tolerates_missing_console_stream(self) -> None:
         class Process:
             stdout = ["GHC_SETUP_PROGRESS 50 Working\n"]

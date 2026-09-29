@@ -12,7 +12,9 @@ namespace ghogx::ui {
 namespace {
 
 constexpr int kCategoryCount = 12;
-constexpr int kVisibleRows = 7;
+constexpr int kDefaultVisibleRows = 7;
+constexpr int kGuitarVisibleRows = 8;
+constexpr int kMaxVisibleRows = kGuitarVisibleRows;
 constexpr int kSelectedRow = 2;
 
 bool is_up(Symbol button) {
@@ -307,6 +309,57 @@ void ManageBandPanel::enter() {
   std::fprintf(stderr, "[manage-band] enter categories=%d\n", kCategoryCount);
 }
 
+void ManageBandPanel::unload() {
+  stage_ = Stage::Categories;
+  category_ = 9;
+  value_index_ = 0;
+  flow_step_ = 0;
+  pending_parent_ = Symbol();
+  set_property(Symbol("row_count"), DataNode::Int(0));
+  set_property(Symbol("visible_rows"), DataNode::Int(0));
+  set_property(Symbol("selected"), DataNode::Int(0));
+  for (int row = 0; row < kMaxVisibleRows; ++row) {
+    set_property(Symbol(("row_text_" + std::to_string(row)).c_str()),
+                 DataNode::Str(""));
+    set_property(Symbol(("row_index_" + std::to_string(row)).c_str()),
+                 DataNode());
+  }
+  for (const char* property : {"preview_venue", "preview_previous_venue",
+                               "preview_next_venue"})
+    set_property(Symbol(property), DataNode());
+
+  if (Object* chars =
+          manager() ? manager()->find_object(Symbol("manage_band_char_preview"))
+                    : nullptr) {
+    chars->set_property(Symbol("showing"), DataNode::Int(0));
+    chars->set_property(Symbol("char_outfit_0"), DataNode());
+    chars->set_property(Symbol("char_loaded_0"), DataNode::Int(0));
+    chars->set_property(Symbol("char_object_0"), DataNode());
+    chars->set_property(Symbol("char_event_0"), DataNode());
+    chars->set_property(Symbol("char_transfer_pending_0"), DataNode::Int(0));
+    for (const char* property : {
+             "preview_model_path", "preview_anim_path",
+             "preview_previous_outfit", "preview_previous_model_path",
+             "preview_previous_anim_path", "preview_next_outfit",
+             "preview_next_model_path", "preview_next_anim_path"})
+      chars->set_property(Symbol(property), DataNode());
+  }
+  if (Object* guitar =
+          manager() ? manager()->find_object(Symbol("manage_band_guitar_preview"))
+                    : nullptr) {
+    guitar->set_property(Symbol("showing"), DataNode::Int(0));
+    guitar->set_property(Symbol("guitar"), DataNode());
+    guitar->set_property(Symbol("guitar_skin"), DataNode());
+    for (const char* property : {
+             "preview_previous_guitar", "preview_previous_skin",
+             "preview_next_guitar", "preview_next_skin"})
+      guitar->set_property(Symbol(property), DataNode());
+  }
+  std::fprintf(stderr,
+               "[manage-band] panel unload selection_state=cleared "
+               "preview_properties=cleared\n");
+}
+
 void ManageBandPanel::move(int direction) {
   if (stage_ == Stage::Categories) {
     category_ = (category_ + direction + kCategoryCount) % kCategoryCount;
@@ -394,7 +447,16 @@ void ManageBandPanel::confirm() {
       target->set_property(Symbol("selected_slot"), DataNode::Int(slot));
     manager()->goto_screen(Symbol("delete_confirm"));
   } else {
-    manager()->go_back();
+    const Symbol completion =
+        screen
+            ? screen->get_property(Symbol("completion_screen"))
+                  .as_symbol()
+                  .value_or(Symbol())
+            : Symbol();
+    if (completion.valid())
+      manager()->goto_screen(completion);
+    else
+      manager()->go_back();
   }
 }
 
@@ -419,10 +481,26 @@ void ManageBandPanel::back() {
 void ManageBandPanel::update_preview() {
   if (!manager()) return;
   set_property(Symbol("preview_venue"), DataNode());
+  set_property(Symbol("preview_previous_venue"), DataNode());
+  set_property(Symbol("preview_next_venue"), DataNode());
   Object* chars = manager()->find_object(Symbol("manage_band_char_preview"));
   Object* guitar = manager()->find_object(Symbol("manage_band_guitar_preview"));
-  if (chars) chars->set_property(Symbol("showing"), DataNode::Int(0));
-  if (guitar) guitar->set_property(Symbol("showing"), DataNode::Int(0));
+  if (chars) {
+    chars->set_property(Symbol("showing"), DataNode::Int(0));
+    for (const char* property : {
+             "preview_previous_outfit", "preview_previous_model_path",
+             "preview_previous_anim_path", "preview_next_outfit",
+             "preview_next_model_path", "preview_next_anim_path"}) {
+      chars->set_property(Symbol(property), DataNode());
+    }
+  }
+  if (guitar) {
+    guitar->set_property(Symbol("showing"), DataNode::Int(0));
+    for (const char* property : {
+             "preview_previous_guitar", "preview_previous_skin",
+             "preview_next_guitar", "preview_next_skin"})
+      guitar->set_property(Symbol(property), DataNode());
+  }
 
   int preview_category = category_;
   Symbol selected = stage_ == Stage::Values
@@ -459,7 +537,7 @@ void ManageBandPanel::update_preview() {
       chars->set_property(Symbol("char_outfit_0"), DataNode::Sym(selected));
       chars->set_property(Symbol("char_loaded_0"), DataNode::Int(0));
       chars->set_property(Symbol("char_event_0"),
-                          DataNode::Sym(Symbol("animate")));
+                          DataNode::Sym(Symbol("select")));
       // Lead guitarists have a compact, instrument-free UI pose and need to
       // move into the visual centre of the 40% bay. Backing performers retain
       // their wider instrument/microphone silhouette; lift those only slightly.
@@ -476,6 +554,51 @@ void ManageBandPanel::update_preview() {
         chars->set_property(Symbol("preview_model_path"), DataNode());
         chars->set_property(Symbol("preview_anim_path"), DataNode());
       }
+
+      // Publish the two likely next previews.  The renderer consumes these as
+      // a low-priority prefetch queue after it has presented the active item;
+      // they are not kept as an unbounded history of everything visited.
+      const int active_index =
+          choice && !choices.empty()
+              ? static_cast<int>(choice - choices.data())
+              : 0;
+      const auto publish_adjacent = [&](int direction, const char* stem) {
+        if (choices.size() < 2) return;
+        const int neighbor_index =
+            (active_index + direction + static_cast<int>(choices.size())) %
+            static_cast<int>(choices.size());
+        const Choice& neighbor =
+            choices[static_cast<std::size_t>(neighbor_index)];
+        Symbol neighbor_outfit = neighbor.id;
+        std::string neighbor_model = neighbor.model_path;
+        std::string neighbor_anim = neighbor.animation_path;
+        if (preview_category == 0 &&
+            !(stage_ == Stage::Values && flow_step_ == 1)) {
+          const auto outfits = db_->character_outfits(neighbor.id);
+          Symbol preferred = preference(Symbol("favorite_outfit"));
+          neighbor_outfit =
+              std::find(outfits.begin(), outfits.end(), preferred) !=
+                      outfits.end()
+                  ? preferred
+                  : (outfits.empty() ? Symbol() : outfits.front());
+          neighbor_model.clear();
+          neighbor_anim.clear();
+        }
+        if (!neighbor_outfit.valid() || neighbor_outfit == selected) return;
+        chars->set_property(
+            Symbol((std::string(stem) + "_outfit").c_str()),
+            DataNode::Sym(neighbor_outfit));
+        if (!neighbor_model.empty())
+          chars->set_property(
+              Symbol((std::string(stem) + "_model_path").c_str()),
+              DataNode::Str(neighbor_model));
+        if (!neighbor_anim.empty())
+          chars->set_property(
+              Symbol((std::string(stem) + "_anim_path").c_str()),
+              DataNode::Str(neighbor_anim));
+      };
+      publish_adjacent(-1, "preview_previous");
+      publish_adjacent(+1, "preview_next");
     }
   } else if (preview_category == 1 || preview_category == 7) {
     Symbol instrument = selected;
@@ -491,6 +614,38 @@ void ManageBandPanel::update_preview() {
         skin = selected;
       else skin = db_->first_guitar_skin(instrument);
       guitar->set_property(Symbol("guitar_skin"), DataNode::Sym(skin));
+
+      // Guitar/Bass display files can be just as expensive as characters once
+      // add-on textures are involved. Publish the neighboring pair so the
+      // render loop can prepare them only after the active frame is visible.
+      if (choices.size() > 1 && choice) {
+        const int active_index = static_cast<int>(choice - choices.data());
+        const auto publish_adjacent = [&](int direction, const char* stem) {
+          const int index =
+              (active_index + direction + static_cast<int>(choices.size())) %
+              static_cast<int>(choices.size());
+          const Symbol neighbor = choices[static_cast<std::size_t>(index)].id;
+          Symbol neighbor_guitar = neighbor;
+          Symbol neighbor_skin;
+          if (preview_category == 1 && stage_ == Stage::Values &&
+              flow_step_ == 1) {
+            neighbor_guitar = instrument;
+            neighbor_skin = neighbor;
+          } else {
+            neighbor_skin = db_->first_guitar_skin(neighbor_guitar);
+          }
+          if (!neighbor_guitar.valid()) return;
+          guitar->set_property(
+              Symbol((std::string(stem) + "_guitar").c_str()),
+              DataNode::Sym(neighbor_guitar));
+          if (neighbor_skin.valid())
+            guitar->set_property(
+                Symbol((std::string(stem) + "_skin").c_str()),
+                DataNode::Sym(neighbor_skin));
+        };
+        publish_adjacent(-1, "preview_previous");
+        publish_adjacent(+1, "preview_next");
+      }
     }
   } else if (preview_category == 8 && selected.valid()) {
     // Venue selection uses the approved static establishing shots in the
@@ -498,6 +653,19 @@ void ManageBandPanel::update_preview() {
     // the renderer can resolve release-owned artwork without hard-coding the
     // visible label or depending on list position.
     set_property(Symbol("preview_venue"), DataNode::Sym(selected));
+    if (choices.size() > 1 && choice) {
+      const int active_index = static_cast<int>(choice - choices.data());
+      const auto adjacent = [&](int direction) {
+        const int index =
+            (active_index + direction + static_cast<int>(choices.size())) %
+            static_cast<int>(choices.size());
+        return choices[static_cast<std::size_t>(index)].id;
+      };
+      set_property(Symbol("preview_previous_venue"),
+                   DataNode::Sym(adjacent(-1)));
+      set_property(Symbol("preview_next_venue"),
+                   DataNode::Sym(adjacent(+1)));
+    }
   }
 }
 
@@ -512,14 +680,18 @@ void ManageBandPanel::refresh() {
   const int count = stage_ == Stage::Categories
                         ? kCategoryCount
                         : static_cast<int>(choices_for_category(category_).size());
+  const int visible_rows =
+      stage_ == Stage::Values && category_ == 1 ? kGuitarVisibleRows
+                                                : kDefaultVisibleRows;
   set_property(Symbol("selected"), DataNode::Int(selected));
   set_property(Symbol("row_count"), DataNode::Int(count));
-  for (int row = 0; row < kVisibleRows; ++row) {
+  set_property(Symbol("visible_rows"), DataNode::Int(visible_rows));
+  for (int row = 0; row < kMaxVisibleRows; ++row) {
     std::string text;
-    if (count > 0) {
+    if (row < visible_rows && count > 0) {
       int index = 0;
       bool show_row = false;
-      if (count >= kVisibleRows) {
+      if (count >= visible_rows) {
         index = (selected - kSelectedRow + row + count * 2) % count;
         show_row = true;
       } else {
@@ -527,13 +699,15 @@ void ManageBandPanel::refresh() {
         // the active choice on the third line so category and value screens
         // share one stable focus position.
         const int first_row =
-            std::clamp(kSelectedRow - selected, 0, kVisibleRows - count);
+            std::clamp(kSelectedRow - selected, 0, visible_rows - count);
         show_row = row >= first_row && row < first_row + count;
         if (show_row) index = row - first_row;
       }
       if (!show_row) {
         set_property(Symbol(("row_text_" + std::to_string(row)).c_str()),
                      DataNode::Str(""));
+        set_property(Symbol(("row_index_" + std::to_string(row)).c_str()),
+                     DataNode());
         continue;
       }
       if (stage_ == Stage::Categories) {
@@ -544,6 +718,9 @@ void ManageBandPanel::refresh() {
       }
       set_property(Symbol(("row_index_" + std::to_string(row)).c_str()),
                    DataNode::Int(index));
+    } else {
+      set_property(Symbol(("row_index_" + std::to_string(row)).c_str()),
+                   DataNode());
     }
     set_property(Symbol(("row_text_" + std::to_string(row)).c_str()),
                  DataNode::Str(text));
@@ -561,6 +738,10 @@ void ManageBandPanel::handle_button(Symbol button) {
 DataNode ManageBandPanel::handle_property(Symbol msg, const DataArray& args) {
   if (msg == Symbol("enter")) {
     enter();
+    return DataNode();
+  }
+  if (msg == Symbol("unload")) {
+    unload();
     return DataNode();
   }
   if (msg == Symbol("BUTTON_DOWN_MSG")) {

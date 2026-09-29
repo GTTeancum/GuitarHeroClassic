@@ -1,0 +1,64 @@
+{
+  "date": "2026-09-08",
+  "method": "One fresh process per character, installed ghogx_app.exe, existing --manageband switch, 960x720, hidden native renderer, live DLC, disabled live input, two main-loop frames. OS file cache not flushed.",
+  "cases": {
+    "clive": {
+      "launch_to_preview_ready_seconds": 1.531934,
+      "submenu_to_preview_ready_seconds": 0.572005,
+      "texture_load_interval_seconds": 0.002553,
+      "model_loaded_at_seconds": 1.513248,
+      "model_summary": "[char] char/classic/og/gen/classic_ui.milo_ps2: 84 meshes (84 ok / 0 fail, 84 showing), 110 bones, 13 mat, 2 group, 0 morph, 2 upperTwist, 2 foreTwist, 0 neckTwist, 0 ikRod, 0 ikHand, 0 ikMidi, 1 servoBone, 0 lookAt, 0 eyes, 1 hair, 0 collide, 0 posConstraint, 0 boneOffset, 0 boneTwist, 0 lipServo, 0 animFilter, 0 eventTrigger, 0 object, 0 outfitLoader, 0 charWalk, 0 worldFx, 0 meshHide, 7 tex, 1 driver, 0 weightSetter, 3 opaque",
+      "ready_summary": "[menu-char] loaded player=0 outfit=classic source=char/classic/og/gen/classic_ui.milo_ps2 placer=char_multi0.placer placement=ui/gen/multi_sel_character.milo_ps2"
+    },
+    "duke": {
+      "launch_to_preview_ready_seconds": 6.10327,
+      "submenu_to_preview_ready_seconds": 5.096174,
+      "texture_load_interval_seconds": 0.010074,
+      "model_loaded_at_seconds": 6.078246,
+      "model_summary": "[char] char/rb2_duke_of_gravity/og/gen/rb2_duke_of_gravity.milo_ps2: 225 meshes (225 ok / 0 fail, 95 showing), 63 bones, 22 mat, 106 group, 101 morph, 2 upperTwist, 2 foreTwist, 0 neckTwist, 0 ikRod, 2 ikHand, 1 ikMidi, 1 servoBone, 2 lookAt, 1 eyes, 0 hair, 0 collide, 0 posConstraint, 0 boneOffset, 0 boneTwist, 0 lipServo, 100 animFilter, 100 eventTrigger, 0 object, 1 outfitLoader, 1 charWalk, 0 worldFx, 0 meshHide, 10 tex, 3 driver, 2 weightSetter, 0 opaque",
+      "ready_summary": "[menu-char] loaded player=0 outfit=rb2_duke_of_gravity_default source=char/rb2_duke_of_gravity/og/gen/rb2_duke_of_gravity.milo_ps2 placer=char_multi0.placer placement=ui/gen/multi_sel_character.milo_ps2"
+    },
+    "casey": {
+      "launch_to_preview_ready_seconds": 1.641928,
+      "submenu_to_preview_ready_seconds": 0.935722,
+      "texture_load_interval_seconds": 0.00492,
+      "model_loaded_at_seconds": 1.60934,
+      "model_summary": "[char] char/rock2/og/gen/rock2_ui.milo_ps2: 92 meshes (92 ok / 0 fail, 92 showing), 115 bones, 9 mat, 2 group, 0 morph, 2 upperTwist, 2 foreTwist, 0 neckTwist, 0 ikRod, 0 ikHand, 0 ikMidi, 1 servoBone, 0 lookAt, 0 eyes, 2 hair, 0 collide, 0 posConstraint, 0 boneOffset, 0 boneTwist, 0 lipServo, 0 animFilter, 0 eventTrigger, 0 object, 0 outfitLoader, 0 charWalk, 0 worldFx, 0 meshHide, 7 tex, 1 driver, 0 weightSetter, 3 opaque",
+      "ready_summary": "[menu-char] loaded player=0 outfit=rock2 source=char/rock2/og/gen/rock2_ui.milo_ps2 placer=char_multi0.placer placement=ui/gen/multi_sel_character.milo_ps2"
+    },
+    "penelope": {
+      "launch_to_preview_ready_seconds": 18.065271,
+      "submenu_to_preview_ready_seconds": 16.901694,
+      "texture_load_interval_seconds": 0.033461,
+      "model_loaded_at_seconds": 17.710952,
+      "model_summary": "[char] char/rb2_penelope_mcqueen/og/gen/rb2_penelope_mcqueen.milo_ps2: 265 meshes (265 ok / 0 fail, 141 showing), 842 bones, 20 mat, 4 group, 0 morph, 2 upperTwist, 2 foreTwist, 0 neckTwist, 0 ikRod, 2 ikHand, 1 ikMidi, 1 servoBone, 2 lookAt, 1 eyes, 2 hair, 0 collide, 0 posConstraint, 0 boneOffset, 0 boneTwist, 1 lipServo, 0 animFilter, 0 eventTrigger, 1 object, 1 outfitLoader, 1 charWalk, 5 worldFx, 0 meshHide, 9 tex, 3 driver, 2 weightSetter, 0 opaque",
+      "ready_summary": "[menu-char] loaded player=0 outfit=rb2_penelope_mcqueen_default source=char/rb2_penelope_mcqueen/og/gen/rb2_penelope_mcqueen.milo_ps2 placer=char_multi0.placer placement=ui/gen/multi_sel_character.milo_ps2"
+    }
+  },
+  "parser_microbenchmark": [
+    {
+      "character": "duke",
+      "bytes": 1727012,
+      "verify_seconds": 0.082824,
+      "list_seconds": 3.862779
+    },
+    {
+      "character": "penelope",
+      "bytes": 1371413,
+      "verify_seconds": 0.088134,
+      "list_seconds": 14.750432
+    }
+  ],
+  "findings": [
+    "Main cost is directory parsing before character decode completes; native list isolates this cost without textures, animation or rendering.",
+    "Stock menu variants load dedicated *_ui.milo_ps2 packages; RB2 manifests point ui_model at full gameplay packages.",
+    "RB2 packages include hidden donor meshes and additional transform/controller objects.",
+    "Penelope retarget donor load/setup occurs after its main package; it is approximately 0.3 seconds, not the primary delay.",
+    "The generic boundary recovery solver in tools/milo/milo.cpp explores subsequent terminators recursively and memoizes index/start states; this is the source area to optimize."
+  ],
+  "limitations": [
+    "Casey selected the stock rock2 menu outfit; its filename and loaded object counts are recorded below.",
+    "Timings are a single-run comparison, not statistically repeated or disk-cold measurements.",
+    "No engine or package behavior changed during this diagnostic."
+  ]
+}

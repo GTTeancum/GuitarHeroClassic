@@ -33,6 +33,7 @@
 #include "asset/milo_image.h"
 
 #include <array>
+#include <functional>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -61,7 +62,8 @@ class MenuFont {
   // entry, e.g. "ui/gen/impact.milo_ps2". Returns false (logged) on any failure.
   bool load(const std::string& hdr_path, const std::string& ark_path,
             const std::string& milo_path,
-            const std::string& font_entry_name = {});
+            const std::string& font_entry_name = {},
+            const std::function<void()>& loading_pump = {});
 
   bool valid() const { return atlas_.valid() && glyph_count_ > 0; }
 

@@ -10,11 +10,13 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <fstream>
+#include <future>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -283,7 +285,19 @@ SourceCharacterDrawClosure source_character_draw_closure(
         }
       };
   for (const auto& root : roots) collect(root);
-  result.authoritative = true;
+  // Some stock UI-only character directories (notably Grim's `grim_ui`)
+  // publish an active LOD group whose child list is empty even though all of
+  // the resident body meshes are already filtered for that UI directory.  An
+  // empty authoritative closure means "draw nothing" in our value renderer;
+  // the native engine instead draws those resident meshes.  Treat only this
+  // structurally empty result as non-authoritative.  Populated LOD closures
+  // keep their strict source-authored filtering.
+  if (result.meshes.empty()) {
+    result.authoritative = false;
+  }
+  else {
+    result.authoritative = true;
+  }
   return result;
 }
 
@@ -12450,11 +12464,33 @@ std::optional<float> rnd_morph_pose_peak_frame(
 }
 
 bool load_character(const std::string& hdr_path, const std::string& ark_path,
-                    const std::string& milo_path, Character& out) {
+                    const std::string& milo_path, Character& out,
+                    const std::function<void()>& loading_pump) {
+  if (loading_pump) {
+    auto pending = std::async(
+        std::launch::async,
+        [hdr_path, ark_path, milo_path]() {
+          Character loaded;
+          const bool ok =
+              load_character(hdr_path, ark_path, milo_path, loaded, {});
+          return std::make_pair(ok, std::move(loaded));
+        });
+    while (pending.wait_for(std::chrono::milliseconds(8)) !=
+           std::future_status::ready) {
+      loading_pump();
+    }
+    auto loaded = pending.get();
+    if (loaded.first) out = std::move(loaded.second);
+    loading_pump();
+    return loaded.first;
+  }
   try {
-    std::vector<uint8_t> bytes;
+    if (loading_pump) loading_pump();
+    std::shared_ptr<const std::vector<uint8_t>> bytes;
+    std::string directory_cache_key = milo_path;
     if (hdr_path.empty()) {
-      bytes = read_binary_file(milo_path);
+      bytes = std::make_shared<const std::vector<uint8_t>>(
+          read_binary_file(milo_path));
     } else {
       auto ark = gh::ark::ArkV3Reader::load(hdr_path);
       auto entry = ark.find(milo_path);
@@ -12463,11 +12499,16 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
         std::fprintf(stderr, "[char] not in ARK: %s\n", milo_path.c_str());
         return false;
       }
-      bytes = ark.read_entry(*entry, {ark_path});
+      directory_cache_key = ark_path + "\n" + entry->full_path;
+      bytes = ark.read_entry_shared(*entry, {ark_path}, loading_pump);
     }
-    auto hdr = gh::milo::parse_header(bytes);
-    auto payload = gh::milo::inflate_payload(bytes, hdr);
-    auto dir = gh::milo::parse_directory(payload);
+    if (loading_pump) loading_pump();
+    auto hdr = gh::milo::parse_header(*bytes);
+    const auto decoded = gh::milo::inflate_directory_cached(
+        directory_cache_key, *bytes, hdr, loading_pump);
+    if (loading_pump) loading_pump();
+    const auto& payload = decoded->payload;
+    const auto& dir = decoded->directory;
     out.dir_name = dir.dir_name;
     out.dir_type = dir.dir_type;
     out.dir_version = dir.dir_version;
@@ -12484,7 +12525,10 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
     decode_character_root(out);
 
     int mesh_ok = 0, mesh_fail = 0;
+    std::size_t decoded_entry_count = 0;
     for (const auto& de : dir.entries) {
+      if (loading_pump && (decoded_entry_count++ % 12u) == 0u)
+        loading_pump();
       ++out.object_type_counts[de.type];
       std::vector<uint8_t> b(payload.data() + de.offset,
                              payload.data() + de.offset + de.size);
@@ -12697,6 +12741,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
     for (SkinnedMesh& mesh : out.meshes) {
       apply_source_rndmesh_active_bones(mesh, &out);
     }
+    if (loading_pump) loading_pump();
     const size_t showing_meshes = static_cast<size_t>(std::count_if(
         out.meshes.begin(), out.meshes.end(),
         [](const SkinnedMesh& mesh) { return mesh.decoded && mesh.showing; }));

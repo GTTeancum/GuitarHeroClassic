@@ -2892,6 +2892,61 @@ void MiloSceneRenderer::set_text_batches(std::vector<TextBatch> batches) {
   }
 }
 
+void MiloSceneRenderer::clear_scene() {
+  set_scene(milo_scene::Scene{}, {});
+  set_text_batches({});
+
+  world_transform_ = {1, 0, 0, 0, 0, 1, 0, 0,
+                      0, 0, 1, 0, 0, 0, 0, 1};
+  additive_blend_ = false;
+  active_spotlight_filter_ = false;
+  active_spotlights_.clear();
+  active_particle_filter_ = false;
+  active_particle_systems_.clear();
+  particle_intensities_.clear();
+  particle_sizes_.clear();
+  particle_speeds_.clear();
+  particle_lifetimes_.clear();
+  particle_start_colors_.clear();
+  particle_end_colors_.clear();
+  particle_time_ = 0.0f;
+  hidden_meshes_.clear();
+  post_text_meshes_.clear();
+  post_text_mesh_world_offsets_.clear();
+  post_text_mesh_text_split_ = 0;
+  material_alpha_.clear();
+  material_alpha_overrides_.clear();
+  material_colors_.clear();
+  material_textures_.clear();
+  material_tex_transforms_.clear();
+  environment_lighting_enabled_ = true;
+  custom_viewport_ = false;
+  clear_depth_on_overlay_ = false;
+  force_environment_dynamic_lights_ = false;
+  global_brightness_ = 1.0f;
+  global_alpha_ = 1.0f;
+  mesh_environments_.clear();
+  legacy_environment_drawables_.clear();
+  default_environment_.clear();
+  selected_camera_name_.clear();
+  environment_color_overrides_.clear();
+  environment_fog_overrides_.clear();
+  light_color_overrides_.clear();
+  light_state_overrides_.clear();
+  mesh_translation_offsets_.clear();
+  mesh_transform_offsets_.clear();
+  transform_parent_overrides_.clear();
+  flare_steps_.clear();
+  mesh_position_overrides_.clear();
+  mesh_normal_overrides_.clear();
+  mesh_texcoord_overrides_.clear();
+  mesh_color_overrides_.clear();
+  mesh_anim_blends_.clear();
+  face_camera_meshes_.clear();
+  mesh_pulses_.clear();
+  active_mesh_anims_.clear();
+}
+
 void MiloSceneRenderer::set_viewport(int x, int y, int width, int height) {
   if (width <= 0 || height <= 0) {
     custom_viewport_ = false;

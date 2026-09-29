@@ -15,6 +15,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -100,7 +101,8 @@ class HighwayRenderer {
   // the track MILO default.
   bool load_textures(const std::string& hdr_path, const std::string& ark_path,
                      const std::string& surface_ref = std::string(),
-                     bool timing_preview = false);
+                     bool timing_preview = false,
+                     const std::function<void()>& loading_pump = {});
   bool textures_loaded() const { return loaded_; }
   bool textures_loaded_for_surface(const std::string& surface_ref) const {
     return loaded_ && loaded_surface_ref_ == surface_ref;

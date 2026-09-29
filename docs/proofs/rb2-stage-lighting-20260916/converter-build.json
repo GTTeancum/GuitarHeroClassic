@@ -1,0 +1,33 @@
+{
+  "steps": [
+    {
+      "command": [
+        "cmake",
+        "-S",
+        "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-main-ui-engine\\tools\\milo_convert",
+        "-B",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\ghogx-lighting-converter-75aeiv77",
+        "-G",
+        "Visual Studio 17 2022",
+        "-A",
+        "x64"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "cmake",
+        "--build",
+        "C:\\Users\\smmel\\AppData\\Local\\Temp\\ghogx-lighting-converter-75aeiv77",
+        "--config",
+        "Release",
+        "--target",
+        "milo_convert_tool",
+        "--parallel",
+        "2"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "scratch_removed": true
+}

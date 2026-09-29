@@ -1,0 +1,40 @@
+{
+  "command": [
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\ghogx_app.exe",
+    "--ark-dir",
+    "C:\\Programming\\GitHub\\Guitar Hero II\\gh2_ps2_hybrid_assets\\GEN",
+    "--addons-dir",
+    "C:\\Users\\smmel\\AppData\\Local\\Temp\\ghogx-midori-arm-review-20260908\\layered-playing\\DLC",
+    "--auto-start",
+    "--song",
+    "shoutatthedevil",
+    "--difficulty",
+    "3",
+    "--diagnostic-autoplay",
+    "--diagnostic-song-start",
+    "30",
+    "--diagnostic-character-variant",
+    "gh3_midori_1",
+    "--diagnostic-front-camera",
+    "guitarist0",
+    "--diagnostic-proof-lighting",
+    "--mute-audio",
+    "--defer-window-show",
+    "--render-size",
+    "960x720",
+    "--fixed-dt",
+    "0.125",
+    "--frames",
+    "66",
+    "--screenshot-dir",
+    "C:\\Users\\smmel\\AppData\\Local\\Temp\\midori-gameplay-proof-20260908\\frames",
+    "--screenshot-frames",
+    "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65",
+    "--diagnostic-guitar",
+    "xplorer"
+  ],
+  "environment": {
+    "GHOGX_DISABLE_SOURCE_SERVO_RUNTIME": "1"
+  },
+  "status": "Unapproved diagnostic fallback; normal source servo runtime crashes before frame 1"
+}

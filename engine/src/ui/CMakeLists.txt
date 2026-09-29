@@ -15,6 +15,10 @@ add_library(ghogx_ui_core STATIC
     manage_band_panel.cpp manage_band_panel.h
     soundcheck_panel.cpp soundcheck_panel.h
 )
+
+add_executable(ghogx_quickplay_setlists_test quickplay_setlists_test.cpp)
+target_link_libraries(ghogx_quickplay_setlists_test PRIVATE ghogx_ui_core)
+add_test(NAME ghogx_quickplay_setlists_test COMMAND ghogx_quickplay_setlists_test)
 target_include_directories(ghogx_ui_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_ui_core PUBLIC
     ghogx_core ghogx_script ghogx_dtb_bridge ghogx_chart ghogx_milo_scene

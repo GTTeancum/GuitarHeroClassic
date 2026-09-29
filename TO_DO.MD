@@ -10,7 +10,6 @@ proof manifests, and technical documentation—not in this queue.
 3. Decide whether to add a later-game-style HOPO glow.
 4. Prove the complete mixed-content gameplay matrix.
 5. Convert selected Rock Band 2 and Neversoft Guitar Hero characters to release-quality GH2 assets.
-6. Add data-driven setlist buckets and preference-aware launch controls.
 
 ## Standing requirements
 
@@ -85,7 +84,7 @@ Implementation and all-venue evidence: [3D crowd verification](docs/proofs/crowd
     to a deliberately selected roster rather than adding per-character
     exceptions.
 
-   Midori from Guitar Hero 3 has been certified by the player. Additional Neversoft characters and outfits will be requested by the user.
+   Midori from Guitar Hero 3 has been certified by the player. Additional Neversoft characters and outfits will be requested by the user. Where applicable, the character's original note highway texture should also be converted. This applies to Neversoft GH characters, but may not apply to RB2 characters.
 
     Ship every converted character as additive DLC with a unique character ID,
     portrait, outfit data, preferred guitar, and source-derived metadata. The
@@ -113,21 +112,3 @@ Implementation and all-venue evidence: [3D crowd verification](docs/proofs/crowd
     6. Casey Lynch outfits (PS2 GH3)
     7. Xavier Stone outfits (PS2 GH3)
     8. Clive Winston outfits (PS2 GHWT and GH Metallica) - user to supply disc images
-
-6. **Setlist buckets and Quickplay launch controls**
-
-    Add switchable, ordered Quickplay setlist buckets sourced from the merged
-    catalog. GH2, GH1, and GH80s remain distinct setlists. DLC manifests may
-    define additional buckets through their existing `setlists` records; any
-    Quickplay song not assigned to a declared bucket appears in one implicit
-    `DLC` bucket. Keep this separate from song-preview restoration.
-
-    Yellow switches setlist buckets by replacing the currently displayed song
-    list with the selected bucket's complete setlist and resetting the highlight
-    appropriately. It does not jump to another point in one combined master
-    list. Do not add an Orange action or a per-song manual
-    guitarist/guitar/venue screen. The setlist footer order is exactly:
-    Green = play with game/song defaults, Red = back, Yellow = switch setlist,
-    Blue = play with saved Manage Band preferences, Up/Down = navigate songs.
-    Backing-band outfit preferences remain active in both launch modes; the
-    Green/Blue distinction controls the Quickplay guitarist, guitar, and venue.

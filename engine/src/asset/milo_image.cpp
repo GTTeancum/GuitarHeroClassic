@@ -462,7 +462,8 @@ struct TextureSourceStats {
 TextureSourceStats load_milo_textures_from_source(
     const gh::ark::ArkV3Reader& ark, const std::string& ark_path,
     const std::string& milo_path, const std::unordered_set<std::string>& wanted,
-    std::map<std::string, Image>& out) {
+    std::map<std::string, Image>& out,
+    const std::function<void()>& loading_pump = {}) {
   TextureSourceStats stats;
   auto entry = find_entry(ark, milo_path);
   if (!entry) {
@@ -471,11 +472,18 @@ TextureSourceStats load_milo_textures_from_source(
   }
 
   auto bytes = ark.read_entry(*entry, {ark_path});
+  if (loading_pump) loading_pump();
   auto hdr = gh::milo::parse_header(bytes);
-  auto payload = gh::milo::inflate_payload(bytes, hdr);
-  auto dir = gh::milo::parse_directory(payload);
+  const auto decoded = gh::milo::inflate_directory_cached(
+      ark_path + "\n" + entry->full_path, bytes, hdr);
+  if (loading_pump) loading_pump();
+  const auto& payload = decoded->payload;
+  const auto& dir = decoded->directory;
+  if (loading_pump) loading_pump();
 
+  std::size_t visited = 0;
   for (const auto& de : dir.entries) {
+    if (loading_pump && ++visited % 12 == 0) loading_pump();
     if (de.type != "Tex" || wanted.find(de.name) == wanted.end()) continue;
     stats.found.insert(de.name);
     if (out.find(de.name) != out.end()) continue;
@@ -496,6 +504,7 @@ TextureSourceStats load_milo_textures_from_source(
                  img.rgba.empty()) {
         stats.empty.insert(de.name);
       }
+      if (loading_pump) loading_pump();
     } catch (const std::exception& ex) {
       std::fprintf(stderr, "[asset]   %s decode failed: %s\n", de.name.c_str(),
                    ex.what());
@@ -537,8 +546,10 @@ Image load_milo_texture(const std::string& hdr_path, const std::string& ark_path
 
     auto bytes = ark.read_entry(*entry, {ark_path});
     auto hdr = gh::milo::parse_header(bytes);
-    auto payload = gh::milo::inflate_payload(bytes, hdr);
-    auto dir = gh::milo::parse_directory(payload);
+    const auto decoded = gh::milo::inflate_directory_cached(
+        ark_path + "\n" + entry->full_path, bytes, hdr);
+    const auto& payload = decoded->payload;
+    const auto& dir = decoded->directory;
 
     long best_area = -1;
     for (const auto& de : dir.entries) {
@@ -593,8 +604,10 @@ Image load_milo_texture_named(const std::string& hdr_path,
     }
     auto bytes = ark.read_entry(*entry, {ark_path});
     auto hdr = gh::milo::parse_header(bytes);
-    auto payload = gh::milo::inflate_payload(bytes, hdr);
-    auto dir = gh::milo::parse_directory(payload);
+    const auto decoded = gh::milo::inflate_directory_cached(
+        ark_path + "\n" + entry->full_path, bytes, hdr);
+    const auto& payload = decoded->payload;
+    const auto& dir = decoded->directory;
 
     for (const auto& de : dir.entries) {
       if (de.type != "Tex" || de.name != entry_name) continue;
@@ -629,14 +642,17 @@ Image load_milo_texture_named(const std::string& hdr_path,
 
 std::map<std::string, Image> load_milo_textures(
     const std::string& hdr_path, const std::string& ark_path,
-    const std::string& milo_path, const std::vector<std::string>& entry_names) {
+    const std::string& milo_path, const std::vector<std::string>& entry_names,
+    const std::function<void()>& loading_pump) {
   std::map<std::string, Image> out;
   const std::unordered_set<std::string> wanted(entry_names.begin(),
                                                entry_names.end());
   try {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    if (loading_pump) loading_pump();
     const TextureSourceStats stats =
-        load_milo_textures_from_source(ark, ark_path, milo_path, wanted, out);
+        load_milo_textures_from_source(ark, ark_path, milo_path, wanted, out,
+                                       loading_pump);
     std::fprintf(stderr, "[asset] %s: loaded %zu/%zu requested textures\n",
                  milo_path.c_str(), out.size(), entry_names.size());
     log_unresolved_texture_requests(milo_path, entry_names, out, stats.found,
@@ -651,7 +667,8 @@ std::map<std::string, Image> load_milo_textures(
 std::map<std::string, Image> load_milo_textures_from_sources(
     const std::string& hdr_path, const std::string& ark_path,
     const std::vector<std::string>& milo_paths,
-    const std::vector<std::string>& entry_names) {
+    const std::vector<std::string>& entry_names,
+    const std::function<void()>& loading_pump) {
   std::map<std::string, Image> out;
   const std::unordered_set<std::string> wanted(entry_names.begin(),
                                                entry_names.end());
@@ -659,11 +676,14 @@ std::map<std::string, Image> load_milo_textures_from_sources(
   std::unordered_set<std::string> empty;
   try {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    if (loading_pump) loading_pump();
     for (const auto& milo_path : milo_paths) {
       const TextureSourceStats stats =
-          load_milo_textures_from_source(ark, ark_path, milo_path, wanted, out);
+          load_milo_textures_from_source(ark, ark_path, milo_path, wanted, out,
+                                         loading_pump);
       found.insert(stats.found.begin(), stats.found.end());
       empty.insert(stats.empty.begin(), stats.empty.end());
+      if (loading_pump) loading_pump();
       if (out.size() == entry_names.size()) break;
     }
     const std::string label =
@@ -740,8 +760,10 @@ std::string resolve_track_surface_bitmap_path(
       if (entry) {
         auto bytes = ark.read_entry(*entry, {ark_path});
         auto hdr = gh::milo::parse_header(bytes);
-        auto payload = gh::milo::inflate_payload(bytes, hdr);
-        auto dir = gh::milo::parse_directory(payload);
+        const auto decoded = gh::milo::inflate_directory_cached(
+            ark_path + "\n" + entry->full_path, bytes, hdr);
+        const auto& payload = decoded->payload;
+        const auto& dir = decoded->directory;
         for (const auto& de : dir.entries) {
           if (de.offset + de.size > payload.size()) continue;
           const auto strings = scan_packed_strings(
